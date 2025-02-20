@@ -1,0 +1,9 @@
+*.obj
+*.lst
+*.map
+*.out
+*.bak
+*.lib
+*.bin
+*.exe
+*.img
