@@ -117,4 +117,14 @@ cc3 tty >>tty.lst
 if errorlevel 1 goto fout10
 cc4 tty >>tty.lst
 :fout10
+if exist WINI.OBJ goto fout11
+echo    compiling: wini
+cc1 -di8088  wini >wini.lst
+if errorlevel 1 goto fout11
+cc2 wini >>wini.lst
+if errorlevel 1 goto fout11
+cc3 wini >>wini.lst
+if errorlevel 1 goto fout11
+cc4 wini >>wini.lst
+:fout11
 _link.bat

@@ -36,18 +36,18 @@ FLOPPY		EQU -5
 
 ; The following	procedures are defined in this file and	called from outside it.
 PUBLIC $main, tty_int, lpr_int,	clock_in, disk_int
-PUBLIC s_call, surprise, trp, restart
+PUBLIC s_call, surprise, trp, divide, restart
 
 
 ; The following	external procedures are	called in this file.
 EXTRN main:NEAR,  sys_call:NEAR, interrup:NEAR,	keyboard:NEAR
-EXTRN panic:NEAR, unexpect:NEAR, trap:NEAR, pr_char:NEAR
+EXTRN panic:NEAR, unexpect:NEAR, trap:NEAR, div_trap:NEAR, pr_char:NEAR
 
 
 ; Variables and	data structures.
-PUBLIC sizes, brksize, @end
+PUBLIC sizes, brksize, splimit,	@end
 EXTRN  cur_proc:WORD, proc_ptr:WORD, int_mess:WORD
-EXTRN  scan_cod:WORD, k_stack:WORD, splimit:WORD
+EXTRN  scan_cod:WORD, k_stack:WORD
 
 
 ; The following	constants are offsets into the proc table.
@@ -171,6 +171,15 @@ trp:				; This is where	unexpected traps come.
 
 
 ;===========================================================================
+;				divide					     
+;===========================================================================
+divide:				; This is where divide overflow traps come.
+	call save		; save the machine state
+	call div_trap		; print a message
+	jmp restart		; this error is not fatal
+
+
+;===========================================================================
 ;				save
 ;===========================================================================
 save:				; save the machine state in the	proc table.
@@ -258,6 +267,7 @@ L3:	wait			; just idle while waiting for interrupt
 @DATAB	SEGMENT			; datab	ensures	it is the beginning of all data
 sizes	 DW	526Fh		; this must be the first data entry (magic nr)
 	 DW	7 dup(0)	; space	for build table	- total	16b
+splimit	 DW	0		; stack	limit for current task (kernel only)
 bx_save	 DW	0		; storage for bx
 ds_save	 DW	0		; storage for ds
 ret_save DW	0		; storage for return address
@@ -275,3 +285,4 @@ ttyomess DB	"RS232 interrupt",0
 @STACK	ENDS
 
 	END	; end of assembly-file
+

@@ -27,8 +27,8 @@ PUBLIC reboot, wreboot
 EXTRN panic:NEAR
 
 ; Variables and	data structures
-EXTRN color:WORD, cur_proc:WORD, proc_ptr:WORD
-PUBLIC splimit, vec_tabl
+EXTRN color:WORD, cur_proc:WORD, proc_ptr:WORD,	splimit:WORD
+PUBLIC vec_tabl
 
 INCLUDE	..\lib\prologue.h
 
@@ -357,46 +357,70 @@ vid_copy:
 	mov bp,sp		; set bp to sp for indexing
 	push si			; save the registers
 	push di			; save di
+	push bx			; save bx
 	push cx			; save cx
 	push dx			; save dx
 	push es			; save es
-	mov si,4[bp]		; si = pointer to data to be copied
+vid0:	mov si,4[bp]		; si = pointer to data to be copied
 	mov di,8[bp]		; di = offset within video ram
+	and di,dgroup:vid_mask	; only 4K or 16K counts
 	mov cx,10[bp]		; cx = word count for copy loop
 	mov dx,03DAh		; prepare to see if color display is retracing
 
-	test dgroup:color,1	; skip vertical	retrace	test if	display	is mono
-	jz vid3			; if monochrome	then go	to vid.2
+	mov bx,di		; see if copy will run off end of video ram
+	add bx,cx		; compute where copy ends
+	add bx,cx		; bx = last character copied + 1
+	sub bx,dgroup:vid_mask	; bx = # characters beyond end of video ram
+	sub bx,1		; note: dec bx doesn't set flags properly
+	jle vid.1		; jump if no overrun
+	sar bx,1		; bx = # words that don't fit in video ram
+	sub cx,bx		; reduce count by overrun
+	mov tmp,cx		; save actual count used for later
 
-vid1:	in al,dx		; with a color display,	you can	only copy to
-	test al,010q		; the video ram	during vertical	retrace, so
-	jnz vid1		; wait for start of retrace period.  Bit 3 of
-vid2:   in al,dx		; 0x3DA	is set during retrace.	First wait
+vid1:	test dgroup:color,1	; skip vertical	retrace	test if	display	is mono
+	jz vid4			; if monochrome	then go	to vid.2
+
+;  vid2:in			; with a color display,	you can	only copy to
+;	test al,010q		; the video ram	during vertical	retrace, so
+;	jnz vid2		; wait for start of retrace period.  Bit 3 of
+vid3:   in al,dx		; 0x3DA	is set during retrace.	First wait
 	test al,010q		; until	it is off (no retrace),	then wait
-	jz vid2			; until	it comes on (start of retrace)
+	jz vid3			; until	it comes on (start of retrace)
 
-vid3:   pushf			; copying may now start; save the flags
+vid4:   pushf			; copying may now start; save the flags
 	cli			; interrupts just get in the way: disable them
 	mov es,6[bp]		; load es now: int routines may	ruin it
 
 	cmp si,0		; si = 0 means blank the screen
-	je vid5			; jmp for blanking
+	je vid7			; jmp for blanking
 	lock nop		; this is a trick for the IBM PC-simulator only
 				; 'lock' indicates a video ram access
 	rep movsw		; this is the copy loop
 
-vid4:   popf			; restore flags
+vid5:   popf			; restore flags
+	cmp bx,0		; if bx < 0, then no overrun and we are done
+	jle vid6		; jump if everything fit
+	mov 10[bp],bx		; set up residual count
+	mov 8[bp],0		; start copying at base of video ram
+	cmp 4[bp],0		; NIL_PTR means store blanks
+	je vid0			; go do it
+	mov si,tmp		; si = count of words copied
+	add si,si		; si = count of bytes copied
+	add 4[bp],si		; increment buffer pointer
+	jmp vid0		; go copy some more
+
 	pop es			; restore registers
 	pop dx			; restore dx
 	pop cx			; restore cx
+	pop bx			; restore bx
 	pop di			; restore di
 	pop si			; restore si
 	pop bp			; restore bp
 	ret			; return to caller
 
-vid5:   mov ax,BLANK		; ax = blanking	character
+vid7:   mov ax,BLANK		; ax = blanking	character
 	rep stosw		; blank	the screen
-	jmp vid4		; done
+	jmp vid5		; done
 
 ;===========================================================================
 ;				get_byte
@@ -458,9 +482,11 @@ resvec:
 
 @DATAI	SEGMENT
 lockvar	   DW	 0		; place	to store flags for lock()/restore()
-splimit	   DW	 0		; stack limit for current task (kernel only)
+tmp        DW    0		; count of bytes already copied
 vec_tabl   DW	 130 dup(0)	; storage for interrupt	vectors
 stkoverrun DB	 "Kernel stack overrun,	task = ",0
 @DATAI	ENDS
 
 	END	; end of assembly
+
+

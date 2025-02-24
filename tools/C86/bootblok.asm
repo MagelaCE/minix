@@ -213,7 +213,7 @@ pcpar	 DB	0DFh, 2, 25, 2, 9, 02Ah, 0FFh, 050h, 0F6h, 1, 3  ; for PC
 atpar	 DB	0DFh, 2, 25, 2,15, 01Bh, 0FFh, 054h, 0F6h, 1, 8  ; for AT
 
 fderr   DB      "Read error.  Please reboot ",0Dh,0Ah,0
-greet   DB      "Booting Minix 1.0",0Dh,0Ah,0
+greet   DB      "Booting Minix 1.1",0Dh,0Ah,0
 
 
         ORG     504     ; NOTE: there will be no error reported if

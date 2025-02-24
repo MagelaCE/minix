@@ -10,7 +10,7 @@ page,132
 ;	   char *buffer[PH_SECTSIZE];
 
 
-INCLUDE ..\LIB\prologue.h
+INCLUDE \lib\C86\prologue.h
 PUBLIC	absread, abswrite, dmaoverr
 
 
@@ -83,3 +83,4 @@ dmaoverr ENDP
 @CODE	ENDS
 
 	END	; end of assembly file
+

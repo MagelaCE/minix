@@ -99,12 +99,12 @@ register message *m_ptr;	/* pointer to read or write message */
   /* Get minor device number and check for /dev/null. */
   device = m_ptr->DEVICE;
   if (device < 0 || device >= NR_RAMS) return(ENXIO);	/* bad minor device */
-  if (device==NULL_DEV) return(m_ptr->m_type == DISK_READ ? 0 : m_ptr->COUNT);
+  if (device==NULL_DEV) return(m_ptr->m_type == DISK_READ ? EOF : m_ptr->COUNT);
 
   /* Set up 'mem_phys' for /dev/mem, /dev/kmem, or /dev/ram. */
   if (m_ptr->POSITION < 0) return(ENXIO);
   mem_phys = ram_origin[device] + m_ptr->POSITION;
-  if (mem_phys >= ram_limit[device]) return(0);
+  if (mem_phys >= ram_limit[device]) return(EOF);
   count = m_ptr->COUNT;
   if(mem_phys + count > ram_limit[device]) count = ram_limit[device] - mem_phys;
 

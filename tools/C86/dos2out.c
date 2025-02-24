@@ -97,7 +97,7 @@ typedef struct a_out_hdr {
 #define A_WLR(cputype)	((cputype&0x02)!=0)  /* TRUE if words left-to-right */
 
 
-#include "../../C86/stdio.h"
+#include "/lib/C86/stdio.h"
 
 
 #define PH_SECTSIZE	512		/* size of a disk-block */

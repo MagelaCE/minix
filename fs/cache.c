@@ -256,16 +256,20 @@ int rw_flag;			/* READING or WRITING */
   int r;
   long pos;
   dev_nr dev;
+  extern int rdwt_err;
 
   if (bp->b_dev != NO_DEV) {
 	pos = (long) bp->b_blocknr * BLOCK_SIZE;
 	r = dev_io(rw_flag, bp->b_dev, pos, BLOCK_SIZE, FS_PROC_NR, bp->b_data);
 	if (r < 0) {
 		dev = bp->b_dev;
-		if (r != 0) {
+		if (r != EOF) {
 		  printf("Unrecoverable disk error on device %d/%d, block %d\n",
 			(dev>>MAJOR)&BYTE, (dev>>MINOR)&BYTE, bp->b_blocknr);
+		} else {
+			bp->b_dev = NO_DEV;	/* invalidate block */
 		}
+		rdwt_err = r;	/* report error to interested parties */
 	}
   }
 
