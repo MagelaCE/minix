@@ -7,3 +7,4 @@ echo Kernel done. Check the .LST-files for errors
 pause 
 echo on
 for %%f in (*.lst) do type %%f
+

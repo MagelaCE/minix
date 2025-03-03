@@ -12,5 +12,5 @@ if errorlevel 1 goto einde
 cc4 build >> build.lst
 if errorlevel 1 goto einde
 :link
-link/m build+diskio,,,..\..\c86\C86s2s.lib >> build.lst
+link/m build+diskio,,,\lib\c86\C86s2s.lib >> build.lst
 :einde

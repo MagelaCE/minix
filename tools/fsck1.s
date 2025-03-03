@@ -1,7 +1,7 @@
 STACKSIZE = 8192
 
-.globl _main, _exit, _edata, _end, _putc, _getc, _reset_diskette, _diskio
-.globl csv, cret, begtext, begdata, begbss
+.globl _main, _exit, _putc, _getc, _reset_diskette, _diskio
+.globl csv, cret, begtext, begdata, begbss, enddata, endbss
 .globl _cylsiz, _tracksiz, _drive
 
 .text
@@ -9,8 +9,8 @@ begtext:
 start:
 	mov	dx,bx		| bootblok puts # sectors/track in bx
 	xor	ax,ax
-	mov	bx,#_edata	| prepare to clear bss
-	mov	cx,#_end
+	mov	bx,#enddata	| prepare to clear bss
+	mov	cx,#endbss
 	sub	cx,bx
 	sar	cx,*1
 st.1:	mov	(bx),ax		| clear bss
