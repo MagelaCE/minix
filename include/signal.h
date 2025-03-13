@@ -1,4 +1,5 @@
 #define NR_SIGS           16	/* number of signals used */
+#define NSIG              16	/* number of signals used */
 
 #define	SIGHUP	           1	/* hangup */
 #define SIGINT             2	/* interrupt (DEL) */

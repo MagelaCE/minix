@@ -21,6 +21,7 @@
 
 | These symbols MUST agree with the values in ../h/com.h to avoid disaster.
 K_STACK_BYTES	=  256
+WINI		=   -6
 FLOPPY		=   -5
 CLOCK		=   -3
 IDLE		= -999
@@ -28,16 +29,16 @@ DISKINT		=    1
 CLOCK_TICK	=    2
 
 | The following procedures are defined in this file and called from outside it.
-.globl _tty_int, _lpr_int, _clock_int, _disk_int
-.globl _s_call, _surprise, _trp, _restart
+.globl _tty_int, _lpr_int, _clock_int, _disk_int, _wini_int
+.globl _s_call, _surprise, _trp, _divide, _restart
 
 | The following external procedures are called in this file.
 .globl _main, _sys_call, _interrupt, _keyboard, _panic, _unexpected_int, _trap
-.globl _pr_char
+.globl _pr_char, _div_trap
 
 | Variables, data structures and miscellaneous.
 .globl _cur_proc, _proc_ptr, _scan_code, _int_mess, _k_stack, splimit
-.globl _sizes
+.globl _sizes, begtext, begdata, begbss
 
 | The following constants are offsets into the proc table.
 esreg = 14
@@ -120,6 +121,20 @@ _disk_int:			| Interrupt routine for the floppy disk.
 
 
 |*===========================================================================*
+|*				wini_int				     *
+|*===========================================================================*
+_wini_int:			| Interrupt routine for the winchester disk.
+	call save		| save the machine state
+	mov _int_mess+2,*DISKINT| build message for winchester task
+	mov ax,#_int_mess	| prepare to call interrupt(WINI, &intmess)
+	push ax			| push second parameter
+	mov ax,*WINI		| prepare to push first parameter
+	push ax			| push first parameter
+	call _interrupt		| this is the call
+	jmp _restart		| continue execution
+
+
+|*===========================================================================*
 |*				clock_int				     *
 |*===========================================================================*
 _clock_int:			| Interrupt routine for the clock.
@@ -151,12 +166,19 @@ _trp:				| This is where unexpected traps come.
 	jmp _restart		| this error is not fatal
 
 
+|*===========================================================================*
+|*				divide					     *
+|*===========================================================================*
+_divide:			| This is where divide overflow traps come.
+	call save		| save the machine state
+	call _div_trap		| print a message
+	jmp _restart		| this error is not fatal
 
 
 |*===========================================================================*
 |*				save					     *
 |*===========================================================================*
-save:				| save the machine state in the proc table.
+save:				| save the machine state in the proc table.  
 	push ds			| stack: psw/cs/pc/ret addr/ds
 	push cs			| prepare to restore ds
 	pop ds			| ds has now been set to cs
@@ -166,9 +188,9 @@ save:				| save the machine state in the proc table.
 	mov bx_save,bx		| save bx for later ; we need a free register
 	mov bx,_proc_ptr	| start save set up; make bx point to save area
 	add bx,*OFF		| bx points to place to store cs
-	pop PC-OFF(bx)		| store pc in proc table
+	pop PC-OFF(bx)		| store pc in proc table 
 	pop csreg-OFF(bx)	| store cs in proc table
-	pop PSW-OFF(bx)		| store psw
+	pop PSW-OFF(bx)		| store psw 
 	mov ssreg-OFF(bx),ss	| store ss
 	mov SP-OFF(bx),sp	| sp as it was prior to interrupt
 	mov sp,bx		| now use sp to point into proc table/task save
@@ -226,7 +248,7 @@ _restart:			| This routine sets up and runs a proc or task.
 |*===========================================================================*
 |*				idle					     *
 |*===========================================================================*
-idle:				| executed when there is no work
+idle:				| executed when there is no work 
 	sti			| enable interrupts
 L3:  	wait			| just idle while waiting for interrupt
 	jmp L3			| loop until interrupt

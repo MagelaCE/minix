@@ -25,7 +25,7 @@ extern do_mm_exit(), do_fork(), do_wait(), do_brk(), do_getset(), do_exec();
 extern do_signal(), do_kill(), do_pause(), do_alarm();
 extern no_sys(), unpause(), do_ksig(), do_brk2();
 
-int (*mm_callvec[NCALLS])() = {
+int (*call_vec[NCALLS])() = {
 	no_sys,		/*  0 = unused	*/
 	do_mm_exit,	/*  1 = exit	*/
 	do_fork,	/*  2 = fork	*/

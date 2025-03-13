@@ -5,7 +5,7 @@ CFLAGS = -Di8088 -O
 h=../h
 l=../lib
 
-obj = mpx88.o main.o proc.o system.o tty.o clock.o memory.o floppy.o \
+obj = mpx88.o main.o proc.o system.o tty.o clock.o memory.o floppy.o wini.o  \
       printer.o table.o klib88.o dmp.o 
 
 kernel:	makefile $(obj) $l/libc.a

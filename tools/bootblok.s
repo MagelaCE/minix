@@ -1,7 +1,7 @@
 | When the PC is powered on, it reads the first block from the floppy
 | disk into address 0x7C00 and jumps to it.  This boot block must contain
 | the boot program in this file.  The boot program first copies itself to
-| address 192K - 512 (to get itself out of the way).  Then it loads the
+| address 192K - 512 (to get itself out of the way).  Then it loads the 
 | operating system from the boot diskette into memory, and then jumps to fsck.
 | Loading is not trivial because the PC is unable to read a track into
 | memory across a 64K boundary, so the positioning of everything is critical.
@@ -9,7 +9,7 @@
 | The value is put there by the build program after it has discovered how
 | big the operating system is.  When the bootblok program is finished loading,
 | it jumps indirectly to the program (fsck) which address is given by the
-| last two words in the boot block.
+| last two words in the boot block. 
 |
 | Summary of the words patched into the boot block by build:
 | Word at 504: # sectors to load
@@ -18,7 +18,7 @@
 | Word at 510: # CS value for fsck
 |
 | This version of the boot block must be assembled without separate I & D
-| space.
+| space.  
 
         LOADSEG = 0x0060         | here the boot block will start loading
         BIOSSEG = 0x07C0         | here the boot block itself is loaded
@@ -48,7 +48,7 @@ begbss:
         mov     es,ax
         xor     di,di           | es:di - new block
         mov     cx,#256         | #  words to move
-        rep
+        rep     
 	movw 		        | copy loop
 
 | start boot procedure
@@ -65,7 +65,7 @@ start:
 | initialize disk parameters
 	mov	ax,#atpar	| tenatively assume 1.2M diskette
 	seg	es
-	mov	DSKBASE,ax
+	mov	DSKBASE,ax	
 	seg	es
 	mov	DSKBASE+2,dx
 
@@ -138,7 +138,7 @@ load:
 | Given the number of the next disk block to read, disksec, compute the
 | cylinder, sector, head, and number of sectors to read as follows:
 | ah = # sectors to read;  cl = sector #;  ch = cyl;  dh = head; dl = 0
-setreg:
+setreg:	
 	mov	si,tracksiz	| 9 (PC) or 15 (AT) sectors per track
 	mov 	ax,disksec	| ax = next sector to read
 	xor	dx,dx		| dx:ax = 32-bit dividend
@@ -219,7 +219,7 @@ pcpar:	.byte	0xDF, 0x02, 25, 2, 9, 0x2A, 0xFF, 0x50, 0xF6, 1, 3   | for PC
 atpar:	.byte	0xDF, 0x02, 25, 2,15, 0x1B, 0xFF, 0x54, 0xF6, 1, 8   | for AT
 
 fderr:	.asciz	"Read error.  Automatic reboot.\r\n"
-greet:	.asciz "\rBooting MINIX 1.0\r\n"
+greet:	.asciz "\rBooting MINIX 1.1\r\n"
 
 
 

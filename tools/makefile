@@ -109,3 +109,4 @@ at.ram:	mkfs proto.at.ram rc
 at.setup:	mkfs proto.at.setup rc 
 	mkfs -l at.setup proto.at.setup >log.at.setup
 	cp at.setup /dev/fd0
+

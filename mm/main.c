@@ -27,8 +27,7 @@
 #define CLICK_TO_K (1024L/CLICK_SIZE)	/* convert clicks to K */
 
 PRIVATE phys_clicks tot_mem;
-extern (*mm_callvec[])();
-extern char *sp_limit;		/* stack limit register; checked on calls */
+extern (*call_vec[])();
 
 /*===========================================================================*
  *				main					     *
@@ -56,7 +55,7 @@ PUBLIC main()
 	if (mm_call < 0 || mm_call >= NCALLS)
 		error = E_BAD_CALL;
 	else
-		error = (*mm_callvec[mm_call])();
+		error = (*call_vec[mm_call])();
 
 	/* Send the results back to the user to indicate completion. */
 	if (dont_reply) continue;	/* no reply for EXIT and WAIT */
@@ -125,7 +124,6 @@ PRIVATE mm_init()
   procs_in_use = 3;
 
   /* Set stack limit, which is checked on every procedure call. */
-  sp_limit = mm_stack - 32;
 }
 
 

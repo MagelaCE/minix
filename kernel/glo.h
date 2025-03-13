@@ -10,6 +10,10 @@ EXTERN int prev_proc;		/* previous process */
 EXTERN int sig_procs;		/* number of procs with p_pending != 0 */
 EXTERN message int_mess;	/* interrupt routines build message here */
 
+/* CPU type. */
+EXTERN int olivetti;		/* TRUE for Olivetti-style keyboard */
+EXTERN int pc_at;		/*  PC-AT type diskette drives (360K/1.2M) ? */
+
 /* The kernel and task stacks. */
 EXTERN struct t_stack {
   int stk[TASK_STACK_BYTES/sizeof(int)];
