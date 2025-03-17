@@ -16,11 +16,13 @@
 |   get_byte:	reads a byte from a user program and returns it as value
 |   reboot:	reboot for CTRL-ALT-DEL
 |   wreboot:	wait for character then reboot 
+|   dma_read:	transfer data between HD controller and memory
+|   dma_write:	transfer data between memory and HD controller
 
 | The following procedures are defined in this file and called from outside it.
 .globl _phys_copy, _cp_mess, _port_out, _port_in, _lock, _unlock, _restore
 .globl _build_sig, csv, cret, _get_chrome, _vid_copy, _get_byte, _reboot
-.globl _wreboot, _portw_in, _portw_out
+.globl _wreboot, _dma_read, _dma_write
 
 | The following external procedure is called in this file.
 .globl _panic
@@ -212,43 +214,6 @@ _port_in:
 
 
 |*===========================================================================*
-|*				portw_out				     *
-|*===========================================================================*
-| portw_out(port, value) writes 'value' on the I/O port 'port'.
-
-_portw_out:
-	push bx			| save bx
-	mov bx,sp		| index off bx
-	push ax			| save ax
-	push dx			| save dx
-	mov dx,4(bx)		| dx = port
-	mov ax,6(bx)		| ax = value
-	outw			| output 1 word
-	pop dx			| restore dx
-	pop ax			| restore ax
-	pop bx			| restore bx
-	ret			| return to caller
-
-
-|*===========================================================================*
-|*				portw_in				     *
-|*===========================================================================*
-| portw_in(port, &value) reads from port 'port' and puts the result in 'value'.
-_portw_in:
-	push bx			| save bx
-	mov bx,sp		| index off bx
-	push ax			| save ax
-	push dx			| save dx
-	mov dx,4(bx)		| dx = port
-	inw			| input 1 word
-	mov bx,6(bx)		| fetch address where byte is to go
-	mov (bx),ax		| return byte to caller in param
-	pop dx			| restore dx
-	pop ax			| restore ax
-	pop bx			| restore bx
-	ret			| return to caller
-
-|*===========================================================================*
 |*				lock					     *
 |*===========================================================================*
 | Disable CPU interrupts.
@@ -368,6 +333,53 @@ _get_chrome:
 getchr1: xor ax,ax		| mono = 0
 	ret			| monochrome return
 
+|*===========================================================================*
+|*				dma_read				     *
+|*===========================================================================*
+_dma_read:
+	push	bp
+	mov	bp,sp
+	push	cx
+	push	dx
+	push	di
+	push	es
+	mov	cx,#256		| transfer 256 words
+	mov	dx,#0x1F0	| from/to port 1f0
+	cld
+	mov	es,4(bp)	| segment in es
+	mov	di,6(bp)	| offset in di
+	.byte	0xF3, 0x6D	| opcode for 'rep insw'
+	pop	es
+	pop	di
+	pop	dx
+	pop	dx
+	mov	sp,bp
+	pop	bp
+	ret
+
+|*===========================================================================*
+|*				dma_write				     *
+|*===========================================================================*
+_dma_write:
+	push	bp
+	mov	bp,sp
+	push	cx
+	push	dx
+	push	si
+	push	ds
+	mov	cx,#256		| transfer 256 words
+	mov	dx,#0x1F0	| from/to port 1f0
+	cld
+	mov	ds,4(bp)	| segment in ds
+	mov	si,6(bp)	| offset in si
+	.byte	0xF3, 0x6F	| opcode for 'rep outsw'
+	pop	ds
+	pop	si
+	pop	dx
+	pop	dx
+	mov	sp,bp
+	pop	bp
+	ret
 
 |*===========================================================================*
 |*				vid_copy				     *
@@ -428,7 +440,7 @@ vid.4:	pushf			| copying may now start; save flags
 	cmp si,#0		| si = 0 means blank the screen
 	je vid.7		| jump for blanking
 	lock			| this is a trick for the IBM PC simulator only
-	nop			| 'lock' indicates a video ram access
+	inc vidlock		| 'lock' indicates a video ram access
 	rep			| this is the copy loop
 	movw			| ditto
 
@@ -493,7 +505,17 @@ _reboot:
 	mov ax,#0x20		| re-enable interrupt controller
 	out 0x20
 	call resvec		| restore the vectors in low core
-	int 0x19		| reboot the PC
+	mov ax,#0x40
+	mov ds,ax
+	mov ax,#0x1234
+	mov 0x72,ax
+	mov ax,#0xFFFF
+	mov ds,ax
+	mov ax,3
+	push ax
+	mov ax,1
+	push ax
+	reti
 
 _wreboot:
 	cli			| disable interrupts
@@ -502,7 +524,17 @@ _wreboot:
 	call resvec		| restore the vectors in low core
 	xor ax,ax		| wait for character before continuing
 	int 0x16		| get char
-	int 0x19		| reboot the PC
+	mov ax,#0x40
+	mov ds,ax
+	mov ax,#0x1234
+	mov 0x72,ax
+	mov ax,#0xFFFF
+	mov ds,ax
+	mov ax,3
+	push ax
+	mov ax,1
+	push ax
+	reti
 
 | Restore the interrupt vectors in low core.
 resvec:	cld
@@ -522,6 +554,7 @@ _exit:	sti
 
 .data
 lockvar:	.word 0		| place to store flags for lock()/restore()
+vidlock:	.word 0		| dummy variable for use with lock prefix
 splimit:	.word 0		| stack limit for current task (kernel only)
 tmp:		.word 0		| count of bytes already copied
 stkoverrun:	.asciz "Kernel stack overrun, task = "

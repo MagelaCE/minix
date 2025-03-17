@@ -1,3 +1,6 @@
+.define _setjmp
+.define _longjmp
+
 .globl _setjmp, _longjmp
 .globl csv
 .text

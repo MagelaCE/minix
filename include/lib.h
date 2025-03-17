@@ -3,7 +3,7 @@
 #include "../h/error.h"
 #include "../h/callnr.h"
 
-message M;
+extern message M;
 
 #define MM                 0
 #define FS                 1

@@ -30,6 +30,6 @@ char **argv;
 
 usage()
 {
-  prints("usage: kill pid\n");
+  prints("Usage: kill pid\n");
   exit(1);
 }

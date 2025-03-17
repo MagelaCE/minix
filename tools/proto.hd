@@ -1,0 +1,146 @@
+boot
+20842 6955
+d--777 2 1
+   bin	d--755 2 1
+	cat	---755 2 1 /usr/bin/cat
+	cp	---755 2 1 /bin/cp
+	chmem	---755 2 1 /usr/bin/chmem
+	chmod	---755 2 1 /usr/bin/chmod
+	chown	---755 2 1 /usr/bin/chown
+	date	---755 2 1 /usr/bin/date
+	dosread	---755 2 1 /usr/bin/dosread
+	echo	---755 2 1 /usr/bin/echo
+	getlf	---755 2 1 /bin/getlf
+	kill	---755 2 1 /usr/bin/kill
+	ln	---755 2 1 /usr/bin/ln
+	login	---755 2 1 /usr/bin/login
+	ls	---755 2 1 /usr/bin/ls
+	mkdir	-u-755 0 1 /usr/bin/mkdir
+	mkfs	---755 2 1 /usr/bin/mkfs
+	mknod	---755 2 1 /usr/bin/mknod
+	mined	---755 2 1 /usr/bin/mined
+	more	---755 2 1 /usr/bin/more
+	mv	---755 2 1 /usr/bin/mv
+	passwd	-u-755 0 1 /usr/bin/passwd
+	pwd	---755 2 1 /usr/bin/pwd
+	rm	---755 2 1 /usr/bin/rm
+	rmdir	-u-755 0 1 /usr/bin/rmdir
+	sh	---755 2 1 /bin/sh
+	sync	---755 2 1 /bin/sync
+   $
+   dev	d--755 2 1
+	ram	b--640 2 1 1 0 640
+	mem	b--640 2 1 1 1 640
+	kmem	b--640 2 1 1 2 640
+	null	b--666 2 1 1 3 0
+	fd0	b--666 2 1 2 0 360
+	fd1	b--666 2 1 2 1 360
+	at0	b--666 2 1 2 0 1200
+	at1	b--666 2 1 2 1 1200
+	hd0	b--600 2 1 3 0 0
+	hd1	b--600 2 1 3 1 0
+	hd2	b--600 2 1 3 2 0
+	hd3	b--600 2 1 3 3 0
+	hd4	b--600 2 1 3 4 0
+	hd5	b--600 2 1 3 5 0
+	hd6	b--600 2 1 3 6 0
+	tty0	c--666 2 1 4 0
+	tty	c--666 2 1 5 0
+	lp	c--222 2 1 6 0
+   $
+   etc	d--755 2 1
+	mount	-u-755 0 1 /etc/mount
+	umount	-u-755 0 1 /etc/umount
+	update	---755 2 1 /etc/update
+	passwd	---644 2 1 passwd
+	rc	---644 2 1 rc
+	message	---644 2 1 message
+	ttys	---644 2 1 ttys
+   $
+   lib	d--755 2 1
+   $
+   tmp	d--777 2 1
+   $
+   user	d--755 2 1
+   $
+   usr	d--755 2 1
+	magela d--755 8 3
+		.profile	---644 8 3 profile
+	$
+	bin	d--755 2 1
+		ar		---755 2 1 /usr/bin/ar
+		asld		---755 2 1 /usr/bin/asld
+		basename 	---755 2 1 /usr/bin/basename
+		cc		---755 2 1 /usr/bin/cc
+		clr		---755 2 1 /usr/bin/clr
+		cmp		---755 2 1 /usr/bin/cmp
+		comm		---755 2 1 /usr/bin/comm
+		cpdir		---755 2 1 /usr/bin/cpdir
+		dd		---755 2 1 /usr/bin/dd
+		df		-u-755 0 1 /usr/bin/df
+		diff		---755 2 1 /usr/bin/diff
+		du		---755 2 1 /usr/bin/du
+		expr		---755 2 1 /usr/bin/expr
+		find		---755 2 1 /usr/bin/find
+		fix		---755 2 1 /usr/bin/fix	
+		grep		---755 2 1 /usr/bin/grep
+		gres		---755 2 1 /usr/bin/gres
+		head		---755 2 1 /usr/bin/head
+		libpack		---755 2 1 /usr/bin/libpack
+		libupack 	---755 2 1 /usr/bin/libupack
+		lpr		---755 2 1 /usr/bin/lpr
+		make		---755 2 1 /usr/bin/make
+		od		---755 2 1 /usr/bin/od
+		pr		---755 2 1 /usr/bin/pr
+		readfs		---755 2 1 /usr/bin/readfs
+		rev		---755 2 1 /usr/bin/rev
+		roff		---755 2 1 /usr/bin/roff
+		shar		---755 2 1 /usr/bin/shar
+		size		---755 2 1 /usr/bin/size
+		sleep		---755 2 1 /usr/bin/sleep
+		sort		---755 2 1 /usr/bin/sort
+		split		---755 2 1 /usr/bin/split
+		stty		---755 2 1 /usr/bin/stty
+		su		-u-755 0 1 /usr/bin/su
+		sum		---755 2 1 /usr/bin/sum
+		tail		---755 2 1 /usr/bin/tail
+		tar		---755 2 1 /usr/bin/tar
+		tee		---755 2 1 /usr/bin/tee
+		test		---755 2 1 /usr/bin/test
+		time		---755 2 1 /usr/bin/time
+		touch		---755 2 1 /usr/bin/touch
+		tr		---755 2 1 /usr/bin/tr
+		true		---755 2 1 /usr/bin/true
+		uniq		---755 2 1 /usr/bin/uniq
+		uudecode	---755 2 1 /usr/bin/uudecode
+		uuencode	---755 2 1 /usr/bin/uuencode
+		wc		---755 2 1 /usr/bin/wc
+	$
+	include	d--755 2 1
+		blocksize.h	---644 2 1 ../include/blocksize.h
+		ctype.h		---644 2 1 ../include/ctype.h
+		errno.h		---644 2 1 ../include/errno.h
+		grp.h		---644 2 1 ../include/grp.h
+		lib.h		---644 2 1 ../include/lib.h
+		pwd.h		---644 2 1 ../include/pwd.h
+		regexp.h	---644 2 1 ../include/regexp.h
+		setjmp.h	---644 2 1 ../include/setjmp.h
+		sgtty.h		---644 2 1 ../include/sgtty.h
+		signal.h	---644 2 1 ../include/signal.h
+		stat.h		---644 2 1 ../include/stat.h
+		stdio.h		---644 2 1 ../include/stdio.h
+	$
+	lib	d--755 2 1
+		cem	---755 2 1 /usr/lib/cem
+		cg	---755 2 1 /usr/lib/cg
+		cpp	---755 2 1 /usr/lib/cpp
+		opt	---755 2 1 /usr/lib/opt
+		crtso.s	---755 2 1 /usr/lib/crtso.s
+		end.s	---755 2 1 /usr/lib/end.s
+		head.s	---755 2 1 /usr/lib/head.s
+		libc.a	---755 2 1 /usr/lib/libc.a
+	$
+	tmp	d--777 2 1
+   	$
+   $
+$

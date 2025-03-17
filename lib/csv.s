@@ -1,3 +1,5 @@
+.define csv
+
 WRITE = 4
 FS = 1
 

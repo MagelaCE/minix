@@ -1,3 +1,4 @@
+#define Extern extern
 #include "signal.h"
 #include "errno.h"
 #include "setjmp.h"
@@ -18,7 +19,7 @@ char	*null	= "";
 int	inword	=1;
 struct	env	e ={line, iostack, iostack-1, NULL, FDBASE, NULL};
 
-char	**environ;	/* environment pointer */
+extern	char	**environ;	/* environment pointer */
 
 /*
  * default shell, search rules
@@ -38,6 +39,7 @@ register char **argv;
 	char *name, **ap;
 	int (*iof)();
 
+	initarea();
 	if ((ap = environ) != NULL) {
 		while (*ap)
 			assign(*ap++, !COPYV);
@@ -160,7 +162,7 @@ register char **argv;
 				dolc--;	/* keyword */
 			else
 				ap++;
-	setval(lookup("#"), putn(dolc));
+	setval(lookup("#"), putn(dolc-1));
 
 	for (;;) {
 		if (talking && e.iop <= iostack)
@@ -202,7 +204,6 @@ register char *s;
 
 onecommand()
 {
-	register char *cp;
 	register i;
 	jmp_buf m1;
 
@@ -210,9 +211,7 @@ onecommand()
 	while (e.oenv)
 		quitenv();
 	freearea(areanum = 1);
-	cp = getcell(258);
 	garbage();
-	DELETE(cp);
 	wdlist = 0;
 	iolist = 0;
 	e.errpt = 0;
@@ -519,7 +518,7 @@ register char *n;
 			return(vp);
 	cp = findeq(n);
 	vp = (struct var *)space(sizeof(*vp));
-	if (vp == 0 || (vp->name = space(cp-n+2)) == 0) {
+	if (vp == 0 || (vp->name = space((int)(cp-n)+2)) == 0) {
 		dummy.name = dummy.value = "";
 		return(&dummy);
 	}
@@ -666,7 +665,7 @@ register int f, out;
 				write(out, "export ", 7);
 			if (vp->status & RONLY)
 				write(out, "readonly ", 9);
-			write(out, vp->name, findeq(vp->name) - vp->name);
+			write(out, vp->name, (int)(findeq(vp->name) - vp->name));
 			write(out, "\n", 1);
 		}
 }
@@ -769,8 +768,9 @@ register int sub;
 }
 
 /* -------- area.c -------- */
-#define GROWBY	1024
-#define SHRINKBY	256
+#define	REGSIZE		sizeof(struct region)
+#define GROWBY		256
+#undef	SHRINKBY	64
 #define FREE 32767
 #define BUSY 0
 #define	ALIGN (sizeof(int)-1)
@@ -783,57 +783,89 @@ struct region {
 	int	area;
 };
 
-/*initial empty arena*/
-extern	struct region area1;
-static	struct region area2 = {&area1, BUSY};
-static	struct region area1 = {&area2, BUSY};
-static	struct region *areap = &area1;
-static	struct region *areatop = &area1;
-static	struct region *areabrk;
+/*
+ * All memory between (char *)areabot and (char *)(areatop+1) is
+ * exclusively administered by the area management routines.
+ * It is assumed that sbrk() and brk() manipulate the high end.
+ */
+static	struct region *areabot;		/* bottom of area */
+static	struct region *areatop;		/* top of area */
+static	struct region *areanxt;		/* starting point of scan */
 char	*sbrk();
 char	*brk();
+
+initarea()
+{
+	while ((int)sbrk(0) & ALIGN)
+		sbrk(1);
+	areabot = (struct region *)sbrk(REGSIZE);
+	areabot->next = areabot;
+	areabot->area = BUSY;
+	areatop = areabot;
+	areanxt = areabot;
+}
 
 char *
 getcell(nbytes)
 unsigned nbytes;
 {
-	register int rbytes;
+	register int nregio;
 	register struct region *p, *q;
-	struct region *newbrk;
+	register i;
 
-	if (areabrk == NULL)
-		areabrk = (struct region *)(((int)sbrk(0)+ALIGN)&~ALIGN);
-
-	rbytes = (nbytes+sizeof(struct region)-1)/sizeof(struct region) + 1;
-	p=areap;
-	for (;;) {
-		do {
-			if (p->area > areanum) {
-				while ((q = p->next)->area > areanum)
-					p->next = q->next;
-				if (q >= p+rbytes) {
-					areap = p+rbytes;
-					if (q > areap) {
-						areap->next = p->next;
-						areap->area = FREE;
-					}
-					p->next = areap;
-					p->area = areanum;
-					return((char *)(p+1));
-				}
-			}
-			q = p; p = p->next;
-		} while (q >= areap || p < areap);
-		newbrk = (struct region *)sbrk(rbytes>=GROWBY? rbytes: GROWBY);
-		if ((int)newbrk == -1)
-			return(NULL);
-		newbrk = (struct region *)sbrk(0);
-		areatop->next = areabrk;
-		areatop->area = ((q=areabrk)!=areatop+1)? BUSY: FREE;
-		areatop = areabrk->next = newbrk-1;
-		areabrk->area = FREE; areabrk = newbrk;
-		areatop->next = &area2; areatop->area=BUSY;
+	if (nbytes == 0)
+		abort();	/* silly and defeats the algorithm */
+	/*
+	 * round upwards and add administration area
+	 */
+	nregio = (nbytes+(REGSIZE-1))/REGSIZE + 1;
+	for (p = areanxt;;) {
+		if (p->area > areanum) {
+			/*
+			 * merge free cells
+			 */
+			while ((q = p->next)->area > areanum)
+				p->next = q->next;
+			/*
+			 * exit loop if cell big enough
+			 */
+			if (q >= p + nregio)
+				goto found;
+		}
+		p = p->next;
+		if (p == areanxt)
+			break;
 	}
+	i = nregio >= GROWBY ? nregio : GROWBY;
+	p = (struct region *)sbrk(i * REGSIZE);
+	if ((int)p == -1)
+		return(NULL);
+	p--;
+	if (p != areatop)
+		abort();	/* allocated areas are contiguous */
+	q = p + i;
+	p->next = q;
+	p->area = FREE;
+	q->next = areabot;
+	q->area = BUSY;
+	areatop = q;
+found:
+	/*
+	 * we found a FREE area big enough, pointed to by 'p', and up to 'q'
+	 */
+	areanxt = p + nregio;
+	if (areanxt < q) {
+		/*
+		 * split into requested area and rest
+		 */
+		if (areanxt+1 > q)
+			abort();	/* insufficient space left for admin */
+		areanxt->next = q;
+		areanxt->area = FREE;
+		p->next = areanxt;
+	}
+	p->area = areanum;
+	return((char *)(p+1));
 }
 
 void
@@ -844,8 +876,8 @@ char *cp;
 
 	if ((p = (struct region *)cp) != NULL) {
 		p--;
-		if (p < areap)
-			areap = p;
+		if (p < areanxt)
+			areanxt = p;
 		p->area = FREE;
 	}
 }
@@ -857,12 +889,9 @@ register int a;
 	register struct region *p, *top;
 
 	top = areatop;
-	p = &area1;
-	do {
+	for (p = areabot; p != top; p = p->next)
 		if (p->area >= a)
 			p->area = FREE;
-		p = p->next;
-	} while (p != top);
 }
 
 void
@@ -880,28 +909,21 @@ void
 garbage()
 {
 	register struct region *p, *q, *top;
-	register int nu;
 
 	top = areatop;
-
-	areap = p = &area1;
-	do {
-		if (p->area>areanum) {
+	for (p = areabot; p != top; p = p->next) {
+		if (p->area > areanum) {
 			while ((q = p->next)->area > areanum)
 				p->next = q->next;
-			areap = p;
+			areanxt = p;
 		}
-		q = p; p = p->next;
-	} while (p != top);
-#if STOPSHRINK == 0
-	nu = (SHRINKBY+sizeof(struct region)-1)/sizeof(struct region);
-	if (areatop >= q+nu &&
-	    q->area > areanum) {
-		brk((char *)(areabrk -= nu));
-		q->next = areatop = areabrk-1;
-		areatop->next = &area2;
-		areatop->area = BUSY;
+	}
+#ifdef SHRINKBY
+	if (areatop >= q + SHRINKBY && q->area > areanum) {
+		brk((char *)(q+1));
+		q->next = areabot;
+		q->area = BUSY;
+		areatop = q;
 	}
 #endif
 }
-

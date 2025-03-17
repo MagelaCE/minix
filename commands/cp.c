@@ -45,6 +45,7 @@ char *argv[];
 	stderr3("cannot copy to ", argv[2], "\n");
 	exit(3);
   }
+  exit(0);
 }
 
 

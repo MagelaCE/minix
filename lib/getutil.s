@@ -1,3 +1,7 @@
+.define _get_base
+.define _get_size
+.define _get_tot_mem
+
 .globl _get_base, _get_size, _get_tot_mem
 .globl endbss
 

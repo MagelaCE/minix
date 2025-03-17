@@ -1,0 +1,78 @@
+Still, for those of you who want to use your hard disk as a
+root filesystem so as to free up some memory, there IS hope.
+In fact, the changes to the kernel to do so are pretty easy.
+Here's what I did:
+
+(1) Change the parameter ROOT_DEV in h/const.h to be the device
+    that I wanted to use as the root filesystem (0x301 for /dev/hd1)
+
+(2) Replace load_ram() with a new function: mk_ramdisk(size).  This
+    function is a gutted version of load_ram() which simply sets up
+    the RAM-disk device but puts nothing in it.  One possible application
+    of this is to declare a small ramdisk device (e.g. 100K) and mount
+    it on /tmp to make compiles go faster.  Of course, you could also
+    make a trivial RAM-disk instead and use the extra memory to increase
+    the size of the buffer cache instead...
+
+(3) Make sure I had all the root filesystem stuff on my hard disk.
+
+I'm now running with my hard disk as the root filesystem, with no ill
+effects (aside from a lot more HD accesses than before... I hope to
+fix that by using a bigger buffer cache).
+
+Following is a listing of mk_ramdisk() for those who want it...
+
+--------------------- cut here -----------------------------------------
+/*======================================================================*
+ *                            mk_ramdisk                                *
+ *======================================================================*/
+PRIVATE mk_ramdisk(size)
+int size;
+{
+/* This function sets up the RAM-disk device to have the specified size.
+ * Note that no data is actually put on the RAM-disk -- not even
+ * filesystem information.  Therefore, if it is desired to use the RAM
+ * disk as a filesystem, one must do a mkfs first.  /etc/rc would be an
+ * ideal place to do this.
+ */
+
+  phys_clicks ram_clicks, init_org, init_text_clicks, init_data_clicks;
+  extern phys_clicks data_org[INFO + 2];
+
+  /* Get size of iINIT by reading block on diskette where 'build' put it */
+  init_org = data_org[INFO];
+  init_text_clicks = data_org[INFO + 1];
+  init_data_clicks = data_org[INFO + 2];
+
+  if (size > MAX_RAM) panic("RAM disk is too big. # blocks = ",size);
+  ram_clicks = size * (BLOCK_SIZE / CLICK_SIZE);
+
+  /* Tell MM the origin and size of INIT, and the amount of memory used for the
+   * system plus RAM disk combined, so it can remove all of it from the map.
+   */
+  m1.m_type = BRK2;
+  m1.m1_i1 = init_text_clicks;
+  m1.m1_i2 = init_data_clicks;
+  m1.m1_i3 = init_org + init_text_clicks + init_data_clicks + ram_clicks;
+  m1.m1_p1 = (char *)init_org;
+  if (sendrec(MM_PROC_NR, &m1) != OK) panic("FS Can't report to MM", NO_NUM);
+
+  /* Tell RAM driver where RAM disk is and how big it is */
+  m1.m_type = DISK_IOCTL;
+  m1.DEVICE = RAM_DEV;
+  m1.POSITION = (long) init_org + (long) init_text_clicks + init_data_clicks;
+  m1.POSITION = m1.POSITION << CLICK_SHIFT;
+  m1.COUNT = size;
+  if (sendrec(MEM, &m1) != OK) panic("Can't report size to MEM", NO_NUM);
+
+  printf("RAM disk set up.\n");
+}
+
+------------------------- cut here -----------------------------------------
+
+   +----------------+  Jim Paradis                  linus--+
++--+-------------+  |  Encore Computer Corp.       necntc--|
+|  | E N C O R E |  |  257 Cedar Hill St.           ihnp4--+-encore!paradis
+|  +-------------+--+  Marlboro MA 01752           decvax--|
++----------------+     (617) 460-0500             talcott--+
+You don't honestly think ENCORE is responsible for this??!!

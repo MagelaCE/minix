@@ -1,3 +1,7 @@
+.define _send
+.define _receive
+.define _sendrec
+
 | See ../h/com.h for C definitions
 SEND = 1
 RECEIVE = 2
@@ -27,4 +31,3 @@ _sendrec:
 	int SYSVEC		| trap to the kernel
 	pop bp			| restore bp
 	ret			| return
-

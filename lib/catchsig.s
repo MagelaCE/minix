@@ -1,3 +1,5 @@
+.define _begsig
+
 .globl _begsig
 .globl _vectab, _M
 mtype = 2			| M+mtype = &M.m_type
