@@ -1,15 +1,13 @@
 /* pwd - print working directory		Author: Adri Koppes */
 
-#include "stat.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/dir.h>
 
-struct direct {
-    unsigned short d_ino;
-    char d_name[14];
-}
 main()
 {
 	register int fd;
-	register *n;
+	register char *n;
 	char name[128];
 	char *last_index();
 	struct stat s, st;

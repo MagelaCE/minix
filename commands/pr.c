@@ -1,24 +1,42 @@
+/* pr - print files			Author: Michiel Huisjes */
+
 /*
  * Pr - print files
  * 
  * Author: Michiel Huisjes.
+ * Modified: Jacob P. Bunschoten.	(30 nov 87)
+ *	When "columns" is not given and numbering is on:
+ *		line numbers are correlated with input lines.
+ *	(try pr [-1] -n file )
+ *	tabs are accounted for.
+ *	When numbering is turned on, width know this.
+ *	automatic line-folding. -f to get the original program.
+ *	backspaces are accounted for. -b to disable this. 
+ *	multi-column mode changed.
+ *	header can be given and used.
+ *	format changed may occur between printing of several files:
+ *		pr -l30 file1 -w75 file2 
  * 
  * Usage: pr [+page] [-columns] [-h header] [-w with] [-l length] [-nt] [files]
  *        -t : Do not print the 5 line header and trailer at the page.
  *	  -n : Turn on line numbering.
  *        +page    : Start printing at page n.
- *        -columns : Print files in n-colums.
+ *        -columns : Print files in n-columns.
  *        -l length: Take the length of the page to be n instead of 66
  *        -h header: Take next argument as page header.
- *        -w with  : Take the width of the page to be n instead of default 72
+ *        -w width  : Take the width of the page to be n instead of default 72
+ *	  -f : do not fold lines.
  */
 
-#include "stdio.h"
-
-char *colbuf;
+#include <stdio.h>
 
 #define DEF_LENGTH	66
 #define DEF_WIDTH	72
+#define NUM_WIDTH	8
+#define TAB_WIDTH	8	/* fixed tab_width */
+
+	/* Used to compute next (fixed) tabstop */
+#define TO_TAB(x)	(( (x) + TAB_WIDTH ) & ~07 )
 
 typedef char BOOL;
 
@@ -26,18 +44,31 @@ typedef char BOOL;
 #define TRUE		1
 
 #define NIL_PTR		((char *) 0)
+	/* EAT:	eat rest of input line */
+#define EAT(fp)		while((c=getc(fp))!='\n' && c!=EOF)
+	/* L_BUF: calculate address of pointer to char (string) 
+	   used in format 
+	*/
+#define L_BUF(i,j)	* (char **) (line_buf + \
+				    (i + j*length)*sizeof(char *))
 
 char *header;
 BOOL no_header;
 BOOL number;
+BOOL ext_header_set = FALSE;	/* external header given */
+BOOL back_space = TRUE;		/* back space correction in line width */
+BOOL dont_fold = FALSE;		/* original. If the line does not fit 
+				   eat it. */
 short columns;
 short cwidth;
 short start_page = 1;
 short width = DEF_WIDTH;
 short length = DEF_LENGTH;
+char *line_buf;			/* used in format for multi-column output */
 
 char output[1024];
 FILE *fopen();
+static char *myalloc();
 
 main(argc, argv)
 int argc;
@@ -45,21 +76,27 @@ char *argv[];
 {
   FILE *file;
   char *ptr;
-  int index = 1;
+  int index = 1;	/* index is one ahead of argc */
 
-  while (argc > index) {
+  setbuf(stdout, output);
+  do { 
+	if (argc == index ) 	/* No arguments (left) */
+		goto pr_files;
+
   	ptr = argv[index++];
   	if (*ptr == '+') {
   		start_page = atoi(++ptr);
   		continue;
-  	}
-  	if (*ptr != '-') {
+  	} 
+  	if (*ptr != '-') {	/* no flags */
   		index--;
-  		break;
+		goto pr_files;
   	}
   	if (*++ptr >= '0' && *ptr <= '9') {
   		columns = atoi(ptr);
-  		continue;
+		if (columns <= 0)
+			columns = 1;
+  		continue;	/* Fetch next flag */
   	}
   	while (*ptr)
   		switch (*ptr++) {
@@ -71,152 +108,247 @@ char *argv[];
   				break;
   			case 'h':
   				header = argv[index++];
+				ext_header_set = TRUE;
   				break;
   			case 'w':
-  				width = atoi(ptr);
+  				if ((width = atoi(ptr)) <= 0)
+					width = DEF_WIDTH;
 				*ptr = '\0';
   				break;
   			case 'l':
-  				length = atoi(ptr);
+  				if ((length = atoi(ptr)) <= 0)
+					length = DEF_LENGTH;
 				*ptr = '\0';
   				break;
+			case 'b':	/* back_space correction off */
+				back_space = FALSE;
+				break;
+			case 'f':	/* do not fold lines */
+				dont_fold = TRUE;
+				break;
   			default:
   				fprintf(stderr, "Usage: %s [+page] [-columns] [-h header] [-w<with>] [-l<length>] [-nt] [files]\n", argv[0]);
   				exit(1);
   		}
-  }
+	continue;	/* Scan for next flags */
 
-  if (!no_header)
-  	length -= 10;
+	/* ==============  flags are read. Print the file(s) ========= */
 
-  if (length <= 0)
-  	length = DEF_LENGTH;
+pr_files:
 
-  if (columns) {
-  	cwidth = width / columns + 1;
-  	if (columns > width) {
-  		fprintf(stderr, "Too many columns for pagewidth.\n");
-  		exit(1);
+	if (!no_header)
+		length -= 10;
+
+	if (length <= 0 ) {
+		fprintf(stderr,"Minimal length shuold be %d\n",no_header ?
+							1: 11);
+		exit(1);
+	}
+
+	if (columns) {
+  		cwidth = width / columns + 1;
+  		if (columns > width) {
+  			fprintf(stderr, "Too many columns for pagewidth.\n");
+  			exit(1);
+  		}
+		/* allocate piece of mem to hold some pointers */
+	  	line_buf = myalloc( length * columns * sizeof(char *) ); 
+	}
+
+	while (index <= argc ) {  /* print all files, including stdin */
+		if (index < argc && (*argv[index] == '-' || *argv[index] == '+' ))
+			break;	/* Format change */
+
+		if ( argc == index ) {	/* no file specified, so stdin */
+			if (!ext_header_set )
+				header = "";
+			file = stdin;
+		} else {
+			if ((file = fopen(argv[index], "r")) == (FILE *) 0) {
+	  			fprintf(stderr, "Cannot open %s\n", argv[index++]);
+	  			continue;
+	  		}
+			if (!ext_header_set)
+				header = argv[index];
+		}
+	  	if (columns)
+	  		format(file);
+	  	else
+  			print(file);
+  		fclose(file);
+		if (++index >= argc )
+			break;	/* all files (including stdin) done */
   	}
-  	if ((colbuf = (char *) sbrk(cwidth * columns * length)) < 0) {
-  		fprintf(stderr, "No memory available for a page of %d x %d. Use chmem to allocate more.\n",
-			length, cwidth);
-  		exit(1);
-  	}
-  }
+	if (index >= argc)
+		break;
+	/* when control comes here. format changes are to be done.
+	 * reinitialize some variables
+	 */
+	if (!no_header)
+		length += 10;
 
-  setbuf(stdout, output);
-
-  if (argc == index) {
-  	header = "";
-  	print(stdin);
-  }
-
-  while (index != argc) {
-  	if ((file = fopen(argv[index], "r")) == (FILE *) 0) {
-  		fprintf(stderr, "Cannot open %s\n", argv[index++]);
-  		continue;
-  	}
-  	header = argv[index];
-  	if (columns)
-  		format(file);
-  	else
-  		print(file);
-  	fclose(file);
-  	index++;
-  }
-
-  if (columns) {
-  	if (brk(colbuf) < 0) {
-  		fprintf(stderr, "Can't reset memory!\n");
-  		exit(1);
-  	}
-  }
+	start_page = 1;
+	ext_header_set = FALSE;
+	if (columns)
+		free(line_buf);
+  } while (index <= argc);	/* "pr -l60" should work too */
 
   (void) fflush(stdout);
   exit(0);
 }
 
-char skip_page(lines, filep)
-int lines;
+char skip_page(lines, width, filep)
+int lines, width;
 FILE *filep;
 {
   short c;
+  int char_cnt;
+  int w;
 
   do {
-  	while ((c = getc(filep)) != '\n' && c != EOF);
-  	lines--;
-  } while (lines && c != EOF);
+	w = width;
+	if (number)	/* first lines are shorter */
+		if ( !columns ||	/* called from print(file)  */
+		     !(lines%columns))	/* called from format(file) */
+			w -= NUM_WIDTH;
 
-  return c;
+	char_cnt = 0;
+  	while ((c = getc(filep)) != '\n' && c != EOF && char_cnt < w ) {
+		/* 
+		 * Calculate if this line is longer 
+		 * than "width (w)" characters
+		 */
+		if (c == '\b' && back_space) {
+			if (--char_cnt < 0)
+				char_cnt = 0;
+		} else if (c == '\t')
+			char_cnt = TO_TAB(char_cnt);
+		else
+			char_cnt++;
+	}
+	if (dont_fold && c!='\n' &&  c!=EOF)
+		EAT(filep);
+  	lines--;
+  } while (lines > 0 && c != EOF);
+
+  return c;	/* last char read */
 }
 
 format(filep)
 FILE *filep;
 {
+  char  buf[512];
   short c = '\0';
   short index, lines, i;
   short page_number = 0;
   short maxcol = columns;
+  short wdth;
+  short line, col;
 
   do {
-/* Check printing of page */
+	/* Check printing of page */
   	page_number++;
 
   	if (page_number < start_page && c != EOF) {
-  		c = skip_page(columns * length, filep);
+  		c = (char) skip_page(columns * length, cwidth, filep);
   		continue;
   	}
-
   	if (c == EOF)
   		return;
 
   	lines = columns * length;
-  	index = 0;
+	for(line=0; line < length; line++)
+		for(col=0; col < columns; col++) {
+			if ( L_BUF(line, col) != NIL_PTR ) 
+				free( L_BUF(line, col) );
+			L_BUF(line, col) = (char *) NIL_PTR; 
+		}
+	line = 0;
+	col = 0;
   	do {
-  		for (i = 0; i < cwidth - 1; i++) {
-  			if ((c = getc(filep)) == '\n' || c == EOF)
+		index = 0;
+		wdth = cwidth-1;
+		if ( number && ! col )   /* need room for numbers */
+			wdth -= NUM_WIDTH;
+
+		/* intermidiate colums are shortened by 1 char */
+		/* last column not */
+		if (col+1 == columns)
+			wdth++;
+  		for (i = 0 ; i < wdth - 1; i++) {
+			c = getc(filep);
+  			if ( c == '\n' || c == EOF)
   				break;
-  			colbuf[index++] = c;
+
+			if (c == '\b' && back_space) {
+				buf[index++] = '\b';
+				if (--i < 0) {	/* just in case ... */
+					i=0;
+					index = 0;
+				}
+			} else if (c == '\t') {
+				int cnt, max;
+
+				max = TO_TAB(i);
+				for (cnt = i; cnt < max; cnt++) 
+						buf[index++] = ' ';
+				i = max -1;
+			}
+			else
+				buf[index++] = (char) c;
   		}
-							/* First char is EOF */
+		buf[index++] = '\0';
+		/* collected enough chars (or eoln, or EOF) */
+
+			/* First char is EOF */
 		if (i == 0 && lines == columns * length && c == EOF)
 			return;
-		while (c != '\n' && c != EOF)
-			c = getc(filep);
-  		colbuf[index++] = '\0';
-  		while (++i < cwidth)
-  			index++;
-  		lines--;
-  		if (c == EOF) {
-  			maxcol = columns - lines / length;
-  			while (lines--)
-  				for (i = 0; i < cwidth; i++)
-  					colbuf[index++] = '\0';
-  		}
+
+		/* alloc mem to hold this (sub) string */
+		L_BUF(line,col) = myalloc(index * sizeof(char));
+		strcpy( L_BUF(line, col), buf );
+
+		line++;
+		line %= length;
+		if (line == 0) {
+			col++;
+			col %= columns;
+		}
+		if (dont_fold && c != '\n' && c != EOF)
+			EAT(filep);
+		lines--;	/* line ready for output */
+		if (c == EOF) {
+			maxcol = columns - lines / length;
+		}
   	} while (c != EOF && lines);
-  	print_page(colbuf, page_number, maxcol);
+  	print_page(page_number, maxcol);
   } while (c != EOF);
 }
 
-print_page(buf, pagenr, maxcol)
-char buf[];
+print_page(pagenr, maxcol)
 short pagenr, maxcol;
 {
   short linenr = (pagenr - 1) * length + 1;
   short pad, i, j, start;
+  short width;
+  char  *p;
 
   if (!no_header)
   	out_header(pagenr);
-  for (i = 0; i < length; i++) {
-  	if (number)
-  		printf("%d\t", linenr++);
+
+  for (i = 0; i < length; i++)  {
   	for (j = 0; j < maxcol; j++) {
-		start = (i + j * length) * cwidth;
-		for (pad = 0; pad < cwidth - 1 && buf[start + pad]; pad++)
-			putchar (buf[start + pad]);
-		if (j < maxcol - 1)		/* Do not pad last column */
-			while (pad++ < cwidth - 1)
+		width = cwidth;
+  		if (number && j == 0) {	/* first columns */
+  			printf("%*.*d ", NUM_WIDTH-1, NUM_WIDTH-1, linenr++);
+			width -= NUM_WIDTH;
+		}
+		pad = 0;
+		if (p = (char *) L_BUF(i,j) )
+			for (; pad < width - 1 && *p; pad++)
+				putchar ( *p++ );	
+		if (j < maxcol - 1)
+			while (pad++ < width - 1)
 				putchar (' ');
 	}
   	putchar('\n');
@@ -232,48 +364,95 @@ FILE *filep;
   short page_number = 0;
   short linenr = 1;
   short lines;
+  short cnt, i, max;
+  short w = width;
+  BOOL pr_number = TRUE; /* only real lines are numbered, not folded parts */
+
+  if (number)
+	width -= NUM_WIDTH;
 
   do {
-/* Check printing of page */
+	/* Check printing of page */
   	page_number++;
+
   	if (page_number < start_page && c != EOF) {
-  		c = skip_page(length, filep);
+		pr_number = FALSE;
+  		c = skip_page(length, w, filep);
+		if (c == '\n')
+			pr_number = TRUE;
   		continue;
   	}
-
+	
   	if (c == EOF)
   		return;
+
+	linenr = (page_number -1 ) * length + 1;
+  	if (!no_header)
+  		out_header(page_number);
 
 	if (page_number == start_page)
 		c = getc(filep);
 
-/* Print the page */
-  	lines = length;
-  	if (!no_header)
-  		out_header(page_number);
+	/* Print the page */
+	lines = length;
   	while (lines && c != EOF) {
-  		if (number)
-  			printf("%d\t", linenr++);
-		while (c != '\n' && c != EOF) {
-  			putchar(c);
+  		if (number )
+			if (pr_number)
+		  		printf("%*.*d ", NUM_WIDTH-1, 
+						 NUM_WIDTH-1, linenr++);
+			else
+				printf("%*c ", NUM_WIDTH-1, ' ');
+		pr_number = FALSE;
+		cnt = 0;
+		while (c != '\n' && c != EOF && cnt < width) {
+			if (c=='\t') {
+				int i, max;
+				max = TO_TAB(cnt);
+				for (i = cnt; i < max; i++ )
+					putchar(' ');
+				cnt = max -1;
+			}
+			else if (c=='\b' && back_space) {
+				putchar('\b');
+				cnt--;
+			} else
+				putchar(c);
 			c = getc(filep);
+			cnt++;
 		}
   		putchar('\n');
+		if (dont_fold && c!= '\n' && c!= EOF)
+			EAT(filep);
   		lines--;
-		c = getc(filep);
+		if ( c == '\n') {
+			c = getc(filep);
+			pr_number = TRUE;
+		}
 	}
 	if (lines == length)
 		return;
   	if (!no_header)
   		printf("\n\n\n\n\n");
-/* End of file */
   } while (c != EOF);
 
-/* Fill last page */
+  /* Fill last page */
   if (page_number >= start_page) {
   	while (lines--)
   		putchar('\n');
   }
+}
+
+char *myalloc(size)
+int size;	/* How many bytes */
+{
+	char *ptr, *malloc();
+
+	ptr = malloc((unsigned)size);
+	if (ptr == (char *) 0) {
+		fprintf(stderr,"malloc returned %d\n",ptr);
+		exit(1);
+	}
+	return (char *) ptr;
 }
 
 out_header(page)
@@ -335,5 +514,5 @@ long t;
   }
 
  /* At this point, 'year', 'month', 'day', 'hour', 'minute'  ok */
-  printf("\n\n%s %d %0d:%0d %d", moname[month], day + 1, hour + 1, minute, year);
+  printf("\n\n%s %d %0d:%0d %d", moname[month], day + 1, hour + 0, minute, year);
 }

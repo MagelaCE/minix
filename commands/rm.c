@@ -1,11 +1,8 @@
 /* rm - remove files			Author: Adri Koppes */
 
-#include "stat.h"
-
-struct direct {
-    unsigned short  d_ino;
-    char    d_name[14];
-};
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/dir.h>
 
 int     errors = 0;
 int     fflag = 0;
@@ -88,7 +85,7 @@ char   *name;
 		if (d.d_ino && strcmp ("..", d.d_name) && strcmp (".", d.d_name)) {
 		    strcpy (rname, name);
 		    strcat (rname, "/");
-		    strcat (rname, d.d_name);
+		    strncat (rname, d.d_name, DIRSIZ);
 		    remove (rname);
 		}
 	    }

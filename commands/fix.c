@@ -1,9 +1,10 @@
-/* fix - combine file and diff listing	Author: Erik Baalbergen */
+/* fix file difflist - update file from difflist     Author: Erik Baalbergen */
+
 
 /* Notes:
-   * files old and old.fix are equal after the following commands
+   * files old and old.patch are equal after the following commands
 	   diff old new > difflist
-	   fix old difflist > old.fix
+	   patch old difflist > old.patch
    * the diff output is assumed to be produced by my diff program.
    * the difflist has the following form:
 	   difflist ::= chunk*
@@ -24,19 +25,28 @@
 
 #include <stdio.h>
 
+#define IGNORE_WHITE_SPACE 	/* This makes it white space insensitive */
+
+#ifdef IGNORE_WHITE_SPACE
+#define strcmp strwcmp  
+#endif
+
 extern char *fgets();
 extern FILE *fopen();
 #define LINELEN	1024
 
-char *prog = 0;
+char *prog = 0,
+     *processing=0;
 
 char *
 getline(fp, b)
 	FILE *fp;
 	char *b;
 {
+	int slen;
 	if (fgets(b, LINELEN, fp) == NULL)
 		fatal("unexpected eof");
+
 	return b;
 }
 
@@ -50,6 +60,7 @@ main(argc, argv)
 	FILE *fpf, *fpd;
 
 	prog = argv[0];
+	processing = argv[1];
 	if (argc != 3)
 		fatal("use: %s original-file diff-list-file", prog);
 	if ((fpf = fopen(argv[1], "r")) == NULL)
@@ -71,7 +82,7 @@ main(argc, argv)
 				fl = getline(fpf, obuf);
 				here++;
 				fd = getline(fpd, nbuf);
-				if (strncmp(fd, "< ", 2))
+				if (strncmp(fd, "<", 1))
 					fatal("illegal delete line");
 				if (strcmp(fl, fd + 2))
 					fatal("delete line conflict");
@@ -90,7 +101,7 @@ main(argc, argv)
 				here++;
 			}
 			while (n1 <= n2) {
-				if (strncmp(getline(fpd, nbuf), "> ", 2))
+				if (strncmp(getline(fpd, nbuf), ">", 1))
 					fatal("illegal append line");
 				copy(nbuf + 2);
 				n1++;
@@ -125,7 +136,7 @@ range(s, p1, p2)
 		while (isdigit(*s))
 			v2 = 10 * v2 + *s++ - '0';
 	}
-	if (v1 == 0 || v2 == 0 || v1 > v2)
+	if ( v1 > v2)
 		fatal("illegal range");
 	*p1 = v1;
 	*p2 = v2;
@@ -156,12 +167,58 @@ getcommand(fp, o1, o2, pcmd, n1, n2)
 fatal(s, a)
 	char *s, *a;
 {
-	fprintf(stderr, "%s: fatal: ", prog);
+	fprintf(stderr, "%s: processing: %s fatal: ", prog,processing);
 	fprintf(stderr, s, a);
 	fprintf(stderr, "\n");
 	exit(1);
 }
 
+#ifdef IGNORE_WHITE_SPACE
 
+/* This routine is a white space insensitive version of strcmp. 
+   It is needed for testing things which might have undergone
+   tab conversion or trailing space removal  
+   Bret Mckee June, 1988 */
 
+int strwcmp(s1,s2)
+char *s1,*s2;
+{
+	char *x1=s1,*x2=s2;
 
+	/* remove leading white space */
+	while(whitespace(*s1))
+		s1++;
+	while(whitespace(*s2))
+		s2++;
+	do
+	{
+		while((*s1 == *s2) && *s1 && *s2)
+		{
+			s1++;
+			s2++;
+		}
+	   		 ; /* consume identical characters */
+		while(whitespace(*s1))
+			s1++;
+		while(whitespace(*s2))
+			s2++;
+	}	while (*s1 && *s2 && (*s1 == *s2));
+	if (*s1-*s2)
+		fprintf(stderr,"Failing for (%x)[%s]\n            (%x)[%s]\n",
+			(int)*s1,x1,(int)*s2,x2);
+	return(*s1-*s2);
+}
+
+int whitespace(ch)
+char ch;
+{
+	switch(ch)
+	{
+		case ' ': 
+		case '\n':
+		case 0x0D:  
+		case '\t': return(1);
+		default:  return(0);
+	}
+}
+#endif

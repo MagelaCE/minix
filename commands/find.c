@@ -11,10 +11,12 @@
    Please report bugs and suggestions to erikb@cs.vu.nl
 */
 
-#include "stdio.h"
+#include <stdio.h>
 
 /*######################## SWITCHES ##############################*/
-#include "stat.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #define SHELL "/usr/bin/sh"
 
 #define PLEN	256	/* maximum path length; overflows are not detected */

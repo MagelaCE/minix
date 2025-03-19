@@ -1,6 +1,6 @@
 /* stty - set terminal mode  	Author: Andy Tanenbaum */
 
-#include "sgtty.h"
+#include <sgtty.h>
 char *on[] = {"tabs",  "cbreak",  "raw",  "-nl",  "echo"};
 char *off[]= {"-tabs", "", "", "nl", "-echo"};
 int k;
@@ -13,6 +13,10 @@ struct tchars tch;
 #define QUITC	 034		/* CTRL-\ */
 #define EOFC	 004		/* CTRL-D */
 #define DELC	0177		/* DEL */
+
+#define speed(s) args.sg_ispeed = s;  args.sg_ospeed = s
+#define clr1 args.sg_flags &= ~(BITS5 | BITS6 | BITS7 | BITS8)
+#define clr2 args.sg_flags &= ~(EVENP | ODDP)
 
 main(argc, argv)
 int argc;
@@ -30,7 +34,7 @@ char *argv[];
   /* Process the options specified. */
   k = 1;
   while (k < argc) {
-	option(argv[k], argv[k+1]);
+	option(argv[k], k+1 < argc ? argv[k+1] : "");
 	k++;
   }
   ioctl(0, TIOCSETP, &args);
@@ -71,22 +75,42 @@ option(opt, next)
 char *opt, *next;
 {
   if (match(opt, "-tabs"))	{args.sg_flags &= ~XTABS; return;}
+  if (match(opt, "-odd"))	{args.sg_flags &= ~ODDP; return;}
+  if (match(opt, "-even"))	{args.sg_flags &= ~EVENP; return;}
   if (match(opt, "-raw"))	{args.sg_flags &= ~RAW; return;}
   if (match(opt, "-cbreak"))	{args.sg_flags &= ~CBREAK; return;}
   if (match(opt, "-echo"))	{args.sg_flags &= ~ECHO; return;}
   if (match(opt, "-nl"))	{args.sg_flags |= CRMOD; return;}
+
   if (match(opt, "tabs"))	{args.sg_flags |= XTABS; return;}
+  if (match(opt, "even"))	{clr2; args.sg_flags |= EVENP; return;}
+  if (match(opt, "odd"))	{clr2; args.sg_flags |= ODDP; return;}
   if (match(opt, "raw"))	{args.sg_flags |= RAW; return;}
   if (match(opt, "cbreak"))	{args.sg_flags |= CBREAK; return;}
   if (match(opt, "echo"))	{args.sg_flags |= ECHO; return;}
   if (match(opt, "nl"))		{args.sg_flags &= ~CRMOD; return;}
+
   if (match(opt, "kill"))	{args.sg_kill = *next; k++; return;}
   if (match(opt, "erase"))	{args.sg_erase = *next; k++; return;}
   if (match(opt, "int"))	{tch.t_intrc = *next; k++; return;}
   if (match(opt, "quit"))	{tch.t_quitc = *next; k++; return;}
 
+  if (match(opt, "5"))		{clr1; args.sg_flags |= BITS5; return;}
+  if (match(opt, "6"))		{clr1; args.sg_flags |= BITS6; return;}
+  if (match(opt, "7"))		{clr1; args.sg_flags |= BITS7; return;}
+  if (match(opt, "8"))		{clr1; args.sg_flags |= BITS8; return;}
+
+  if (match(opt, "110"))	{speed(B110); return;}
+  if (match(opt, "300"))	{speed(B300); return;}
+  if (match(opt, "1200"))	{speed(B1200); return;}
+  if (match(opt, "2400"))	{speed(B2400); return;}
+  if (match(opt, "4800"))	{speed(B4800); return;}
+  if (match(opt, "9600"))	{speed(B9600); return;}
+
   if (match(opt, "default"))	{
-	args.sg_flags = ECHO | CRMOD | XTABS;
+	args.sg_flags = ECHO | CRMOD | XTABS | BITS8;
+	args.sg_ispeed = B1200;
+	args.sg_ospeed = B1200;
 	args.sg_kill = '@';
 	args.sg_erase = '\b';
   	tch.t_intrc = DELC;

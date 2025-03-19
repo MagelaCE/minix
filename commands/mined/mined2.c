@@ -129,11 +129,11 @@ PD()
 {
   register int i;
 
-  for (i = 0; i < SCREENMAX; i++)
+  for (i = 0; i < screenmax; i++)
   	if (forward_scroll() == ERRORS)
   		break;			/* EOF reached */
   if (y - i < 0)				/* Line no longer on screen */
-  	move_to(0, SCREENMAX >> 1);
+  	move_to(0, screenmax >> 1);
   else
   	move_to(0, y - i);
 }
@@ -149,17 +149,17 @@ PU()
 {
   register int i;
 
-  for (i = 0; i < SCREENMAX; i++)
+  for (i = 0; i < screenmax; i++)
   	if (reverse_scroll() == ERRORS)
   		break;			/* Top of file reached */
-  set_cursor(0, YMAX);			/* Erase very bottom line */
+  set_cursor(0, ymax);			/* Erase very bottom line */
 #ifdef UNIX
   tputs(CE, 0, _putchar);
 #else
   string_print(blank_line);
 #endif UNIX
-  if (y + i > SCREENMAX)			/* line no longer on screen */
-  	move_to(0, SCREENMAX >> 1);
+  if (y + i > screenmax)			/* line no longer on screen */
+  	move_to(0, screenmax >> 1);
   else
   	move_to(0, y + i);
 }
@@ -169,7 +169,7 @@ PU()
  */
 HO()
 {
-  if (proceed(top_line, -SCREENMAX) == header)
+  if (proceed(top_line, -screenmax) == header)
   	PU();			/* It fits. Let PU do it */
   else {
   	reset(header->next, 0);/* Reset top_line, etc. */
@@ -185,10 +185,10 @@ EF()
 {
   if (tail->prev->text[0] != '\n')
 	dummy_line();
-  if (proceed(bot_line, SCREENMAX) == tail)
+  if (proceed(bot_line, screenmax) == tail)
   	PD();			/* It fits. Let PD do it */
   else {
-  	reset(proceed(tail->prev, -SCREENMAX), SCREENMAX);
+  	reset(proceed(tail->prev, -screenmax), screenmax);
   	RD();			/* Display full page */
   }
   move_to(LINE_START, last_y);
@@ -203,13 +203,13 @@ SU()
   	return;
 
   (void) reverse_scroll();
-  set_cursor(0, YMAX);		/* Erase very bottom line */
+  set_cursor(0, ymax);		/* Erase very bottom line */
 #ifdef UNIX
   tputs(CE, 0, _putchar);
 #else
   string_print(blank_line);
 #endif UNIX
-  move_to(x, (y == SCREENMAX) ? SCREENMAX : y + 1);
+  move_to(x, (y == screenmax) ? screenmax : y + 1);
 }
 
 /*
@@ -234,7 +234,7 @@ forward_scroll()
   top_line = top_line->next;
   bot_line = bot_line->next;
   cur_line = cur_line->next;
-  set_cursor(0, YMAX);
+  set_cursor(0, ymax);
   line_print(bot_line);
 
   return FINE;
@@ -249,7 +249,7 @@ reverse_scroll()
   if (top_line->prev == header)
   	return ERRORS;		/* Top of file. Can't scroll */
 
-  if (last_y != SCREENMAX)	/* Reset last_y if necessary */
+  if (last_y != screenmax)	/* Reset last_y if necessary */
   	last_y++;
   else
   	bot_line = bot_line->prev;	/* Else adjust bot_line */
@@ -444,7 +444,7 @@ register char character;
 /* Fix screen */
   if (character == '\n') {
   	set_cursor(0, y);
-  	if (y == SCREENMAX) {		/* Can't use display */
+  	if (y == screenmax) {		/* Can't use display */
   		line_print(cur_line);
   		(void) forward_scroll();
   	}
@@ -452,7 +452,7 @@ register char character;
   		reset(top_line, y);	/* Reset pointers */
   		display(0, y, cur_line, last_y - y);
   	}
-  	move_to(0, (y == SCREENMAX) ? y : y + 1);
+  	move_to(0, (y == screenmax) ? y : y + 1);
   }
   else if (x + 1 == XBREAK)/* If line must be shifted, just call move_to*/
   	move_to(x + 1, y);
@@ -463,10 +463,10 @@ register char character;
 }
 
 /*
- * CTRL inserts a control-char at the current location. A message that this
+ * CTL inserts a control-char at the current location. A message that this
  * function is called is displayed at the status line.
  */
-CTRL()
+CTL()
 {
   register char ctrl;
 
@@ -590,7 +590,7 @@ char *start_textp, *end_textp;
 {
   register char *textp = start_line->text;
   register char *bufp = text_buffer;	/* Storage for new line->text */
-  LINE *line;
+  LINE *line, *stop;
   int line_cnt = 0;			/* Nr of lines deleted */
   int count = 0;
   int shift = 0;				/* Used in shift calculation */
@@ -615,7 +615,8 @@ char *start_textp, *end_textp;
 
 /* Delete all lines between start and end_position (including end_line) */
   line = start_line->next;
-  while (line != end_line->next && line != tail) {
+  stop = end_line->next;
+  while (line != stop && line != tail) {
   	line = line_delete(line);
   	line_cnt++;
   }
@@ -752,7 +753,7 @@ FLAG old_pos;
   	while (page != line && page != bot_line->next)
   		page = page->next;
   	if (page != bot_line->next || old_pos == TRUE)
-  		display(0, y, cur_line, SCREENMAX - y);
+  		display(0, y, cur_line, screenmax - y);
   	if (old_pos == TRUE)
   		move_to(x, y);
   	else if (ret == NO_LINE)
@@ -1142,7 +1143,7 @@ FLAG file;
   if (get_string(mess_buf, replacement, FALSE) == ERRORS)
   	return;
   
-  set_cursor(0, YMAX);
+  set_cursor(0, ymax);
   flush();
 /* Substitute until end of file */
   do {
@@ -1158,12 +1159,12 @@ FLAG file;
 			 (program->status & END_LINE) != END_LINE &&
 					  line_check(program, textp, FORWARD));
   		/* Check to see if we can print the result */
-  		if (page <= SCREENMAX) {
+  		if (page <= screenmax) {
   			set_cursor(0, page);
   			line_print(line);
   		}
   	}
-  	if (page <= SCREENMAX)
+  	if (page <= screenmax)
   		page++;
   	line = line->next;
   } while (line != tail && file == VALID && quit == FALSE);
@@ -1258,7 +1259,7 @@ FLAG method;
   if ((program = get_expression(message)) == NIL_REG)
   	return;
 
-  set_cursor(0, YMAX);
+  set_cursor(0, ymax);
   flush();
 /* Find the match */
   if ((match_line = match(program, cur_text, method)) == NIL_LINE) {
@@ -1292,7 +1293,7 @@ LINE *match_line;
   	return count;
 
 /* Display new page, with match_line in center. */
-  if ((line = proceed(match_line, -(SCREENMAX >> 1))) == header) {
+  if ((line = proceed(match_line, -(screenmax >> 1))) == header) {
   /* Can't display in the middle. Make first line of file top_line */
   	count = 0;
   	for (line = header->next; line != match_line; line = line->next)
@@ -1300,7 +1301,7 @@ LINE *match_line;
   	line = header->next;
   }
   else	/* New page is displayed. Set cursor to middle of page */
-  	count = SCREENMAX >> 1;
+  	count = screenmax >> 1;
 
 /* Reset pointers and redraw the screen */
   reset(line, 0);
@@ -1356,14 +1357,16 @@ int *last_exp;
 
 /*
  * Bcopy copies `bytes' bytes from the `from' address into the `to' address.
+ *
+ * bcopy(from, to, bytes)
+ * register char *from, *to;
+ * register int bytes;
+ * {
+ *   while (bytes--)
+ *   	*to++ = *from++;
+ * }
  */
-bcopy(from, to, bytes)
-register char *from, *to;
-register int bytes;
-{
-  while (bytes--)
-  	*to++ = *from++;
-}
+
 
 /*
  * Compile compiles the pattern into a more comprehensible form and returns a 
@@ -1729,7 +1732,7 @@ dummy_line()
 {
 	(void) line_insert(tail->prev, "\n", 1);
 	tail->prev->shift_count = DUMMY;
-	if (last_y != SCREENMAX) {
+	if (last_y != screenmax) {
 		last_y++;
 		bot_line = bot_line->next;
 	}

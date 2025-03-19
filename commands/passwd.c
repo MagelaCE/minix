@@ -1,6 +1,6 @@
 /* passwd - change a passwd		Author: Adri Koppes */
 
-#include "signal.h"
+#include <signal.h>
 #include "pwd.h"
 
 char    pwd_file[] = "/etc/passwd";
@@ -17,7 +17,7 @@ char *argv[];
 	long    salt;
 	struct  passwd  *pwd, *getpwnam (), *getpwuid (), *getpwent ();
 	char    name[9], password[14], sl[2];
-	char   *getpass (), *crypt ();
+	char   *getpass (), *crypt (), *itoa ();
 
 	uid = getuid ();
 
@@ -99,7 +99,7 @@ char *argv[];
 		write(1, buf, n);
 	}
 
-	fclose (fpin);
-	fclose (fpout);
+	close (fpin);
+	close (fpout);
 	unlink (pw_tmp);
 }

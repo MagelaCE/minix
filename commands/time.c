@@ -1,15 +1,12 @@
 /* time - time a command	Authors: Andy Tanenbaum & Michiel Huisjes */
 
-#include "signal.h"
-#include "../h/const.h"
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/times.h>
+#include <minix/const.h>
 
 char **args;
 char *name;
-
-struct time_buf {
-  long user, sys;
-  long childu, childs;
-};
 
 int digit_seen;
 char a[12] = {"        . \n"};
@@ -18,7 +15,7 @@ int argc;
 char *argv[];
 {
 
-  struct time_buf pre_buf, post_buf;
+  struct tms pre_buf, post_buf;
   int status, pid;
   long start_time, end_time;
 
@@ -55,8 +52,8 @@ char *argv[];
 
  /* Print results. */
   print_time("real ", (end_time - start_time) * HZ);
-  print_time("user ", post_buf.childu - pre_buf.childu);
-  print_time("sys  ", post_buf.childs - pre_buf.childs);
+  print_time("user ", post_buf.tms_cutime - pre_buf.tms_cutime);
+  print_time("sys  ", post_buf.tms_cstime - pre_buf.tms_cstime);
   exit(status >> 8);
 }
 

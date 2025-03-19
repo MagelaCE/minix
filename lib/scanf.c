@@ -1,6 +1,6 @@
 /* scanf - formatted input conversion	Author: Patrick van Kleef */
 
-#include "stdio.h"
+#include <stdio.h>
 
 
 int scanf (format, args)

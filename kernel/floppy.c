@@ -3,7 +3,7 @@
  * write a block.  It accepts two messages, one for reading and one for
  * writing, both using message format m2 and with the same parameters:
  *
- *    m_type      DEVICE    PROC_NR     COUNT    POSITION  ADRRESS
+ *    m_type      DEVICE    PROC_NR     COUNT    POSITION  ADDRESS
  * ----------------------------------------------------------------
  * |  DISK_READ | device  | proc nr |  bytes  |  offset | buf ptr |
  * |------------+---------+---------+---------+---------+---------|
@@ -218,7 +218,7 @@ message *m_ptr;			/* pointer to read or write message */
   if (block >= HC_SIZE) return(EOF);	/* sector is beyond end of 1.2M disk */
   d = fp->fl_density;		/* diskette/drive combination */
   fp->fl_cylinder = (int) (block / (NR_HEADS * nr_sectors[d]));
-  fp->fl_sector = (int) interleave[block % nr_sectors[d]];
+  fp->fl_sector = (int) interleave[(int)(block % nr_sectors[d])];
   fp->fl_head = (int) (block % (NR_HEADS*nr_sectors[d]) )/nr_sectors[d];
   fp->fl_count = m_ptr->COUNT;
   fp->fl_address = (vir_bytes) m_ptr->ADDRESS;
@@ -335,7 +335,7 @@ struct floppy *fp;		/* pointer to the drive struct */
  * operation.  If a new operation is started in that interval, it need not be
  * turned on again.  If no new operation is started, a timer goes off and the
  * motor is turned off.  I/O port DOR has bits to control each of 4 drives.
- * Interrupts must be disabled temporarily to prevent clock interrupt from
+ * Interrupts must be disabled temporarily to prevent clock interrupts from
  * turning off motors while we are testing the bits.
  */
 
@@ -406,6 +406,7 @@ struct floppy *fp;		/* pointer to the drive struct */
   if (fp->fl_results[ST1] != fp->fl_cylinder * steps_per_cyl[d]) r = ERR_SEEK;
   if (r != OK) 
 	if (recalibrate(fp) != OK) return(ERR_SEEK);
+  fp->fl_curcyl = (r == OK ? fp->fl_cylinder : -1);
   return(r);
 }
 
@@ -428,7 +429,7 @@ register struct floppy *fp;	/* pointer to the drive struct */
   /* The PC-AT requires the date rate to be set to 250 or 500 kbps */
   if (pc_at) port_out(FDC_RATE, rate[d]);
 
-  /* The command is issued by outputing 9 bytes to the controller chip. */
+  /* The command is issued by outputting 9 bytes to the controller chip. */
   op = (fp->fl_opcode == DISK_READ ? FDC_READ : FDC_WRITE);
   fdc_out(op);			/* issue the read or write command */
   fdc_out( (fp->fl_head << 2) | fp->fl_drive);
@@ -473,12 +474,13 @@ register struct floppy *fp;	/* pointer to the drive struct */
 {
 /* Extract results from the controller after an operation. */
 
-  int i, j, status, ready;
+  int i, j, k, status, ready;
 
   /* Loop, extracting bytes from FDC until it says it has no more. */
   for (i = 0; i < MAX_RESULTS; i++) {
 	ready = FALSE;
 	for (j = 0; j < MAX_FDC_RETRY; j++) {
+		for (k = 0; k < 32; k++) ;	/* delay loop for 386 */
 		port_in(FDC_STATUS, &status);
 		if (status & MASTER) {
 			ready = TRUE;

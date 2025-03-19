@@ -1,17 +1,18 @@
 /* ls - list files and directories 	Author: Andy Tanenbaum */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "stat.h"
-#include "../fs/const.h"
-#include "../fs/type.h"
-#include "stdio.h"
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <minix/const.h>
+#include <minix/type.h>
+#include <fs/const.h>
+#include <fs/type.h>
 
 #define DIRNAMELEN        14	/* # chars in a directory entry name */
 #define NFILE            256	/* max files in arg list to ls */
 #define MAXPATHLEN       256	/* max chars in a path name */
 #define NDIRBLOCKS        16	/* max length of a directory */
-#define LEGAL      0x1E096DL	/* legal flags to ls */
+#define LEGAL      0x0E0969L	/* legal flags to ls */
 
 struct file {
   char *name;
@@ -348,7 +349,7 @@ struct file *fp;
 	m = fp->mode & I_TYPE;
 	if (m == I_CHAR_SPECIAL || m == I_BLOCK_SPECIAL) {
 		s = (short) fp->size;
-		fprintf(stdout, "%2d, %2d ", (s>>8)&0377, s&0377);
+		fprintf(stdout, "%3d, %3d ", (s>>8)&0377, s&0377);
 	} else {
 		fprintf(stdout, "%7D ", fp->size);
 	}

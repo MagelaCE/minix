@@ -1,0 +1,11 @@
+mx|minix|ansi:\
+	bs:\
+	cd=\E[0J:\
+	cl=\E[H\E[0J:\
+	cm=\E[%i%d;%dH:\
+	co#80:\
+	ho=\E[H:\
+	li#24:\
+	se=\E[0m:\
+	so=\E[7m:\
+	sr=\EM:

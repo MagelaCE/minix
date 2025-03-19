@@ -1,6 +1,6 @@
 /* tar - tape archiver			Author: Michiel Huisjes */
 
-/* Usage: tar [cxt][v] tapefile [files]
+/* Usage: tar [cxt] tapefile [files]
  *
  * Bugs:
  *	This tape archiver should only be used as a program to read or make
@@ -10,12 +10,9 @@
  *	except when the involved fields are filled in.
  */
 
-#include "stat.h"
-
-struct direct {
-  unsigned short d_ino;
-  char d_name[14];
-};
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/dir.h>
 
 typedef char BOOL;
 #define TRUE	1
@@ -60,6 +57,7 @@ char usage[] = "Usage: tar [cxt] tarfile [files].";
 char io_buffer[BLOCK_SIZE];
 char path[NAME_SIZE];
 char pathname[NAME_SIZE];
+extern printf();
 
 int total_blocks;
 long convert();
@@ -104,7 +102,11 @@ register char *argv[];
   if (creat_fl + ext_fl + show_fl != 1) 
 	error(usage, NIL_PTR);
   
-  tar_fd = creat_fl ? creat(argv[2], 0644) : open(argv[2], 0);
+  if (strcmp(argv[2], "-") != 0) {
+	tar_fd = creat_fl ? creat(argv[2], 0644) : open(argv[2], 0);
+  } else {
+	tar_fd = (creat_fl ? 1 : 0);
+  }
 
   if (tar_fd < 0)
 	error("Cannot open ", argv[2]);
@@ -201,7 +203,7 @@ register char *file;
   copy(file, tar_fd, fd, convert(header.member.m_size, LONG_TYPE));
   (void) close(fd);
 
-  chmod(file, convert(header.member.m_mode, INT_TYPE));
+  chmod(file, (int)convert(header.member.m_mode, INT_TYPE));
   flush();
 }
 
@@ -427,7 +429,7 @@ register char *str;
   static int index = 0;
 
   if (str == NIL_PTR) {
-	write(1, output, index);
+	write(2, output, index);
 	index = 0;
 	return;
   }
@@ -435,7 +437,7 @@ register char *str;
   while (*str) {
 	output[index++] = *str++;
 	if (index == BLOCK_SIZE) {
-		write(1, output, BLOCK_SIZE);
+		write(2, output, BLOCK_SIZE);
 		index = 0;
 	}
   }
@@ -468,7 +470,7 @@ int args;
   register char *buf_ptr;
   char *scan_ptr;
   char buf[NAME_SIZE];
-  int *argptr = &args;
+  char *argptr = (char *)&args;
   BOOL pr_fl, i;
 
   if (pr_fl = (buffer == NIL_PTR))
@@ -480,19 +482,22 @@ int args;
 		fmt++;
 		switch (*fmt++) {
 			case 's': 
-				scan_ptr = (char *) *argptr;
+				scan_ptr = *((char **)argptr);
+				argptr += sizeof(char *);
 				break;
 			case 'I': 
-				scan_ptr = num_out((long) *argptr);
+				scan_ptr = num_out((long) *((int *)argptr));
+				argptr += sizeof(int);
 				for (i = 0; i < 5; i++)
 					scan_ptr++;
 				break;
 			case 'L': 
 				scan_ptr = num_out(*((long *) argptr));
-				argptr++;
+				argptr += sizeof(long);
 				break;
 			case 'd' :
-				scan_ptr = num_out((long) *argptr);
+				scan_ptr = num_out((long) *((int *)argptr));
+				argptr += sizeof(int);
 				while (*scan_ptr == '0')
 					scan_ptr++;
 				scan_ptr--;
@@ -503,7 +508,6 @@ int args;
 		while (*buf_ptr++ = *scan_ptr++)
 			;
 		buf_ptr--;
-		argptr++;
 	}
 	else
 		*buf_ptr++ = *fmt++;

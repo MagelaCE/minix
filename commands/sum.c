@@ -59,9 +59,9 @@ char *fname;
 {
   char buf[BUFSIZ];
   int i,n;
-  int size = 0;
+  long size = 0;
   unsigned crc = 0;
-  unsigned tmp;
+  unsigned tmp, blks;
 
   while((n = read(fd,buf,BUFSIZ)) > 0) {
 	for (i = 0; i < n; i++) {
@@ -82,7 +82,8 @@ char *fname;
 	return;
   }
   putd(crc,5,1);
-  putd((size+BUFSIZ-1)/BUFSIZ, 6, 0);
+  blks = (size + (long)BUFSIZ - 1L)/(long)BUFSIZ;
+  putd(blks, 6, 0);
   if (fname) prints(" %s", fname);
   prints("\n");
 }

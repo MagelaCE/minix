@@ -1,5 +1,6 @@
 /* test(1); version 7-like  --  author Erik Baalbergen */
-#include <stat.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sgtty.h>
 
 /* test(1) accepts the following grammar:
@@ -11,7 +12,7 @@
 		| "(" expr ")"
 		| "!" expr
 		;
-	unary-operator ::= "-r"|"-w"|"-f"|"-d"|"-s"|"-t"|"-z"|"-n";
+	unary-operator ::= "-r"|"-w"|"-x"|"-f"|"-d"|"-s"|"-t"|"-z"|"-n";
 	binary-operator ::= "="|"!="|"-eq"|"-ne"|"-ge"|"-gt"|"-le"|"-lt";
 	operand ::= <any legal UNIX file name>
 */
@@ -39,6 +40,7 @@
 #define LPAREN	20
 #define RPAREN	21
 #define OPERAND	22
+#define FILEX   23
 
 #define UNOP	1
 #define BINOP	2
@@ -52,6 +54,7 @@ struct op {
 } ops[] = {
 	{"-r", FILRD, UNOP},
 	{"-w", FILWR, UNOP},
+	{"-x", FILEX, UNOP},
 	{"-f", FILND, UNOP},
 	{"-d", FILID, UNOP},
 	{"-s", FILGZ, UNOP},
@@ -180,6 +183,8 @@ filstat(nm, mode)
 		return access(nm, 4) == 0;
 	case FILWR:
 		return access(nm, 2) == 0;
+	case FILEX:
+		return access(nm, 1) == 0;
 	case FILND:
 		return stat(nm, &s) == 0 && ((s.st_mode & S_IFMT) != S_IFDIR);
 	case FILID:
