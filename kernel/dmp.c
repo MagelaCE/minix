@@ -32,7 +32,7 @@ p_dmp()
   extern phys_bytes umap();
 
   printf(
-  "\nproc  -pid- -pc-  -sp-  flag  user  -sys-  base limit recv   command\n");
+ "\nproc  -pid- -pc-  -sp-  flag  user  -sys-  base limit recv   command\r\n");
 
   dst = umap(proc_addr(SYSTASK), D, (vir_bytes)nbuff, NSIZE);
 

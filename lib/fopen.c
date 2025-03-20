@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <errno.h>
 #include "lib.h"
 
 #define  PMODE    0666

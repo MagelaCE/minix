@@ -93,7 +93,7 @@ PUBLIC struct tasktab tasktab[] = {
 	mem_task,		MEM_STACK,	"RAMDSK",
 	clock_task,		CLOCK_STACK,	"CLOCK ",
 	sys_task,		SYS_STACK,	"SYS   ",
-	0,			0,		"HARDWR",
+	0,			0,		"IDLE  ",
 	0,			0,		"MM    ",
 	0,			0,		"FS    ",
 	0,			0,		"INIT  "

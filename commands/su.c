@@ -48,7 +48,7 @@ char *argv[];
 	setuid (pwd->pw_uid);
 	if (pwd->pw_shell[0])
 		shell = pwd->pw_shell;
-	execl (shell, 0);
+	execl (shell, "-i", 0);
 	std_err("No shell\n");
 	exit (3);
 }

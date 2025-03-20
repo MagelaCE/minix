@@ -1,0 +1,109 @@
+NAME
+    termcap(3)		- routines to read the termcap file
+
+SYNOPSIS
+    int tgetent( buffer, name )
+      char  buffer[ 1024 ];
+      char *name;
+
+    int tgetflag( entry )
+      char *entry;
+
+    int tgetnum( entry )
+      char *entry;
+
+    char *tgetstr( entry, p )
+      char *entry;
+      char **p;
+
+    char *tgoto( cm_string, column, line )
+      char *cm_string;
+      int   column;
+      int   line;
+
+    tputs( string, count, Putchar )
+      char *string;
+      int   count;
+      void  (*Putchar)();
+
+DESCRIPTION
+    To read a termcap description into memory, use tgetent().
+    The capabilities of the terminal "name" will be copied
+    to the "buffer". This buffer is used by tgetflag(), tgetnum()
+    and tgetstr().
+
+    This routine checks the $TERMCAP string in the environment,
+    using the following algorithm,
+
+      if ( $TERMCAP is undefined ) then
+        search file /etc/termcap for "name"
+
+      else if ( $TERMCAP starts with a '/' ) then
+        search file $TERMCAP for "name"
+
+      else if ( $TERM = "name" ) then
+        use $TERMCAP as the termcap
+
+      else
+        search file /etc/termcap for "name"
+
+    Note this means that when $TERM is changed $TERMCAP must be
+    either updated or removed, see tset(1).
+
+    On successful completion tgetent() returns 1. If it can not
+    open the termcap file then -1 is returned. If there is no
+    description for "name" then 0 is returned.
+
+    READING ENTRIES
+
+    To check for the presence of an entry in a description, use
+    tgetflag(). This routine returns 1 if the capability is 
+    present, 0 if not and -1 for invalid calls.
+
+    The "co" and "li" entries have a numeric value. A numeric
+    entry is read by tgetnum(). If the entry is not specified
+    then -1 is returned.
+
+    Most entries are strings, and are read by tgetstr(). If
+    the requested entry is found, then it is copied to **p.
+    *p is incremented by the size of the entry. A pointer to
+    the start of the string is returned if successful, NULL
+    is returned if the entry was not found.
+
+    GENERATING OUTPUT
+
+    To position a cursor on the screen the routine tgoto() is
+    used. This takes the "cm" string and a column and line
+    number, and forms a string which can be sent to the terminal
+    by using tputs(). If tgoto() encounters a problem, then the
+    returned string is "OOPS". There are some special format
+    commands recognized by tgoto(), see termcap(4) for details.
+
+    All strings returned by tgetstr() or tgoto() should be
+    output using tputs(). This performs the appropriate padding
+    for different terminals under various Unix systems.
+    For Minix, tputs() simply calls "Putchar()" for each
+    character in "string".
+
+    NOTES
+
+    XTABS should be off while using termcap(3).
+
+    See termcap(4) for a complete description of the termcap 
+    entries and the escape codes available for use within strings.
+
+
+FILES
+    /etc/termcap	The termcap entries
+
+SEE ALSO
+    termcap(1), tset(1), termcap(4)
+
+BUGS
+    tgetent() only checks the second terminal name in a description.
+
+    tgoto() does not use BC or UP to avoid unpleasant characters.
+
+    tgoto() is missing some format commands, including "%r".
+
+    tputs() does not do padding under Minix.

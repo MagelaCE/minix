@@ -5,8 +5,8 @@
  * 
  * The entries into this file are:
  *   main:		MINIX main program
- *   unexpected_int:	called when an interrupt to an unused vector < 16 occurs
- *   trap:		called when an unexpected trap to a vector >= 16 occurs
+ *   unexpected_int:	called on an interrupt to an unused vector < 16 occurs
+ *   trap:		called on an unexpected trap to a vector >= 16 occurs
  *   panic:		abort MINIX due to a fatal error
  */
 
@@ -47,7 +47,7 @@ PUBLIC main()
 
   register struct proc *rp;
   register int t;
-  int i;
+  int i, old_state;
   vir_clicks size;
   phys_clicks base_click, mm_base, previous_base;
   phys_bytes phys_b;
@@ -56,7 +56,7 @@ PUBLIC main()
   extern unsigned sizes[8];	/* table filled in by build */
   extern int color, vec_table[], get_chrome();
   extern int s_call(), disk_int(), tty_int(), clock_int(), disk_int();
-  extern int wini_int(), lpr_int(), trp(), rs232_int();
+  extern int wini_int(), lpr_int(), trp(), rs232_int(), secondary_int();
   extern phys_bytes umap();
   extern char get_byte();
   extern struct tasktab tasktab[];	/* see table.c */
@@ -76,7 +76,7 @@ PUBLIC main()
    * the words at 0x000A, 0x000C, and 0x000E free.
    */
 
-  lock();			/* we can't handle interrupts yet */
+  old_state = lock();			/* we can't handle interrupts yet */
   base_click = BASE >> CLICK_SHIFT;
   size = sizes[0] + sizes[1];	/* kernel text + data size in clicks */
   mm_base = base_click + size;	/* place where MM starts (in clicks) */
@@ -154,12 +154,13 @@ PUBLIC main()
   set_vec(SYS_VECTOR, s_call, base_click);
   set_vec(CLOCK_VECTOR, clock_int, base_click);
   set_vec(KEYBOARD_VECTOR, tty_int, base_click);
+  set_vec(SECONDARY_VECTOR, secondary_int, base_click);
   set_vec(RS232_VECTOR, rs232_int, base_click);
   set_vec(FLOPPY_VECTOR, disk_int, base_click);
   set_vec(PRINTER_VECTOR, lpr_int, base_click);
 #ifdef AM_KERNEL
 #ifndef NONET
-  set_vec(ETHER_VECTOR, eth_int, base_click);
+  set_vec(ETHER_VECTOR, eth_int, base_click);	/* overwrites RS232 port 2 */
 #endif
 #endif
   if (pc_at) {

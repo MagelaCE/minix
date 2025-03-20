@@ -23,6 +23,7 @@
 #define CLOCK_VECTOR       8	/* clock interrupt vector */
 #define KEYBOARD_VECTOR    9	/* keyboard interrupt vector */
 #define ETHER_VECTOR      11	/* ethernet interrupt vector */
+#define SECONDARY_VECTOR  11	/* RS232 interrupt vector for port 2 */
 #define	RS232_VECTOR      12	/* rs232 interrupt vector */
 #define XT_WINI_VECTOR	  13	/* xt winchester interrupt vector */
 #define FLOPPY_VECTOR     14	/* floppy disk interrupt vector */

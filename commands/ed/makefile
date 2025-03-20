@@ -10,4 +10,4 @@ OBJS =	append.s catsub.s ckglob.s deflt.s del.s docmd.s doglob.s\
 
 ed:	$(OBJS)
 	cc -i -o ed $(OBJS)
-
+	@chmem =60000 ed
