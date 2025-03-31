@@ -39,6 +39,7 @@
 /* Constant definitions. */
 #define MILLISEC         100	/* how often to call the scheduler (msec) */
 #define SCHED_RATE (MILLISEC*HZ/1000)	/* number of ticks per schedule */
+#define FLUSH_MASK        07	/* bit mask used for flushing RS232 input */
 
 /* Clock parameters. */
 #define TIMER0          0x40	/* port address for timer channel 0 */
@@ -191,14 +192,17 @@ PRIVATE do_clocktick()
 
   accounting();			/* keep track of who is using the cpu */
 
+  /* If input characters are accumulating on an RS232 line, process them. */
+  if (flush_flag) {
+	t = (int) realtime;		/* only low-order bits matter */
+	if ( (t & FLUSH_MASK) == 0) rs_flush();	/* flush tty input */
+  }
+
   /* If a user process has been running too long, pick another one. */
   if (--sched_ticks == 0) {
 	if (bill_ptr == prev_ptr) sched();	/* process has run too long */
 	sched_ticks = SCHED_RATE;		/* reset quantum */
 	prev_ptr = bill_ptr;			/* new previous process */
-
-	/* If characters are accumulating, call the TTY task. */
-	if (flush_flag) rs_flush();	/* flush accumulated tty input */
 
 	/* Check if printer is hung up, and if so, restart it. */
 	if (pr_busy && pcount > 0 && cum_count == prev_ct) pr_char(); 

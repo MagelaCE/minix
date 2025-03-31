@@ -3,17 +3,14 @@
 /* Use "cpdir [-v] src dst" to make a copy dst of directory src.
    Cpdir should behave like the UNIX shell command
 	(cd src; tar cf - .) | (mkdir dst; cd dst; tar xf -)
-   but the linking structure of the tree is not yet preserved.
-   (See the work-yet-to-be-done list below.)
+
    The -m "merge" flag enables you to copy into an existing directory.
    The -s "similar" flag preserves the full mode, uid, gid and times.
    The -v "verbose" flag enables you to see what's going on when running cpdir.
 
    Work yet to be done:
-  - preserve link structure
+
   - link checks, i.e. am I not overwriting a file/directory by itself?
-  - handle character and block special files
-	* they're simply not copied
 
   Please report bugs and suggestions to erikb@cs.vu.nl
 */
@@ -29,11 +26,21 @@
 #define PLEN	256
 #define DIRSIZ	16
 
+#define MAXLINKS 512
+
+struct {
+	unsigned short ino;
+	unsigned short dev;
+	char *path;
+} links[MAXLINKS];
+int nlinks = 0;
+
 char *prog;
 int vflag = 0;	/* verbose */
 int mflag = 0;	/* force */
 int sflag = 0;	/* similar */
 char *strcpy();
+char *malloc();
 
 main(argc, argv)
 	char *argv[];
@@ -125,6 +132,8 @@ cpdir(sp, s, d)
 			strcpy(dend, ent + 2);
 			if (stat(spath, &st) < 0)
 				fatal("can't get file status of %s", spath);
+			if ((st.st_mode & S_IFMT)!=S_IFDIR && st.st_nlink>1)
+				if (cplink(st,spath,dpath)==1) continue;
 			switch (st.st_mode & S_IFMT) {
 			case S_IFDIR:
 				cpdir(&st, spath, dpath);
@@ -133,7 +142,8 @@ cpdir(sp, s, d)
 				cp(&st, spath, dpath);
 				break;
 			default:
-				nonfatal("can't copy special file %s", spath);
+				cpspec(&st, spath, dpath);
+				break;
 			}
 		}
 	}
@@ -215,4 +225,66 @@ fatal(s, a)
 	exit(1);
 }
 
+cpspec(sp, s, d)
+	struct stat *sp;
+	char *s, *d;
+{
+	if (vflag)
+	{
+		printf("copy special file %s to %s.", s, d);
+		printf(" Major/minor = %d/%d.",
+			sp->st_rdev>>8, sp->st_rdev&0177);
+		printf(" Mode = %o.\n", sp->st_mode);
+	}
+	if (mknod(d, sp->st_mode, sp->st_rdev)<0)
+	{
+		perror("mknod");
+		nonfatal("Cannot create special file %s.\n",d);
+	}
+	if (sflag)
+		similar(sp, d);
+}
+
+cplink(st,spath,dpath)
+	struct stat st;
+	char *spath, *dpath;
+{
+	/* Handle files that are links.
+	 * Returns 0 if file must be copied.
+	 * Returns 1 if file has been successfully linked.
+	 */
+	int i;
+	int linkent;
+
+	linkent = -1;
+	for (i=0; i<nlinks; i++)
+	{
+		if (links[i].dev==st.st_dev
+			&& links[i].ino==st.st_ino)
+				linkent=i;
+	}
+	if (linkent>=0) /* It's already in the link table */
+	{ /* we must have copied it earlier.
+	   * So just link to the saved dest path. 	
+	   * Don't copy it twice.
+	   */
+		if (vflag)
+			printf("ln %s %s\n", links[linkent].path,dpath);
+		if (link(links[linkent].path,dpath) < 0)
+			fatal("Could not link to %s\n",dpath);
+		return(1); /* Don't try to copy it */
+	} else { /* Make an entry in the link table */
+		if (nlinks >= MAXLINKS)
+			fatal("Too many links at %s\n",dpath);	
+		links[nlinks].dev = st.st_dev;
+		links[nlinks].ino = st.st_ino;
+		links[nlinks].path = malloc(strlen(dpath)+1);
+		if (links[nlinks].path == NULL)
+			fatal("No more memory at %s\n",dpath);
+		strcpy(links[nlinks].path,dpath);
+		nlinks++;
+		/* Go ahead and copy it the first time */
+		return(0);
+	}
+}
 

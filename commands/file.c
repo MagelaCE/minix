@@ -28,6 +28,7 @@ file(name)
 char *name;
 {
   int i, fd, n, magic, second, mode, nonascii, special, funnypct, etaoins;
+  int symbols;
   long engpct;
   char c;
   struct stat st_buf;
@@ -49,6 +50,25 @@ char *name;
   }
   mode = st_buf.st_mode;
 
+  /* Check for directories and special files. */
+  if ( (mode & S_IFMT) == S_IFDIR) {
+	printf("directory\n");
+	close(fd);
+	return;
+  }
+
+  if ( (mode & S_IFMT) == S_IFCHR) {
+	printf("character special file\n");
+	close(fd);
+	return;
+  }
+
+  if ( (mode & S_IFMT) == S_IFBLK) {
+	printf("block special file\n");
+	close(fd);
+	return;
+  }
+
   n = read(fd, buf, BLOCK_SIZE);
   if (n < 0) {
 	printf("cannot read\n");
@@ -67,12 +87,17 @@ char *name;
   /* Check to see if file is an executable binary. */
   if (magic == A_OUT) {
 	/* File is executable.  Check for split I/D. */
-	printf("executable ");
+	printf("executable");
 	second = (buf[3]<<8) | (buf[2]&0377);
 	if (second == SPLIT)
-		printf(" separate I & D space\n");
+		printf("   separate I & D space");
 	else
-		printf(" combined I & D space\n");
+		printf("   combined I & D space");
+	symbols = buf[28] | buf[29] | buf[30] | buf[31];
+	if (symbols != 0)
+		printf("   not stripped\n");
+	else
+		printf("   stripped\n");
 	close(fd);
  	return;
   }
@@ -126,3 +151,4 @@ usage()
   printf("Usage: file name ...\n");
   exit(1);
 }
+

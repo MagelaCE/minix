@@ -1,12 +1,11 @@
-/* ast - add symbol table.	Author: Dick van Veen, veench@cs.vu.nl */
+/* ast - add symbol table.		Author: Dick van Veen */
 
 #include <a.out.h>
 #include <stdio.h>
 
 /*
  * Since the a.out file in MINIX does not contain any symbol table,
- * we use the symbol table produced with the -s option of asld, e.g.
- * 	cc -s file.c >symbol.out
+ * we use the symbol table produced with the -s option of asld.
  *
  * Read symbol table in memory, remove compiler generated labels,
  * sort the labels and add it to the a.out file.
@@ -17,12 +16,12 @@
  */
 
 /*
- * Usage: ast [flags] [file] [symbolfile]
+ * ast [flags] [file] [symbolfile]
  *
  * flags:
  *	-x	do not preserve local symbols
  *	-X	preserve local symbols except for those whose name begin
- *		with 'I' or 'L', these are compiler generated.
+ *		with 'I', these are compiler generated.
  *
  *	-	when no symbol file is present, symbol.out is assumed.
  *	-	when no file is present, a.out is assumed.
@@ -65,7 +64,7 @@ char **argv;
 		else if (**argv == 'X') X_flag = 1;
 		else {
 			fprintf(stderr, "illegal flag: -%c\n", **argv);
-			Exit(-1);
+			exit(-1);
 		}
 		argv++;
 	}
@@ -78,31 +77,24 @@ char **argv;
 		argv++;
 	}
 	if (*argv != NULL) {
-		fprintf(stderr, "Usage: ast [-xX] [file] [symbolfile]\n");
-		Exit(-1);
+		fprintf(stderr, "Usage: ast [-{x,X}] [file] [symbolfile]\n");
+		exit(-1);
 	}
 	if (o_file == NULL) o_file = A_OUT;
 	o_fd = fopen(o_file, "a");
 	if (o_fd == NULL) {
 		fprintf(stderr, "can't open %s\n", o_file);
-		Exit(-1);
+		exit(-1);
 	}
 	if (s_file == NULL) s_file = SYMBOL_FILE;
 	s_fd = fopen(s_file, "r");
 	if (s_fd == NULL) {
 		fprintf(stderr, "can't open %s\n", s_file);
-		Exit(-1);
+		exit(-1);
 	}
 	setbuf(s_fd, io_buf);
 	ast(s_fd, o_fd);
-	Exit(0);
-}
-
-Exit(val)
-int val;
-{
-	_cleanup();
-	exit(val);
+	exit(0);
 }
 
 ast(s_fd, o_fd)
@@ -126,7 +118,7 @@ read_line(fd, buffer)
 FILE *fd;
 char *buffer;
 {
-	char ch;
+	int ch;
 	char *buf1;
 
 	buf1 = buffer;
@@ -185,13 +177,13 @@ struct nlist *symbol;
 
 	if (buffer[1] != ' ') {
 		fprintf(stderr, "illegal file format\n");
-		Exit(-1);
+		exit(-1);
 	}
 	symbol->n_value = get_value(buffer + 2);
 
 	if (buffer[6] != ' ') {
 		fprintf(stderr, "illegal file format\n");
-		Exit(-1);
+		exit(-1);
 	}
 	get_name(buffer + 7, symbol->n_name);
 	return(0);	/* yeah, found a symbol */
@@ -203,12 +195,12 @@ struct nlist *symbol;
 {
 	if (!(symbol->n_sclass & C_EXT)) {	/* local symbol */
 		if (x_flag) return;
-		if (X_flag && (symbol->n_name[0] == 'I' ||
-			       symbol->n_name[0] == 'L')) return;
+		if (X_flag && symbol->n_name[0] == 'I') return;
+		if (X_flag && symbol->n_name[0] == 'L') return;
 	}
 	if (fwrite(symbol, sizeof(struct nlist), 1, fd) != 1) {
 		fprintf(stderr, "can't write %s\n", o_file);
-		Exit(-1);
+		exit(-1);
 	}
 	nr_symbols++;
 }
@@ -238,7 +230,7 @@ char ch;
 	if (ch >= 'a' && ch <= 'f')
 		return (ch - 'a' + 10);
 	fprintf(stderr, "illegal file format\n");
-	Exit(-1);
+	exit(-1);
 }
 
 get_name(str1, str2)
@@ -263,15 +255,15 @@ do_header()
 	fd = open(o_file, 0);
 	if (read(fd, &header, sizeof(struct exec)) != sizeof(struct exec)) {
 		fprintf(stderr, "%s: no executable file\n", o_file);
-		Exit(-1);
+		exit(-1);
 	}
 	if (BADMAG(header)) {
 		fprintf(stderr, "%s: bad header\n", o_file);
-		Exit(-1);
+		exit(-1);
 	}
 	if (header.a_syms != 0L) {
 		fprintf(stderr, "%s: symbol table is installed\n", o_file);
-		Exit(-1);
+		exit(-1);
 	}
 	fseek(o_fd, A_SYMPOS(header), 0);
 	nr_symbols = 0;
@@ -281,11 +273,11 @@ do_header()
 redo_header(fd)
 FILE *fd;
 {
-	header.a_syms = nr_symbols * sizeof(struct nlist);
+	header.a_syms = (long) (nr_symbols * sizeof(struct nlist));
 	fseek(fd, 0L, 0);
 	if (fwrite(&header, sizeof(header), 1, fd) != 1) {
 		fprintf(stderr, "%s: can't write\n", o_file);
-		Exit(-1);
+		exit(-1);
 	}
 }
 

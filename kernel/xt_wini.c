@@ -245,7 +245,7 @@ struct wini *wn;		/* pointer to the drive struct */
  * 512-byte block starting at physical address 65520).
  */
 
-  int mode, low_addr, high_addr, top_addr, low_ct, high_ct, top_end;
+  int mode, low_addr, high_addr, top_addr, low_ct, high_ct, top_end, old_state;
   vir_bytes vir, ct;
   phys_bytes user_phys;
   extern phys_bytes umap();
@@ -271,7 +271,7 @@ struct wini *wn;		/* pointer to the drive struct */
   if (top_end != top_addr) panic("Trying to DMA across 64K boundary", top_addr);
 
   /* Now set up the DMA registers. */
-  lock();
+  old_state = lock();
   port_out(DMA_M2, mode);	/* set the DMA mode */
   port_out(DMA_M1, mode);	/* set it again */
   port_out(DMA_ADDR, low_addr);	/* output low-order 8 bits */
@@ -279,7 +279,7 @@ struct wini *wn;		/* pointer to the drive struct */
   port_out(DMA_TOP, top_addr);	/* output highest 4 bits */
   port_out(DMA_COUNT, low_ct);	/* output low 8 bits of count - 1 */
   port_out(DMA_COUNT, high_ct);	/* output high 8 bits of count - 1 */
-  unlock();
+  restore(old_state);
 }
 
 /*=========================================================================*
@@ -477,12 +477,14 @@ PRIVATE win_specify(drive, paramp)
 int drive;
 struct param *paramp;
 {
+  int old_state;
+
   command[0] = WIN_SPECIFY;		/* Specify some parameters */
   command[1] = drive << 5;		/* Drive number */
 
 	if (com_out(NO_DMA_INT) != OK)		/* Output command block */
 		return(ERR);
-	lock();
+	old_state = lock();
 
 	/* No. of cylinders (high byte) */
   win_out(paramp->nr_cyl >> 8);
@@ -507,7 +509,7 @@ struct param *paramp;
 
 	/* Ecc burst length */
   win_out(paramp->max_ecc);
-	unlock();
+	restore(old_state);
 
 	if (check_init() != OK) {  /* See if controller accepted parameters */
 		w_need_reset = TRUE;
@@ -597,7 +599,7 @@ int mode;
 /* Output the command block to the winchester controller and return status */
 
 	register int i;
-	int r;
+	int r, old_state;
 
 	port_out(WIN_DMA, mode);
 	port_out(WIN_SELECT, mode);
@@ -613,7 +615,7 @@ int mode;
 	}
 
 
-	lock();
+	old_state = lock();
 
 	for (i=0; i<6; i++) {
 		if(hd_wait(WST_REQ) != OK)
@@ -628,7 +630,7 @@ int mode;
 		port_out(WIN_DATA, command[i]);
 	}
 
-	unlock();
+	restore(old_state);
 
 	if(i != 6) {
 		return(ERR);
@@ -638,8 +640,8 @@ int mode;
 }
 
 /*============================================================================*
- *				init_params					  *
- *============================================================================*/
+ *				init_params				      *
+ *===========================================================================*/
 PRIVATE init_params()
 {
 /* This routine is called at startup to initialize the partition table,
@@ -675,7 +677,8 @@ PRIVATE init_params()
 	param1.ctrl_byte = param0.ctrl_byte = AUTO_CTRL;
 	wini[DEV_PER_DRIVE].wn_heads = wini[0].wn_heads = param0.nr_heads;
 	wini[DEV_PER_DRIVE].wn_low = wini[0].wn_low = 0L;
-	wini[DEV_PER_DRIVE].wn_size = wini[0].wn_size = (long)AUTO_CYLS * (long)AUTO_HEADS * (long)NR_SECTORS;
+	wini[DEV_PER_DRIVE].wn_size = wini[0].wn_size
+		   = (long)AUTO_CYLS * (long)AUTO_HEADS * (long)NR_SECTORS;
 	if(w_reset() != OK)
 	  panic("cannot setup for reading winchester parameter tables",0);
 
@@ -746,7 +749,8 @@ PRIVATE init_params()
   }
 
   wini[0].wn_low = wini[DEV_PER_DRIVE].wn_low = 0L;
-  wini[0].wn_size = (long)((long)param0.nr_cyl * (long)param0.nr_heads * (long)NR_SECTORS);
+  wini[0].wn_size = (long)((long)param0.nr_cyl * 
+				   (long)param0.nr_heads * (long)NR_SECTORS);
 
   for (i = DEV_PER_DRIVE; i < (2*DEV_PER_DRIVE); i++) {
 	wini[i].wn_heads = param1.nr_heads;
@@ -846,4 +850,3 @@ register struct wini *first, *second;
   *first = *second;
   *second = tmp;
 }
-

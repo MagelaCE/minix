@@ -25,9 +25,7 @@
 OBJ = disrel.s dismain.s distabs.s dishand.s disfp.s
 
 dis88 : $(OBJ)
-	cc $(OBJ)
-	size dis88
-	@echo "\07Build of 'dis88' complete." > /dev/tty
+	cc -o dis88 $(OBJ)
 
 
 disrel.s : disrel.c

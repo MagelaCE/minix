@@ -1,3 +1,5 @@
+/* libupack - unpack a packed .s file		Author: Andy Tanenbaum */
+
 char *table[] = {
 "push ax",
 "ret",

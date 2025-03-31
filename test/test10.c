@@ -15,10 +15,10 @@ main()
   /* Create files t10b ... t10h */
   mkfiles();
 
-  if (getpid() == pid) if (fork() == 0) {execl("t10a", 0); exit(0);}
-  if (getpid() == pid) if (fork() == 0) {execl("t10b", 0); exit(0);}
-  if (getpid() == pid) if (fork() == 0) {execl("t10c", 0); exit(0);}
-  if (getpid() == pid) if (fork() == 0) {execl("t10d", 0); exit(0);}
+  if (getpid() == pid) if (fork() == 0) {execl("t10a", (char *) 0); exit(0);}
+  if (getpid() == pid) if (fork() == 0) {execl("t10b", (char *) 0); exit(0);}
+  if (getpid() == pid) if (fork() == 0) {execl("t10c", (char *) 0); exit(0);}
+  if (getpid() == pid) if (fork() == 0) {execl("t10d", (char *) 0); exit(0);}
 
   for (i = 0; i < 60; i++) {
 	spawn( rand()&07);
@@ -40,7 +40,7 @@ int n;
   if (pid =fork()) {
 	wait(&n);		/* wait for some child (any one) */
   } else {
-	k = execl(name[n], 0);
+	k = execl(name[n], (char *) 0);
 	errct++;
 	printf("Child execl didn't take. file=%s errno=%d\n", name[n], errno);
 	rmfiles();

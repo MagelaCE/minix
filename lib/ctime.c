@@ -8,18 +8,7 @@ static char *months[] = {
 	"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 };
 static char *days[] = {
-	"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
-};
-
-/* To compute which date falls on which day of the week, we need to know the
- * day of the week corresponding to Jan 1 of each year 1970 - 1999. The table
- * newyear[] gives this, with 0 = Mon, 1 = Tue, 2 = Wed, ..., 6 = Sun.  After
- * Jan 1, 2000 this program will screw up.  It probably won't be the only one.
- */
-static int newyear[] = {
-	3, 4, 5, 0, 1, 2, 3, 5, 6, 0, 	/* 1970 - 1979 */
-	1, 3, 4, 5, 6, 1, 2, 3, 4, 6,	/* 1980 - 1989 */
-	0, 1, 2, 4, 5, 6, 0, 2, 3, 4	/* 1990 - 1999 */
+	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
 };
 
 #define	MIN	60L		/* # seconds in a minute */
@@ -35,6 +24,8 @@ long *pt;
 {
 	register long t = *pt;
 
+	long year;
+
 	tm.tm_year = 0;
 	tm.tm_mon = 0;
 	tm.tm_mday = 1;
@@ -43,17 +34,15 @@ long *pt;
 	tm.tm_sec = 0;
 
 	/* t is elapsed time in seconds since Jan 1, 1970. */
-	while (t >= YEAR) {	/* how many years can we subtract from t? */
-		if ((tm.tm_year % 4) == 2)
-			t -= DAY;
+	tm.tm_wday = (int) (t/DAY + 4L) % 7;	/* Jan 1, 1970 is 4th wday */
+	while (t >= (year=((tm.tm_year%4)==2) ? YEAR+DAY : YEAR)) {
 		tm.tm_year += 1;
-		t -= YEAR;
+		t -= year;
 	}
 	tm.tm_year += 1970;
 
 	/* t is now the offset into the current year, in seconds. */
-	tm.tm_yday = (t/DAY) + 1;	/* day # of the year, Jan 1 = 1 */
-	tm.tm_wday = ((newyear[tm.tm_year - 1970] + tm.tm_yday - 1) % 7) + 1;
+	tm.tm_yday = (t/DAY);		/* day # of the year, Jan 1 = 0 */
 
 	days_per_month[1] = 28;
 	if ((tm.tm_year % 4) == 0)	/* check for leap year */
@@ -62,7 +51,6 @@ long *pt;
 	/* Compute month. */
 	while (t >= (days_per_month[tm.tm_mon] * DAY))
 		t -= days_per_month[tm.tm_mon++] * DAY;
-	tm.tm_mon++;			/* Jan is month 1, not month 0 */
 
 	/* Month established, now compute day of the month */
 	while (t >= DAY) {
@@ -87,7 +75,7 @@ long *pt;
 
 	/* Generate output in ASCII in buf. */
 	sprintf(buf, "%s %s %2d %02d:%02d:%02d %d\n",
-		days[tm.tm_wday - 1], months[tm.tm_mon-1],
+		days[tm.tm_wday], months[tm.tm_mon],
 		tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, tm.tm_year); 
 	return buf;
 }

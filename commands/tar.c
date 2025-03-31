@@ -43,6 +43,7 @@ HEADER header;
 #define LONG_TYPE	(sizeof(header.member.m_size))
 
 #define MKDIR		"/bin/mkdir"
+#define MKDIR2		"/usr/bin/mkdir"
 
 #define NIL_HEADER	((HEADER *) 0)
 #define NIL_PTR		((char *) 0)
@@ -252,6 +253,7 @@ char *dir_name;
   
   if (pid == 0) {
 	execl(MKDIR, "mkdir", dir_name, (char *) 0);
+	execl(MKDIR2, "mkdir", dir_name, (char *) 0);
 	error("Cannot find mkdir.", NIL_PTR);
   }
 

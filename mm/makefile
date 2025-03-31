@@ -6,14 +6,14 @@
 
 h=../h
 l=/usr/lib
-CFLAGS = -Di8088  -F 
+CFLAGS = -Di8088 -F -T.
 
 obj =	main.s forkexit.s break.s exec.s signal.s getset.s  \
- 	alloc.s utility.s table.s putc.s
+	alloc.s utility.s table.s putc.s
 
 mm:	makefile    $l/head.s $(obj) $l/libc.a $l/end.s
 	@echo "Start linking MM."
-	@asld -o mm $l/head.s $(obj) $l/libc.a $l/end.s
+	@asld -o mm -T. $l/head.s $(obj) $l/libc.a $l/end.s
 	@echo "MM done. "
 
 clean:

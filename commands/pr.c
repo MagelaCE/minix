@@ -16,10 +16,17 @@
  *	header can be given and used.
  *	format changed may occur between printing of several files:
  *		pr -l30 file1 -w75 file2 
+ *
+ * Modified: Rick Thomas.		(Sept 12, 1988)
+ *	added "-M" option to cover functionality of old "-n" option,
+ *	and made "-n" option behavior compatible with system V.
  * 
- * Usage: pr [+page] [-columns] [-h header] [-w with] [-l length] [-nt] [files]
+ * Usage: pr [+page] [-columns] [-h header] [-wwidth] [-llength] [-ntm] [files]
  *        -t : Do not print the 5 line header and trailer at the page.
- *	  -n : Turn on line numbering.
+ *        -n : Turn on line numbering.
+ *        -M : Use "Minix" style line numbering -- Each page begins at
+ *             a line number that is an even multiple of the page length.
+ *             Like the listings in Appendix E of the book.
  *        +page    : Start printing at page n.
  *        -columns : Print files in n-columns.
  *        -l length: Take the length of the page to be n instead of 66
@@ -54,7 +61,8 @@ typedef char BOOL;
 
 char *header;
 BOOL no_header;
-BOOL number;
+BOOL number = FALSE;
+BOOL minix_number = FALSE;
 BOOL ext_header_set = FALSE;	/* external header given */
 BOOL back_space = TRUE;		/* back space correction in line width */
 BOOL dont_fold = FALSE;		/* original. If the line does not fit 
@@ -64,6 +72,7 @@ short cwidth;
 short start_page = 1;
 short width = DEF_WIDTH;
 short length = DEF_LENGTH;
+short linenr;
 char *line_buf;			/* used in format for multi-column output */
 
 char output[1024];
@@ -105,6 +114,11 @@ char *argv[];
   				break;
   			case 'n':
   				number = TRUE;
+				minix_number = FALSE;
+  				break;
+  			case 'M':
+  				number = TRUE;
+				minix_number = TRUE;
   				break;
   			case 'h':
   				header = argv[index++];
@@ -127,7 +141,7 @@ char *argv[];
 				dont_fold = TRUE;
 				break;
   			default:
-  				fprintf(stderr, "Usage: %s [+page] [-columns] [-h header] [-w<with>] [-l<length>] [-nt] [files]\n", argv[0]);
+  				fprintf(stderr, "Usage: %s [+page] [-columns] [-h header] [-w<width>] [-l<length>] [-nMt] [files]\n", argv[0]);
   				exit(1);
   		}
 	continue;	/* Scan for next flags */
@@ -229,6 +243,7 @@ FILE *filep;
 	if (dont_fold && c!='\n' &&  c!=EOF)
 		EAT(filep);
   	lines--;
+	if (c == '\n') linenr++;
   } while (lines > 0 && c != EOF);
 
   return c;	/* last char read */
@@ -328,10 +343,12 @@ FILE *filep;
 print_page(pagenr, maxcol)
 short pagenr, maxcol;
 {
-  short linenr = (pagenr - 1) * length + 1;
   short pad, i, j, start;
   short width;
   char  *p;
+
+  if (minix_number) linenr = (pagenr -1 ) * length + 1;
+  else linenr = 1;
 
   if (!no_header)
   	out_header(pagenr);
@@ -340,7 +357,7 @@ short pagenr, maxcol;
   	for (j = 0; j < maxcol; j++) {
 		width = cwidth;
   		if (number && j == 0) {	/* first columns */
-  			printf("%*.*d ", NUM_WIDTH-1, NUM_WIDTH-1, linenr++);
+  			printf("%7.7d ", linenr++); /* 7 == NUM_WIDTH-1 */
 			width -= NUM_WIDTH;
 		}
 		pad = 0;
@@ -362,12 +379,12 @@ FILE *filep;
 {
   short c = '\0';
   short page_number = 0;
-  short linenr = 1;
   short lines;
   short cnt, i, max;
   short w = width;
   BOOL pr_number = TRUE; /* only real lines are numbered, not folded parts */
 
+  linenr = 1;
   if (number)
 	width -= NUM_WIDTH;
 
@@ -386,9 +403,7 @@ FILE *filep;
   	if (c == EOF)
   		return;
 
-	linenr = (page_number -1 ) * length + 1;
-  	if (!no_header)
-  		out_header(page_number);
+	if (minix_number) linenr = (page_number -1 ) * length + 1;
 
 	if (page_number == start_page)
 		c = getc(filep);
@@ -396,12 +411,13 @@ FILE *filep;
 	/* Print the page */
 	lines = length;
   	while (lines && c != EOF) {
+	  	if (lines == length && !no_header)
+  			out_header(page_number);
   		if (number )
 			if (pr_number)
-		  		printf("%*.*d ", NUM_WIDTH-1, 
-						 NUM_WIDTH-1, linenr++);
+		  	   printf("%7.7d ", linenr++); /* 7 == NUM_WIDTH-1 */
 			else
-				printf("%*c ", NUM_WIDTH-1, ' ');
+			   printf("%7c ", ' '); /* 7 == NUM_WIDTH-1 */
 		pr_number = FALSE;
 		cnt = 0;
 		while (c != '\n' && c != EOF && cnt < width) {
@@ -429,9 +445,9 @@ FILE *filep;
 			pr_number = TRUE;
 		}
 	}
-	if (lines == length)
-		return;
-  	if (!no_header)
+	if (lines == length) /* We never printed anything on this page --  */
+		return;      /* even the header, so dont try to fill it up */
+  	if (!no_header) /* print the trailer -- 5 blank lines */
   		printf("\n\n\n\n\n");
   } while (c != EOF);
 

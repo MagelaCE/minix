@@ -3,7 +3,7 @@
 # This is because they have to be in /lib on a PC; the diskette is too small
 # for them to be in /usr/lib.
 
-CFLAGS= -Di8088 -F 
+CFLAGS= -Di8088 -F -T.
 h=../h
 l=/usr/lib
 
@@ -13,7 +13,7 @@ obj =	main.s open.s read.s write.s pipe.s device.s \
 
 fs:	makefile   $l/head.s $(obj) $l/libc.a $l/end.s
 	@echo "Start linking FS.  "
-	@asld  -o fs $l/head.s $(obj) $l/libc.a $l/end.s
+	@asld  -o fs -T. $l/head.s $(obj) $l/libc.a $l/end.s
 	@echo "FS done.  "
 
 clean:

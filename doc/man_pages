@@ -1,7 +1,22 @@
 This file contains the man pages for those programs not listed in the book or
-which have been significantly modified since the first release.
+which have been significantly modified since the first release.  It should be
+installed as /usr/lib/helpfile.
 ---------------------------------------------------------------------------
 
+# animals
+Command:	animals - twenty questions type guessing game about animals
+Syntax:		animals [database]
+Flags:		(none)
+Example:	animals
+
+     Animals is a guessing game.  The user picks an animal and the computer
+tries to guess it by posing questions that should be answered by typing "y"
+for yes and "n" for no.  Whenever the computer loses, it asks some questions
+that allow it to improve its data base, so as time goes on, it learns.  The
+default data base should be in /usr/lib/animals.
+
+
+# ar
 Command:	ar - archiver
 Syntax:		ar [qrxdpmt][abivulc] [posname] archive file ...
 Flags:		(none)
@@ -29,6 +44,7 @@ The keys may optionally concatencated with one or more of the following:
 	  u: replace only if dated later than member in archive
 
 
+# ascii
 Command:	ascii - strip all the pure ASCII lines from a file
 Syntax:		ascii [-n] [file]
 Flags:		-n Extract the lines containing nonASCII characters
@@ -42,6 +58,7 @@ whether the flag is used or not, the program returns an exit status of true
 if the file is pure ASCII, and false otherwise.
 
 
+# ast
 Command:	ast - add symbol table to executable file
 Syntax:		ast -xX [file] [symbol_file]
 Flags:		-x do not preserve local symbols
@@ -54,6 +71,7 @@ executable file.  If no symbol table file is listed, the default name
 cc -s file.c >symbol.out.
 
 
+# at
 Command:	at - execute commands at a later time
 Syntax:		at time [month day] [file]
 Flags:		(none)
@@ -74,6 +92,7 @@ in the shell script myfile.  The same holds for the commands typed directly to
 at.
 
 
+# badblocks
 Command:	badblocks - put a list of bad blocks in a file
 Syntax:		badblocks block_special
 Flags:		(none)
@@ -85,7 +104,17 @@ up to 7 bad blocks into a file, so they will not be allocated for a "real"
 file.  When the program starts up, it asks for a list of bad blocks.  Then
 it creates a file whose name is of the form .Bad_xxxxx, where xxxxx is a pid.
 
+# banner
+Command:	banner - print a banner
+Syntax:		banner arg ...
+Flags:		(none)
+Example:	banner happy birthday	# print a banner saying happy birthday
 
+     Banner prints its arguments on standard output using a matrix of 6 x 6
+pixels per character.  The @ sign is used for the pixels.
+
+
+# cal
 Command:	cal - print a calendar
 Syntax:		cal [month] year
 Flags:		(none)
@@ -99,6 +128,7 @@ you don't understand what is going on, look up "Calendar, Gregorian" in a
 good encyclopedia.
 
 
+# cdiff
 Command:	cdiff - context diff
 Syntax:		cdiff [-c] old new
 Flags:		-cN how much context to provide
@@ -109,6 +139,45 @@ context.  Some update programs, like patch, can use context diffs to update
 files, even in the presence of other, independent changes.
 
 
+#chmod
+Command:  chmod - change access mode for files
+Syntax:   chmod octal-number files
+          chmod [augo][+-=][rwxst] files
+Flags:    (none)
+Examples: chmod 755 file            # Owner: rwx Group: r-x Others: r-x
+          chmod +x file1 file2      # Make file1 and file2 executable
+          chmod a-w file            # Make file read only
+          chmod u+s file            # Turn on SETUID for file
+          chmod g=u                 # group perms set to same as user perms.
+
+     The given mode is applied to each file in the file list.  The mode can be 
+either absolute or symbolic.  Absolute modes are given as an octal number
+that represents the new file mode.  The mode bits are defined as follows: 
+        4000    Set effective user id on execution to file's owner id
+        2000    Set effective group id on execution to file's group id
+        0400    file is readable by the owner of the file
+        0200    writeable by owner
+        0100    executable by owner
+        0070    same as above, for other users in the same group
+        0007    same as above, for all other users
+
+Symbolic modes modify the current file mode in a specified way.  They take
+the form: 
+        [who] op permissions { op permissions }
+The possibilities for [who] are 'u', 'g', 'o', and 'a'; standing for user, 
+group, other and all, respectively.  If who is omitted, 'a' is assumed, but 
+the current umask is used.  The op can be '+', '-', or '=';  '+' turns on the 
+given permissions, '-' turns them off; '=' sets the permissions exclusively
+for the given who.  For example 'g=x' sets the group permissions to '--x'. 
+     The possible permissions are 'r', 'w', 'x'; which stand for read, write, 
+and execute;  's' turns on the set effective user/group id bits.  'u', 
+'g' and 'o' in the permissions field stand for the current user, group, or
+other permission bits, respectively.  Only one of these may be used at a time.
+'s' only makes sense with 'u' and 'g'; 'o+s' is harmless and does nothing. 
+Multiple symbolic modes may be specified, separated by commas.
+
+
+# compress
 Command:	compress - compress a file using modified Lempel-Ziv coding
 Syntax:		compress [-cdfv] [file] ...
 Flags:		-c Put output on standard output instead of on file.Z
@@ -120,9 +189,12 @@ Examples:	compress <infile >outfile	# compress 1 file
 
      The listed files (or standard input, if none are given) are compressed
 using the Ziv-Lempel algorithm.  If the output is smaller than the input,
-the output is put on file.Z or standard output if no files are listed.
+the output is put on file.Z or standard output if no files are listed.  If
+compress is linked to uncompress, the latter is the same as "compress -d".
+Similarly, a link to "zcat" decompresses to standard output.
 
 
+# cpdir
 Command:	cpdir - copy a directory and its subdirectories
 Syntax:		cpdir [-v] srcdir destdir
 Flags:		-v Verbose; cpdir tells what it is doing
@@ -134,6 +206,7 @@ contains the same files as the source directory.  Subdirectories are copied
 Recursively. Links and special files are ignored.
 
 
+# cron
 Command:	cron - clock daemon
 Syntax:		cron
 Flags:		(none)
@@ -154,6 +227,7 @@ if there is any work to do.  If there is, the work is done.  The entries of
     0  9  25 12   *    /usr/bin/sing >/dev/tty0   #Xmas morning at 0900 only
 
 
+# diff
 Command:	diff - print differences between two files
 Syntax:		diff file1 file2
 Flags:		(none)
@@ -163,6 +237,7 @@ Example:	diff file1 file2	# print differences between 2 files
 the two files differ.  Lines may not be longer than 128 characters.
 
 
+# diskcheck
 Command:	diskcheck - check a disk for bad sectors
 Syntax:		diskcheck device start count
 Flags:		(none)
@@ -171,10 +246,11 @@ Examples:	diskcheck /dev/at0 0 1200	# check 1.2 MB floppy
 
      Diskcheck checks a disk for bad sectors by reading in each sector,
 writing a known bit pattern onto it, reading it back in and comparing with
-what was written.  This check is then a second time.  Bad sectors are reported
-After each sector is tested, the original sector is restored.
+what was written.  This check is then done a second time.  Bad sectors are 
+reported.  After each sector is tested, the original sector is restored.
 
 
+# dis88
 Command:	dis88 - disassembler
 Syntax:		dis88 [-o] infile [outfile]
 Flags:		-o List the object code along with the assembly code
@@ -187,6 +263,19 @@ a symbol table (added by the program ast), the symbol table information is used
 to give a more readable asembly listing.
 
 
+# dosdir
+Command:	dosdir - read a DOS directory
+Syntax:		du [-lr] drive dir
+Flags:		-l long
+		-r recursive
+Example:	dosdir -l c		# list drive c
+
+     Dosdir/dosread/doswrite have been extended to handle hard disks using the
+letters c,d,e, and f.  The letters a and b can be used for floppies as synonyms
+for 0 and 1.
+
+
+# du
 Command:	du - print disk usage
 Syntax:		du [-s] dir
 Flags:		-s Summary only
@@ -196,6 +285,7 @@ Example:	du dir			# list disk space used by files in dir
 files in that directory and its subdirectories.
 
 
+# ed
 Command:	ed - editor
 Syntax:		ed file
 Flags:		(none)
@@ -235,6 +325,7 @@ Below is a sample editing session with comments given following the # symbol.
 	q			# exit the editor
 	
 
+# expr
 Command:	expr - evaluate experession
 Syntax:		expr arg ...
 Flags:		(none)
@@ -247,6 +338,7 @@ Operators: |, &, {<, <=, ==, !=, >=, >}, {+, -}, *.
      Note that the V7 ":" operator is missing.  Parentheses are permitted.
 
 
+# factor
 Command:	factor - factor an integer less than 2**31
 Syntax:		factor number
 Flags:		(none)
@@ -256,6 +348,7 @@ Example:	factor 450180	# print the prime factors of 450180
 Each factor is printed as many times as it appears in the number.
 
 
+# fgrep
 Command:	fgrep - fast grep
 Syntax:		fgrep [-cfhlnsv] [file] [string] [file] ...
 Flags:		-c count matching lines and only print count, not the lines
@@ -273,6 +366,7 @@ lines containing literal strings (no wildcard characters), and it is much
 faster.
 
 
+# file
 Command:	file - make a guess as to a file's type based on contents
 Syntax:		file name ...
 Flags:		(none)
@@ -283,6 +377,7 @@ guess about what kind of file it is.  It understands about archives, C
 source programs, executable binaries, shell scripts, and English text.
 
 
+# find
 Command:	find - find files meeting a given condition
 Syntax:		find directory expression
 Flags:		(none)
@@ -316,6 +411,7 @@ when a file is found:
   -ok		prompts before executing the command
 
 
+# fdisk
 Command:	fdisk - partition a hard disk
 Syntax:		fdisk file
 Flags:		(none)
@@ -331,6 +427,7 @@ system is mandatory after changing partition sizes.  MINIX, XENIX, PC-IX, and
 MS-DOS all have different ideas about how partitions are numbered.
 
 
+# fix
 Command:	fix - generate new file from old one and diff listing
 Syntax:		fix oldfile difflist >newfile
 Flags:		(none)
@@ -348,6 +445,7 @@ the new file.  For example:
 will generate a file new2 that is identical to newfile.
 
 
+# from
 Command:	from - input half of a connection
 Syntax:		from port
 Flags:		(none)
@@ -361,6 +459,7 @@ result is that the output of the sending pipeline goes into the input of the
 receiving pipeline, making pipelines work across the network. 
 
 
+#fsck
 Command:   	fsck - perform file system consistency check
 Syntax:	   	fsck [-aclmrs] [device] ...
 Flags:	   	-a automatically repair inconsistencies
@@ -372,13 +471,31 @@ Flags:	   	-a automatically repair inconsistencies
 Examples: 	fsck /dev/hd4	# check file system on /dev/hd4
 	 	fsck -a /dev/at0	# automatically fix errors on /dev/at0
 	   	fsck -l /dev/fd0	# list the contents of /dev/fd0
-	   	fsck -c 2 3 /dev/hd3	# check and list inodes 2 & 3 on /dev/hd3
+	   	fsck -c 2 3 /dev/hd3	# check and list /dev/hd3 inodes 2 & 3
 
      Fsck performs consistency checks on the file systems which reside on the
 specified devices.  It may also be used to list the contents of a file system 
-or to make a new file system.
+or to make a new file system.  Fsck can be run from the initial menu and during
+normal production.  The number of heads and sectors/track are built in to 
+the program (4 and 17, respectively).  To change these, modify the code and
+recompile.  If they are set wrong, fsck will give absurd errors.
 
 
+# help
+Command:	help - give help about a command
+Syntax:		help [name]
+Flags:		(none)
+Example:	help uuencode
+
+     Help gives help about a given command name (or help itself, if none is
+specified).  It gets its information from /usr/lib/helpfile, which should be
+linked to doc/man_pages.  To improve performance, it builds an index file,
+/usr/lib/helpfile.idx, which is updated when it is observed to be older than
+/usr/lib/helpfile.  The lines beginning with # are the keywords for help.
+The helpfile contains all the manual pages not present in the book.
+
+
+# lorder
 Command:	lorder - compute the order for library modules
 Syntax:		lorder file ...
 Flags:		(none)
@@ -388,6 +505,7 @@ Example:	lorder proc1.s proc2.s
 and produces a partial ordering suitable for processing by tsort.
 
 
+# master
 Command:	master - control the creation of shervers
 Syntax:		master count uid gid command
 Flags:		(none)
@@ -403,6 +521,7 @@ and creates a new sherver.  Thus master is very similar to init, only it makes
 new shervers (usually) instead of new login programs.  Master must run as root
 to be able to do setuid and setgid.
 
+# more
 Command:	more - pager
 Syntax:		more file ...
 Flags:		(none)
@@ -415,6 +534,7 @@ Example:	more file		# display file on the screen
    q        - exit more
 
 
+# nm
 Command:	nm - print name list
 Syntax:		nm [-gnopru] [file] ...
 Flags:		-g print only external symbols.
@@ -433,6 +553,7 @@ option. The symbol table can be added with ast.  Archives are not supported.
 Note that assembly language files don't have symbol tables.
 
 
+# paste
 Command:	paste - paste multiple files together
 Syntax:		paste [-s] [-ddelim] file ...
 Flags:		-s print files sequentially, file k on line k
@@ -448,6 +569,7 @@ file is on line 1, the second file on line 2, etc.  In effect, -s turns the
 files sideways.
 
 
+# patch
 Command:	patch - patches up a file from the original and a diff
 Syntax:		patch [-bcdDefFlnNop]
 Flags:		-b next argument is backup extension, instead of .orig
@@ -474,6 +596,7 @@ modify 'file' to incorporate all the patches.  The original file will be put
 on 'file~.
 
 
+# prep
 Command:	prep - prepare a text file for statistical analysis
 Syntax:		prep [file]
 Flags:		(none)
@@ -486,6 +609,7 @@ This file can then be sorted and compared to a dictionary (as a spelling
 checker), or used for statistical analyses.
 
 
+# printenv
 Command:	printenv - print out the current environment
 Syntax:		printenv
 Flags:		(none)
@@ -494,6 +618,7 @@ Example:	printenv		# print the environment
      Printenv prints out the current environment strings, one per line.
 
 
+# rcp
 Command:	rcp - remote copy
 Syntax:		rcp [mach1]!file1 [mach2]!file2
 Flags:		(none)
@@ -504,6 +629,30 @@ Examples:	rcp file mach1!/usr/ast/x	# local file to remote machine
 makes use of the programs 'to' and 'from'.
 
 
+# readall
+Command:	readall - read a device quickly to check for bad blocks
+Syntax:		readall file
+Flags:		(none)
+Example:	readall /dev/hd0		# read all of /dev/hd0
+
+     Readall reads all of the named device in large chunks.  It reports about
+blocks that it cannot read.  Unlike diskcheck, it does not attempt to write on
+the disk, making it "safer" to use when one is worried about a sick system.
+
+
+# readclock
+Command:	readclock - read the AT's real time clock
+Syntax:		readclock
+Flags:		(none)
+Example:	date `/usr/bin/readclock` </dev/tty	# useful in /etc/rc
+
+     Readclock reads the AT's real time clock and prints the result in a form
+useful to date, namely, MMDDYYhhmmss.  If the clock does not exist (e.g., on a
+PC), it outputs "-q" to query the user for the time.  The example given above
+can be put in /etc/rc to load the real time when the system is booted.
+
+
+# readfs
 Command:	readfs - read a MINIX file system
 Syntax:		readfs [-il] block_special [dir]
 Flags:		-i Give information about the file, but do not extract files
@@ -516,6 +665,7 @@ extracted can be put in a user-specified directory (default: current
 directory).  If subdirectories are needed, they will be created automatically.
 
 
+# rsh
 Command:	rsh - remote shell for networking
 Syntax:		rsh port [-beil]
 Flags:		-b start the rsh in the background
@@ -534,6 +684,7 @@ local stdout.  Giving rsh with just a port and no argument is the standard way
 to log onto a remote machine.
 
 
+# sherver
 Command:	sherver - shell server
 Syntax:		sherver port
 Flags:		(none)
@@ -546,6 +697,7 @@ from a pipe, remote execution cannot handle signals and CTRL-D, because they
 cannot be sent down a pipe.
 
 
+# spell
 Command:	spell - print all words in a file not present in the dictionary
 Syntax:		spell file
 Flags:		(none)
@@ -559,16 +711,21 @@ present in the file but not present in the dictionary are listed.  The
 dictionary should be located in /usr/lib (or the shell script changed).
 
 
+# strings
 Command:	strings - print all the strings in a binary file
 Syntax:		strings file ...
-Flags:		(none)
-Example:	strings a.out		# print the strings in a.out
+Flags:		-			# search whole file, not just data seg
+		-o			# print octal offset of each string
+		-n			# n is minimum length string (def. = 4)
+Examples:	strings -5 a.out	# print the strings >= 5 chars in a.out
+		strings - /bin/sh	# search entire shell file
 
      Strings looks for sequences of ASCII characters followed by a zero byte.
 These are usually strings.  This program is typically used to help identify
 unknown binary programs
 
 
+# strip
 Command:	strip - remove symbol table from executable file
 Syntax:		strip [file] ...
 Flags:		(none)
@@ -578,8 +735,9 @@ Example:	strip a.out		# remove symbols from a.out
 copy of the file being stripped, so links are lost.
 
 
+# term
 Command:	term - turn PC into a dumb terminal
-Syntax:		test [baudrate] [parity] [bits_per_character]
+Syntax:		term [baudrate] [parity] [bits_per_character]
 Flags:		(none)
 Examples:	term 2400		# talk to modem at 2400 baud
 		term 1200 7 even	# 1200 baud, 7 bits/char, even parity
@@ -599,15 +757,18 @@ that there is no shell hanging on /dev/tty1.  If there is, both the shell and
 term will try to read from /dev/tty1, and nothing will work.
 
 
+# termcap
 Command:	termcap - print the current termcap entry
-Syntax:		termcap
+Syntax:		termcap [type]
 Flags:		(none)
 Example:	termcap			# print the termcap entry
 
-     Termcap reads the /etc/termcap entry corresponding to the current shell
-variable $TERM.  It then prints out all the parameters that apply.
+     Termcap reads the /etc/termcap entry corresponding to the terminal type
+supplied as the argument.  If none is given, the current $TERM is used.
+It then prints out all the parameters that apply.
 
 
+# test
 Command:	test - test for a condition
 Syntax:		test expr
 Flags:		(none)
@@ -634,6 +795,7 @@ These operands may be combined with -a (Boolean and), -o (Boolean or), !
 permitted, but must be escaped to keep the shell from trying to interpret them.
 
 
+# to
 Command:	to - output half of a connection
 Syntax:		to port
 Flags:		(none)
@@ -653,6 +815,7 @@ on machine 2.  The string Johnny is used by the transaction system to identify
 which sender goes with which receiver; any unique string can be used.
 
 
+# traverse
 Command:	traverse - print directory tree under the named directory
 Syntax:		traverse dir
 Flags:		(none)
@@ -662,6 +825,18 @@ Example:	traverse .		# print tree starting at working dir
 the subdirectories are listed, with the depth shown by indentation.
 
 
+# tset
+Command:	tset - set the $TERM variable
+Syntax:		tset [device]
+Flags:		(none)
+Example:	eval `tset`		# set TERM
+
+     Tset is used almost exclusively to set the shell variable TERM from
+inside profiles.  If an argument is supplied, that is used as the value of
+TERM.  Otherwise it looks in /etc/ttytype.
+
+
+# tsort
 Command:	tsort - topological sort
 Syntax:		tsort file
 Flags:		(none)
@@ -671,6 +846,7 @@ Example:	ar cr libc.a `lorder *.s | tsort`	# build library
 total ordering from the partial orderings.
 
 
+# treecmp
 Command:	treecmp - recursively list differences in two directory trees
 Syntax:		treecmp [-v] dir1 dir2
 Flags:		-v (verbose) list all directories processed
@@ -684,14 +860,16 @@ of files missing from one of the trees or present in both but whose contents
 are not identical in both are printed.
 
 
+# tty
 Command:	tty - print the device name of this tty
 Syntax:		tty
-Flags:		(none)
+Flags:		-s silent mode (return status only)
 Example:	tty
 
-     Print the name of the controlling tty.
+     Print the name of the controlling tty
 
 
+# vol
 Command:	vol - split standard input into diskette-sized volumes
 Syntax:		vol [-u] size block-special
 Flags:		-u unsave from diskettes
@@ -705,6 +883,7 @@ new diskette to be inserted.  This makes it possible to save arbitrarily long
 streams on a series of diskettes, as shown in the examples above.
 
 
+# whereis
 Command:	whereis - examine system directories for a given file
 Syntax:		whereis file
 Flags:		(none)
@@ -714,6 +893,7 @@ Example:	whereis	stat.h		# prints: /usr/include/sys/stat.h
 and others, and prints all occurrences of the argument name in any of them.
 
 
+# which
 Command:	which - examine $PATH to see which file will be executed
 Syntax:		which name
 Flags:		(none)
@@ -726,6 +906,7 @@ and /usr/bin.  The which command makes the same search and gives the absolute
 path of the program that will be chosen.
 
 
+# who
 Command:	who - print list of currently logged in users
 Syntax:		who
 Flags:		(none)
@@ -740,6 +921,7 @@ accounting, it will grow forever and eventually fill up your disk unless you
 manually truncate it from time to time.
 
 
+# whoami
 Command:	whoami - print current user name
 Syntax:		whoami
 Flags:		(none)
@@ -750,6 +932,7 @@ you use 'su' to become somebody else, whoami will give the current effective
 user.
 
 
+# uuencode
 Command:	uuencode - encode a binary file to ASCII (e.g., for mailing)
 Syntax:		uuencode [input] output
 Flags:		(none)
@@ -760,6 +943,7 @@ to pure ASCII by encoding 3 bytes (24 bits) as 4 bytes in ASCII.  Only 64
 different characters are used, all of them valid ASCII characters.
 
 
+# uudecode
 Command:	uudecode - decode a binary file encoded with uuencode
 Syntax:		uudecode file 
 Flags:		(none)
@@ -768,3 +952,14 @@ Example:	uudecode encodedfile 	# re-create the original file
      Uudecode takes an input file, typically a uuencoded binary file, and 
 converts it back to the original file.  The decoded file is given the name
 that the original file had.  The name information is part of the encoded file.
+
+
+# write
+Command:	write - write a message to a terminal
+Syntax:		write ttyn
+Flags:		(none)
+Example:	write tty1		# write to /dev/tty1
+
+     Write is a shell script that is used to send a message to another logged
+in user on the system.  The user is identified by tty number.  After the
+message has been typed, the user types CTRL-D to exit.

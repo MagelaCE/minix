@@ -349,7 +349,6 @@ register struct mproc *rmp;	/* whose core is to be dumped */
   char buf[DUMP_SIZE];
   int i, r, s, er1, er2, slot;
   vir_bytes v_buf;
-  long len;
   long a, c, ct, dest;
   struct mproc *xmp;
   extern char core_name[];

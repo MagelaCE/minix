@@ -3,19 +3,7 @@
 /* cdiff - turns a regular diff into a new-style context diff
  *
  * Usage: cdiff file1 file2
- *
- * $Log:	cdiff.c,v $
- * Revision 1.1.1.2  87/06/04  11:21:43  lwall
- * Didn't do diffs with less than 3 lines of leading context.
- * 
- * Revision 1.1.1.1  87/06/03  11:52:25  lwall
- * Wasn't concatenating overlapping hunks right.
- * 
- * Revision 1.1  87/06/01  16:05:57  lwall
- * Initial revision
- * 
  */
-static char rcsid[] = "$Header: cdiff.c,v 1.1.1.2 87/06/04 11:21:43 lwall Exp $";
 
 #define PATCHLEVEL 2
 
@@ -27,6 +15,7 @@ static char rcsid[] = "$Header: cdiff.c,v 1.1.1.2 87/06/04 11:21:43 lwall Exp $"
 char buff[512];
 
 FILE *inputfp, *oldfp, *newfp;
+char *ctime();
 
 int oldmin, oldmax, newmin, newmax;
 int oldbeg, oldend, newbeg, newend;
@@ -70,10 +59,7 @@ char **argv;
     for (argc--,argv++; argc; argc--,argv++) {
 	if (argv[0][0] != '-')
 	    break;
-	if (argv[0][1] == 'v') {
-	    printf("%s\n	Patch level: %d\n",rcsid,PATCHLEVEL);
-	    exit(0);
-	}
+
 	if (argv[0][1] == 'c')
 	    context = atoi(argv[0]+2);
     }

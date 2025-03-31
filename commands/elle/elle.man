@@ -1,54 +1,7 @@
-
-
-                        ELLE FOR MINIX
-
-		 Andy Tanenbaum (ast@cs.vu.nl)
-
-
-1. INTRODUCTION
-     I have good news for the Emacs fans among the MINIX users.  I have
-ported an Emacs clone to MINIX.  The clone is called ELLE (ELLE Looks
-Like Emacs).  It was written by Ken Harrenstien of SRI.  His e-mail
-address is klh@sri-nic.arpa.  ELLE is not full Emacs (surely you didn't
-expect that?), but it has about 80 commands and is highly usable.  I am
-not distributing the (700K) source, but you can get it from Vincent Broman's
-MINIX archive.  Instructions will be posted shortly.
-
-     For people who don't know about Emacs, it is a VERY VERY big editor
-that can do anything you can imagine, if you have enough patience to wait
-forever.  Mined was inspired by Emacs, and has the same style, but only a
-small subset, and is much faster.  Compared to mined, ELLE has the following
-advantages:
-
-   1.  It can edit files as large as the disk can hold (vs. mined, 38K)
-   2.  It can handle multiple windows (2, to be specific)
-   3.  You can have lots of files in the editor simultaneously
-   4.  You can change the key bindings relatively easily
-   5.  It has a bunch of additional commands that mined is missing
-
-Compared to Emacs, it has the following advantages:
-   1.  It is much, much smaller
-   2.  It is a lot faster
-   3.  It has #ifs for a large number of machines
-
-The disadvantage of ELLE compared to mined is that regular expressions are
-missing, and compared to Emacs that hundreds and hundreds of commands are
-missing.
-  
-     For the record, I am aware of Jove and Scame and have tried both.
-Without getting into all the details, ELLE seems much better suited to
-MINIX. It is very fast, for example.  Implementing full Emacs on MINIX 
-is unthinkable.
-
-     One problem is that I have been unable to compile ELLE on MINIX.
-I can compile all the files, but asld runs out of space when linking
-everything.  I have made a preliminary attempt to see if asld can be 
-sfixed, but it really appears to be out of space.  The only solution is
-to remove a few of the ELLE source files (such as internal diagnostics
-and paragraph filling).  I haven't really worked on this and definitely
-don't have the time now.  My hope is that one or more of you will do that.
-I cross compiled ELLE on PC-IX.  That works fine.  People who are using
-Turbo C might try that.
+1. INTRODUCTION TO ELLE
+     ELLE (ELLE Looks Like Emacs) is an Emacs clone for MINIX.  It was
+written by Ken Harrenstien of SRI.  His e-mail address is klh@sri-nic.arpa.  
+ELLE is not full Emacs but it has about 80 commands and is quite fast.
 
 1.1 Key bindings
      Mined only has a small number of commands.  All of them are either of
@@ -57,37 +10,21 @@ many commands, that not only are all the CTRL-x commands used up, but so
 are all the ESC x (escape followed by x; escape is not a shift character,
 like CTRL).  Even this is not enough, so CTRL-X is used as a prefix for
 additional commands.  Thus CTRL-X CTRL-L is a command, and so is CTRL-X K.
-Fortunately, it wasn't necessary to distinguish upper case from lower case,
-so what is conventionally written as CTRL-X K really means CTRL-X k.
+Note that what is conventionally written as CTRL-X K really means CTRL-X k.
 
-     The result of all this is that many commands need three or four key
-strokes to execute.  The command "CTRL-X (" requires you to touch CTRL, X,
-shift, and (, for example, because the parentheses are upper case.  
-A lot of people think 4 (usually pretty obscure) key strokes is too much work.
+     As a result, many Emacs commands need three or four key strokes to 
+execute.  Some people think 3-4 key strokes is too many.
 For this reason, Emacs and ELLE allow users to assign their own key bindings.
 In ELLE this is done with "user profiles."  A user profile is a file listing
 which function is invoked by which key stroke.  The user profile is then
 compiled by a program called ellec into binary form.  When ELLE starts up
 it checks to see if a file .ellepro.b1 exists in $HOME.  If it does, this
-file is read in and overrides the default bindings.  It is also possible to
-tell ELLE to read in a specific file as profile.
+file is read in and overrides the default bindings.  
 
      I have written a user profile that simulates the mined commands fairly
-well (but not perfectly, since there are a few things that ELLE
-simply cannot perform).  This profile also includes the other ELLE functions,
-mostly in the form ESC x, rather than the 3 and 4 key stroke Emacs commands.
-In addition, the numeric keypad is used, and lowercase characters were used
-in preference to uppercase where possible (e.g., = instead of +).
-Furthermore, I have made an attempt to choose mnemonic names for most 
-commands, although the goals of choosing mmenomic names and having all the
-common command be no longer than two lowercase key strokes are in conflict.
-
-     If you have never used Emacs, I suggest that you use the mined profile.
-It should be easy to learn, since it is a superset of mined.  If you already
-know Emacs, you have a choice of familiarity vs. fewer key strokes.  In
-particular, I have avoided the many CTRL-X y and CTRL-X CTRL-Y sequences
-that Emacs has.  A third option is to build your own profile using ellec.
-The keybindings are described below.
+well.  Its installation is described later.  If you have never used Emacs, 
+I suggest that you use the mined profile.  If you normally use Emacs, then
+do not install the mined profile.  You can also make your own.
 
      ELLE has a character-oriented view of the world, not a line oriented
 view, like ed.  It does not have magic characters for searching, however, you
@@ -98,6 +35,7 @@ The CTRL-\ means to interpret the next character literally, in this case it
 is CTRL-J, which is line feed.  You can also search for patterns involving 
 multiple lines.  For example, to find a line ending in an "x" followed by a
 line beginning with a "y", use as pattern: x CTRL-\ CTRL-J y.
+
 2. MINED KEY BINDINGS
 
      These are the key bindings if the binary user profile, .ellepro.b1,
@@ -234,13 +172,7 @@ The major differences between ELLE with the mined profile and mined are:
 8. You exit with CTRL-X CTRL-X and then answer the question with "y".
 9. There are many new commands, windows, larger files, etc.
 
-Needless to say, if it had been easy to eliminate these differences and
-have the two editors be fully compatible, I would have done so.  In each
-case it would have been a significant undertaking.
-
 3. EMACS KEY BINDINGS
-
-     This section was adapted from the official ELLE documentation.
 
 CURSOR MOVEMENT
    CTRL-F         Forward one character.
@@ -367,31 +299,36 @@ UNUSED CONTROLS
    
 
 4. INSTALLING ELLE ON MINIX
-     I have distributed the following files:
+
+   Files:
 
      elle	 (executable binary of the editor)
      ellec       (executable binary of the profile compiler)
      .ellepro.e  (mined profile in source form)
      .ellepro.b1 (mined profile in binary form)
-     defprf.e    (default profile in source form)
      help.dat    (help file)
-
-Before starting to install ELLE, be sure you have updated to the tty.c
-that supports both ANSI input and output.  Also install the /etc/termcap
-file that goes with this tty driver.
 
 HOW TO INSTALL ELLE
 
 Step 1:
-     Install 'elle' and 'ellec' in your /bin or /usr/bin directory.
+     Check to see if /etc/termcap is present and has an entry for 'minix'.
 
 Step 2:
-     Install help.dat in /usr/src/elle/help.dat
+     Set the environment properly by typing:  TERM=minix.  You can also put
+     it in the appropriate .profile, but be sure to include a line: 
+     export TERM.  You can check the current environment with: printenv.  
+     If the entry TERM=minix does not appear, ELLE will not work.
 
 Step 3:
-     If you want to use the mined-like commands, install .ellepro.b1 in $HOME
+     Install 'elle' and 'ellec' in your /bin or /usr/bin directory.
 
 Step 4:
+     Install help.dat in /usr/src/elle/help.dat
+
+Step 5:
+     If you want to use the mined-like commands, install .ellepro.b1 in $HOME
+
+Step 6:
      Type 'elle filename' and you are up and running.
 
 
@@ -407,6 +344,3 @@ Step 3:
 
 Step 4:
      Check to see if $HOME/.ellepro.b1 was created
-
-If you have questions that are likely to be of interest to other people,
-post them rather than sending me private mail.

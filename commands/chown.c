@@ -1,9 +1,4 @@
-/*
- * chown username file ...
- * 
- * By Patrick van Kleef
- *
- */
+/* chown - change file ownership		Author: Patrick van Kleef */
 
 #include <pwd.h>
 #include <sys/types.h>

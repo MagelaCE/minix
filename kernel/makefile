@@ -6,33 +6,24 @@
 # This is because they have to be in /lib on a PC; the diskette is too small
 # for them to be in /usr/lib.  You can change this by editing commands/cc.c.
 #
-# Normally, MINIX scrolls the screen using the 6845's registers.  However,
-# on some EGA cards (those that are not IBM compatible), the 6845 is not
-# properly emulated.  On these machines, it is necessary to scroll in
-# software by copying. This is much slower, but it works. The CFLAGS flags are:
-#
+# The CFLAGS values are:
 #  -Di8088	- required on an 8088/80286/80386 CPU; forbidden on a 68000
 #  -F		- run cpp and cem sequentially (used when memory is tight)
 #  -T.		- put temporaries in working directory (when RAM disk is small)
 #
-# In the standard distribution, the following defaults are set
-#  PC:		CFLAGS = -Di8088 -F -T.
-#  AT:		CFLAGS = -Di8088 -F 
-#
-CFLAGS= -Di8088 -F
+CFLAGS= -Di8088 -F -T.
 h=../h
 l=/usr/lib
 
 obj =	mpx88.s main.s tty.s floppy.s wini.s system.s proc.s clock.s memory.s \
-	printer.s table.s klib88.s dmp.s
+	console.s rs232.s printer.s table.s klib88.s dmp.s
 
 cobjs =	main.s tty.s floppy.s wini.s system.s proc.s clock.s memory.s \
-	printer.s table.s dmp.s
-
+	console.s rs232.s printer.s table.s dmp.s
 
 kernel:	makefile $(obj) $l/libc.a
 	@echo "Start linking Kernel."
-	@asld -o kernel $(obj) $l/libc.a $l/end.s
+	@asld -o kernel -T. $(obj) $l/libc.a $l/end.s
 	@echo "Kernel done.  "
 
 clean:
@@ -45,6 +36,17 @@ clock.s:	$h/error.h
 clock.s:	$h/signal.h
 clock.s:	glo.h
 clock.s:	proc.h
+
+console.s:	const.h type.h $h/const.h $h/type.h
+console.s:	$h/callnr.h
+console.s:	$h/com.h
+console.s:	$h/error.h
+console.s:	$h/sgtty.h
+console.s:	$h/signal.h
+console.s:	glo.h
+console.s:	proc.h
+console.s:	tty.h
+console.s:	ttymaps.h
 
 floppy.s:	const.h type.h $h/const.h $h/type.h
 floppy.s:	$h/callnr.h
@@ -88,6 +90,16 @@ proc.s:		$h/error.h
 proc.s:		glo.h
 proc.s:		proc.h
 
+rs232.s:	const.h type.h $h/const.h $h/type.h
+rs232.s:	$h/callnr.h
+rs232.s:	$h/com.h
+rs232.s:	$h/error.h
+rs232.s:	$h/sgtty.h
+rs232.s:	$h/signal.h
+rs232.s:	glo.h
+rs232.s:	proc.h
+rs232.s:	tty.h
+
 system.s:	const.h type.h $h/const.h $h/type.h
 system.s:	$h/callnr.h
 system.s:	$h/com.h
@@ -99,6 +111,7 @@ system.s:	proc.h
 table.s:	const.h type.h $h/const.h $h/type.h $h/com.h
 table.s:	glo.h
 table.s:	proc.h
+table.s:	tty.h
 
 tty.s:	const.h type.h $h/const.h $h/type.h
 tty.s:	$h/callnr.h
@@ -108,6 +121,8 @@ tty.s:	$h/sgtty.h
 tty.s:	$h/signal.h
 tty.s:	glo.h
 tty.s:	proc.h
+tty.s:	tty.h
+tty.s:	ttymaps.h
 
 wini.s:	const.h type.h $h/const.h $h/type.h
 wini.s:	$h/callnr.h

@@ -1,6 +1,4 @@
-/* chgrp - change group			Author: Phil Nelson */
-
-/* Code modified from chown By Patrick van Kleef */
+/* chgrp - change group		Authors: P. van Kleef and D. Spinellis */
 
 #include <grp.h>
 #include <minix/type.h>

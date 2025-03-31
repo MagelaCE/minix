@@ -1,4 +1,4 @@
-/* strip - remove symbols.	Author: Dick van Veen, veench@cs.vu.nl */
+/* strip - remove symbols.		Author: Dick van Veen */
 
 #include <a.out.h>
 #include <stdio.h>
@@ -129,18 +129,15 @@ copy_file(fd1, fd2, size)
 int fd1, fd2;
 long size;
 {
-	long count;
 	int length;
 
-	count = 0;
-	while (count < size) {
-		length = (int) (size - count);
-		if (length > sizeof(buffer)) length = sizeof(buffer);
-		length = read(fd1, buffer, length);
-		if (length == 0) break;
+	while (size > 0) {
+		if (size < sizeof(buffer))
+			length = size;
+		else	length = sizeof(buffer);
+		if (read(fd1, buffer, length) != length) return(1);
 		if (write(fd2, buffer, length) != length) return(1);
-		count += length;
+		size -= length;
 	}
-	if (count < size) return(1);
 	return(0);
 }

@@ -99,7 +99,8 @@ copyfile(fd1, fd2, name)
 int fd1, fd2;
 char *name;
 {
-  int n, m;
+  int n, m, mode;
+  struct stat sbuf;
 
   do {
 	n = read(fd1, cpbuf, TRANSFER_UNIT);
@@ -107,8 +108,11 @@ char *name;
 	if (n > 0) {
 		m = write(fd2, cpbuf, n);
 		if (m != n) {
+			/* Write failed.  Don't keep truncated regular file. */
 			perror("cp");
-			unlink(name);	/* don't leave truncated file around */
+			fstat(fd2, &sbuf);	/* check for special files */
+			mode = sbuf.st_mode & S_IFMT;
+			if (mode == S_IFREG) unlink(name);
 			exit(1);
 		}
 		if (isfloppy) sync();	/* purge the cache all at once */
@@ -124,9 +128,19 @@ usage()
   exit(-1);
 }
 
+typedef char *cptr;
+
 int equal(s1, s2)
 char *s1, *s2;
 {
+  struct stat sb1, sb2;
+
+ /* same file, different name? */
+  stat(s1, &sb1);
+  stat(s2, &sb2);
+  if (memcmp((cptr)&sb1, (cptr)&sb2, sizeof(struct stat)) == 0)
+      return(1);
+ /* same file, same name? */
   while (1) {
 	if (*s1 == 0 && *s2 == 0) return(1);
 	if (*s1 != *s2) return(0);
@@ -154,4 +168,18 @@ char *s1, *s2, *s3;
   std_err(s1);
   std_err(s2);
   std_err(s3);
+}
+
+
+int memcmp(b1, b2, n)
+cptr b1, b2;
+int n;
+{
+  while (n--) {
+    if (*b1 != *b2)
+        return ((int) (*b1 - *b2));
+    ++b1;
+    ++b2;
+  }
+  return (0);
 }

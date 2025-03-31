@@ -60,7 +60,7 @@ static void
 usage(s)
    register char *s;
 {
-   fprintf(stderr,"\07usage: %s [-o] ifile [ofile]\n",s);
+   fprintf(stderr,"Usage: %s [-o] ifile [ofile]\n",s);
    exit(-1);
 }
 

@@ -1,4 +1,5 @@
-#include "stat.h"
+#include <sys/stat.h>
+
 extern int errno;
 int errct;
 int testnr;

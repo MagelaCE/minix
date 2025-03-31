@@ -28,7 +28,12 @@
 #define CPU_TY1       0xFFFF	/* BIOS segment that tells CPU type */
 #define CPU_TY2       0x000E	/* BIOS offset that tells CPU type */
 #define PC_AT           0xFC	/* IBM code for PC-AT (in BIOS at 0xFFFFE) */
+#define PS              0xFA	/* IBM code for PS/2  (in BIOS at 0xFFFFE) */
 #define EM_VEC          0x15	/* vector for extended memory BIOS calls */
+#define CMASK1          0x00	/* interrupt mask: ptr, dsk, keybd, clk, PIC */
+#define CMASK2          0xBF	/* interrupt mask for secondary PIC */
+#define CMASK3          0x3C	/* interrupt mask for PS/2 */
+#define CMASK4          0x9E	/* Planar Control Register */
 #define HIGH_INT          16	/* limit of the interrupt vectors */
 
 extern int int00(), int01(), int02(), int03(), int04(), int05(), int06(), 
@@ -54,7 +59,7 @@ PUBLIC main()
   int	stack_size;
   int * ktsb;			/* kernel task stack base */
   extern unsigned sizes[8];	/* table filled in by build */
-  extern int color, vec_table[], get_chrome();
+  extern int port_65, ega, color, vec_table[], get_chrome();
   extern int s_call(), disk_int(), tty_int(), clock_int(), disk_int();
   extern int wini_int(), lpr_int(), trp(), rs232_int(), secondary_int();
   extern phys_bytes umap();
@@ -84,15 +89,12 @@ PUBLIC main()
   for (ktsb = t_stack, t = -NR_TASKS, rp = &proc[0];
 		rp <= &proc[NR_TASKS+LOW_USER];  rp++, t++) {
 	for (i = 0; i < NR_REGS; i++) rp->p_reg[i] = 0100 * i;	/* debugging */
-	if (t < 0)
-	{
+	if (t < 0) {
 		stack_size = tasktab[t+NR_TASKS].stksize;
 		ktsb += stack_size / sizeof (int);
 		rp->p_sp = ktsb;
 		rp->p_splimit = ktsb - (stack_size - SAFETY) / sizeof(int);
-	}
-	else
-	{
+	} else {
 		rp->p_sp = INIT_SP;
 		rp->p_splimit = rp->p_sp;
 	}
@@ -141,16 +143,20 @@ PUBLIC main()
 
   /* Determine if display is color or monochrome and CPU type (from BIOS). */
   color = get_chrome();		/* 0 = mono, 1 = color */
+  ega = get_ega();
   t = (int)get_byte(CPU_TY1, CPU_TY2) & 0xFF;	/* is this PC, XT, AT ... ? */
   if (t == PC_AT) pc_at = TRUE;
+  else if (t == PS) ps = TRUE;
 
   /* Save the old interrupt vectors. */
   phys_b = umap(proc_addr(HARDWARE), D, (vir_bytes) vec_table, VECTOR_BYTES);
   phys_copy(0L, phys_b, (long) VECTOR_BYTES);	/* save all the vectors */
+  if (ps) save_tty_vec();	/* save tty vector 0x71 for reboot() */
 
   /* Set up the new interrupt vectors. */
   for (t = 0; t < HIGH_INT; t++) set_vec(t, int_vec[t], base_click);
   for (t = HIGH_INT; t < 256; t++) set_vec(t, trp, base_click);
+
   set_vec(SYS_VECTOR, s_call, base_click);
   set_vec(CLOCK_VECTOR, clock_int, base_click);
   set_vec(KEYBOARD_VECTOR, tty_int, base_click);
@@ -166,9 +172,11 @@ PUBLIC main()
   if (pc_at) {
 	set_vec(AT_WINI_VECTOR, wini_int, base_click);
 	phys_copy(phys_b + 4L*EM_VEC, 4L*EM_VEC, 4L);	/* extended mem vec */
-  } else {
+  } else
 	set_vec(XT_WINI_VECTOR, wini_int, base_click);
-  }
+
+  if (ps)		/* PS/2 */
+	set_vec(PS_KEYB_VECTOR, tty_int, base_click);
 
   /* Put a ptr to proc table in a known place so it can be found in /dev/mem */
   set_vec( (BASE - 4)/4, proc, (phys_clicks) 0);
@@ -176,9 +184,17 @@ PUBLIC main()
   bill_ptr = proc_addr(HARDWARE);	/* it has to point somewhere */
   pick_proc();
 
+  /* Mask out interupts except ptr, disk, clock, keyboard, PIC */
+  if (ps) {
+	port_in(PCR, &port_65);		/* save Planar Control Register */
+	port_out(0x65, CMASK4);		/* set Planar Control Register */
+	port_out(INT_CTLMASK, CMASK3);
+  } else {
+	port_out(INT_CTLMASK, CMASK1);	/* mask out unwanted 8259 interrupts */
+	port_out(INT2_MASK, CMASK2);	/* same for second intr controller */
+  }
+
   /* Now go to the assembly code to start running the current process. */
-  port_out(INT_CTLMASK, 0);	/* do not mask out any interrupts in 8259A */
-  port_out(INT2_MASK, 0);	/* same for second interrupt controller */
   restart();
 }
 
@@ -268,7 +284,6 @@ phys_clicks base_click;		/* click where kernel sits in memory */
   phys_copy(phys_b, (phys_bytes) vec_nr*4, (phys_bytes) 4);
 }
 #endif
-
 
 /*===========================================================================*
  *                                   networking                              * 

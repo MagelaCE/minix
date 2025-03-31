@@ -15,7 +15,7 @@
  *	-g	print only external symbols.
  *	-n	sort numerically rather than alphabetically.
  *	-o	prepend file name to each line rather than only once.
- *	-p	don't sort, print in symbol-table order.
+ *	-p	don't sort, pint n symbol-table order.
  *	-r	sort in reverse order.
  *	-u	print only undefined symbols.
  *
@@ -68,7 +68,7 @@ char **argv;
 				break;
 			default:
 				fprintf(stderr, "illegal flag: -%c\n", **argv);
-				Exit(-1);
+				exit(-1);
 			}
 			*argv += 1;
 		}
@@ -80,14 +80,7 @@ char **argv;
 		nm(*argv);
 		argv++;
 	}
-	Exit(0);
-}
-
-Exit(val)
-int val;
-{
-	_cleanup();
-	exit(val);
+	exit(0);
 }
 
 nm_sort(stbl1, stbl2)
@@ -175,8 +168,8 @@ register struct nlist *stbl;
 	name[8] = '\0';
 	if (!o_flag) printf("%s:\n", file);
 	for (last = &stbl[stbl_elems]; stbl != last; stbl++) {
-		if (g_flag && !(stbl->n_sclass & C_EXT)) continue;
-		if (u_flag && stbl->n_sclass & N_SECT != N_UNDF) continue;
+		if (g_flag && (stbl->n_sclass & N_CLASS) != C_EXT) continue;
+		if (u_flag && (stbl->n_sclass & N_SECT) != N_UNDF) continue;
 
 		n_sclass = stbl->n_sclass & N_SECT;
 		if (n_sclass == N_ABS) type = 'a';
@@ -184,10 +177,10 @@ register struct nlist *stbl;
 		else if (n_sclass == N_DATA) type = 'd';
 		else if (n_sclass == N_BSS) type = 'b';
 		else type = 'u';
-		if (stbl->n_sclass & C_EXT) type += 'A' -'a';
+		if ((stbl->n_sclass & N_CLASS) == C_EXT) type += 'A' -'a';
 		strncpy(name, stbl->n_name, 8);
-		if (o_flag) printf("%s:%04X %c %s\n", file, 
+		if (o_flag) printf("%s:%08X %c %s\n", file, 
 				stbl->n_value, type, name);
-		else printf("%04X %c %s\n", stbl->n_value, type, name);
+		else printf("%08X %c %s\n", stbl->n_value, type, name);
 	}
 }

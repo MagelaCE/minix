@@ -10,7 +10,7 @@ main()
 	register char *n;
 	char name[128];
 	char *last_index();
-	struct stat s, st;
+	struct stat s, st, sk;
 	struct direct d;
 
 	*name = 0;
@@ -46,8 +46,8 @@ main()
 					prints("Can't read ..\n");
 					exit(1);
 				}
-				stat(d.d_name, &s);
-			} while ((s.st_dev != st.st_dev) || (s.st_ino != st.st_ino));
+				stat(d.d_name, &sk);
+			} while ((sk.st_dev != st.st_dev) || (sk.st_ino != st.st_ino));
 		close(fd);
 		if (strcmp(".",d.d_name)) {
 			strcat(name,"/");

@@ -1,4 +1,5 @@
 /* ls - list files and directories 	Author: Andy Tanenbaum */
+/* Version: Minix 1.3 */
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -23,6 +24,7 @@ struct file {
   long modtime;
   long size;
   short link;
+  char is_path;			/* 1 => fp_name is null terminated */
 } file[NFILE+1];
 
 struct dir {
@@ -99,7 +101,7 @@ char *argv[];
   statflag = (topfiles == 0 ? 0 : 1);
   if (present('c') || present('t') || present('u')) statflag = 1;
   if (present('s') || present('l')) statflag = 1;
-  while (k < argc) fill_file("", argv[k++], statflag);
+  while (k < argc) fill_file("", argv[k++], statflag,1);
 }
 
 
@@ -212,7 +214,7 @@ char *dirname;
 	fp = &file[sort_index[k]];
 	if (present('l') || present('s') || present('i'))
 		if (fp->size == -1L)	/* -1 means stat not done */
-			if (stat_file(dirname, fp) < 0) continue;
+			if (stat_file(dirname, fp, fp->is_path) < 0) continue;
 
 	m = fp->mode & I_TYPE;	/* 'm' may be junk if 'expand' = 0 */
 	if (present('f')) m = I_DIRECTORY;
@@ -223,7 +225,11 @@ char *dirname;
 		/* Expand and print directory. */
 		exp_dir(fp);
 		sort(nrf, nrfiles - nrf, 0);
-		if (topfiles > 1) fprintf(stdout, "\n%s:\n", fp->name);
+		if (topfiles > 1) {
+			fprintf(stdout, "\n");
+			pfname(fp->name,fp->is_path);
+			fprintf(stdout, ":\n");
+		}
 		print_total(nrf, nrfiles - nrf);
 		print(nrf, nrfiles - nrf, 0, fp->name);	/* recursion ! */
 		nrfiles = nrf;
@@ -270,7 +276,7 @@ struct file *fp;
 			if (*p == '.' && *(p+1) == 0) continue;
 			if (*p == '.' && *(p+1) == '.' && *(p+2) == 0) continue;
 		}
-		fill_file(fp->name, p, statflag);
+		fill_file(fp->name, p, statflag,0);
 	}
   }
   close(fd);
@@ -280,9 +286,9 @@ struct file *fp;
 
 
 
-fill_file(prefix, postfix, statflag)
+fill_file(prefix, postfix, statflag, pathflag)
 char *prefix, *postfix;
-int statflag;
+int statflag, pathflag;
 {
 /* Fill the next 'file' struct entry with the file whose name is formed by
  * concatenating 'prefix' and 'postfix'.  Stat only if needed.
@@ -297,8 +303,9 @@ int statflag;
   }
   fp = &file[nrfiles++];
   fp->name = postfix;
+  fp->is_path = pathflag;
   if(statflag) {
-	if (stat_file(prefix, fp) < 0) nrfiles--;
+	if (stat_file(prefix, fp, pathflag) < 0) nrfiles--;
   } else {
 	fp->size = -1L;		/* mark file as not yet stat'ed */
   }
@@ -308,8 +315,9 @@ int statflag;
 
 
 
-print_line(fp)
+print_line(fp,is_path)
 struct file *fp;
+int  is_path;
 {
   int blks, m, prot, s;
   char *p1, *p2, *p3, c;
@@ -358,16 +366,26 @@ struct file *fp;
 
 	/* Print file name. */
 	m = 0;
-	p1 = fp->name;
-	while (*p1 != 0 && (m < DIRNAMELEN || *p1 == '/') ) {
-		fprintf(stdout, "%c", *p1);
-		m = (*p1 == '/' ? 0 : m + 1);
-		p1++;
-	}
+	pfname(fp->name,fp->is_path);
 	fprintf(stdout, "\n");
 }
 
-
+pfname(ptr,pathflag)
+char *ptr;
+int  pathflag;
+{
+	int  m;
+	if (pathflag) {
+		fprintf(stdout,"%s",ptr);
+	} else {
+		/* dirname entry is null terminated if length < 14 */
+		m = 0;
+		while (*ptr && m < DIRNAMELEN) {
+			putc(*ptr++, stdout);
+			++m;
+		}
+	}
+}
 
 
 
@@ -393,13 +411,14 @@ struct file *fp;
 
 
 
-int stat_file(prefix, fp)
+int stat_file(prefix, fp, pathflag)
 char *prefix;
 struct file *fp;
+int pathflag;
 {
 /* Stat a file and enter it in 'file'. */
 
-  char namebuf[MAXPATHLEN], *p, *org, *q;
+  char namebuf[MAXPATHLEN], *p, *q;
   struct stat sbuf;
   int m, ctr;
 
@@ -408,14 +427,19 @@ struct file *fp;
   q = prefix;
   while (*q != 0 && p - namebuf < MAXPATHLEN) *p++ = *q++;
   if (*prefix != 0) *p++ = '/';
-  org = fp->name;
   q = fp->name;
   ctr = 0;
-  while (*q != 0 && p - namebuf < MAXPATHLEN) {
-	ctr++;
-	if (*q == '/') ctr = 0;
-	if (ctr > DIRNAMELEN) break;
-	*p++ = *q++;
+
+  if (pathflag) {
+	/* fp->name is null terminated */
+	while (*q) *p++ = *q++;
+  } else {
+	/* fp->name is char[14] */
+	while (*q != 0 && p - namebuf < MAXPATHLEN) {
+		ctr++;
+		if (ctr > DIRNAMELEN) break;
+		*p++ = *q++;
+	}
   }
   *p = 0;
 

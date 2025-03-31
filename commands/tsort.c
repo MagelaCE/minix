@@ -24,7 +24,6 @@
  * change log:
  *	possible bug in ungetc(), fixed readone() to avoid - 2/19/88 - mrw
  *	massive design error, rewrote dump logic - 3/15/88 - mrw
- *	readnode(): s1 & s2 should not keep using - 5/25/88 - mrw
  */
 
 #include <stdio.h>
@@ -123,7 +122,7 @@ readnode()
 				linknode(n2);
 			}
 			if (n1 != n2) {
-				if (finddep(n2->pred,n1->name) == (struct dependents *)NULL) {
+				if (finddep(n2->pred,s1) == (struct dependents *)NULL) {
 					/* new dependence here */
 					pd = (struct dependents *)xalloc(sizeof(struct dependents));
 					pd->nd = n1;
@@ -134,7 +133,7 @@ readnode()
 					else
 						lastdepd->next = pd;
 				}
-				if (finddep(n1->succ,n2->name) == (struct dependents *)NULL) {
+				if (finddep(n1->succ,s2) == (struct dependents *)NULL) {
 					/* new dependence here */
 					pd = (struct dependents *)xalloc(sizeof(struct dependents));
 					pd->nd = n2;

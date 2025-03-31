@@ -117,7 +117,7 @@ int n;
 	out[1] += n;
   } else {
 	out[1] += (n%10);
-	out[2] = '0' + (n/10);
+	out[0] = '0' + (n/10);
   }
   std_err(out);
 }

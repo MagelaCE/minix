@@ -254,9 +254,6 @@ register struct mproc *child;	/* tells which process is exiting */
   register struct mproc *parent, *rp;
   int init_waiting, child_nr;
   unsigned int r;
-#ifndef ATARI_ST
-  phys_clicks s;
-#endif
 
   child_nr = (int)(child - mproc);
   parent = &mproc[child->mp_parent];

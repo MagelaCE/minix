@@ -120,7 +120,7 @@ PRIVATE struct floppy {		/* main drive struct, one entry per drive */
   vir_bytes fl_address;		/* user virtual address */
   char fl_results[MAX_RESULTS];	/* the controller can give lots of output */
   char fl_calibration;		/* CALIBRATED or UNCALIBRATED */
-  char fl_density;		/* 0 = 360K/360K; 1 = 360K/1.2M; 2= 1.2M/1.2M */
+  char fl_density;		/* 0 = 360K/360K; 1 = 360K/1.2M; 2= 1.2M/1.2M*/
 } floppy[NR_DRIVES];
 
 #define UNCALIBRATED       0	/* drive needs to be calibrated at next use */
@@ -158,7 +158,7 @@ PRIVATE int nr_blocks[NT] =
 PRIVATE int steps_per_cyl[NT] = 
 	{1,    1,    2,    1,    2,    1};   /* 2 = dbl step */
 PRIVATE int mtr_setup[NT] = 
-	{HZ/4,3*HZ/4,HZ/4,HZ/4,3*HZ/4,3*HZ/4};/* in ticks */
+	{HZ/4,3*HZ/4,HZ/4,2*HZ/4,3*HZ/4,3*HZ/4};/* in ticks */
 
 /*===========================================================================*
  *				floppy_task				     * 
@@ -204,7 +204,7 @@ message *m_ptr;			/* pointer to read or write message */
 {
 /* Carry out a read or write request from the disk. */
   register struct floppy *fp;
-  int r, drive, errors, stop_motor();
+  int r, sectors, drive, errors, stop_motor();
   long block;
 
   /* Decode the message parameters. */
@@ -238,6 +238,10 @@ message *m_ptr;			/* pointer to read or write message */
  	if (errors % (MAX_ERRORS/NT) == 0) {
  		d = (d + 1) % NT;	/* try next density */
  		fp->fl_density = d;
+		sectors = nr_sectors[d];
+		fp->fl_cylinder = (int) (block / (NR_HEADS * sectors));
+		fp->fl_sector = (int) interleave[(int)(block % sectors)];
+		fp->fl_head = (int)(block%(NR_HEADS*sectors)) / sectors;
  		need_reset = 1;
 	}
   	if (block >= nr_blocks[d]) continue;
@@ -259,7 +263,6 @@ message *m_ptr;			/* pointer to read or write message */
 	r = transfer(fp);
 	if (r == OK) break;	/* if successful, exit loop */
 	if (r == ERR_WR_PROTECT) break;	/* retries won't help */
-
   }
 
   /* Start watch_dog timer to turn motor off in a few seconds */
@@ -385,7 +388,7 @@ struct floppy *fp;		/* pointer to the drive struct */
  * positioned on the correct cylinder.
  */
 
-  int r;
+  int r, send_mess();
 
   /* Are we already on the correct cylinder? */
   if (fp->fl_calibration == UNCALIBRATED)
@@ -407,6 +410,10 @@ struct floppy *fp;		/* pointer to the drive struct */
   if (r != OK) 
 	if (recalibrate(fp) != OK) return(ERR_SEEK);
   fp->fl_curcyl = (r == OK ? fp->fl_cylinder : -1);
+  if (r == OK && ps) {		/* give head time to settle on PS/2 */
+	clock_mess(2, send_mess);
+	receive(CLOCK, &mess);
+  }
   return(r);
 }
 
@@ -567,6 +574,10 @@ register struct floppy *fp;	/* pointer tot he drive struct */
   } else {
 	/* Recalibration succeeded. */
 	fp->fl_calibration = CALIBRATED;
+	if (ps) {		/* give head time to settle on PS/2 */
+		clock_mess(2, send_mess);
+		receive(CLOCK, &mess);
+	}
 	return(OK);
   }
 }
@@ -621,7 +632,7 @@ int (*func)();			/* function to call upon time out */
 
   mess.m_type = SET_ALARM;
   mess.CLOCK_PROC_NR = FLOPPY;
-  mess.DELTA_TICKS = ticks;
+  mess.DELTA_TICKS = (long) ticks;
   mess.FUNC_TO_CALL = func;
   sendrec(CLOCK, &mess);
 }
@@ -634,6 +645,5 @@ PRIVATE send_mess()
 {
 /* This routine is called when the clock task has timed out on motor startup.*/
 
-  mess.m_type = MOTOR_RUNNING;
   send(FLOPPY, &mess);
 }

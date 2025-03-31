@@ -134,6 +134,7 @@ message *m_ptr;			/* pointer to the newly arrived message */
 			break;
 		}
 	}
+  restore(old_state);
   }
 
   /* Reply to FS, no matter what happened. */

@@ -1,13 +1,14 @@
 /* mv - move files		Author: Adri Koppes 
  *
  * 4/25/87 - J. Paradis		Bug fixes for directory handling
+ * 3/15/88 - P. Housel		More directory bug fixes
  */
 
 #include <signal.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 
-int     error = 0;
+extern char *rindex();
+
 struct stat st, st1;
 
 main (argc, argv)
@@ -47,7 +48,6 @@ char  **argv;
 	while (--argc)
 	    move (*++argv, destdir);
     }
-    if (error) exit (1);
     exit(0);
 }
 
@@ -57,9 +57,17 @@ char   *old,
 {
     int     retval;
     char    name[64];
+    char    parent[64];
+    char    *oldbase;
+    int     i;
+
+    if((oldbase = rindex(old, '/')) == 0)
+	oldbase = old;
+    else
+	++oldbase;
 
     /* It's too dangerous to fool with "." or ".." ! */
-    if((strcmp(old, ".") == 0) || (strcmp(old, "..") == 0)) {
+    if((strcmp(oldbase, ".") == 0) || (strcmp(oldbase, "..") == 0)) {
 	cant(old);
     }
 
@@ -68,24 +76,62 @@ char   *old,
         st.st_ino == st1.st_ino)
 	cant(old);
 
-    if (!stat (new, &st))
-	if((st.st_mode & S_IFMT) != S_IFDIR)
-	    unlink (new);
-    else {
-	char *p, *rindex();
+    /* If source is not writeable, don't move it. */
+    if (access(old, 2) != 0) cant(old);
 
-	if ((strlen(old) + strlen(new) + 2) > 64) {
+    if (stat (new, &st1) == 0)
+	if((st1.st_mode & S_IFMT) != S_IFDIR)
+	    unlink (new);
+	else {
+	    if ((strlen(oldbase) + strlen(new) + 2) > 64) {
 		cant(old);
-		error++;
-		return;
+	    }
+	    strcpy(name, new);
+	    strcat(name, "/");
+	    strcat(name, oldbase);
+	    new = name;
+
+	    /* do the 'move-to-itself' check again for the new name */
+	    if (stat(new, &st1)==0 && st.st_dev == st1.st_dev
+		&& st.st_ino == st1.st_ino)
+	        cant(old);
 	}
-	strcpy(name, new);
-	strcat(name, "/");
-	p = rindex(old, '/');
-	strcat(name, p ? p : old);
-	new = name;
+
+    strcpy(parent, new);
+
+    for(i = (strlen(parent) - 1); i > 0; i--) {
+	if(parent[i] == '/') break;
     }
-    stat (old, &st);
+
+    if(i == 0) {
+	strcpy(parent, ".");
+    }
+    else {
+	/* null-terminate name at last slash */
+	parent[i] = '\0';
+    }
+
+    /* prevent moving a directory into its own subdirectory */
+    if((st.st_mode & S_IFMT) == S_IFDIR) {
+	char lower[128];
+        short int prevdev = -1;
+	unsigned short previno;
+
+	strcpy(lower, parent);
+	while(1) {
+	    if(stat(lower, &st1) || (st1.st_dev == st.st_dev
+				     && st1.st_ino == st.st_ino))
+		cant(old);
+
+	    /* stop at root */
+	    if(st1.st_dev == prevdev && st1.st_ino == previno)
+		break;
+	    prevdev = st1.st_dev;
+	    previno = st1.st_ino;
+	    strcat(lower, "/..");
+	}
+    }
+
     if (link (old, new))
 	if ((st.st_mode & S_IFMT) != S_IFDIR) {
 	    switch (fork ()) {
@@ -110,32 +156,7 @@ char   *old,
     ** where else in the tree...)
     */
     if ((st.st_mode & S_IFMT) == S_IFDIR) {
-	int	i;
-	char	parent[64], dotdot[64];
-
-	strcpy(parent, new);
-
-	/* Determine the name for the parent of
-	** the new name by counting back until we
-	** hit a '/' or the begining of the string
-	*/
-
-	for(i = (strlen(parent) - 1); i > 0; i--) {
-	    if(parent[i] == '/') break;
-	}
-
-	/* If there are no slashes, then the name is
-	** in the current directory, so its parent
-	** is ".".  Otherwise, the parent is the name
-	** up to the last slash.
-	*/
-	if(i == 0) {
-		strcpy(parent, ".");
-	}
-	else {
-		/* null-terminate name at last slash */
-		parent[i] = '\0';
-	}
+	char	dotdot[64];
 
 	/* Unlink the ".." entry */
 	strcpy(dotdot, new);

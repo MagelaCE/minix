@@ -70,7 +70,7 @@ M.0:	cli                     | disable interrupts
 	mov ax,4		| build has loaded this word with ds value
 	mov ds,ax		| ds now contains proper value
 	mov ss,ax		| ss now contains proper value
-	mov _scan_code,bx	| save scan code for '=' key from bootstrap
+	mov _scan_code,bx	| save scan code from bootstrap
   	mov sp,#_k_stack	| set sp to point to the top of the
 	add sp,#K_STACK_BYTES	| 	kernel stack
 
@@ -269,6 +269,7 @@ _trp:				| this is where unexpected traps come.
 |*				save					     *
 |*===========================================================================*
 save:				| save the machine state in the proc table.  
+	cld			| set direction flag to a known value
 	push ds			| stack: psw/cs/pc/ret addr/ds
 	push cs			| prepare to restore ds
 	pop ds			| ds has now been set to cs
@@ -300,6 +301,7 @@ save:				| save the machine state in the proc table.
 	add sp,#K_STACK_BYTES	| set sp to top of temporary stack
 	mov splimit,#_k_stack	| limit for temporary stack
 	add splimit,#8		| splimit checks for stack overflow
+	cld
 	mov ax,ret_save		| ax = address to return to
 	jmp (ax)		| return to caller; Note: sp points to saved ax
 

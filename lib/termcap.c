@@ -13,6 +13,7 @@
     - Correct when TERM != name and TERMCAP is defined   [tgetent]
     - Correct the comparison for the terminal name       [tgetent]
     - Correct the value of ^x escapes                    [tgetstr]
+    - Added %r to reverse row/column			 [tgoto]
 */
 
 #include <stdio.h>
@@ -23,7 +24,6 @@
 #define ISDIGIT(x)	((x) >= '0' && (x) <= '9')
 
 char		*capab;		/* the capability itself */
-int		incr;		/* set by %i flag */
 
 extern char	*getenv();	/* new, improved getenv */
 extern FILE	*fopen();	/* old fopen */
@@ -233,7 +233,7 @@ int	destline;
 {
 	register char	*rp;
 	static char	ret[24];
-	int		*dp = &destcol;
+	int		incr = 0;
 	int 		argno = 0, numval;
 
 	for (rp = ret ; *cm ; cm++) {
@@ -241,10 +241,9 @@ int	destline;
 		case '%' :
 			switch(*++cm) {
 			case '+' :
-				if (dp == NULL)
-					return("OOPS");
-				*rp++ = *dp + *++cm;
-				dp = (dp == &destcol) ? &destline : NULL;
+				numval = (argno == 0 ? destline : destcol);
+				argno = 1 - argno;
+				*rp++ = numval + incr + *++cm;
 				break;
 
 			case '%' :
@@ -252,16 +251,19 @@ int	destline;
 				break;
 
 			case 'i' :
-
 				incr = 1;
 				break;
 
 			case 'd' :
 				numval = (argno == 0 ? destline : destcol);
 				numval += incr;
-				argno++;
+				argno = 1 - argno;
 				*rp++ = '0' + (numval/10);
 				*rp++ = '0' + (numval%10);
+				break;
+
+			case 'r' :
+				argno = 1;
 				break;
 			}
 

@@ -64,6 +64,16 @@ report()
   prints("\nint = "); 	prctl(tch.t_intrc);
   prints("\nquit = "); 	prctl(tch.t_quitc);
   if (ispeed > 0) {
+	/* Print # bits/char and parity */
+	if ( (mode & BITS8) == BITS8) prints("\n8 bits/char,  ");
+	if ( (mode & BITS8) == BITS7) prints("\n7 bits/char,  ");
+	if ( (mode & BITS8) == BITS6) prints("\n6 bits/char,  ");
+	if ( (mode & BITS8) == BITS5) prints("\n5 bits/char,  ");
+	if (mode & EVENP) prints("even parity");
+	else if (mode & ODDP) prints("odd parity");
+	else prints("no parity");
+
+	/* Print line speed. */
 	prints("\nspeed = ");
 	switch(ispeed) {
 		case  100: prints("110");	break;
