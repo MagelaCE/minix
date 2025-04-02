@@ -6,16 +6,9 @@
  *	remains attached.
  *
  *	A public domain implementation of the termcap(3) routines.
+ *
+ *	improvements and optimalisation by Klamer Schutte 21/11/88
  */
-
-/*    efth      1988-Apr-29
-
-    - Correct when TERM != name and TERMCAP is defined   [tgetent]
-    - Correct the comparison for the terminal name       [tgetent]
-    - Correct the value of ^x escapes                    [tgetstr]
-    - Added %r to reverse row/column			 [tgoto]
-*/
-
 #include <stdio.h>
 
 #define CAPABLEN	2
@@ -23,7 +16,13 @@
 #define ISSPACE(c)	((c) == ' ' || (c) == '\t' || (c) == '\r' || (c) == '\n')
 #define ISDIGIT(x)	((x) >= '0' && (x) <= '9')
 
-char		*capab;		/* the capability itself */
+extern short	ospeed;		/* output speed */
+extern char	PC;		/* padding character */
+extern char	*BC;		/* back cursor movement */
+extern char	*UP;		/* up cursor movement */
+
+char		*capab = NULL;	/* the capability itself */
+int		incr;		/* set by %i flag */
 
 extern char	*getenv();	/* new, improved getenv */
 extern FILE	*fopen();	/* old fopen */
@@ -42,73 +41,82 @@ char	*name;
 	char	*file;
 	char	*cp;
 	short	len = strlen(name);
+	int	get_entry();
+	int	cnt;
 
 	capab = bp;
-
-	/* Fixed problem: If TERM != name and TERMCAP was defined,  */
-	/* then should look in /etc/termcap, but didn't.  (efth)    */
-
-	if ( (file = getenv("TERMCAP")) == NULL )
-	    file = "/etc/termcap";
-	else if ( *file != '/' )
-	    if ( (cp = getenv("TERM")) != NULL && strcmp( name, cp ) == 0 ) {
-		strcpy( bp, file );
-		return( 1 );
-	    } else
-		file = "/etc/termcap";
-
-
-	if ((fp = fopen(file, "r")) == (FILE *) NULL)
-		return(-1); 
-
-	while (fgets(bp, 1024, fp) != NULL) {
-		/*  Read in the rest of the definition now  (efth)  */
-		while (*(cp = &bp[strlen(bp) - 2]) == '\\')
-			fgets(cp, 1024, fp);
-		
-		/* skip V6 two letter name */
-		for (cp = bp ; *cp != '|' ; cp++)
-			;
-		for (++cp ; ISSPACE(*cp) ; cp++)
-			;
-
-		/*  Make sure "name" matches exactly  (efth)  */
-		if (strncmp(name, cp, len) == 0  &&  cp[len] == '|') {
-			fclose(fp);
+	if ((file = getenv("TERMCAP")) != (char *) NULL) {
+		if (*file != '/' &&
+		    (cp = getenv("TERM")) != NULL && strcmp(name, cp) == 0) {
+			(void) strcpy(bp, file);
 			return(1);
 		}
+	} else
+		file = "/etc/termcap";
+	if ((fp = fopen(file, "r")) == (FILE *) NULL)
+	{	capab = NULL;			/* no valid termcap	*/
+		return(-1); 
 	}
+
+	while( get_entry( bp, fp ) )
+	{ 	cp = bp;
+		do
+		{	for(cnt=0; name[cnt] != 0; cnt++, cp++)
+				if (name[cnt] != *cp)
+					break;
+			if ((name[cnt] != 0) || ((*cp != '|') && (*cp != ':')))
+				goto next_name;
+			fclose(fp);
+			return 1;
+next_name: 		while( (*cp) && (*cp != '|') && (*cp != ':'))
+				cp++;
+		} while( *cp++ == '|');
+	}	
 	fclose(fp);
+	capab = NULL;				/* no valid termcap	*/
 	return(0);
 	
 }
 
+/* copy entry in termcap file to buf */
+static get_entry( buf, file )
+register char	*buf;
+register FILE	*file;
+{
+	register int	c, last = 0;
+	
+	while( (c = fgetc( file )) != EOF)
+		if ((*buf++ = c) == '\n')
+			if (last == '\\')
+				buf -= 2;
+			else
+			{	*buf = 0;
+				return 1;
+			}
+		else
+			last = c;
+	return 0;
+}
+	
 /*
  *	tgetnum - get the numeric terminal capability corresponding
  *	to id. Returns the value, -1 if invalid.
  */
 int
 tgetnum(id)
-char	*id;
+char	*id;	
 {
-	char	*cp;
-	int	ret;
+	register char	*cp;
 
 	if ((cp = capab) == NULL || id == NULL)
 		return(-1);
-	while (*++cp != ':')
+	while (*cp++ != ':')			/* skip terminal name	*/
 		;
-	for (++cp ; *cp ; cp++) {
-		while (ISSPACE(*cp))
-			cp++;
-		if (strncmp(cp, id, CAPABLEN) == 0) {
-			while (*cp && *cp != ':' && *cp != '#')
-				cp++;
-			if (*cp != '#')
+	for (; *cp ; cp++) {
+		if ((*id == *cp++) && (id[1] == *cp)){
+			if (cp[1] != '#')
 				return(-1);
-			for (ret = 0, cp++ ; *cp && ISDIGIT(*cp) ; cp++)
-				ret = ret * 10 + *cp - '0';
-			return(ret);
+			return atoi( cp + 2 );
 		}
 		while (*cp && *cp != ':')
 			cp++;
@@ -125,16 +133,14 @@ int
 tgetflag(id)
 char	*id;
 {
-	char	*cp;
+	register char	*cp;
 
 	if ((cp = capab) == NULL || id == NULL)
 		return(-1);
-	while (*++cp != ':')
+	while (*cp++ != ':')			/* skip terminal name	*/
 		;
-	for (++cp ; *cp ; cp++) {
-		while (ISSPACE(*cp))
-			cp++;
-		if (strncmp(cp, id, CAPABLEN) == 0)
+	for ( ; *cp ; cp++) {
+		if ((*id == *cp++) && (id[1] == *cp))
 			return(1);
 		while (*cp && *cp != ':')
 			cp++;
@@ -152,46 +158,43 @@ tgetstr(id, area)
 char	*id;
 char	**area;
 {
-	char	*cp;
+	register char	*cp, *wsp;		/* workspace == *area	*/
 	char	*ret;
 	int	i;
 
 	if ((cp = capab) == NULL || id == NULL)
 		return(NULL);
-	while (*++cp != ':')
+	while (*cp++ != ':')			/* skip terminal name	*/
 		;
-	for (++cp ; *cp ; cp++) {
-		while (ISSPACE(*cp))
-			cp++;
-		if (strncmp(cp, id, CAPABLEN) == 0) {
-			while (*cp && *cp != ':' && *cp != '=')
-				cp++;
-			if (*cp != '=')
+	for ( ; *cp ; cp++) {
+		if ((*id == *cp++) && (id[1] == *cp)){
+			if (cp[1] != '=')
 				return(NULL);
-			for (ret = *area, cp++; *cp && *cp != ':' ; (*area)++, cp++)
+			cp += 2;
+			for (ret = wsp = *area; *cp && *cp != ':' ; wsp++, cp++)
 				switch(*cp) {
 				case '^' :
-					**area = *++cp - '@'; /* fix (efth)*/
+					*wsp = *++cp - 'A';
 					break;
 				case '\\' :
 					switch(*++cp) {
 					case 'E' :
-						**area = '\033';
+						*wsp = '\033';
 						break;
 					case 'n' :
-						**area = '\n';
+						*wsp = '\n';
 						break;
 					case 'r' :
-						**area = '\r';
+						*wsp = '\r';
 						break;
 					case 't' :
-						**area = '\t';
+						*wsp = '\t';
 						break;
 					case 'b' :
-						**area = '\b';
+						*wsp = '\b';
 						break;
 					case 'f' :
-						**area = '\f';
+						*wsp = '\f';
 						break;
 					case '0' :
 					case '1' :
@@ -199,18 +202,19 @@ char	**area;
 					case '3' :
 						for (i=0 ; *cp && ISDIGIT(*cp) ; cp++)
 							i = i * 8 + *cp - '0';
-						**area = i;
+						*wsp = i;
 						cp--;
 						break;
 					case '^' :
 					case '\\' :
-						**area = *cp;
+						*wsp = *cp;
 						break;
 					}
 					break;
 				default :
-					**area = *cp;
+					*wsp = *cp;
 				}
+			*area = wsp;
 			*(*area)++ = '\0';
 			return(ret);
 		}
@@ -233,7 +237,7 @@ int	destline;
 {
 	register char	*rp;
 	static char	ret[24];
-	int		incr = 0;
+	int		*dp = &destcol;
 	int 		argno = 0, numval;
 
 	for (rp = ret ; *cm ; cm++) {
@@ -241,9 +245,10 @@ int	destline;
 		case '%' :
 			switch(*++cm) {
 			case '+' :
-				numval = (argno == 0 ? destline : destcol);
-				argno = 1 - argno;
-				*rp++ = numval + incr + *++cm;
+				if (dp == NULL)
+					return("OOPS");
+				*rp++ = *dp + *++cm;
+				dp = (dp == &destcol) ? &destline : NULL;
 				break;
 
 			case '%' :
@@ -251,19 +256,16 @@ int	destline;
 				break;
 
 			case 'i' :
+
 				incr = 1;
 				break;
 
 			case 'd' :
 				numval = (argno == 0 ? destline : destcol);
 				numval += incr;
-				argno = 1 - argno;
+				argno++;
 				*rp++ = '0' + (numval/10);
 				*rp++ = '0' + (numval%10);
-				break;
-
-			case 'r' :
-				argno = 1;
 				break;
 			}
 
@@ -294,7 +296,3 @@ int		(*outc)();
 		(*outc)(*cp++);
 	return(1);
 }
-
-/*
- *	That's all, folks...
- */

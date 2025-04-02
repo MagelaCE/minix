@@ -1,20 +1,35 @@
-/*  memchr(3)
+/*
+ * memchr - search for a byte
  *
- *  Author: Terrence W. Holm          Sep. 1988
+ * CHARBITS should be defined only if the compiler lacks "unsigned char".
+ * It should be a mask, e.g. 0377 for an 8-bit machine.
  */
+#include <string.h>
+#define	NULL	0
 
-#define  NULL  (char *) 0
+#ifndef CHARBITS
+#	define	UNSCHAR(c)	((unsigned char)(c))
+#else
+#	define	UNSCHAR(c)	((c)&CHARBITS)
+#endif
 
+VOIDSTAR
+memchr(s, ucharwanted, size)
+CONST VOIDSTAR s;
+int ucharwanted;
+SIZET size;
+{
+	register CONST char *scan;
+	register SIZET n;
+	register int uc;
 
-char *memchr( vector, chr, count )
-  char *vector;
-  int   chr;
-  int   count;
+	scan = s;
+	uc = UNSCHAR(ucharwanted);
+	for (n = size; n > 0; n--)
+		if (UNSCHAR(*scan) == uc)
+			return(scan);
+		else
+			scan++;
 
-  {
-  while( --count >= 0 )
-    if ( *vector++ == chr )
-	return( vector - 1 );
-
-  return( NULL );
-  }
+	return(NULL);
+}

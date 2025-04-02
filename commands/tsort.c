@@ -24,6 +24,8 @@
  * change log:
  *	possible bug in ungetc(), fixed readone() to avoid - 2/19/88 - mrw
  *	massive design error, rewrote dump logic - 3/15/88 - mrw
+ *	stupid error causing overlay of s1 & s2 in readnode - 9/12/88 - mrw
+ *
  */
 
 #include <stdio.h>
@@ -89,11 +91,11 @@ char **argv;
 struct node *
 readnode()
 {
-	char *s1, *s2;
+	static char s1[MAXNAMELEN], s2[MAXNAMELEN];
 	register struct node *n1, *n2;
 	struct dependents *pd;
 
-	if ((s1 = readone()) != (char *)NULL) {
+	if (readone(s1) != (char *)NULL) {
 		if ((n1 = findnode(s1)) == (struct node *)NULL) {
 			/* is a new node so build it */
 			n1 = (struct node *)xalloc(sizeof(struct node));
@@ -107,7 +109,7 @@ readnode()
 			n1->visited = 0;
 			linknode(n1);
 		}
-		if ((s2 = readone()) != (char *)NULL) {
+		if (readone(s2) != (char *)NULL) {
 			if ((n2 = findnode(s2)) == (struct node *)NULL) {
 				/* is a new node so build it */
 				n2 = (struct node *)xalloc(sizeof(struct node));
@@ -223,28 +225,29 @@ struct node *t;
 		fprintf(stderr,"Error: %s - member queue overflow\n",progname);
 		exit(1);
 	}
-	else
+	else {
 		q[back] = t;
+	}
 }
 
 char *
-readone()
+readone(str)
+char str[];	/* of MAXNAMELEN length */
 {
 	register int c, n = 0;
-	static char name[MAXNAMELEN];
 
 	/* eat up leading spaces */
 	while ((c = getchar()) != EOF && isspace(c))
 		;
 
 	if (c != EOF) {
-		name[n++] = c;	/* save into name first non blank */
+		str[n++] = c;	/* save into name first non blank */
 		while ((c = getchar()) != EOF && !isspace(c)) {
 			if (n < MAXNAMELEN)
-				name[n++] = c;
+				str[n++] = c;
 		}
-		name[n] = '\0';
-		return (name);
+		str[n] = '\0';
+		return (str);
 	}
 	else
 		return ((char *)NULL);

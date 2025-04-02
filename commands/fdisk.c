@@ -5,8 +5,7 @@
  * puts the boot code in sector 0.
  * Then run fdisk
  *
- *	fdisk /dev/hdx	(MINIX)
- *	fdisk x:		(DOS)
+ *	fdisk [-heads] [/dev/hdx]	(MINIX)
  *
  * Compiling
  *
@@ -55,7 +54,10 @@ struct part_entry {
 char	secbuf[SECSIZE];
 char	*devname;
 char	*dosstr  = "  DOS  ";
+char	*dosstr4 = " DOS  4";
 char	*ndosstr = "Non-DOS";
+char	*xenstr = " Xenix ";
+int heads;
 
 #ifdef DOS
 union	REGS	regs;
@@ -75,12 +77,22 @@ char	*argv[];
 
 	/* init */
 
-	if (argc != 2) {
-		printf("Usage: fdisk /dev/hdx\n");
+	if (  argc > 1 && (*++argv)[0] == '-')		/*flag*/
+		{heads = atoi( & (*argv)[1]);
+		 printf("heads: %d	", heads);
+		 argv++;
+		 argc--;
+		}
+	else	heads = NHEAD;
+
+	if (argc > 2) {
+		printf("Usage: fdisk [-heads] [/dev/hdx]\n");
 		exit(1);
 	}
 
-	devname = argv[1];
+	if ( argc == 1)
+		devname = "/dev/hd0";
+	else	devname = *argv;
 	getboot(secbuf);	/* get boot sector	*/
 
 	do {
@@ -339,8 +351,12 @@ struct	part_entry	*entry;
 
 	if (entry->sysind == 0x01)
 		typestring = dosstr;
-	else
-		typestring = ndosstr;
+	else	if (entry->sysind == 0x02)
+		typestring = xenstr;
+	else	if (entry->sysind == 0x04)
+		typestring = dosstr4;
+		else
+			typestring = ndosstr;
 	printf("%5d         %s  ",number,typestring);
 	temp = entry->start_sec & 0xc0;
 	low_cyl = (entry->start_cyl & 0xff) + (temp << 2);
@@ -423,10 +439,10 @@ char	*hd,*sec,*cyl;
 {
 	int	bigcyl;
 
-	bigcyl = logsec / (NHEAD * NSEC);
+	bigcyl = logsec / (heads * NSEC);
 	*sec = (logsec % NSEC) + 1 + ((bigcyl >> 2) & 0xc0);
 	*cyl = bigcyl & 0xff;
-	*hd = (logsec % (NHEAD * NSEC)) / NSEC;
+	*hd = (logsec % (heads * NSEC)) / NSEC;
 }
 
 /*
@@ -487,11 +503,11 @@ struct part_entry *entry;
 		return;
 	}
 	low = first & 0xffff;
-	low = low * NSEC * NHEAD;
+	low = low * NSEC * heads;
 	if (low == 0)
 		low = 1; /* sec0 is master boot record */
 	high = last & 0xffff;
-	high = (high + 1)*NSEC*NHEAD - 1;
+	high = (high + 1)*NSEC*heads - 1;
 	entry->lowsec = low;
 	entry->size = high - low + 1;
 	sec_to_hst(low,

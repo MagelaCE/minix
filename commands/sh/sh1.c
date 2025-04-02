@@ -16,7 +16,7 @@ char	flags['z'-'a'+1];
 char	*flag = flags-'a';
 char	*elinep = line+sizeof(line)-5;
 char	*null	= "";
-int	inword	=1;
+int	heedint =1;
 struct	env	e ={line, iostack, iostack-1, NULL, FDBASE, NULL};
 
 extern	char	**environ;	/* environment pointer */
@@ -149,10 +149,10 @@ register char **argv;
 		if ((f = open(".profile", 0)) >= 0)
 			next(remap(f));
 	}
-	if (talking) {
+	if (talking)
 		signal(SIGTERM, sig);
-		signal(SIGINT, SIG_IGN);
-	}
+	if (signal(SIGINT, SIG_IGN) != SIG_IGN)
+		signal(SIGINT, onintr);
 	dolv = argv;
 	dolc = argc;
 	dolv[0] = name;
@@ -207,7 +207,6 @@ onecommand()
 	register i;
 	jmp_buf m1;
 
-	inword++;
 	while (e.oenv)
 		quitenv();
 	areanum = 1;
@@ -221,33 +220,32 @@ onecommand()
 	yynerrs = 0;
 	multiline = 0;
 	inparse = 1;
+	intr = 0;
+	execflg = 0;
 	setjmp(failpt = m1);	/* Bruce Evans' fix */
-	if (talking)
-		signal(SIGINT, onintr);
 	if (setjmp(failpt = m1) || yyparse() || intr) {
 		while (e.oenv)
 			quitenv();
 		scraphere();
+		if (!talking && intr)
+			leave();
 		inparse = 0;
 		intr = 0;
 		return;
 	}
 	inparse = 0;
-	inword = 0;
-	if ((i = trapset) != 0) {
-		trapset = 0;
-		runtrap(i);
-	}
 	brklist = 0;
 	intr = 0;
 	execflg = 0;
-	if (!flag['n']) {
-		if (talking)
-			signal(SIGINT, onintr);
+	if (!flag['n'])
 		execute(outtree, NOPIPE, NOPIPE, 0);
-		intr = 0;
-		if (talking)
-			signal(SIGINT, SIG_IGN);
+	if (!talking && intr) {
+		execflg = 0;
+		leave();
+	}
+	if ((i = trapset) != 0) {
+		trapset = 0;
+		runtrap(i);
 	}
 }
 
@@ -263,8 +261,9 @@ leave()
 {
 	if (execflg)
 		fail();
+	scraphere();
+	freehere(1);
 	runtrap(0);
-	sync();
 	exit(exstat);
 	/* NOTREACHED */
 }
@@ -390,17 +389,23 @@ register unsigned u;
 
 next(f)
 {
-	PUSHIO(afile, f, nextchar);
+	PUSHIO(afile, f, filechar);
 }
 
 onintr()
 {
-	signal(SIGINT, SIG_IGN);
-	if (inparse) {
-		prs("\n");
-		fail();
+	signal(SIGINT, onintr);
+	intr = 1;
+	if (talking) {
+		if (inparse) {
+			prs("\n");
+			fail();
+		}
 	}
-	intr++;
+	else if (heedint) {
+		execflg = 0;
+		leave();
+	}
 }
 
 letter(c)
@@ -427,10 +432,8 @@ int n;
 {
 	register char *cp;
 
-	inword++;
 	if ((cp = getcell(n)) == 0)
 		err("out of string space");
-	inword--;
 	return(cp);
 }
 
@@ -449,18 +452,10 @@ register char *s;
 	return("");
 }
 
-/*
- * if inword is set, traps
- * are delayed, avoiding
- * having two people allocating
- * at once.
- */
 xfree(s)
 register char *s;
 {
-	inword++;
 	DELETE(s);
-	inword--;
 }
 
 /*
@@ -469,11 +464,7 @@ register char *s;
 sig(i)
 register i;
 {
-	if (inword == 0) {
-		signal(i, SIG_IGN);
-		runtrap(i);
-	} else
-		trapset = i;
+	trapset = i;
 	signal(i, sig);
 }
 

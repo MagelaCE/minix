@@ -1,4 +1,5 @@
-/* test(1); version 7-like  --  author Erik Baalbergen */
+/* test - test conditions		Author: Erik Baalbergen */
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sgtty.h>
@@ -85,9 +86,16 @@ struct op *ip_op;
 main(argc, argv)
 	char *argv[];
 {
+	int st;
+
+	if (argc == 1)
+		exit(1);
 	prog = argv[0];
 	ip = &argv[1];
-	exit(!(expr(lex(*ip)) && *++ip == 0));
+	st = !expr(lex(*ip));
+	if (*++ip)
+		syntax();
+	exit(st);
 }
 
 expr(n)

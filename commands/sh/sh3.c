@@ -18,7 +18,7 @@ static	char	*signame[] = {
 	"Quit",
 	"Illegal instruction",
 	"Trace/BPT trap",
-	"abort",
+	"Abort",
 	"EMT trap",
 	"Floating exception",
 	"Killed",
@@ -53,7 +53,9 @@ int act;
 		return(0);
 	rv = 0;
 	a = areanum++;
-	wp = (wp2 = t->words) != NULL? eval(wp2, DOALL): NULL;
+	wp = (wp2 = t->words) != NULL
+	     ? eval(wp2, t->type == TCOM ? DOALL : DOALL & ~DOKEY)
+	     : NULL;
 
 	switch(t->type) {
 	case TPAREN:
@@ -118,8 +120,11 @@ int act;
 			wp = dolv+1;
 			if ((i = dolc) < 0)
 				i = 0;
-		} else
+		} else {
 			i = -1;
+			while (*wp++ != NULL)
+				;			
+		}
 		vp = lookup(t->str);
 		while (setjmp(bc.brkpt))
 			if (isbreak)
@@ -178,9 +183,13 @@ broken:
 	freehere(areanum);
 	freearea(areanum);
 	areanum = a;
-	if (intr) {
+	if (talking && intr) {
 		closeall();
 		fail();
+	}
+	if ((i = trapset) != 0) {
+		trapset = 0;
+		runtrap(i);
 	}
 	return(rv);
 }
@@ -199,21 +208,27 @@ int *pforked;
 	char *cp;
 	struct ioword **iopp;
 	int resetsig;
+	char **owp;
 
+	owp = wp;
 	resetsig = 0;
 	*pforked = 0;
 	shcom = NULL;
 	rv = -1;	/* system-detected error */
 	if (t->type == TCOM) {
+		while ((cp = *wp++) != NULL)
+			;
+		cp = *wp;
+
 		/* strip all initial assignments */
 		/* not correct wrt PATH=yyy command  etc */
 		if (flag['x'])
 			echo(wp);
-		while ((cp = *wp++) != NULL && assign(cp, COPYV))
-			;
-		wp--;
-		if (cp == NULL && t->ioact == NULL)
+		if (cp == NULL && t->ioact == NULL) {
+			while ((cp = *owp++) != NULL && assign(cp, COPYV))
+				;
 			return(setstatus(0));
+		}
 		else if (cp != NULL)
 			shcom = inbuilt(cp);
 	}
@@ -239,6 +254,9 @@ int *pforked;
 		brklist = 0;
 		execflg = 0;
 	}
+	while ((cp = *owp++) != NULL && assign(cp, COPYV))
+		if (shcom == NULL)
+			export(lookup(cp));
 #ifdef COMPIPE
 	if ((pin != NULL || pout != NULL) && shcom != NULL && shcom != doexec) {
 		err("piping to/from shell builtins not yet done");
@@ -276,7 +294,7 @@ int *pforked;
 		exit(execute(t->left, NOPIPE, NOPIPE, FEXEC));
 	if (wp[0] == NULL)
 		exit(0);
-	cp = rexecve(wp[0], wp, makenv(wp));
+	cp = rexecve(wp[0], wp, makenv());
 	prs(wp[0]); prs(": "); warn(cp);
 	if (!execflg)
 		trap[0] = NULL;
@@ -449,7 +467,9 @@ int canintr;
 {
 	register int pid, rv;
 	int s;
+	int oheedint = heedint;
 
+	heedint = 0;
 	rv = 0;
 	do {
 		pid = wait(&s);
@@ -475,14 +495,21 @@ int canintr;
 				}
 				if (WAITCORE(s))
 					prs(" - core dumped");
-				prs("\n");
+				if (rv >= NSIGNAL || signame[rv])
+					prs("\n");
 				rv = -1;
 			} else
 				rv = WAITVAL(s);
 		}
-/* Special patch for MINIX: sync before each command */
-		sync();
 	} while (pid != lastpid);
+	heedint = oheedint;
+	if (intr)
+		if (talking) {
+			if (canintr)
+				intr = 0;
+		}
+		else
+			onintr();
 	return(rv);
 }
 
@@ -551,8 +578,8 @@ char *c, **v, **envp;
  * Run the command produced by generator `f'
  * applied to stream `arg'.
  */
-run(arg, f)
-struct ioarg arg;
+run(argp, f)
+struct ioarg *argp;
 int (*f)();
 {
 	struct op *otree;
@@ -571,7 +598,7 @@ int (*f)();
 	if (newenv(setjmp(errpt = ev)) == 0) {
 		wdlist = 0;
 		iolist = 0;
-		pushio(arg, f);
+		pushio(argp, f);
 		e.iobase = e.iop;
 		yynerrs = 0;
 		if (setjmp(failpt = rt) == 0 && yyparse() == 0)
@@ -647,7 +674,7 @@ struct op *t;
 		signal(SIGINT, SIG_DFL);
 		signal(SIGQUIT, SIG_DFL);
 	}
-	cp = rexecve(t->words[0], t->words, makenv(t->words));
+	cp = rexecve(t->words[0], t->words, makenv());
 	prs(t->words[0]); prs(": "); err(cp);
 	return(1);
 }
@@ -734,11 +761,7 @@ struct op *t;
 			return(0);
 	} else
 		i = -1;
-	if (talking)
-		signal(SIGINT, onintr);
 	setstatus(waitfor(i, 1));
-	if (talking)
-		signal(SIGINT, SIG_IGN);
 	return(0);
 }
 
@@ -799,8 +822,15 @@ register struct op *t;
 			setsig(n, sig);
 		} else
 			setsig(n, SIG_IGN);
-	} else
-		setsig(n, (n == SIGINT || n == SIGQUIT) && talking? SIG_IGN: SIG_DFL);
+	} else {
+		if (talking)
+			if (n == SIGINT)
+				setsig(n, onintr);
+			else
+				setsig(n, n == SIGQUIT ? SIG_IGN : SIG_DFL);
+		else
+			setsig(n, SIG_DFL);
+	}
 	return(0);
 }
 

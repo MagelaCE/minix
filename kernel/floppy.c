@@ -15,7 +15,9 @@
  *   floppy_task:	main entry when system is brought up
  *
  *  Changes:
- *	27 october 1986 by Jakob Schripsema: fdc_results fixed for 8 MHz
+ *	27 Oct. 1986 by Jakob Schripsema: fdc_results fixed for 8 MHz
+ *	28 Nov. 1986 by Peter Kay: better resetting for 386
+ *	06 Jan. 1988 by Al Crew: allow 1.44 MB diskettes
  */
 
 #include "../h/const.h"
@@ -39,6 +41,7 @@
 #define DMA_M2         0x00C	/* DMA status port */
 #define DMA_M1         0x00B	/* DMA status port */
 #define DMA_INIT       0x00A	/* DMA init port */
+#define DMA_RESET_VAL   0x06
 
 /* Status registers returned as result of operation. */
 #define ST0             0x00	/* status register 0 */
@@ -82,10 +85,9 @@
 
 /* Parameters for the disk drive. */
 #define SECTOR_SIZE      512	/* physical sector size in bytes */
-#define HC_SIZE         2400	/* # sectors on a high-capacity (1.2M) disk */
+#define HC_SIZE         2880	/* # sectors on largest legal disk (1.44MB) */
 #define NR_HEADS        0x02	/* two heads (i.e., two tracks/cylinder) */
 #define DTL             0xFF	/* determines data length (sector size) */
-#define SPEC1           0xDF	/* first parameter to SPECIFY */
 #define SPEC2           0x02	/* second parameter to SPECIFY */
 
 #define MOTOR_OFF       3*HZ	/* how long to wait before stopping motor */
@@ -105,7 +107,10 @@
 #define NR_DRIVES          2	/* maximum number of drives */
 #define DIVISOR          128	/* used for sector size encoding */
 #define MAX_FDC_RETRY    100	/* max # times to try to output to FDC */
-#define NT                 6	/* number of diskette/drive combinations */
+#define NT                 7	/* number of diskette/drive combinations */
+#define AUTOMATIC	0x3F	/* bit map allowing both 3.5 and 5.25 disks */
+#define THREE_INCH	0x48	/* bit map allowing only 3.5 inch diskettes */
+#define FIVE_INCH	0x37	/* bit map allowing only 5.25 inch diskettes */
 
 /* Variables. */
 PRIVATE struct floppy {		/* main drive struct, one entry per drive */
@@ -120,7 +125,7 @@ PRIVATE struct floppy {		/* main drive struct, one entry per drive */
   vir_bytes fl_address;		/* user virtual address */
   char fl_results[MAX_RESULTS];	/* the controller can give lots of output */
   char fl_calibration;		/* CALIBRATED or UNCALIBRATED */
-  char fl_density;		/* 0 = 360K/360K; 1 = 360K/1.2M; 2= 1.2M/1.2M*/
+  char fl_density;		/* 0 = 360K/360K; 1 = 360K/1.2M; etc. */
 } floppy[NR_DRIVES];
 
 #define UNCALIBRATED       0	/* drive needs to be calibrated at next use */
@@ -132,13 +137,15 @@ PRIVATE int prev_motor;		/* which motor was started last */
 PRIVATE int need_reset;		/* set to 1 when controller must be reset */
 PRIVATE int initialized;	/* set to 1 after first successful transfer */
 PRIVATE int d;			/* diskette/drive combination */
+PRIVATE int current_spec1;	/* latest spec1 sent to the controller */
 
 PRIVATE message mess;		/* message buffer for in and out */
 
 PRIVATE char len[] = {-1,0,1,-1,2,-1,-1,3,-1,-1,-1,-1,-1,-1,-1,4};
-PRIVATE char interleave[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+PRIVATE char interleave[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18};
 
-/* Six combinations of diskette/drive are supported:
+/* Seven combinations of diskette/drive are supported. 
+ *
  * # Drive  diskette  Sectors  Tracks  Rotation Data-rate  Comment
  * 0  360K    360K      9       40     300 RPM  250 kbps   Standard PC DSDD
  * 1  1.2M    1.2M     15       80     360 RPM  500 kbps   AT disk in AT drive
@@ -146,19 +153,47 @@ PRIVATE char interleave[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
  * 3  720K    720K      9       80     300 RPM  250 kbps   Toshiba, et al.
  * 4  1.2M    360K      9       40     360 RPM  300 kbps   PC disk in AT drive
  * 5  1.2M    720K      9       80     360 RPM  300 kbps   Toshiba in AT drive
+ * 6  1.44M   1.44M    18	80     300 RPM  500 kbps   PS/2, et al.
+ *
+ * In addition, 720K diskettes can be read in 1.44MB drives, but that does 
+ * not need a different set of parameters.  This combination uses
+ *
+ * X  1.44M   720K	9	80     300 RPM  250 kbps   PS/2, et al.
  */
 PRIVATE int gap[NT] =
-	{0x2A, 0x1B, 0x2A, 0x2A, 0x23, 0x23}; /* gap size */
+	{0x2A, 0x1B, 0x2A, 0x2A, 0x23, 0x23, 0x1B}; /* gap size */
 PRIVATE int rate[NT] = 
-	{0x02, 0x00, 0x02, 0x02, 0x01, 0x01}; /* 250,300,500 kbps*/
+	{0x02, 0x00, 0x02, 0x02, 0x01, 0x01, 0x00}; /* 2=250,1=300,0=500 kbps*/
 PRIVATE int nr_sectors[NT] = 
-	{9,    15,   9,    9,    9,    9};   /* sectors/track */
+	{9,    15,   9,    9,    9,    9,    18};   /* sectors/track */
 PRIVATE int nr_blocks[NT] = 
-	{720,  2400, 720,  1440, 720,  1440}; /* sectors/diskette*/
+	{720,  2400, 720,  1440, 720,  1440, 2880}; /* sectors/diskette*/
 PRIVATE int steps_per_cyl[NT] = 
-	{1,    1,    2,    1,    2,    1};   /* 2 = dbl step */
+	{1,    1,    2,    1,    2,    1,     1};   /* 2 = dbl step */
 PRIVATE int mtr_setup[NT] = 
-	{HZ/4,3*HZ/4,HZ/4,2*HZ/4,3*HZ/4,3*HZ/4};/* in ticks */
+	{HZ/4,3*HZ/4,HZ/4,HZ,3*HZ/4,3*HZ/4,HZ};     /* in ticks */
+PRIVATE char spec1[NT] =
+	{0xDF, 0xDF, 0xDF, 0xDF, 0xDF, 0xDF, 0xAF}; /* step rate, etc. */
+
+/* This driver hunts around for the proper density by simply trying them all
+ * until it finds one that works.  By defining DEFAULT_CLASS, one can reduce 
+ * the searching to only 5.25 inch or only 3.5 inch types.  The array
+ * drive_class contains a bit map for each drive, telling which of the NT
+ * combinations defined above should be tried.
+ */
+PRIVATE char drive_class[NR_DRIVES] = {
+#ifndef DEFAULT_CLASS
+	AUTOMATIC, AUTOMATIC		/* both drives can handle both types */
+#else
+#	if	(DEFAULT_CLASS==3)
+		THREE_INCH, THREE_INCH	/* drive 0 = 3.5 inch, drive 1 also */
+#	endif
+
+#	if	(DEFAULT_CLASS==5)
+		FIVE_INCH, FIVE_INCH	/* drive 0 = 5.25 inch, drive 1 also */
+#	endif
+#endif
+};
 
 /*===========================================================================*
  *				floppy_task				     * 
@@ -210,13 +245,19 @@ message *m_ptr;			/* pointer to read or write message */
   /* Decode the message parameters. */
   drive = m_ptr->DEVICE;
   if (drive < 0 || drive >= NR_DRIVES) return(EIO);
-  fp = &floppy[drive];		/* 'fp' points to entry for this drive */
+  fp = &floppy[drive];		/* 'fp' points to entry for this drive */  
   fp->fl_drive = drive;		/* save drive number explicitly */
   fp->fl_opcode = m_ptr->m_type;	/* DISK_READ or DISK_WRITE */
   if (m_ptr->POSITION % BLOCK_SIZE != 0) return(EINVAL);
   block = m_ptr->POSITION/SECTOR_SIZE;
-  if (block >= HC_SIZE) return(EOF);	/* sector is beyond end of 1.2M disk */
+  if (block >= HC_SIZE) return(EOF); /* sector is beyond end of 1.44M disk */
   d = fp->fl_density;		/* diskette/drive combination */
+
+  /* Check the bit map to see if this density is allowed.  If not, skip it. */
+  while ((drive_class[drive] & (1 << d)) == 0) d = (d + 1) % NT;
+
+  /* Store the message parameters in the fp->fl array. */
+  fp->fl_density=d;
   fp->fl_cylinder = (int) (block / (NR_HEADS * nr_sectors[d]));
   fp->fl_sector = (int) interleave[(int)(block % nr_sectors[d])];
   fp->fl_head = (int) (block % (NR_HEADS*nr_sectors[d]) )/nr_sectors[d];
@@ -234,9 +275,14 @@ message *m_ptr;			/* pointer to read or write message */
 	 * means that we are trying at the wrong density.  Try another one.
 	 * Increment 'errors' here since loop is aborted on error.
 	 */
+	port_out(DMA_INIT, DMA_RESET_VAL);  /* reset the dma controller */
 	errors++;		/* increment count once per loop cycle */
  	if (errors % (MAX_ERRORS/NT) == 0) {
- 		d = (d + 1) % NT;	/* try next density */
+                d++;
+
+		/* Check bit map to skip illegal densities. */
+		while ((drive_class[drive] & (1 << d)) == 0) d = (d + 1) % NT;
+
  		fp->fl_density = d;
 		sectors = nr_sectors[d];
 		fp->fl_cylinder = (int) (block / (NR_HEADS * sectors));
@@ -248,6 +294,16 @@ message *m_ptr;			/* pointer to read or write message */
 
 	/* First check to see if a reset is needed. */
 	if (need_reset) reset();
+
+	/* Set the stepping rate */
+	if (current_spec1 != spec1[d]) {
+		fdc_out(FDC_SPECIFY);
+		fdc_out(current_spec1=spec1[d]);
+		fdc_out(SPEC2);
+	}
+
+ 	/* Set the data rate */
+	if (pc_at) port_out(FDC_RATE, rate[d]);
 
 	/* Now set up the DMA chip. */
 	dma_setup(fp);
@@ -308,9 +364,10 @@ struct floppy *fp;		/* pointer to the drive struct */
    */
   if (user_phys == 0) panic("FS gave floppy disk driver bad addr", (int) vir);
   top_end = (int) (((user_phys + ct - 1) >> 16) & BYTE);
-  if (top_end != top_addr) panic("Trying to DMA across 64K boundary", top_addr);
+  if (top_end != top_addr)panic("Trying to DMA across 64K boundary", top_addr);
 
   /* Now set up the DMA registers. */
+  port_out(DMA_INIT, DMA_RESET_VAL);        /* reset the dma controller */
   s = lock();
   port_out(DMA_M2, mode);	/* set the DMA mode */
   port_out(DMA_M1, mode);	/* set it again */
@@ -410,7 +467,7 @@ struct floppy *fp;		/* pointer to the drive struct */
   if (r != OK) 
 	if (recalibrate(fp) != OK) return(ERR_SEEK);
   fp->fl_curcyl = (r == OK ? fp->fl_cylinder : -1);
-  if (r == OK && ps) {		/* give head time to settle on PS/2 */
+  if (r == OK && ((d == 6) || (d == 3))) {/* give head time to settle on 3.5 */
 	clock_mess(2, send_mess);
 	receive(CLOCK, &mess);
   }
@@ -574,7 +631,7 @@ register struct floppy *fp;	/* pointer tot he drive struct */
   } else {
 	/* Recalibration succeeded. */
 	fp->fl_calibration = CALIBRATED;
-	if (ps) {		/* give head time to settle on PS/2 */
+	if (ps||((d == 6) || (d == 3))) {/* give head time to settle on 3.5 */
 		clock_mess(2, send_mess);
 		receive(CLOCK, &mess);
 	}
@@ -605,19 +662,17 @@ PRIVATE reset()
   restore(old_state);		/* interrupts allowed again */
   receive(HARDWARE, &mess);	/* collect the RESET interrupt */
 
-  /* Interrupt from the reset has been received.  Continue resetting. */
-  fp = &floppy[0];		/* use floppy[0] for scratch */
-  fp->fl_results[0] = 0;	/* this byte will be checked shortly */
-  fdc_out(FDC_SENSE);		/* did it work? */
-  r = fdc_results(fp);		/* get results */
-  status = fp->fl_results[0] & BYTE;
+  /* Interrupt from the reset has been received.  Clear each drive. */
+  for (i=0; i<NR_DRIVES; i++) {
+	fdc_out(FDC_SENSE);	/* did it work? */
+	fdc_results(&floppy[i]);/* get results (using each floppy[i]) */
+	floppy[i].fl_calibration = UNCALIBRATED;
+  }
 
   /* Tell FDC drive parameters. */
   fdc_out(FDC_SPECIFY);		/* specify some timing parameters */
-  fdc_out(SPEC1);		/* step-rate and head-unload-time */
+  fdc_out(current_spec1=spec1[d]); /* step-rate and head-unload-time */
   fdc_out(SPEC2);		/* head-load-time and non-dma */
-
-  for (i = 0; i < NR_DRIVES; i++) floppy[i].fl_calibration = UNCALIBRATED;
 }
 
 

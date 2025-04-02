@@ -19,10 +19,22 @@ int (*func)();			/* pointer to function that catches signal */
   int r,(*old)();
 
   old = vectab[signr - 1];
-  vectab[signr - 1] = func;
   M.m6_i1 = signr;
-  M.m6_f1 = ( (func == SIG_IGN || func == SIG_DFL) ? func : begsig);
+  if (func == SIG_IGN || func == SIG_DFL)
+	/* keep old signal catcher until it is completely de-installed */
+	M.m6_f1 = func;
+  else {
+	/* use new signal catcher immediately (old one may not exist) */
+	vectab[signr - 1] = func;
+	M.m6_f1 = begsig;
+  }
   r = callx(MM, SIGNAL);
-  if (r == 1) old = SIG_IGN;
-  return( (r < 0 ? (int (*)()) r : old) );
+  if (r < 0) {
+	vectab[signr - 1] = old;	/* undo any pre-installation */
+	return( (int (*)()) r );
+  }
+  vectab[signr - 1] = func;		/* redo any pre-installation */
+  if (r == 1)
+	return(SIG_IGN);
+  return(old);
 }

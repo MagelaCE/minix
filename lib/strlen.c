@@ -1,10 +1,17 @@
-int strlen(s)
-char *s;
+/*
+ * strlen - length of string (not including NUL)
+ */
+#include <string.h>
+SIZET
+strlen(s)
+CONST char *s;
 {
-/* Return length of s. */
+	register CONST char *scan;
+	register SIZET count;
 
-  char *original = s;
-
-  while (*s != 0) s++;
-  return(s - original);
+	count = 0;
+	scan = s;
+	while (*scan++ != '\0')
+		count++;
+	return(count);
 }

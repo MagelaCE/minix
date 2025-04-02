@@ -1,19 +1,30 @@
-/*  memset(3)
+/*
+ * memset - set bytes
  *
- *  Author: Terrence W. Holm          Sep. 1988
+ * CHARBITS should be defined only if the compiler lacks "unsigned char".
+ * It should be a mask, e.g. 0377 for an 8-bit machine.
  */
+#include <string.h>
+#ifndef CHARBITS
+#	define	UNSCHAR(c)	((unsigned char)(c))
+#else
+#	define	UNSCHAR(c)	((c)&CHARBITS)
+#endif
 
+VOIDSTAR
+memset(s, ucharfill, size)
+CONST VOIDSTAR s;
+register int ucharfill;
+SIZET size;
+{
+	register CONST char *scan;
+	register SIZET n;
+	register int uc;
 
-char *memset( vector, chr, count )
-  char *vector;
-  int   chr;
-  int   count;
+	scan = s;
+	uc = UNSCHAR(ucharfill);
+	for (n = size; n > 0; n--)
+		*scan++ = uc;
 
-  {
-  register char *memory = vector;
-
-  while( --count >= 0 )
-    *memory++ = chr;
-
-  return( vector );
-  }
+	return(s);
+}

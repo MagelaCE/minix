@@ -35,22 +35,26 @@ char **argv;
   }
   fd[0] = 1;	/* Always output to stdout. */
   for (s = 1; s < MAXFD && argc > 0; --argc, argv++) {
-	if ((fd[s] = open(*argv, 2)) < 0 &&
-				(fd[s] = creat(*argv, 0666)) < 0) {
-		std_err("Cannot open output file: ");
-		std_err(*argv);
-		std_err("\n");
-		exit(2);
+	if (aflag) {
+		if ((fd[s] = open(*argv, 2)) >= 0) {
+			lseek(fd[s], 0L, 2);
+			s++;
+			continue;
+		}
+	} else {
+		if ((fd[s] = creat(*argv, 0666)) >= 0) {
+			s++;
+			continue;
+		}
 	}
-	s++;
+	std_err("Cannot open output file: ");
+	std_err(*argv);
+	std_err("\n");
+	exit(2);
   }
 
   if (iflag)
 	signal(SIGINT, SIG_IGN);
-  for (i = 1; i < s; i++) {	/* Don't lseek stdout. */
-	if (aflag)
-		lseek(fd[i], 0L, 2);
-  }
 
   while ((n = read(0, buf, BLOCK_SIZE)) > 0) {
 	for (i = 0; i < s; i++)
