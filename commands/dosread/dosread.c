@@ -25,6 +25,14 @@
  *			properly then all the rest should be okay.
  *		If there are any problems there is debugging information
  *		  in fdinit() -- please let me know of any problems
+ *
+ * 	Modified by Al Crew January 5, 1989
+ *		allow 720K (and when the kernel does 1.44M) diskettes
+ *			(for 1.44M the size of /dev/at[01] will have to
+ *			 be changed or a new device name added)
+ *		adjusted MAX_FAT_SIZE and MAX_CLUSTER_SIZE to better
+ *			match my fixed disk (you may want to change them)
+ *              fixed bug in read_cluster (sbrk failures were not reported)
  */
 
 #include <sys/stat.h>
@@ -37,8 +45,8 @@
 #define DDHD	0xF9
 #define DDFD	0xF8
 
-#define	MAX_CLUSTER_SIZE	4096
-#define MAX_FAT_SIZE		23552	/* 46 sectoren */
+#define	MAX_CLUSTER_SIZE	2048
+#define MAX_FAT_SIZE		25600	/* 50 sectoren */
 #define HMASK		0xFF00
 #define LMASK		0x00FF
 
@@ -199,39 +207,8 @@ register char *argv[];
 		exit(1);
 	}
 
-	if (fdisk) {		/* fixed disk */
-		fdinit(dev_nr);
-		disk_read(f_start, &fat_type, sizeof(fat_type));
-		if (fat_type != DDFD) {
-			print_string(TRUE, "Fixed disk is not DOS\n");
-			leave(1);
-		}
-	}
-	else {		/* use standard start for floppies */
-		f_start = FAT_START;
-		disk_read(f_start, &fat_type, sizeof(fat_type));
-		if (fat_type == DDDD) {		/* Double-sided double-density 9 s/t */
-			total_clusters = 355;	/* 720 - 7 - 2 - 2 - 1 */
-			cluster_size = 1024;	/* 2 sectors per cluster */
-			fat_size = 1024;	/* 2 sectors */
-			data_start = 6144L;	/* Starts on sector #12 */
-			root_entries = 112;	
-			sub_entries = 32;	/* 1024 / 32 */
-		}
-		else if (fat_type == DDHD) {	/* Double-sided high-density 15 s/t */
-			total_clusters = 2372;	/* 2400 - 14 - 7 - 7 - 1 */
-			cluster_size = 512;	/* 1 sector per cluster */
-			fat_size = 3584;	/* 7 sectors */
-			data_start = 14848L;	/* Starts on sector #29 */
-			root_entries = 224;	
-			sub_entries = 16;	/* 512 / 32 */
-		}
-		else {
-        		print_string(TRUE, "Diskette is not DOS 2.0 360K or 1.2M\n");
-			leave(1);
-		}
-	}
-
+	fdinit(dev_nr);
+	disk_read(f_start, &fat_type, sizeof(fat_type));
 	disk_read(f_start + (long) fat_size, &fat_check, sizeof(fat_check));
 	if (fat_check != fat_type) {
 		print_string(TRUE, "Disk type in FAT copy differs from disk type in FAT original.\n");
@@ -328,7 +305,7 @@ register char *argv[];
 	leave(0);
 }
 
-fdinit(part_nr)		/* Fixed Disk Initializations */
+fdinit(part_nr)		/* Initializations */
 char part_nr;
 {
 
@@ -379,6 +356,10 @@ char part_nr;
 	pe = (struct part_entry *)&secbuf[TABLEOFFSET];
 		/* get the proper partition */
 	switch(part_nr) {
+		case '0':
+		case 'a':
+		case '1':
+		case 'b': boot_loc=0; break;
 		case 'f': pe++;
 		case 'e': pe++;
 		case 'd': pe++;
@@ -412,7 +393,8 @@ char part_nr;
 		(boot.hidden_sectors[1]  << 8 & HMASK) + (boot.hidden_sectors[0] & LMASK));
 	leave(1);
 /**************/
-	if (boot.media_type != DDFD) {
+	if (((boot.media_type & 0xf0) != 0xf0)
+            || (boot.jump[0] != 0xeb) || (boot.jump[2] != 0x90) ) {
 		printf("DISK is not DOS Format.\n");
 		leave(1);
 	}
@@ -1050,7 +1032,8 @@ register unsigned short cluster;
 	register DIRECTORY *sub_dir;
 	extern char *sbrk();
 
-	if ((sub_dir = (DIRECTORY *) sbrk(cluster_size)) < 0) {
+	if ((sub_dir = (DIRECTORY *) sbrk(cluster_size)) 
+            == ((DIRECTORY *)-1)) {
 		print_string(TRUE, "Cannot set break!\n");
 		leave(1);
 	}

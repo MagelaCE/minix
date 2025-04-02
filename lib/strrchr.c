@@ -1,23 +1,22 @@
-/*  strrchr(3) 
- *
- *  Derived from MINIX rindex(3)
+/*
+ * strrchr - find last occurrence of a character in a string
  */
+#include <string.h>
+#define	NULL	0
 
+char *				/* found char, or NULL if none */
+strrchr(s, charwanted)
+CONST char *s;
+register char charwanted;
+{
+	register CONST char *scan;
+	register CONST char *place;
 
-#define  NULL  (char *) 0
-
-
-char *strrchr( string, chr )
-  register char *string;
-  register char  chr;
-
-  {
-  char *index = NULL;
-
-  do {
-     if ( *string == chr )
-	index = string;
-     } while ( *string++ != '\0' );
-
-  return( index );
-  }
+	place = NULL;
+	for (scan = s; *scan != '\0'; scan++)
+		if (*scan == charwanted)
+			place = scan;
+	if (charwanted == '\0')
+		return(scan);
+	return(place);
+}

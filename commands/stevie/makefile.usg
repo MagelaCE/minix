@@ -1,0 +1,27 @@
+#
+# Makefile for UNIX (System V)
+#
+
+LDFLAGS=
+CFLAGS= -g
+
+MACH=	unix.o
+
+OBJ=	main.o edit.o linefunc.o normal.o cmdline.o hexchars.o \
+	misccmds.o help.o ptrfunc.o search.o alloc.o mark.o \
+	regexp.o regsub.o \
+	screen.o fileio.o param.o undo.o version.o term.o
+
+all : stevie stevie.doc
+
+stevie : $(OBJ) $(MACH)
+	$(CC) $(LDFLAGS) $(OBJ) $(MACH) -o stevie -lcurses
+
+lint :
+	lint $(OBJ:.o=.c) $(MACH:.o=.c)
+
+stevie.doc : stevie.mm
+	nroff -rB1 -Tlp -mm stevie.mm > stevie.doc
+
+clean :
+	rm $(OBJ) $(MACH)

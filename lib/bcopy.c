@@ -1,8 +1,13 @@
-bcopy(old, new, n)
-register char *old, *new;
-int n;
+/*
+ - bcopy - Berklix equivalent of memcpy
+ */
+#include <string.h>
+bcopy(src, dst, length)
+CONST char *src;
+char *dst;
+int length;
 {
-/* Copy a block of data. */
+	extern VOIDSTAR memcpy();
 
-  while (n--) *new++ = *old++;
+	(void) memcpy((VOIDSTAR)dst, (CONST VOIDSTAR)src, (SIZET)length);
 }

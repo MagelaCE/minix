@@ -1,22 +1,25 @@
 /* crc - list length and checksum		Author: Johan W. Stevenson */
 
-
 #include <stdio.h>
+#include <string.h>
 
 int	errs;
+char line[256];
 
 main(argc,argv)
 char **argv;
 {
 
 	if (argc <= 1)
-		crc((char *)0);
+		while (fgets(line, sizeof line, stdin) != NULL)
+		{
+			if (index(line, '\n') != NULL)
+				*index(line, '\n') = 0;
+			crc(line);
+		}
 	else
 		do {
-			if (freopen(argv[1], "r", stdin) == NULL)
-				error("cannot open %s", argv[1]);
-			else
-				crc(argv[1]);
+			crc(argv[1]);
 			argv++;
 			argc--;
 		} while (argc > 1);
@@ -76,27 +79,19 @@ static unsigned short crctab[256] = {
 crc(fname)
 char *fname;
 {
+	register FILE		*fp;
 	register int		c;
-	register int		i;
 	register long		len = 0;
 	register unsigned short	crc = 0;
 
-	while ((c = getc(stdin)) != EOF) {
+	if ((fp = fopen(fname, "r")) == NULL) {
+		fprintf(stderr, "crc: cannot open %s\n", fname);
+		errs++;
+	}
+	while ((c = getc(fp)) != EOF) {
 		len++;
 		crc = updcrc(c, crc);
 	}
-	printf("%05u %6ld", crc, len, fname);
-	if (fname)
-		printf(" %s", fname);
-	printf("\n");
-}
-		
-error(s, a1, a2, a3, a4)
-char *s;
-{
-
-	fprintf(stderr, "crc: ");
-	fprintf(stderr, s, a1, a2, a3, a4);
-	fprintf(stderr, "\n");
-	errs++;
+	fclose(fp);
+	printf("%05u %6ld %s\n", crc, len, fname);
 }

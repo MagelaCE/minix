@@ -106,14 +106,6 @@ int             ch;
 
 
 
-static tolower (ch)
-int             ch;
-{
-	if (ch >= 'A' && ch <= 'Z')
-		ch = ch + 'a' - 'A';
-
-	return ch;
-}
 
 
 /*

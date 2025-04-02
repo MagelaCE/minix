@@ -1,0 +1,22 @@
+#
+# Makefile for Atari ST Minix
+#
+
+LDFLAGS= -T.
+CFLAGS= -O -T.
+
+MACH=	minix.o
+
+OBJ=	main.o edit.o linefunc.o normal.o cmdline.o hexchars.o \
+	misccmds.o help.o ptrfunc.o search.o alloc.o mark.o \
+	regexp.o regsub.o \
+	screen.o fileio.o param.o undo.o version.o
+
+all : stevie
+
+stevie : $(OBJ) $(MACH)
+	$(CC) $(LDFLAGS) $(OBJ) $(MACH) -o stevie
+	chmem =150000 stevie
+
+clean :
+	rm $(OBJ) $(MACH)

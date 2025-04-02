@@ -1,60 +1,172 @@
 /* term - terminal simulator		Author: Andy Tanenbaum */
 
 /* This program allows the user to turn a MINIX system into a dumb
- * terminal to communicate with a remote computer over a modem.  It
- * forks into two processes.  The parent sits in a tight loop copying
- * from the keyboard to the modem.  The child sits in a tight loop
- * copying from the modem to the screen.
+ * terminal to communicate with a remote computer through one of the ttys.
+ * It forks into two processes.  The parent sits in a tight loop copying
+ * from stdin to the tty.  The child sits in a tight loop copying from
+ * the tty to stdout.
+ *
+ * 2 Sept 88 BDE (Bruce D. Evans): Massive changes to make current settings the
+ * default, allow any file as the "tty", support fancy baud rates and remove
+ * references to and dependencies on modems and keyboards, so (e.g.)
+ * a local login on /dev/tty1 can do an external login on /dev/tty2.
+ *
+ * 3 Sept 88 BDE: Split parent again to main process copies from stdin to a
+ * pipe which is copied to the tty.  This stops a blocked write to the
+ * tty from hanging the program.
+ *
+ * 11 Oct 88 BDE: Cleaned up baud rates and parity stripping.
  *
  * Example usage:
- *	term			: 1200 baud, 8 bits/char, no parity
+ *	term			: baud, bits/char, parity from /dev/tty1
  *	term 9600 7 even	: 9600 baud, 7 bits/char, even parity
  *	term odd 300 7		:  300 baud, 7 bits/char, odd parity
+ *	term /dev/tty2		: use /dev/tty2 rather than /dev/tty1
+ *				: Any argument starting with "/" is
+ *				: taken as the communication device.
  */
 
-#include <signal.h>
 #include <sgtty.h>
+#include <signal.h>
 
-#define MAXARGS 3		/* maximum number of uart params */
-#define NCHECKS 10
-#define BAD -1
-#define GOOD 1
-#define DEF_SPEED B1200		/* default baudrate */
-#define DEF_BITS BITS8		/* default bits/char */
-#define MODEM "/dev/tty1"	/* special file attached to the modem */
-#define ESC 033			/* character to hit to leave simulator */
-#define LIMIT 3			/* how often do you have to hit  ESC to exit*/
+#define MAXARGS  3		/* maximum number of uart params */
 #define CHUNK 1024		/* how much to read at once */
+#define NULL     0
 
-int modem, pid;			/* file descriptor for modem */
-char *pat[NCHECKS] = 
-	{"5", "6", "7", "8", "110", "300", "1200", "2400", "4800", "9600"};
+/* Hack some new baud rates for Minix. Minix uses a divide-by-100 encoding. */
+#define B200     2
+#define B600     6
+#define B1800   18
+#define B3600   36
+#define B7200   72
+#define B19200 192
+#define EXTA   192
+/* We can't handle some standard (slow) V7 speeds and speeds above 25500 since
+ * since the speed is packed into a char 🙁. Trap them with an illegal value.
+ */
+#define B50      0
+#define B75      0
+#define B134     0
+#define EXTB     0
+#define B38400   0
+#define B57600   0
+#define B115200  0
 
-int value[NCHECKS] = 
-	{BITS5, BITS6, BITS7, BITS8, B110, B300, B1200, B2400, B4800, B9600};
+int commfd;			/* open file no. for comm device */
+int readpid;			/* pid of child reading commfd */
+struct sgttyb sgcommfd;		/* saved terminal parameters for commfd */
+struct sgttyb sgstdin;		/* saved terminal parameters for stdin */
+int writepid;			/* pid of child writing commfd */
 
-int hold[MAXARGS];
-struct sgttyb sgtty, sgsave1, sgsave2;
+char endseq[] = "\033[G";	/* sequence to leave simulator */
+				/* keypad '5', and must arrive in 1 piece */
+struct param_s
+{
+  char *pattern;
+  int value;
+  char type;
+#define BAD      0
+#define BITS     1
+#define NOSTRIP  2
+#define PARITY   3
+#define SPEED    4
+}
+  params[] =
+{
+	"5", BITS5, BITS,
+	"6", BITS6, BITS,
+	"7", BITS7, BITS,
+	"8", BITS8, BITS,
+
+	"even", EVENP, PARITY,
+	"odd", ODDP, PARITY,
+	"nostrip", 0, NOSTRIP,
+
+	"50", B50, SPEED,
+	"75", B75, SPEED,
+	"110", B110, SPEED,
+	"134", B134, SPEED,
+	"200", B200, SPEED,
+	"300", B300, SPEED,
+	"600", B600, SPEED,
+	"1200", B1200, SPEED,
+	"1800", B1800, SPEED,
+	"2400", B2400, SPEED,
+	"3600", B3600, SPEED,
+	"4800", B4800, SPEED,
+	"7200", B7200, SPEED,
+	"9600", B9600, SPEED,
+	"19200", B19200, SPEED,
+	"EXTA", EXTA, SPEED,
+	"EXTB", EXTB, SPEED,
+	"38400", B38400, SPEED,
+	"57600", B57600, SPEED,
+	"115200", B115200, SPEED,
+	"", 0, BAD,		/* BAD type to end list */	
+};
+unsigned char strip_parity = 1;	/* nonzero to strip high bits before output */
+
+int quit();			/* forward declare signal handler */
 
 main(argc, argv)
 int argc;
 char *argv[];
 {
+  char *commdev = NULL;
+  int i;
+  int pipefd[2];
 
   sync();
-  modem = open(MODEM, 2);
-  if (modem < 0) {
-	printf("Can't open modem on %s\n", MODEM);
-	exit(1);
+  for (i = 1; i < argc; ++i)
+	if ( argv[i][0] == '/') {
+		if (commdev != NULL)
+			error("Too may communication devices", "");
+		commdev = argv[i];
+	}
+  if (commdev == NULL) {
+	i = MAXARGS + 1;
+	commdev = "/dev/tty1";
   }
+  else
+	i = MAXARGS + 2;
+  if (argc > i)
+	error("Usage: term [baudrate] [data_bits] [parity]", "");
+  commfd = open(commdev, 2);
+  if (commfd < 0) error("Can't open ", commdev);
+
+  /* Save state of both devices before altering either (may be identical!). */
+  ioctl(0, TIOCGETP, &sgstdin);
+  ioctl(commfd, TIOCGETP, &sgcommfd);
+  set_mode(0, -1, -1, -1, &sgstdin);	/* RAW mode on stdin, others current */
   set_uart(argc, argv);
 
   /* Main body of the terminal simulator. */
-  if ( (pid = fork()))
-	copy(0, modem, ESC);	/* copy from stdin to modem */
-  else
-	copy(modem, 1, -1);	/* copy from modem to stdout */
+  signal(SIGINT, quit);
+  signal(SIGPIPE, quit);
+  if (pipe(pipefd) < 0)
+	error("Can't create pipe", "");
+  switch((writepid = fork()))
+  {
+  case -1:
+	error("Can't create process to write to comm device", "");
+  case 0:
+	/* piped stdin to tty */
+	close(pipefd[1]);
+	copy(pipefd[0], "piped stdin", commfd, commdev, "");
+  }
+  close(pipefd[0]);
+  switch((readpid = fork()))
+  {
+  case -1:
+	error("Can't create process to read from comm device", "");
+  case 0:
+	/* tty to stdout */
+	copy(commfd, commdev, 1, "stdout", "");
+  }  
+  /* stdin to pipe */
+  copy(0, "stdin", pipefd[1], "redirect stdin", endseq);
 }
+
 
 set_uart(argc, argv)
 int argc;
@@ -62,109 +174,140 @@ char *argv[];
 {
 /* Set up the UART parameters. */
 
-  int i, k, v, nspeeds = 0, speed, nbits = 0, bits, parity = 0;
-
-  if (argc > MAXARGS + 1)
-	error("Usage: term [baudrate] [data_bits] [parity]\n");
+  int i, j, bits, nbits, parity, nparities, speed, nspeeds;
+  char *arg;
+  register struct param_s *param;
 
   /* Examine all the parameters and check for validity. */
-  speed = DEF_SPEED;		/* default line speed */
-  bits = DEF_BITS;		/* default bits/char */
-  for (i = 1; i < argc; i++) {
-	if (strcmp(argv[i], "even") == 0) {parity = EVENP; continue;}
-	if (strcmp(argv[i], "odd") == 0)  {parity = ODDP; continue;}
-	v = validity(argv[i]);
-	if (v == BAD) {
-		printf("Invalid parameter: %s\n", argv[i]);
-		exit(1);
-	}
-	k = atoi(argv[i]);
-	if (k > 100) {
-		speed = value[v];
-		nspeeds++;
-	}
-	if ( k < 10) {
-		bits = value[v];
-		nbits++;
-	}
-	if (nspeeds > 1) error("Too many speeds\n");
-	if (nbits > 1) error("Too many character sizes\n");
-  }
+  nspeeds = nparities = nbits = 0;
+  speed = parity = bits = -1;	/* -1 means use current value */
+  for (i = 1; i < argc; ++i) {
+	if ((arg = argv[i])[0] == '/') continue;
 
-  /* Fetch the modem parameters, save them, and set new ones. */
-  ioctl(modem, TIOCGETP, &sgtty);
-  sgsave1 = sgtty;		/* modem parameters */
+	/* Check parameter for legality. */
+	for (j = 0, param = &params[0];
+	     param->type != BAD && strcmp(arg, param->pattern) != 0;
+	     ++j, ++param)
+		;
+	switch (param->type)
+	{
+	case BAD:
+		error("Invalid parameter: ", arg);
+	case BITS:
+		bits = param->value;
+		if (++nbits > 1) error("Too many character sizes", "");
+		break;
+	case PARITY:
+		parity = param->value;
+		if (++nparities > 1) error("Too many parities", "");
+		break;
+	case SPEED:
+		speed = param->value;
+		if (speed == 0)
+			error("Invalid speed: ", arg);
+		if (++nspeeds > 1) error("Too many speeds", "");
+		break;
+	case NOSTRIP:
+		strip_parity = 0;
+		break;
+	}
+  }
+  set_mode(commfd, speed, parity, bits, &sgcommfd);
+}
+
+
+set_mode(fd, speed, parity, bits, sgsavep)
+int speed;
+int parity;
+int bits;
+struct sgttyb *sgsavep;
+{
+  /* Set open file fd to RAW mode with the given other modes.
+   * If fd is not a tty, this may do nothing but connecting ordinary files
+   * as ttys may have some use.
+   */
+
+  struct sgttyb sgtty;
+
+  sgtty = *sgsavep;
+  if (speed == -1) speed = sgtty.sg_ispeed;
+  if (parity == -1) parity = sgtty.sg_flags & (EVENP | ODDP);
+  if (bits == -1) bits = sgtty.sg_flags & BITS8; /* BITS8 is actually a mask */
   sgtty.sg_ispeed = speed;
   sgtty.sg_ospeed = speed;
   sgtty.sg_flags = RAW | parity | bits;
-  ioctl(modem, TIOCSETP, &sgtty);
-  
-  /* Fetch the keyboard parameters, save them, and set new ones. */
-  ioctl(0, TIOCGETP, &sgtty);
-  sgsave2 = sgtty;		/* modem parameters */
-  sgtty.sg_flags = (sgtty.sg_flags & 01700) + RAW;
-  ioctl(0, TIOCSETP, &sgtty);
+  ioctl(fd, TIOCSETP, &sgtty);
 }
 
 
-int validity(s)
-char *s;
+copy(in, inname, out, outname, end)
+int in;
+char *inname;
+int out;
+char *outname;
+char *end;
 {
-/* Check parameter for legality. */
-
-  int i;
-
-  for (i = 0; i < NCHECKS; i++) {
-	if (strcmp(s, pat[i]) == 0) return(i);
-  }
-  return(BAD);
-}
- 
-
-copy(in, out, end)
-int in, out, end;
-{
-/* Copy from the keyboard to the modem or vice versa. If the end character
- * is seen LIMIT times in a row, quit.  For the traffic from the modem, the
- * end character is -1, which cannot occur since the characters from the
- * modem are unsigned integers in the range 0 to 255.
+/* Copy from one open file to another. If the 'end' sequence is not "", and
+ * precisely matches the input, terminate the copy and various children.
+ * The end sequence is best provided by keyboard input from one of the
+ * special keys which always produces chars in a bunch. RAW mode almost
+ * guarantees exactly one keystroke's worth of input at a time.
  */
 
-  int t, count, state = 0;
-  char buf[CHUNK], *p;
+  static char buf[CHUNK];
+  char *bufend;
+  register char *bufp;
+  int count;
+  int len;
 
+  len = strlen(end);
   while (1) {
-	if ( (count = read(in, buf, CHUNK)) < 0) {
-		printf("Can't read from modem\r\n");
+	if ( (count = read(in, buf, CHUNK)) <= 0) {
+		write2sn("Can't read from ", inname);
 		quit();
 	}
-
-	if (end > 0) {
-		for (p = &buf[0]; p < &buf[count]; p++) {
-			t = *p & 0377;		/* t is unsigned int 0 - 255 */
-			if (t == end) {
-				if (++state == LIMIT) quit();
-			} else {
-				state = 0;
-			}
-		}
+	if (count == len && strncmp(buf, end, count) == 0)
+		quit();
+	if (strip_parity)
+		for (bufp = buf, bufend = bufp + count;
+		     bufp < bufend; ++bufp )
+			*bufp &= 0x7F;
+	if (write(out, buf, count) != count) {
+		write2sn("Can't write to ", outname);
+		quit();
 	}
-	write(out, buf, count);
   }
 }
 
 
-error(s)
-char *s;
+error(s1, s2)
+char *s1;
+char *s2;
 {
-  printf("%s", s);
+  write2sn(s1, s2);
   exit(1);
 }
 
+
+nicequit()
+{
+  exit(0);
+}
+
+
 quit()
 {
-  ioctl(modem, TIOCSETP, &sgsave1);
-  ioctl(0, TIOCSETP, &sgsave2);
-  if (getpid() != pid) kill(pid, SIGINT);
-  exit(0);
+  ioctl(commfd, TIOCSETP, &sgcommfd);
+  ioctl(0, TIOCSETP, &sgstdin);
+  signal(SIGINT, nicequit);	/* if not caught, sh prints extra newline */
+  kill(0, SIGINT);
+  nicequit();
+}
+
+
+write2sn(s1, s2)
+{
+  write(1, s1, strlen(s1));
+  write(1, s2, strlen(s2));
+  write(1, "\r\n", 2);
 }

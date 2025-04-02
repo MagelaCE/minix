@@ -1,0 +1,191 @@
+BEGCHAR	search.c	/^#define	BEGCHAR(c)	(islower(c) || isupper(c) || is/
+BEGID	ctags.c	/^#define	BEGID(c)	(isalpha(c) || (c) == '_')$/
+C0	search.c	/^#define	C0(c)	(((c) == ' ') || ((c) == '\\t') || ((/
+C1	search.c	/^#define	C1(c)	(isalpha(c) || isdigit(c) || ((c) ==/
+DEFAULT1	normal.c	/^#define	DEFAULT1(x)	(((x) == 0) ? 1 : (x))$/
+FAIL	regexp.c	/^#define	FAIL(m)	{ regerror(m); return(NULL); }$/
+IDCHAR	normal.c	/^#define	IDCHAR(c)	(isalpha(c) || isdigit(c) || (c)/
+ISMULT	regexp.c	/^#define	ISMULT(c)	((c) == '*' || (c) == '+' || (c)/
+ISSPECIAL	edit.c	/^#define	ISSPECIAL(c)	((c) == NL || (c) == CR || (c/
+MIDID	ctags.c	/^#define	MIDID(c)	(isalpha(c) || isdigit(c) || (c) /
+Mctags	ctags.c	/^main(argc, argv)$/
+Mmain	main.c	/^main(argc,argv)$/
+NEXT	regexp.c	/^#define	NEXT(p)	(((*((p)+1)&0377)<<8) + (*((p)+2)&/
+OP	regexp.c	/^#define	OP(p)	(*(p))$/
+OPERAND	regexp.c	/^#define	OPERAND(p)	((p) + 3)$/
+OTHERDIR	search.c	/^#define	OTHERDIR(x)	(((x) == FORWARD) ? BACKWARD :/
+UCHARAT	regexp.c	/^#define	UCHARAT(p)	((int)*(unsigned char *)(p))$/
+addtobuff	main.c	/^addtobuff(s,c1,c2,c3,c4,c5,c6)$/
+alloc	alloc.c	/^alloc(size)$/
+anyinput	main.c	/^anyinput()$/
+badcmd	cmdline.c	/^badcmd()$/
+bck_word	search.c	/^bck_word(p, type)$/
+bcksearch	search.c	/^bcksearch(str)$/
+beep	dos.c	/^beep()$/
+beginline	edit.c	/^beginline(flag)$/
+buf1line	alloc.c	/^buf1line()$/
+bufempty	alloc.c	/^bufempty()$/
+canincrease	alloc.c	/^canincrease(n)$/
+chk_mline	main.c	/^chk_mline(s)$/
+clrall	mark.c	/^clrall()$/
+clrmark	mark.c	/^clrmark(line)$/
+cls	search.c	/^cls(c)$/
+cntllines	misccmds.c	/^cntllines(pbegin,pend)$/
+coladvance	linefunc.c	/^coladvance(p, col)$/
+copyline	undo.c	/^copyline(l)$/
+crepsearch	search.c	/^crepsearch(flag)$/
+cstrchr	regexp.c	/^cstrchr(s, c)$/
+cstrncmp	regexp.c	/^cstrncmp(s1, s2, n)$/
+cursupdate	screen.c	/^cursupdate()$/
+dec	ptrfunc.c	/^dec(lp)$/
+delay	dos.c	/^delay()$/
+delchar	misccmds.c	/^delchar(fixpos)$/
+delline	misccmds.c	/^delline(nlines, can_update)$/
+do_mlines	main.c	/^do_mlines()$/
+dochange	normal.c	/^dochange(c1, c2, num)$/
+dodelete	normal.c	/^dodelete(c1, c2, num)$/
+doecmd	cmdline.c	/^doecmd(arg, force)$/
+dofile	ctags.c	/^dofile(fn, tp)$/
+dofilter	normal.c	/^dofilter(c1, c2, num)$/
+doglob	search.c	/^doglob(lp, up, cmd)$/
+dojoin	normal.c	/^dojoin()$/
+doput	normal.c	/^doput(dir)$/
+dosearch	search.c	/^dosearch(dir,str)$/
+doset	param.c	/^doset(arg, inter)$/
+doshell	dos.c	/^doshell(cmd)$/
+doshift	normal.c	/^doshift(op, c1, c2, num)$/
+dosub	search.c	/^dosub(lp, up, cmd)$/
+dotag	cmdline.c	/^dotag(tag, force)$/
+doyank	normal.c	/^doyank()$/
+edit	edit.c	/^edit()$/
+emsg	cmdline.c	/^emsg(s)$/
+end_word	search.c	/^end_word(p, type)$/
+endofline	alloc.c	/^endofline(p)$/
+equal	ptrfunc.c	/^equal(a, b)$/
+filealloc	alloc.c	/^filealloc()$/
+fileinfo	misccmds.c	/^fileinfo()$/
+filemess	fileio.c	/^filemess(s)$/
+filetonext	screen.c	/^filetonext()$/
+findfunc	search.c	/^findfunc(dir)$/
+fixname	dos.c	/^fixname(s)$/
+flushbuf	dos.c	/^flushbuf()$/
+fopenb	dos.c	/^fopenb(fname, mode)$/
+freeall	alloc.c	/^freeall()$/
+fwd_word	search.c	/^fwd_word(p, type)$/
+fwdsearch	search.c	/^fwdsearch(str)$/
+gchar	ptrfunc.c	/^gchar(lp)$/
+get_line	cmdline.c	/^get_line(cp)$/
+get_range	cmdline.c	/^get_range(cp)$/
+getmark	mark.c	/^getmark(c)$/
+getout	edit.c	/^getout()$/
+getswitch	dos.c	/^getswitch()$/
+gotocmd	cmdline.c	/^gotocmd(clr, firstc)$/
+gotoline	misccmds.c	/^gotoline(n)$/
+gt	ptrfunc.c	/^gt(a, b)$/
+gtoreq	ptrfunc.c	/^gtoreq(a, b)$/
+help	help.c	/^help()$/
+inc	ptrfunc.c	/^inc(lp)$/
+inchar	dos.c	/^inchar()$/
+inschar	misccmds.c	/^inschar(c)$/
+insertchar	edit.c	/^insertchar(c)$/
+inslines	normal.c	/^inslines(lp, dir, buf)$/
+insstr	misccmds.c	/^insstr(s)$/
+lfiletonext	screen.c	/^lfiletonext()$/
+lineempty	alloc.c	/^lineempty()$/
+lnexttoscreen	screen.c	/^lnexttoscreen()$/
+longline	help.c	/^longline(p)$/
+lt	ptrfunc.c	/^lt(a, b)$/
+ltoreq	ptrfunc.c	/^ltoreq(a, b)$/
+mapstring	search.c	/^mapstring(s)$/
+mkline	screen.c	/^mkline(n)$/
+mkstr	normal.c	/^mkstr(c)$/
+mkup	regexp.c	/^#define	mkup(c)		((islower(c) && reg_ic) ? toupper/
+msg	cmdline.c	/^msg(s)$/
+newline	alloc.c	/^newline(nchars)$/
+nextfile	ctags.c	/^nextfile()	\/* returns ptr to next file to be searc/
+nextline	linefunc.c	/^nextline(curr)$/
+nexttoscreen	screen.c	/^nexttoscreen()$/
+normal	normal.c	/^normal(c)$/
+onedown	edit.c	/^onedown(n)$/
+oneleft	edit.c	/^oneleft()$/
+oneright	edit.c	/^oneright()$/
+oneup	edit.c	/^oneup(n)$/
+openbwd	misccmds.c	/^openbwd(can_ai)$/
+opencmd	misccmds.c	/^opencmd(dir, can_ai)$/
+openfwd	misccmds.c	/^openfwd(can_ai)$/
+outchar	dos.c	/^outchar(c)$/
+outone	dos.c	/^#define	outone(c)	outbuf[bpos++] = c; if (bpos >= /
+outstr	dos.c	/^outstr(s)$/
+pchar	ptrfunc.c	/^pchar(lp, c)$/
+plines	misccmds.c	/^plines(p)$/
+prevline	linefunc.c	/^prevline(curr)$/
+prt_line	screen.c	/^prt_line(s)$/
+pswap	ptrfunc.c	/^pswap(a, b)$/
+readcmdline	cmdline.c	/^readcmdline(firstc, cmdline)$/
+readfile	fileio.c	/^readfile(fname,fromp,nochangename)$/
+reg	regexp.c	/^reg(paren, flagp)$/
+regatom	regexp.c	/^regatom(flagp)$/
+regbranch	regexp.c	/^regbranch(flagp)$/
+regc	regexp.c	/^regc(b)$/
+regcomp	regexp.c	/^regcomp(exp)$/
+regdump	regexp.c	/^regdump(r)$/
+regerror	search.c	/^regerror(s)$/
+regexec	regexp.c	/^regexec(prog, string, at_bol)$/
+reginsert	regexp.c	/^reginsert(op, opnd)$/
+regmatch	regexp.c	/^regmatch(prog)$/
+regnext	regexp.c	/^regnext(p)$/
+regnode	regexp.c	/^regnode(op)$/
+regoptail	regexp.c	/^regoptail(p, val)$/
+regpiece	regexp.c	/^regpiece(flagp)$/
+regprop	regexp.c	/^regprop(op)$/
+regrepeat	regexp.c	/^regrepeat(p)$/
+regsub	regsub.c	/^regsub(prog, source, dest)$/
+regtail	regexp.c	/^regtail(p, val)$/
+regtry	regexp.c	/^regtry(prog, string)$/
+remove	minix.c	/^remove(file)$/
+rename	minix.c	/^rename(of, nf)$/
+renum	fileio.c	/^renum()$/
+repsearch	search.c	/^repsearch(flag)$/
+reset_tty	minix.c	/^reset_tty()$/
+s_del	screen.c	/^s_del(row, nlines)$/
+s_ins	screen.c	/^s_ins(row, nlines)$/
+screenalloc	alloc.c	/^screenalloc()$/
+screenclear	screen.c	/^screenclear()$/
+scrolldown	edit.c	/^scrolldown(nlines)$/
+scrollup	edit.c	/^scrollup(nlines)$/
+searchc	search.c	/^searchc(c, dir, type)$/
+set_tty	minix.c	/^set_tty()$/
+setmark	mark.c	/^setmark(c)$/
+setpcmark	mark.c	/^setpcmark()$/
+setswitch	dos.c	/^setswitch(c)$/
+showmatch	search.c	/^showmatch()$/
+showparms	param.c	/^showparms(all)$/
+sleep	dos.c	/^sleep(n)$/
+smsg	cmdline.c	/^smsg(s, a1, a2, a3, a4, a5, a6, a7, a8, a9)$/
+ssearch	search.c	/^ssearch(dir,str)$/
+startinsert	normal.c	/^startinsert(initstr, startln)$/
+strchr	minix.c	/^strchr(s, c)$/
+strcspn	regexp.c	/^strcspn(s1, s2)$/
+strsave	alloc.c	/^strsave(string)$/
+stuffin	main.c	/^stuffin(s)$/
+stuffnum	main.c	/^stuffnum(n)$/
+t_init	term.c	/^t_init()$/
+tabinout	normal.c	/^tabinout(inout, num)$/
+u_clear	undo.c	/^u_clear()$/
+u_lcheck	undo.c	/^u_lcheck()$/
+u_lfree	undo.c	/^u_lfree()$/
+u_lsave	undo.c	/^u_lsave(l, u)$/
+u_lundo	undo.c	/^u_lundo()$/
+u_save	undo.c	/^u_save(l, u)$/
+u_saveline	undo.c	/^u_saveline()$/
+u_undo	undo.c	/^u_undo()$/
+updateline	screen.c	/^updateline()$/
+updatescreen	screen.c	/^updatescreen()$/
+usage	main.c	/^usage()$/
+vgetc	main.c	/^vgetc()$/
+vpeekc	main.c	/^vpeekc()$/
+wait_return	cmdline.c	/^wait_return()$/
+windexit	dos.c	/^windexit(r)$/
+windgoto	dos.c	/^windgoto(r, c)$/
+windinit	dos.c	/^windinit()$/
+writeit	fileio.c	/^writeit(fname, start, end)$/

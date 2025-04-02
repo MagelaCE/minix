@@ -1,23 +1,25 @@
-/*  memcmp(3)
- *
- *  Author: Terrence W. Holm          Sep. 1988
+/*
+ * memcmp - compare bytes
  */
+#include <string.h>
+int				/* <0, == 0, >0 */
+memcmp(s1, s2, size)
+CONST VOIDSTAR s1;
+CONST VOIDSTAR s2;
+SIZET size;
+{
+	register CONST char *scan1;
+	register CONST char *scan2;
+	register SIZET n;
 
+	scan1 = s1;
+	scan2 = s2;
+	for (n = size; n > 0; n--)
+		if (*scan1 == *scan2) {
+			scan1++;
+			scan2++;
+		} else
+			return(*scan1 - *scan2);
 
-int memcmp( vector1, vector2, count )
-  char *vector1;
-  char *vector2;
-  int   count;
-
-  {
-  register int cmp;
-
-  if ( vector1 == vector2 )
-    return( 0 );
-
-  while( --count >= 0 )
-    if ( cmp = *vector1++ - *vector2++ )
-	return( cmp );
-
-  return( 0 );
-  }
+	return(0);
+}

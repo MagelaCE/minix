@@ -1,9 +1,15 @@
-char *index(s, c)
-register char *s, c;
+/*
+ * index - find first occurrence of a character in a string
+ */
+#include <string.h>
+#define	NULL	0
+
+char *				/* found char, or NULL if none */
+index(s, charwanted)
+CONST char *s;
+char charwanted;
 {
-  do {
-	if (*s == c)
-		return(s);
-  } while (*s++ != 0);
-  return(0);
+	extern char *strchr();
+
+	return(strchr(s, charwanted));
 }

@@ -1,0 +1,67 @@
+STEVIE Source Release - 3.26
+
+This is a source release of the STEVIE editor, a public domain clone
+of the UNIX editor 'vi'. The program was originally developed for the
+Atari ST, but has been ported to UNIX and OS/2 as well.
+
+Parts of the editor are still badly in need of improvement, but it's
+reached a pretty usable state overall. I'm not going to have much time
+to work on it over the next couple of months, so I'll just release it
+as is. The 'undo' facility is in pretty good shape, but yanks and puts
+still need some work. The current code there is rather limited and slow.
+
+The files included in this release are:
+
+readme
+	This file.
+
+stevie.doc
+	Reference manual for STEVIE. Assumes familiarity with vi.
+
+source.doc
+	Quick overview of the major data structures used.
+
+porting.doc
+	Tips for porting STEVIE to other systems.
+
+makefile.os2
+makefile.usg
+makefile.tos
+	Makefiles for OS/2, UNIX System V, and the Atari ST respectively.
+
+os2.c
+unix.c
+tos.c
+env.h
+term.h
+	System-dependent code for the same.
+
+alloc.c ascii.h cmdline.c edit.c fileio.c help.c hexchars.c
+keymap.h linefunc.c main.c mark.c misccmds.c normal.c param.c
+param.h ptrfunc.c screen.c search.c stevie.h undo.c version.c
+
+	C source and header files for STEVIE.
+
+ctags.doc
+	Documentation for the accompanying program 'ctags'.
+
+ctags.c
+	Source code for the program 'ctags'.
+
+
+To compile STEVIE for one of the provided systems:
+
+	1. Compile the regular expression library and install as
+	   appropriate for your system.
+
+	2. Edit the file 'env.h' to set the system defines as needed.
+
+	3. Check the makefile for your system, and modify as needed.
+
+	4. Compile.
+
+Good Luck...
+
+Tony Andrews
+3/27/88
+

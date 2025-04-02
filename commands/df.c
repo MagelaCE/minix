@@ -177,15 +177,13 @@ defaults()
 getname(p)
 char *p;
 {
-  char c;
-  char ch;
+  int c;
 
   while (1) {
-	ch = getchar();
-	if (ch == EOF) exit(0);
-	c = (char) ch;
+	c = getchar();
+	if (c == EOF) exit(0);
 	if (c == ' ') c = 0;
-	*p++ = c;
+	*p++ = (char)c;
 	if (c == '\n') return;
   }
 }

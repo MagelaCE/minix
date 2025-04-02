@@ -1,12 +1,15 @@
-char *rindex(s, c)
-register char *s, c;
-{
-  register char *result;
+/*
+ * rindex - find last occurrence of a character in a string
+ */
+#include <string.h>
+#define	NULL	0
 
-  result = 0;
-  do
-	if (*s == c)
-		result = s;
-  while (*s++ != 0);
-  return(result);
+char *				/* found char, or NULL if none */
+rindex(s, charwanted)
+CONST char *s;
+char charwanted;
+{
+	extern char *strrchr();
+
+	return(strrchr(s, charwanted));
 }

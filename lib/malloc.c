@@ -149,13 +149,6 @@ unsigned size;
   return(new);
 }
 
-static bcopy(old, new, n)
-register char *old, *new;
-register n;
-{
-  while (n--)
-	*new++ = *old++;
-}
 
 char *calloc(n, size)
 unsigned n, size;

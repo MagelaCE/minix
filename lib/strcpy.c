@@ -1,10 +1,18 @@
-char *strcpy(s1, s2)
-register char *s1, *s2;
+/*
+ * strcpy - copy string src to dst
+ */
+#include <string.h>
+char *				/* dst */
+strcpy(dst, src)
+char *dst;
+CONST char *src;
 {
-/* Copy s2 to s1. */
-  char *original = s1;
+	register char *dscan;
+	register CONST char *sscan;
 
-  while (*s2 != 0) *s1++ = *s2++;
-  *s1 = 0;
-  return(original);
+	dscan = dst;
+	sscan = src;
+	while ((*dscan++ = *sscan++) != '\0')
+		continue;
+	return(dst);
 }
