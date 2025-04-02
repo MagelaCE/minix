@@ -1,35 +1,23 @@
-/*  strcspn(3)
- *
- *  Author:  Terrence W. Holm          July 1988
- *
- *
- *  This function determines the length of a span from the
- *  beginning of <string> which contains none of the
- *  characters specified in <char_set>. The length of the
- *  span is returned.
+/*
+ * strcspn - find length of initial segment of s consisting entirely
+ * of characters not from reject
  */
+#include <string.h>
+SIZET
+strcspn(s, reject)
+CONST char *s;
+CONST char *reject;
+{
+	register CONST char *scan;
+	register CONST char *rscan;
+	register SIZET count;
 
-#define NULL (char *) 0
-
-
-int strcspn( string, char_set )
-  char *string;
-  char *char_set;
-
-  {
-  register char *str;
-  register char *chr;
-
-  if ( string == NULL )
-      return( 0 );
-
-  if ( char_set == NULL )
-      return( strlen(string) );
-
-  for ( str = string;  *str != '\0';  ++str )
-      for ( chr = char_set;  *chr != '\0';  ++chr )
-	  if ( *str == *chr )
-	      return( str - string );
-
-  return( str - string );
-  }
+	count = 0;
+	for (scan = s; *scan != '\0'; scan++) {
+		for (rscan = reject; *rscan != '\0';)	/* ++ moved down. */
+			if (*scan == *rscan++)
+				return(count);
+		count++;
+	}
+	return(count);
+}

@@ -39,6 +39,15 @@ typedef union {
 
 HEADER header;
 
+#define MAXLINKS 512
+
+struct {
+        unsigned short ino;
+        unsigned short dev;
+        char *path;
+} links[MAXLINKS];
+int nlinks = 0;
+
 #define INT_TYPE	(sizeof(header.member.m_uid))
 #define LONG_TYPE	(sizeof(header.member.m_size))
 
@@ -185,6 +194,7 @@ extract(file)
 register char *file;
 {
   register int fd;
+  struct stat st;
 
   if (header.member.m_linked == '1') {
 	if (link(header.member.m_link, file) < 0)
@@ -205,6 +215,10 @@ register char *file;
   (void) close(fd);
 
   chmod(file, (int)convert(header.member.m_mode, INT_TYPE));
+  st.st_mtime = convert(header.member.m_time, LONG_TYPE);
+  st.st_atime = st.st_mtime;
+  utime(file, &st.st_atime);
+  chown(file, (int)convert(header.member.m_uid, INT_TYPE),(int)convert(header.member.m_gid, INT_TYPE));
   flush();
 }
 
@@ -329,6 +343,7 @@ register char *file;
   struct stat st;
   struct direct dir;
   register int fd;
+  char *islink(), *link=NIL_PTR;
 
   if (stat(file, &st) < 0) {
 	string_print(NIL_PTR, "Cannot find %s\n", file);
@@ -339,11 +354,18 @@ register char *file;
 	return;
   }
 
-  make_header(path_name(file), &st);
+
+  /* check for link */
+  if ((st.st_mode & S_IFMT)!=S_IFDIR && st.st_nlink>1)
+	 link = islink (path_name(file), &st, header.member.m_link);
+
+  make_header(path_name(file), &st ,link);
   mwrite(tar_fd, &header, sizeof(header));
-  if (st.st_mode & S_IFREG)
-	copy(path_name(file), fd, tar_fd, st.st_size);
-  else if (st.st_mode & S_IFDIR) {
+  if ((st.st_mode & S_IFMT) == S_IFREG)
+	{if (link == 0)
+		copy(path_name(file), fd, tar_fd, st.st_size);
+	}
+  else if ((st.st_mode & S_IFMT) == S_IFDIR) {
 	if (chdir(file) < 0)
 		string_print(NIL_PTR, "Cannot chdir to %s\n", file);
 	else {
@@ -363,8 +385,11 @@ register char *file;
   (void) close(fd);
 }
 
-make_header(file, st)
-char *file;
+/* a new arg link is necessary because link must be written beetween
+  clear_header() and checksum()	- calling islink in make_header isn't clean*/
+
+make_header(file, st,link)
+char *file, *link;
 register struct stat *st;
 {
   register char *ptr = header.member.m_name;
@@ -384,9 +409,57 @@ register struct stat *st;
   string_print(header.member.m_gid, "%I ", st->st_gid);
   string_print(header.member.m_size, "%L ", st->st_size);
   string_print(header.member.m_time, "%L ", st->st_mtime);
-  header.member.m_linked = ' ';
+  if (link != NIL_PTR)
+	{
+	header.member.m_linked = '1';
+	strncpy (header.member.m_link, link, NAME_SIZE);
+	}
+  else
+	header.member.m_linked = ' ';
   string_print(header.member.m_checksum, "%I", checksum());
 }
+
+char  *islink(file, st)
+	struct stat *st;
+	char *file;
+{
+	/* Handle files that are links.
+	 * Returns 0 if file must be copied.
+	 * Returns 1 if file has been successfully linked.
+	 */
+	int i;
+	int linkent;
+	char *malloc();
+
+	linkent = -1;
+	for (i=0; i<nlinks; i++)
+	{
+		if (links[i].dev==st->st_dev
+			&& links[i].ino==st->st_ino)
+				linkent=i;
+	}
+	if (linkent>=0) /* It's already in the link table */
+	{ /* we must have copied it earlier.
+	   * Don't copy it twice.
+	   */
+		
+		return(links[linkent].path); /* Don't try to copy it */
+
+	} else { /* Make an entry in the link table */
+		if (nlinks >= MAXLINKS)
+			error("Too many links at %s\n",file);	
+		links[nlinks].dev = st->st_dev;
+		links[nlinks].ino = st->st_ino;
+		links[nlinks].path = malloc(strlen(file)+1);
+		if (links[nlinks].path == 0)
+			error("No more memory at %s\n",file);
+		strcpy(links[nlinks].path,file);
+		nlinks++;
+		/* Go ahead and copy it the first time */
+		return(NIL_PTR);
+	}
+}
+
 
 clear_header()
 {

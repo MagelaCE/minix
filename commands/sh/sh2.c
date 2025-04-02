@@ -39,8 +39,8 @@ typedef union {
 
 /* #include "sh.h" */
 #define	SYNTAXERR	zzerr()
-static	int	startl = 1;
-static	int	peeksym = 0;
+static	int	startl;
+static	int	peeksym;
 static	void	zzerr();
 static	void	word();
 static	char	**copyw();
@@ -66,6 +66,7 @@ static	YYSTYPE	yylval;
 int
 yyparse()
 {
+	startl  = 1;
 	peeksym = 0;
 	yynerrs = 0;
 	outtree = c_list();
@@ -574,11 +575,9 @@ yyerror(s)
 char *s;
 {
 	yynerrs++;
-	if (talking) {
-		if (multiline && nlseen)
-			unget('\n');
+	if (talking && e.iop <= iostack) {
 		multiline = 0;
-		while (yylex(0) != '\n')
+		while (eofc() == 0 && yylex(0) != '\n')
 			;
 	}
 	err(s);

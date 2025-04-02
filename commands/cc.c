@@ -161,9 +161,9 @@ main(argc, argv)
 
 	ProgCall = *argv++;
 
-	signal(SIGHUP, trapcc);
-	signal(SIGINT, trapcc);
-	signal(SIGQUIT, trapcc);
+	if (signal(SIGHUP, SIG_IGN) != SIG_IGN) signal(SIGHUP, trapcc);
+	if (signal(SIGINT, SIG_IGN) != SIG_IGN) signal(SIGINT, trapcc);
+	if (signal(SIGQUIT, SIG_IGN) != SIG_IGN) signal(SIGQUIT, trapcc);
 	while (--argc > 0) {
 		if (*(str = *argv++) != '-') {
 			append(&SRCFILES, str);

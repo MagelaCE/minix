@@ -237,7 +237,9 @@ char *s;
 
 	if (n = finddef(s)) {
 		if (n->file != NULL) 
-			fprintf(stderr,"Error %s - %s defined twice in %s and %s", progname, s, n->file, yyfile);
+			fprintf(stderr,
+				"Error %s - %s defined twice in %s and %s\n",
+				 progname, s, n->file, yyfile);
 		else
 			n->file = yyfile;
 	}

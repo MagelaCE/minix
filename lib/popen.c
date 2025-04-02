@@ -27,12 +27,12 @@ popen(command, type)
 		dup2(piped[!Xtype], !Xtype);
 		close(piped[!Xtype]);
 		execl("/bin/sh", "sh", "-c", command, (char *) 0);
-		exit(127);	/* like system() ??? */
+		exit(-1);	/* like system() ??? */
 	}
 
 	pids[piped[Xtype]] = pid;
 	close(piped[!Xtype]);
-	return fdopen(piped[Xtype], type);
+	return (fdopen(piped[Xtype], type));
 }
 
 pclose(iop)
@@ -42,6 +42,7 @@ pclose(iop)
 	int status, wret;
 	int (*intsave)() = signal(SIGINT, SIG_IGN);
 	int (*quitsave)() = signal(SIGQUIT, SIG_IGN);
+	int (*hupsave)() = signal(SIGHUP, SIG_IGN);
 
 	fclose(iop);
 	while ((wret = wait(&status)) != -1) {
@@ -50,6 +51,7 @@ pclose(iop)
 	if (wret == -1) status = -1;
 	signal(SIGINT, intsave);
 	signal(SIGQUIT, quitsave);
+	signal(SIGHUP, hupsave);
 	pids[fd] = 0;
-	return status;
+	return (status);
 }

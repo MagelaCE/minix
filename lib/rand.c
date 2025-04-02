@@ -1,13 +1,18 @@
-static long seed = 1L;
+/*  rand(3)
+ *
+ *  Changed to return high order bits. Terrence W. Holm, Nov. 1988
+ */
 
-int srand(x)
-unsigned x;
-{
-  seed = (long)x;
-}
+static long _seed = 1L;
+
+srand(x)
+  unsigned x;
+  {
+  _seed = (long) x;
+  }
 
 int rand()
-{
-  seed = (1103515245L * seed + 12345) & 0x7FFFFFFF;
-  return((int) (seed & 077777));
-}
+  {
+  _seed = 1103515245L * _seed + 12345;
+  return( (int) ((_seed >> 16) & 0x7fff) );
+  }
