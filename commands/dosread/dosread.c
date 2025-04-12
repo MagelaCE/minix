@@ -1,6 +1,5 @@
-/* dos{read|write|dir} - handle DOS disks	Author: Michiel Huisjes */
-
-/* dosdir - list MS-DOS directories.
+/*
+ * dosdir - list MS-DOS directories.
  * doswrite - write stdin to DOS-file
  * dosread - read DOS-file to stdout
  *
@@ -10,51 +9,24 @@
  *	  l: Give long listing.
  *	  r: List recursively.
  *	  a: Set ASCII bit.
- *
- *	Modified by Tim Kachel 4-88
- *		drive can be 0,1, a, b, c, d, e, f
- *		program will automatically configure to different hard disks
- *		  and the partitions for such (could change drive name for
- *		  a second hard disk if you have one)
- *			(has been tested on a 16 bit FAT AT drive)
- *			(High density AT diskettes and regular 360K)
- *		compile with cc -O -i
- *		hard disk is named /dev/hd0 to avoid accidents
- *		  To test FAT sizes on your hard disk first try dir -lr c
- *			(or what ever your dos partition is)  if this works
- *			properly then all the rest should be okay.
- *		If there are any problems there is debugging information
- *		  in fdinit() -- please let me know of any problems
- *
- * 	Modified by Al Crew January 5, 1989
- *		allow 720K (and when the kernel does 1.44M) diskettes
- *			(for 1.44M the size of /dev/at[01] will have to
- *			 be changed or a new device name added)
- *		adjusted MAX_FAT_SIZE and MAX_CLUSTER_SIZE to better
- *			match my fixed disk (you may want to change them)
- *              fixed bug in read_cluster (sbrk failures were not reported)
  */
 
+#ifdef debug			/* usually avoid stdio, what a nuisance */
+#include <stdio.h>
+#undef EOF			/* one-off stdio redefines it different */
+#endif
 #include <sys/stat.h>
 
-#define DRIVE0		"/dev/at0"
-#define DRIVE1		"/dev/at1"
-#define FDRIVE		"/dev/hd0"
+#define DRIVE		"/dev/dosX"
+#define DRIVE_NR	8
 
-#define DDDD	0xFD
-#define DDHD	0xF9
-#define DDFD	0xF8
-
-#define	MAX_CLUSTER_SIZE	2048
-#define MAX_FAT_SIZE		25600	/* 50 sectoren */
-#define HMASK		0xFF00
-#define LMASK		0x00FF
-
-#define MAX_ROOT_ENTRIES	512	/* 32 sectoren */
+#define MAX_CLUSTER_SIZE	4096
+#define MAX_ROOT_ENTRIES	512
 #define FAT_START		512L	/* After bootsector */
+#define ROOTADDR		(FAT_START + 2L * (long) fat_size)
 #define clus_add(cl_no)		((long) (((long) cl_no - 2L) \
 					* (long) cluster_size \
-					+ (long) data_start \
+					+ data_start \
 				       ))
 struct dir_entry {
 	unsigned char d_name[8];
@@ -76,15 +48,12 @@ typedef struct dir_entry DIRECTORY;
 #define SUB_DIR		0x10
 #define NIL_DIR		((DIRECTORY *) 0)
 
-#define LAST_CLUSTER	0x0FFF
-#define MASK		0xFF8		/* FF8 - FFF are last cluster */
+#define LAST_CLUSTER	0xFFFF
+#define MASK		0xFF8
+#define MASK16		0xFFF8
 #define FREE		0x000
-#define BAD		0xFF0		/* Includes reserved */
-
-#define LAST_16		0xFFFF
-#define MASK_16		0xFFF8
-#define FREE_16		0x0000
-#define BAD_16		0xFFF0		/* Includes reserved */
+#define BAD		0xFF0
+#define BAD16		0xFFF0
 
 typedef char BOOL;
 
@@ -98,6 +67,16 @@ typedef char BOOL;
 #define WRITE			1
 #define disk_read(s, a, b)	disk_io(READ, s, a, b)
 #define disk_write(s, a, b)	disk_io(WRITE, s, a, b)
+
+#define get_fat(f, b)		buf_read(FAT_START + f, b, 1)
+
+#define put_fat(f, b)		{ disk_io(WRITE, FAT_START + f, b, 1); \
+				disk_io(WRITE, FAT_START + f + fat_size, b, 1);}
+
+#define put_fat16(f, b)		{ disk_io(WRITE, FAT_START + f, b, 2); \
+				disk_io(WRITE, FAT_START + f + fat_size, b, 2);}
+
+#define get_fat16(f, b)		buf_read(FAT_START + f, b, 2)
 
 #define FIND	3
 #define LABEL	4
@@ -115,21 +94,23 @@ typedef char BOOL;
 #define flush()			print(STD_OUT, NIL_PTR, 0)
 
 short disk;
-union tbl
-{
-	unsigned char  twelve[4096];
-	unsigned short sixteen[MAX_FAT_SIZE / 2 ];
-} fat;
+unsigned char fat_info;
+DIRECTORY root[MAX_ROOT_ENTRIES];
+DIRECTORY save_entry;
+char null[MAX_CLUSTER_SIZE], device[] = DRIVE, path[128];
+long data_start, mark;
+unsigned short total_clusters, cluster_size, fat_size,
+      root_entries, sub_entries;
 
-DIRECTORY root[MAX_ROOT_ENTRIES], save_entry, *directory(), *read_cluster();
-char null[MAX_CLUSTER_SIZE], *device, path[128];
-short total_clusters, cluster_size, fat_size, root_entries, sub_entries;
+BOOL Rflag, Lflag, Aflag, dos_read, dos_write, dos_dir, fat_16 = 0;
 
-BOOL Rflag, Lflag, Aflag, dos_read, dos_write, dos_dir, Tfat = TRUE;
+char disk_written = 1, buf_buf[1025];
+long buf_addr = 0;
 
+DIRECTORY *directory(), *read_cluster();
 unsigned short free_cluster(), next_cluster();
 char *make_name(), *num_out(), *slash(), *brk();
-long mark, data_start, lseek(), time(), f_start;
+long lseek(), time();
 
 leave(nr)
 short nr;
@@ -146,6 +127,120 @@ register char *prog_name;
 	exit(1);
 }
 
+unsigned c2u2( ucarray )
+unsigned char *ucarray;
+{
+	return ucarray[0] + (ucarray[1] << 8);	/* parens vital */
+}
+
+determine()
+{
+	struct dosboot {
+		unsigned char	cjump[2];	/* unsigneds avoid bugs */
+		unsigned char	nop;
+		unsigned char	name[8];
+		unsigned char	cbytepers[2];	/* don't use shorts, etc */
+		unsigned char	secpclus;	/* to avoid struct member */
+		unsigned char	creservsec[2];	/* alignment and byte */
+		unsigned char	fats;		/* order bugs */
+		unsigned char	cdirents[2];
+		unsigned char	ctotsec[2];
+		unsigned char	media;
+		unsigned char	csecpfat[2];
+		unsigned char	csecptrack[2];
+		unsigned char	cheads[2];
+		unsigned char	chiddensec[2];
+		/* char    fill[482]; */
+	}  boot;
+	unsigned short boot_magic;		/* last of boot block */
+	unsigned bytepers, reservsec, dirents, totsec;
+	unsigned secpfat, secptrack, heads, hiddensec;
+	
+	int errcount = 0;
+
+	/* read Bios-Parameterblock */
+	disk_read(0L, &boot, sizeof boot);
+	disk_read(0x1FEL, &boot_magic, sizeof boot_magic);
+
+	/* convert some arrays */
+	bytepers = c2u2(boot.cbytepers);
+	reservsec = c2u2(boot.creservsec);
+	dirents = c2u2(boot.cdirents);
+	totsec = c2u2(boot.ctotsec);
+	secpfat = c2u2(boot.csecpfat);
+	secptrack = c2u2(boot.csecptrack);
+	heads = c2u2(boot.cheads);
+	hiddensec = c2u2(boot.chiddensec);
+
+	/* calculate everything before checking for debugging print */
+ 	total_clusters = totsec / (boot.secpclus == 0 ? 1 : boot.secpclus);
+	cluster_size = bytepers * boot.secpclus;
+	fat_size = secpfat * bytepers;
+	data_start = (long)bytepers + (long)boot.fats * (long)fat_size
+		   + (long)dirents * 32L;
+	root_entries = dirents;	
+	sub_entries = boot.secpclus * bytepers / 32;
+	if (total_clusters > 4096)
+		fat_16 = 1;
+
+#ifdef debug
+	/* This used to help find foolish sign extensions and op precedences.
+	 * It remains useful for looking at nonstandard formats.
+	 */
+	fprintf(stderr, "OEM = %8.8s\n", boot.name);
+	fprintf(stderr, "Bytes/sector = %u\n", bytepers);
+	fprintf(stderr, "Sectors/cluster = %u\n", boot.secpclus);
+	fprintf(stderr, "Number of Reserved Clusters = %u\n", reservsec);
+	fprintf(stderr, "Number of FAT's = %u\n", boot.fats);
+	fprintf(stderr, "Number of root-directory entries = %u\n", dirents);
+	fprintf(stderr, "Total sectors in logical volume = %u\n", totsec);
+	fprintf(stderr, "Media descriptor = 0x%02x\n", boot.media);
+	fprintf(stderr, "Number of sectors/FAT = %u\n", secpfat);
+	fprintf(stderr, "Sectors/track = %u\n", secptrack);
+	fprintf(stderr, "Number of heads = %u\n", heads);
+	fprintf(stderr, "Number of hidden sectors = %u\n", hiddensec);
+	fprintf(stderr, "Bootblock magic number = 0x%04x\n", boot_magic);
+#endif
+
+	/* safety checking */
+	if (boot_magic != 0xAA55) {
+		print_string(TRUE, "magic != 0xAA55\n");
+		++errcount;
+	}
+	/* check sectors per track instead of inadequate media byte */
+	if (secptrack < 15 &&		/* assume > 15 hard disk & wini OK */
+#ifdef SECT10				/* BIOS modified for 10 sec/track */
+	    secptrack != 10 &&
+#endif
+#ifdef SECT8				/* BIOS modified for 8 sec/track */
+	    secptrack != 8 &&
+#endif
+	    secptrack != 9) {
+		print_string(TRUE, "sectors per track not supported\n");
+		++errcount;
+	}
+	if (boot.secpclus == 0) {
+		print_string(TRUE, "sectors per cluster == 0\n");
+		++errcount;
+	}
+	if (boot.fats != 2 && dos_write) {
+		print_string (TRUE, "fats != 2\n");
+		++errcount;
+	}
+	if (reservsec != 1) {
+		print_string (TRUE, "reserved != 1\n");
+		++errcount;
+	}
+	if (cluster_size > MAX_CLUSTER_SIZE) {
+		print_string (TRUE, "cluster size too big\n");
+		++errcount;
+	}
+	if (errcount != 0) {
+		print_string (TRUE, "Can't handle disk\n");
+		leave (2);
+	}
+}
+
 main(argc, argv)
 int argc;
 register char *argv[];
@@ -153,10 +248,8 @@ register char *argv[];
 	register char *arg_ptr = slash(argv[0]);
 	DIRECTORY *entry;
 	short index = 1;
-	char dev_nr;
-	unsigned char fat_type, fat_check;
-	BOOL fdisk = FALSE;
-	int i;
+	char dev_nr = '0';
+	unsigned char fat_check;
 
 	if (!strcmp(arg_ptr, "dosdir"))
 		dos_dir = TRUE;
@@ -189,58 +282,28 @@ register char *argv[];
 	if (index == argc)
 		usage(argv[0]);
 
-	switch (dev_nr = *argv[index++])
-	{
-		case '0':
-		case 'a':	device = DRIVE0; break;
-		case '1':
-		case 'b':	device = DRIVE1; break;
-		case 'c':
-		case 'd':
-		case 'e':
-		case 'f':	fdisk = TRUE; device = FDRIVE; break;
-		default :	usage(argv[0]);
-	}
+	if ((dev_nr = (0x5f & *argv[index++])) < 'A' || dev_nr > 'Z')
+		usage(argv[0]);
 
-	if ((disk = open(device, 2)) < 0) {
+	device[DRIVE_NR] = dev_nr;
+
+	if ((disk = open(device, dos_write ? 2 : 0)) < 0) {
 		print_string(TRUE, "Cannot open %s\n", device);
 		exit(1);
 	}
 
-	fdinit(dev_nr);
-	disk_read(f_start, &fat_type, sizeof(fat_type));
-	disk_read(f_start + (long) fat_size, &fat_check, sizeof(fat_check));
-	if (fat_check != fat_type) {
+	disk_read(FAT_START, &fat_info, 1);
+	determine();
+	disk_read(FAT_START + (long) fat_size, &fat_check, sizeof(fat_check));
+
+	if (fat_check != fat_info) {
 		print_string(TRUE, "Disk type in FAT copy differs from disk type in FAT original.\n");
 		leave(1);
 	}
 
-	if (Tfat)	/* twelve bit FAT entries */
-		disk_read(f_start, fat.twelve, fat_size);
-	else		/* sixteen bit */
-		disk_read(f_start, fat.sixteen, fat_size);
-/*******
-	for (i=0; i<= 30; i++){
-		printf("%x\t%c", fat.sixteen[i], (i % 10) ? ' ':'\n');
-	}
-	leave(1);
-/*******/
-	disk_read(f_start + 2L * (long) fat_size, root, DIR_SIZE * root_entries);
-/*******
-	for (i=0; i<2; i++){
-		printf("%s d_name\n", root[i].d_name);
-		printf("%s d_ext\n",  root[i].d_ext);
-		printf("%d d_attr\n",  root[i].d_attribute);
-		printf("%s d_reserved\n",  root[i].d_reserved);
-		printf("%d d_time\n",  root[i].d_time);
-		printf("%d d_date\n",  root[i].d_date);
-		printf("%d d_cluster\n",  root[i].d_cluster);
-		printf("%D d_size\n",  root[i].d_size);
-	}
+	disk_read(ROOTADDR, root, DIR_SIZE * root_entries);
 
-
-/*********/
-	if (dos_dir) {
+	if (dos_dir && Lflag) {
 		entry = label();
 		print_string(FALSE, "Volume in drive %c ", dev_nr);
 		if (entry == NIL_DIR)
@@ -252,9 +315,11 @@ register char *argv[];
 	if (argv[index] == NIL_PTR) {
 		if (!dos_dir)
 			usage(argv[0]);
-		print(STD_OUT, "Root directory:\n", 0);
+		if (Lflag)
+			print(STD_OUT, "Root directory:\n", 0);
 		list_dir(root, root_entries, FALSE);
-		free_blocks();
+		if (Lflag)
+			free_blocks();
 		flush();
 		leave(0);
 	}
@@ -270,14 +335,15 @@ register char *argv[];
 	add_path(argv[index], FALSE);
 	add_path("/", FALSE);
 
-	if (dos_dir)
+	if (dos_dir && Lflag)
 		print_string(FALSE, "Directory %s:\n", path);
 
 	entry = find_entry(root, root_entries, argv[index]);
 
 	if (dos_dir) {
 		list_dir(entry, sub_entries, FALSE);
-		free_blocks();
+		if (Lflag)
+			free_blocks();
 	}
 	else if (dos_read)
 		extract(entry);
@@ -305,144 +371,6 @@ register char *argv[];
 	leave(0);
 }
 
-fdinit(part_nr)		/* Initializations */
-char part_nr;
-{
-
-#define	SECSIZE        512        /* sector size        */
-#define TABLEOFFSET    0x1be      /* offset in boot sector*/
-
-	/*
-	 * Description of entry in partition table
-	 */
-	struct part_entry {
-	    char    bootind;    /* boot indicator 0/0x80    */
-	    char    start_head;    /* head value for first sector    */
-	    char    start_sec;    /* sector value for first sector*/
-	    char    start_cyl;    /* track value for first sector    */
-	    char    sysind;        /* system indicator 00=?? 01=DOS*/
-	    char    last_head;    /* head value for last sector    */
-	    char    last_sec;    /* sector value for last sector    */
-	    char    last_cyl;    /* track value for last sector    */
-	    long    lowsec;        /* logical first sector        */
-	    long    size;        /* size of partion in sectors    */
-	} *pe;
-
-	char    secbuf[SECSIZE];
-
-	/*
-	 *	Description of the boot block
-	 */
-	struct {
-		unsigned char jump[3];
-		unsigned char oem[8];
-		unsigned char bytes_sector[2];
-		unsigned char cluster_size;
-		unsigned char res_sectors[2];
-		unsigned char num_fats;
-		unsigned char root_entries[2];
-		unsigned char logical_sectors[2];
-		unsigned char media_type;
-		unsigned char fat_sectors[2];
-		unsigned char track_sectors[2];
-		unsigned char num_heads[2];
-		unsigned char hidden_sectors[2];
-	} boot;
-
-	short block_size, reserved;	long boot_loc;
-
-	disk_read(0L, secbuf, SECSIZE);	/* get boot sector */
-		/* offset into boot sector for the partition table */
-	pe = (struct part_entry *)&secbuf[TABLEOFFSET];
-		/* get the proper partition */
-	switch(part_nr) {
-		case '0':
-		case 'a':
-		case '1':
-		case 'b': boot_loc=0; break;
-		case 'f': pe++;
-		case 'e': pe++;
-		case 'd': pe++;
-		case 'c': boot_loc = pe->lowsec * 512L; break;
-        	default:  printf("Error: unknown partition\n"); leave();
-	}
-		/* now read the boot block for the partition needed */
-	disk_read(boot_loc, &boot, sizeof(boot));
-
-	/* this section can be used to print drive information */
-/**************
-	printf("OEM = %s\n", boot.oem);
-	printf("Bytes/sector = %d\n",
-		(boot.bytes_sector[1] << 8 & HMASK) + (boot.bytes_sector[0] & LMASK)); 
-	printf("Sectors/cluster = %d\n", boot.cluster_size);
-	printf("Number of Reserved Clusters = %d\n",
-		(boot.res_sectors[1] << 8 & HMASK) + (boot.res_sectors[0] & LMASK));
-	printf("Number of FAT's = %d\n", boot.num_fats);
-	printf("Number of root-directory entries = %d\n",
-		(boot.root_entries[1] << 8 & HMASK) + (boot.root_entries[0] & LMASK));
-	printf("Total sectors in logical volume = %D\n",
-		(long) (boot.logical_sectors[1] << 8 & HMASK) + (boot.logical_sectors[0] & LMASK));
-	printf("Media Descriptor = %x\n", boot.media_type);
-	printf("Number of sectors/FAT = %d\n",
-		(boot.fat_sectors[1] << 8 & HMASK) + (boot.fat_sectors[0] & LMASK));
-	printf("Sectors/track = %d\n",
-		(boot.track_sectors[1] << 8 & HMASK) + (boot.track_sectors[0] & LMASK));
-	printf("Number of Heads = %d\n",
-		(boot.num_heads[1] << 8 & HMASK) + (boot.num_heads[0] & LMASK));
-	printf("Number of hidden sectors = %d\n",
-		(boot.hidden_sectors[1]  << 8 & HMASK) + (boot.hidden_sectors[0] & LMASK));
-	leave(1);
-/**************/
-	if (((boot.media_type & 0xf0) != 0xf0)
-            || (boot.jump[0] != 0xeb) || (boot.jump[2] != 0x90) ) {
-		printf("DISK is not DOS Format.\n");
-		leave(1);
-	}
-	if (boot.num_fats != 2) {
-		printf("Disk does not have two FAT Tables!\n");
-		leave(1);
-	}
-	block_size = (boot.bytes_sector[1] << 8 & HMASK) +
-			 (boot.bytes_sector[0] & LMASK);
-	if ((cluster_size = block_size * boot.cluster_size)
-					> MAX_CLUSTER_SIZE) {
-		printf("Cluster size is larger than MAX_CLUSTER_SIZE.\n");
-		leave(1);
-	}
-	reserved =  ((boot.res_sectors[1] << 8 & HMASK) +
-			(boot.res_sectors[0] & LMASK));
-	f_start = boot_loc + (long) block_size * (long) reserved;
-	root_entries = (boot.root_entries[1] << 8 & HMASK) +
-			(boot.root_entries[0] & LMASK);
-	fat_size = (boot.fat_sectors[1] << 8 & HMASK) +
-			 (boot.fat_sectors[0] & LMASK);
-		/* (sectors - rootdir - fats - reserved) / blocks/cluster */
-	total_clusters = (int) ((long) ((boot.logical_sectors[1] << 8 & HMASK) +
-				   (boot.logical_sectors[0] & LMASK)) - 
-		  (root_entries * 32 / block_size) -
-		  (fat_size * 2) - reserved) / boot.cluster_size;
-	if (total_clusters > 4096)
-		Tfat = FALSE;		/* sixteen bit fat entries */
-	if ( (fat_size *= block_size) > MAX_FAT_SIZE) {
-		printf("Disk FAT is larger than MAX_FAT_SIZE.\n");
-		leave(1);
-	}
-	sub_entries = cluster_size / 32;
-	data_start = f_start + (long) (fat_size * 2L) +
-			(long) (root_entries * 32L);
-/**********
-	printf("f_start = %D\n", f_start);
-	printf("total_clusters = %d\n", total_clusters);
-	printf("cluster_size = %d\n", cluster_size);
-	printf("fat_size = %d\n", fat_size);
-	printf("data_start = %D\n", data_start);
-	printf("root_entries = %d\n", root_entries);
-	printf("sub_entries = %d\n", sub_entries);
-	printf("Tfat = %d\n", Tfat);
-	leave(1);
-/*********/
-}
-
 DIRECTORY *directory(dir, entries, function, pathname)
 DIRECTORY *dir;
 short entries;
@@ -458,7 +386,7 @@ register char *pathname;
 	int i = 0;
 
 	if (function == FIND) {
-        while (*pathname != '/' && *pathname && i < 12)
+		while (*pathname != '/' && *pathname && i < 12)
 			file_name[i++] = *pathname++;
 		while (*pathname != '/' && *pathname)
 			pathname++;
@@ -476,11 +404,10 @@ register char *pathname;
 			type = dir_ptr->d_name[0] & 0x0FF;
 			if (function == ENTRY) {
 				if (type == NOT_USED || type == ERASED) {
-					mark = lseek(disk, 0L, 1) -
-						(long) cluster_size +
-						(long) i * (long) DIR_SIZE;
 					if (!mem)
-						mark += (long) cluster_size - (long) (root_entries * sizeof (DIRECTORY));
+						mark = ROOTADDR + (long) i * (long) DIR_SIZE;
+					else
+						mark = clus_add(last) + (long) i * (long) DIR_SIZE;
 					return dir_ptr;
 				}
 				continue;
@@ -538,8 +465,7 @@ register char *pathname;
 		}
 		if (mem)
 			(void) brk(mem);
-	} while ((Tfat && cl_no != LAST_CLUSTER && mem) ||
-		 (!Tfat && cl_no != LAST_16 && mem));
+	} while (cl_no != LAST_CLUSTER && mem);
 
 	switch (function) {
 		case FIND:
@@ -559,10 +485,7 @@ register char *pathname;
 
 			cl_no = free_cluster(TRUE);
 			link_fat(last, cl_no);
-			if (Tfat)
-				link_fat(cl_no, LAST_CLUSTER);
-			else
-				link_fat(cl_no, LAST_16);
+			link_fat(cl_no, LAST_CLUSTER);
 			disk_write(clus_add(cl_no), null, cluster_size);
 
 			return new_entry(dir, entries);
@@ -590,15 +513,14 @@ register DIRECTORY *entry;
 		print(STD_OUT, buffer, rest);
 		entry->d_size -= (long) rest;
 		cl_no = next_cluster(cl_no);
-		if ((Tfat && cl_no == BAD) || (!Tfat && cl_no == BAD_16)){
+		if (cl_no == (fat_16? BAD16: BAD)) {
 			flush();
 			print_string(TRUE, "Reserved cluster value encountered.\n");
 			leave(1);
 		}
-	} while ((Tfat && entry->d_size && cl_no != LAST_CLUSTER) ||
-		 (!Tfat && entry->d_size && cl_no != LAST_16));
+	} while (entry->d_size && cl_no != LAST_CLUSTER);
 
-	if ((Tfat && cl_no != LAST_CLUSTER) || (!Tfat && cl_no != LAST_16))
+	if (cl_no != LAST_CLUSTER)
 		print_string(TRUE, "Too many clusters allocated for file.\n");
 	else if (entry->d_size != 0)
 		print_string(TRUE, "Premature EOF: %L bytes left.\n",
@@ -678,15 +600,15 @@ char *name;
 	short i, r;
 	long size = 0L;
 
-    bcopy("           ",&entry->d_name[0],11);    /* clear entry */
-    for (i = 0, ptr = name; i < 8 && *ptr != '.' && *ptr; i++)
-        entry->d_name[i] = *ptr++;
-    while (*ptr != '.' && *ptr)
-        ptr++;
-    if (*ptr == '.')
-        ptr++;
-    for (i=0;i < 3 && *ptr; i++)
-        entry->d_ext[i] = *ptr++;
+	bcopy("           ",&entry->d_name[0],11);	/* clear entry */
+	for (i = 0, ptr = name; i < 8 && *ptr != '.' && *ptr; i++)
+		entry->d_name[i] = *ptr++;
+	while (*ptr != '.' && *ptr)
+		ptr++;
+	if (*ptr == '.')
+		ptr++;
+	for (i=0;i < 3 && *ptr; i++)
+		entry->d_ext[i] = *ptr++;
 
 	for (i = 0; i < 10; i++)
 		entry->d_reserved[i] = '\0';
@@ -696,7 +618,7 @@ char *name;
 
 	while ((r = fill(buffer)) > 0) {
 		if ((next = free_cluster(FALSE)) > total_clusters) {
-			print_string(TRUE, "Disk full. File truncated.\n");
+			print_string(TRUE, "Diskette full. File truncated.\n");
 			break;
 		}
 
@@ -712,23 +634,12 @@ char *name;
 		size += r;
 	}
 
-	if (entry->d_cluster != 0) {
-		if (Tfat)
-			link_fat(cl_no, LAST_CLUSTER);
-		else
-			link_fat(cl_no, LAST_16);
-	}
+	if (entry->d_cluster != 0)
+		link_fat(cl_no, LAST_CLUSTER);
 
 	entry->d_size = Aflag ? (size - 1) : size;	/* Strip added ^Z */
 	fill_date(entry);
 	disk_write(mark, entry, DIR_SIZE);
-	if (Tfat) {
-		disk_write(f_start, fat.twelve, fat_size);
-		disk_write(f_start + (long) fat_size, fat.twelve, fat_size);
-	} else {
-		disk_write(f_start, fat.sixteen, fat_size);
-		disk_write(f_start + (long) fat_size, fat.sixteen, fat_size);
-	}
 }
 
 
@@ -773,7 +684,7 @@ DIRECTORY *entry;
 	i = 0;
 	while (day >= mon_len[i]) {
 		month++;
-        day -= mon_len[i++];
+		day -= mon_len[i++];
 	}
 	day++;
 
@@ -830,7 +741,7 @@ register char *buffer;
 		*buffer++ = c;
 	}
 
-    return (int) (buffer - begin);
+	return (int) (buffer - begin);
 }
 
 get_char()
@@ -900,8 +811,7 @@ char *name;
 	i = 1;
 	if (is_dir(dir_ptr)) {
 		next = dir_ptr->d_cluster;
-		while (((next = next_cluster(next)) != LAST_CLUSTER && Tfat) ||
-			(!Tfat && next != LAST_16))
+		while ((next = next_cluster(next)) != LAST_CLUSTER)
 			i++;
 		print_string(FALSE, "%L", (long) i * (long) cluster_size);
 	}
@@ -915,32 +825,26 @@ char *name;
 free_blocks()
 {
 	register unsigned short cl_no;
-	register short free = 0;
-	short bad = 0;
-	if (Tfat)
-		for (cl_no = 2; cl_no <= total_clusters; cl_no++) {
-			switch (next_cluster(cl_no)) {
-				case FREE:
-					free++;
-					break;
-				case BAD:
-					bad++;
-			}
-		}
-	else
-		for (cl_no = 2; cl_no <= total_clusters; cl_no++) {
-			switch (next_cluster(cl_no)) {
-				case FREE_16:
-					free++;
-					break;
-				case BAD_16:
-					bad++;
-			}
-		}
+	long free = 0;
+	long bad = 0;
 
-	print_string(FALSE, "Free space: %L bytes.\n", (long) free * (long) cluster_size);
+	for (cl_no = 2; cl_no <= total_clusters; cl_no++) {
+		switch (next_cluster(cl_no)) {
+			case FREE:
+				free++;
+				break;
+			case BAD16:
+				bad++;
+				break;
+			case BAD:
+				if(!fat_16)
+					bad++;
+		}
+	}
+
+	print_string(FALSE, "Free space: %L bytes.\n", free * (long) cluster_size);
 	if (bad)
-		print_string(FALSE, "Bad sectors: %L bytes.\n", (long) bad * (long) cluster_size);
+		print_string(FALSE, "Bad sectors: %L bytes.\n", bad * (long) cluster_size);
 }
 
 char *num_out(number)
@@ -1019,11 +923,10 @@ int args;
 
 	if (err_fl) {
 		flush();
-        write(2, buf, (int) (buf_ptr - buf));
+		write(2, buf, (int) (buf_ptr - buf));
 	}
 	else
 		print(STD_OUT, buf, 0);
-flush();
 }
 
 DIRECTORY *read_cluster(cluster)
@@ -1032,8 +935,7 @@ register unsigned short cluster;
 	register DIRECTORY *sub_dir;
 	extern char *sbrk();
 
-	if ((sub_dir = (DIRECTORY *) sbrk(cluster_size)) 
-            == ((DIRECTORY *)-1)) {
+	if ((sub_dir = (DIRECTORY *) sbrk(cluster_size)) < 0) {
 		print_string(TRUE, "Cannot set break!\n");
 		leave(1);
 	}
@@ -1047,68 +949,82 @@ BOOL leave_fl;
 {
 	static unsigned short cl_index = 2;
 
-	if (Tfat)
-		while (cl_index <= total_clusters && next_cluster(cl_index) != FREE)
-			cl_index++;
-	else		/* Sixteen bit */
-		while (cl_index <= total_clusters && next_cluster(cl_index) != FREE_16)
-			cl_index++;
+	while (cl_index <= total_clusters && next_cluster(cl_index) != FREE)
+		cl_index++;
 
 	if (leave_fl && cl_index > total_clusters) {
 		flush();
-		print_string(TRUE, "Disk full. File not added.\n");
+		print_string(TRUE, "Diskette full. File not added.\n");
 		leave(1);
 	}
 
 	return cl_index++;
 }
 
-/* ****************FIX FOR SIXTEEN BIT ***************** */
 link_fat(cl_1, cl_2)
 unsigned short cl_1;
 register unsigned short cl_2;
 {
-	if (Tfat) {
-		register unsigned char *fat_index = &fat.twelve[(cl_1 >> 1) * 3 + 1];
-		if (cl_1 & 0x01) {
-			*(fat_index + 1) = cl_2 >> 4;
-			*fat_index = (*fat_index & 0x0F) | ((cl_2 & 0x0F) << 4);
-		}
-		else {
-			*(fat_index - 1) = cl_2 & 0x0FF;
-			*fat_index = (*fat_index & 0xF0) | (cl_2 >> 8);
-		}
+	register unsigned fat_index;
+	unsigned char pad;
+	unsigned pad16;
+
+	if(fat_16) {
+		pad16 = cl_2;
+		put_fat16((long)(cl_1 << 1), &pad16);
+		return;
+	}
+	fat_index = (cl_1 >> 1) * 3 + 1;
+	if (cl_1 & 0x01) {
+		pad = cl_2 >> 4;
+		put_fat((long)(fat_index + 1), &pad);
+		get_fat((long)fat_index, &pad);
+		pad = (pad & 0x0F) | ((cl_2 & 0x0F) << 4);
+		put_fat((long)fat_index, &pad);
 	}
 	else {
-		fat.sixteen[cl_1] = cl_2;
+		pad = cl_2;
+		put_fat((long)(fat_index - 1), &pad);
+		get_fat((long)fat_index, &pad);
+		pad = (pad & 0xF0) | (0xf & (cl_2 >> 8));
+		put_fat((long)fat_index, &pad);
 	}
 }
-
 
 unsigned short next_cluster(cl_no)
 register unsigned short cl_no;
 {
-	if (Tfat) {
-		register unsigned char *fat_index = &fat.twelve[(cl_no >> 1) * 3 + 1];
+	register unsigned fat_index;
+	unsigned char pad;
+	unsigned pad16;
+	unsigned mask = MASK16;
+	unsigned bad = BAD16;
 
-		if (cl_no & 0x01)
-			cl_no = (*(fat_index + 1) << 4) | (*fat_index >> 4);
-		else
-			cl_no = ((*fat_index & 0x0F) << 8) | *(fat_index - 1);
-
-		if ((cl_no & MASK) == MASK)
-			cl_no = LAST_CLUSTER;
-		else if ((cl_no & BAD) == BAD)
-			cl_no = BAD;
+	if(!fat_16) {
+		fat_index = (cl_no >> 1) * 3 + 1;
+		get_fat((long)fat_index, &pad);
+		if (cl_no & 0x01) {
+			pad16 = 0x0f & (pad >> 4);
+			get_fat((long)(fat_index + 1), &pad);
+			cl_no = (((short)pad) << 4) | pad16;
+		}
+		else {
+			pad16 = (0x0f & pad) << 8;
+			get_fat((long)(fat_index - 1), &pad);
+			cl_no = (short)pad | pad16;
+		}
+	mask = MASK;
+	bad = BAD;
 	}
 	else {
-		/*cl_no = fat.sixteen[cl_no << 1];*/
-		cl_no = fat.sixteen[cl_no];
-		if ((cl_no & MASK_16) == MASK_16)
-			cl_no = LAST_16;
-		else if ((cl_no & BAD_16) == BAD_16)
-			cl_no = BAD_16;
+		get_fat16((long)(cl_no << 1), &pad16);
+		cl_no = pad16;
 	}
+
+	if ((cl_no & mask) == mask)
+		cl_no = LAST_CLUSTER;
+	else if ((cl_no & bad) == bad)
+		cl_no = bad;
 
 	return cl_no;
 }
@@ -1135,12 +1051,13 @@ BOOL slash_fl;
 		ptr++;
 
 	if (file == NIL_PTR) {
-		ptr--;
-		do {
+		if(ptr != path)
+			ptr--;
+		if(ptr != path) do {
 			ptr--;
 		} while (*ptr != '/' && ptr != path);
 		if (ptr != path && !slash_fl)
-			ptr++;
+			*ptr++ = '/';
 		*ptr = '\0';
 	}
 	else
@@ -1171,8 +1088,10 @@ register unsigned bytes;
 
 	if (op == READ)
 		r = read(disk, address, bytes);
-	else
+	else {
+		disk_written = 1;
 		r = write(disk, address, bytes);
+	}
 
 	if (r != bytes)
 		bad();
@@ -1183,4 +1102,20 @@ bad()
 	flush();
 	perror("I/O error");
 	leave(1);
+}
+
+buf_read(seek, b, c)
+long seek;
+register char *b;
+int c;
+{
+	if(disk_written || (seek & (~0x3ffL)) != buf_addr) {
+		disk_written = 0;
+		disk_io(READ, buf_addr = seek & (~0x3ffL), buf_buf, 1025);
+	}
+
+	seek &= 0x3ffL;
+	*b++ = buf_buf[seek++];
+	if(c == 2)
+		*b = buf_buf[seek];
 }

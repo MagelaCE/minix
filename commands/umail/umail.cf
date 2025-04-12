@@ -1,0 +1,63 @@
+#
+#   MicroWalt Corporation   --  UMAIL Configuration File
+#
+#   System: MINIX User Group Holland, minixug.nluug.nl
+#   OS:     MicroWalt Advanced MINIX 1.4B
+#
+#   Author: F. van Kempen, MicroWalt Corporation
+#
+
+# These are some configuration variables for the
+# mailer. They define the working environment.
+BEGIN
+    Organization    := "MINIX User Group Holland, Netherlands"
+    System          := "minixug"
+    Domain          := "nluug.nl"
+    TimeZone        := "MET +0100"
+    OldMailer       := TRUE	# We want V6 "From <user> <date>" lines
+    Escape          := TRUE	# We can send all undeliverable mail
+				# to another host.
+END
+
+# The next table defines all the names under which
+# our system could possibly be adressed. It is used
+# to map domain adresses back to local adresses.
+NAMES BEGIN
+    minixug.nluug.nl				# Our official name
+    minixug.nl					# other possible names
+    minixug.uucp                                # old-style UUCP name
+    minixug					# local name
+END
+
+# This table defines the systems that we know of, and
+# what networking software to use to get to it.
+# 'TRUE' means, that the specified host understands
+# route-adressing (and can thus do things itself).
+# FALSE means that we have to give that host a ready-
+# to-run UUCP adress in bang-style.
+HOSTS BEGIN
+    minixug := TRUE , $$ , "@"                    # Just local mail !
+    kyber   := FALSE , $$ , "@"                   # My UUCP host site
+    archvax := FALSE , "rsmtp" , "<%s archvax!"   # SMTP via Ethernet
+END
+
+# This is the actual routing table.
+# It defines where mail for the various domains
+# should be sent to. Note, that domain "." is
+# the "default domain", which is used if no
+# matching domain can be found.
+# Format:
+#
+#   DOMAIN	:=  HOST  , ROUTE
+#
+DOMAINS BEGIN
+    aha.nl      :=  kyber , htsa	# Algemene Hogeschool Amsterdam
+    edu         :=  kyber , hp4nl	# Educational Institutes Network
+    nl          :=  kyber , hp4nl	# UUCP-Netherlands
+    nluug       :=  kyber , hp4nl	# Dutch UNIX User Group Network
+    nluug.nl    :=  kyber , hp4nl
+    uu.net      :=  kyber , hp4nl	# USA UUCP Network
+    uucp        :=  kyber , hp4nl	# Old-style UUCP Network
+    uunet       :=  kyber , hp4nl	# USA UUCP Network
+    .           :=  kyber , hp4nl	# Default host
+END

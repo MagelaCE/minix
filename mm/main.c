@@ -23,11 +23,11 @@
 #include "mproc.h"
 #include "param.h"
 
-#define ENOUGH (phys_clicks) 4096	/* any # > max(FS size, INIT size) */
-#define CLICK_TO_K (1024L/CLICK_SIZE)	/* convert clicks to K */
-
-PRIVATE phys_clicks tot_mem;
 extern (*call_vec[])();
+extern phys_clicks alloc_mem();
+extern phys_clicks mem_left();
+
+FORWARD phys_clicks get_mem();
 
 /*===========================================================================*
  *				main					     *
@@ -108,21 +108,13 @@ PRIVATE mm_init()
 {
 /* Initialize the memory manager. */
 
-  extern phys_clicks get_tot_mem(), alloc_mem();
-
-  /* Find out how much memory the machine has and set up core map.  MM and FS
-   * are part of the map.  Tell the kernel.
-   */
-  tot_mem = get_tot_mem();	/* # clicks in mem starting at absolute 0 */
-  mem_init(tot_mem);		/* initialize tables to all physical mem */
+  mem_init();			/* initialize tables to all physical mem */
 
   /* Initialize MM's tables. */
   mproc[MM_PROC_NR].mp_flags |= IN_USE;
   mproc[FS_PROC_NR].mp_flags |= IN_USE;
   mproc[INIT_PROC_NR].mp_flags |= IN_USE;
   procs_in_use = 3;
-
-  /* Set stack limit, which is checked on every procedure call. */
 }
 
 
@@ -144,23 +136,38 @@ PUBLIC do_brk2()
   register struct mproc *rmp;
   phys_clicks init_org, init_clicks, ram_base, ram_clicks, tot_clicks;
   phys_clicks init_text_clicks, init_data_clicks;
+  phys_clicks minix_clicks;
 
   if (who != FS_PROC_NR) return(EPERM);	/* only FS make do BRK2 */
 
-  /* Remove the memory used by MINIX and RAM disk from the memory map. */
+  /* Remove the memory used by MINIX from the memory map. */
   init_text_clicks = mm_in.m1_i1;	/* size of INIT in clicks */
   init_data_clicks = mm_in.m1_i2;	/* size of INIT in clicks */
-  tot_clicks = mm_in.m1_i3;		/* total size of MINIX + RAM disk */
   init_org = (phys_clicks) mm_in.m1_p1;	/* addr where INIT begins in memory */
   init_clicks = init_text_clicks + init_data_clicks;
-  ram_base = init_org + init_clicks;	/* start of RAM disk */
-  ram_clicks = tot_clicks - ram_base;	/* size of RAM disk */
-  alloc_mem(tot_clicks);		/* remove RAM disk from map */
+  minix_clicks = init_org + init_clicks;	/* size of system in clicks */
+  ram_base = alloc_mem(minix_clicks);	/* remove MINIX from map */
+  if (ram_base != 0)
+	panic("inconsistent system memory base", ram_base);
+
+  /* Remove the memory used by the RAM disk from the memory map. */
+  tot_clicks = mm_in.m1_i3;		/* total size of MINIX + RAM disk */
+  ram_clicks = tot_clicks - minix_clicks;	/* size of RAM disk */
+#ifdef i8088
+  /* Put RAM disk in extended memory, if any. */
+  if (get_mem(&ram_base, TRUE) >= ram_clicks)
+	goto got_base;
+#endif
+  ram_base = alloc_mem(ram_clicks);	/* remove the RAM disk from the map */
+  if (ram_base == NO_MEM)
+	panic("not enough memory for RAM disk", NO_NUM);
+got_base:
+  mm_out.POSITION = (phys_bytes) ram_base * CLICK_SIZE;	/* tell FS where */
 
   /* Print memory information. */
-  mem1 = tot_mem/CLICK_TO_K;
-  mem2 = (ram_base + 512/CLICK_SIZE)/CLICK_TO_K;	/* MINIX, rounded */
-  mem3 = ram_clicks/CLICK_TO_K;
+  mem1 = click_to_round_k(minix_clicks + ram_clicks + mem_left());  
+  mem2 = click_to_round_k(minix_clicks);
+  mem3 = click_to_round_k(ram_clicks);
 #ifndef ATARI_ST
   printf("%c[H%c[J",033, 033);	/* go to top of screen and clear screen */
 #endif
@@ -193,17 +200,28 @@ PUBLIC do_brk2()
 }
 
 #ifdef ATARI_ST
+/* This should be moved to the kernel, like the PC version.  It has already
+ * been modified to match the other changes, but won't compile as is since
+ * there this file also contains the preferred version of get_mem() (which
+ * doesn't deserve #ifdef i8088).
+ */
 /*===========================================================================*
- *				get_tot_mem				     *
+ *				get_mem					     *
  *===========================================================================*/
 /*
  * Current memory size is set by TOS in variable 'phystop'.
  * The TOS variable '_memtop' compensates for VIDEO memory.
  */
-PUBLIC phys_clicks get_tot_mem()
+PRIVATE phys_clicks get_mem(pbase, extflag)
+phys_clicks *pbase;		/* where to return the base */
+int extflag;			/* nonzero for extended memory */
 {
   long i;
+  static unsigned already;
 
+  *pbase = 0;
+  if (already) return(0);	/* only one chunk */
+  already = TRUE;
   if (mem_copy(
 	HARDWARE, D, (long)0x0436,	/* TOS variable _memtop */
 	MM_PROC_NR, D, (long)&i,
@@ -213,3 +231,25 @@ PUBLIC phys_clicks get_tot_mem()
   return((phys_clicks)(i >> CLICK_SHIFT));
 }
 #endif
+
+
+/*===========================================================================*
+ *				get_mem					     *
+ *===========================================================================*/
+PUBLIC phys_clicks get_mem(pbase, extflag)
+phys_clicks *pbase;		/* where to return the base */
+int extflag;			/* nonzero for extended memory */
+{
+/* Ask kernel for the next chunk of memory.  'extflag' specifies the type of
+ * memory.  "Extended" memory here means memory above 1MB which is no good
+ * for putting programs in but usable for the RAM disk.  MM doesn't care
+ * about the locations of the 2 types of memory, except memory above 1MB is
+ * unreachable unless CLICK_SIZE > 16, but still usable for the RAM disk.
+ */
+  mm_out.m_type = SYS_MEM;
+  mm_out.DEVICE = extflag;
+  if (sendrec(SYSTASK, &mm_out) != OK || mm_out.m_type != OK)
+	panic("Kernel didn't respond to get_mem", NO_NUM);
+  *pbase = (phys_clicks) mm_out.POSITION;
+  return((phys_clicks) mm_out.COUNT);
+}

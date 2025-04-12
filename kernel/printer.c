@@ -10,7 +10,7 @@
  *
  *    m_type      TTY_LINE   PROC_NR    COUNT    ADDRESS
  * -------------------------------------------------------
- * | TTY_O_DONE  |minor dev|         |         |         |
+ * | TTY_O_DONE  |         |         |         |         |
  * |-------------+---------+---------+---------+---------|
  * | TTY_WRITE   |minor dev| proc nr |  count  | buf ptr |
  * |-------------+---------+---------+---------+---------|
@@ -41,7 +41,6 @@
 #define PR_ERROR        0x08	/* something is wrong with the printer */
 #define PR_COLOR_BASE  0x378	/* printer port when color display used */
 #define PR_MONO_BASE   0x3BC	/* printer port when mono display used */
-#define LOW_FOUR         0xF	/* mask for low-order 4 bits */
 #define CANCELED        -999	/* indicates that command has been killed */
 #define DELAY_COUNT      100	/* regulates delay between characters */
 #define DELAY_LOOP      1000	/* delay when printer is busy */
@@ -52,12 +51,13 @@ PRIVATE int port_base;		/* I/O port for printer: 0x 378 or 0x3BC */
 PRIVATE int caller;		/* process to tell when printing done (FS) */
 PRIVATE int proc_nr;		/* user requesting the printing */
 PRIVATE int orig_count;		/* original byte count */
-PRIVATE int es;			/* (es, offset) point to next character to */
-PRIVATE int offset;		/* print, i.e., in the user's buffer */
-PUBLIC int pcount;		/* number of bytes left to print */
-PUBLIC int pr_busy;		/* TRUE when printing, else FALSE */
-PUBLIC int cum_count;		/* cumulative # characters printed */
-PUBLIC int prev_ct;		/* value of cum_count 100 msec ago */
+PRIVATE phys_bytes offset;	/* ptr to next char in user's buf to print */
+PRIVATE int pcount;		/* number of bytes left to print */
+PRIVATE int pr_busy;		/* TRUE when printing, else FALSE */
+PRIVATE int cum_count;		/* cumulative # characters printed */
+PRIVATE int prev_ct;		/* value of cum_count 100 msec ago */
+PRIVATE int done_status;	/* status of last output completion */
+PRIVATE message int_mess;	/* interrupt message for 1.3 compatibility */
 
 /*===========================================================================*
  *				printer_task				     *
@@ -75,8 +75,10 @@ PUBLIC printer_task()
 	switch(print_mess.m_type) {
 	    case TTY_WRITE:	do_write(&print_mess);	break;
 	    case CANCEL   :	do_cancel(&print_mess);	break;
-	    case TTY_O_DONE:	do_done(&print_mess);	break;
-    	    default:					break;
+	    case TTY_O_DONE:	do_done();		break;
+	    default:		reply(TASK_REPLY, print_mess.m_source,
+				      print_mess.PROC_NR, EINVAL);
+							break;
 	}
   }
 }
@@ -90,9 +92,8 @@ message *m_ptr;			/* pointer to the newly arrived message */
 {
 /* The printer is used by sending TTY_WRITE messages to it. Process one. */
 
-  int i, j, r, value, old_state;
+  int i, j, r, value;
   struct proc *rp;
-  phys_bytes phys;
   extern phys_bytes umap();
 
   r = OK;			/* so far, no errors */
@@ -103,18 +104,16 @@ message *m_ptr;			/* pointer to the newly arrived message */
 
   /* Compute the physical address of the data buffer within user space. */
   rp = proc_addr(m_ptr->PROC_NR);
-  phys = umap(rp, D, (vir_bytes) m_ptr->ADDRESS, (vir_bytes)m_ptr->COUNT);
-  if (phys == 0) r = E_BAD_ADDR;
+  offset = umap(rp, D, (vir_bytes) m_ptr->ADDRESS, (vir_bytes)m_ptr->COUNT);
+  if (offset == 0) r = E_BAD_ADDR;
 
   if (r == OK) {
   	/* Save information needed later. */
-	old_state = lock();		/* no interrupts now please */
+	sim_printer();		/* no printer interrupts now please */
   	caller = m_ptr->m_source;
   	proc_nr = m_ptr->PROC_NR;
   	pcount = m_ptr->COUNT;
   	orig_count = m_ptr->COUNT;
-  	es = (int) (phys >> CLICK_SHIFT);
-  	offset = (int) (phys & LOW_FOUR);
 
   	/* Start the printer. */
 	for (i = 0; i < MAX_REP; i++) {
@@ -134,7 +133,7 @@ message *m_ptr;			/* pointer to the newly arrived message */
 			break;
 		}
 	}
-  restore(old_state);
+  cim_printer();
   }
 
   /* Reply to FS, no matter what happened. */
@@ -146,17 +145,16 @@ message *m_ptr;			/* pointer to the newly arrived message */
 /*===========================================================================*
  *				do_done					     *
  *===========================================================================*/
-PRIVATE do_done(m_ptr)
-message *m_ptr;			/* pointer to the newly arrived message */
+PRIVATE do_done()
 {
 /* Printing is finished.  Reply to caller (FS). */
 
   int status;
 
-  status = (m_ptr->REP_STATUS == OK ? orig_count : EIO);
+  status = (done_status == OK ? orig_count : EIO);
   if (proc_nr != CANCELED) {
   	reply(REVIVE, caller, proc_nr, status);
-  	if (status == EIO) pr_error(m_ptr->REP_STATUS);
+  	if (status == EIO) pr_error(done_status);
   }
   pr_busy = FALSE;
 }
@@ -169,10 +167,11 @@ PRIVATE do_cancel(m_ptr)
 message *m_ptr;			/* pointer to the newly arrived message */
 {
 /* Cancel a print request that has already started.  Usually this means that
- * the process doing the printing has been killed by a signal.
+ * the process doing the printing has been killed by a signal.  There is no
+ * need to do anything special about race conditions since resetting the
+ * flags here is harmless and it is an error to skip the reply.
  */
 
-  if (pr_busy == FALSE) return;	/* this statement avoids race conditions */
   pr_busy = FALSE;		/* mark printer as idle */
   pcount = 0;			/* causes printing to stop at next interrupt*/
   proc_nr = CANCELED;		/* marks process as canceled */
@@ -244,18 +243,14 @@ PUBLIC pr_char()
  */
 
   int value, ch, i;
-  char c;
-  extern char get_byte();
 
-  if (pcount != orig_count) port_out(INT_CTL, ENABLE);
   if (pr_busy == FALSE) return;	/* spurious 8259A interrupt */
 
   while (pcount > 0) {
   	port_in(port_base + 1, &value);	/* get printer status */
   	if ((value&STATUS_MASK) == NORMAL_STATUS) {
 		/* Everything is all right.  Output another character. */
-		c = get_byte(es, offset);	/* fetch char from user buf */
-		ch = c & BYTE;
+		ch = get_phys_byte(offset);	/* fetch char from user buf */
 		port_out(port_base, ch);	/* output character */
 		port_out(port_base + 2, ASSERT_STROBE);
 		port_out(port_base + 2, NEGATE_STROBE);
@@ -272,8 +267,21 @@ PUBLIC pr_char()
   
 /* Count is 0 or an error occurred; send message to printer task. */
   int_mess.m_type = TTY_O_DONE;
-  int_mess.REP_STATUS = (pcount == 0 ? OK : value);
+  done_status = (pcount == 0 ? OK : value);
   interrupt(PRINTER, &int_mess);
 }
 
 
+/*==========================================================================*
+ *				pr_restart				    *
+ *==========================================================================*/
+PUBLIC pr_restart()
+{
+/* Check if printer is hung up, and if so, restart it. */
+
+  if (pr_busy && pcount > 0 && cum_count == prev_ct && !tasim_printer()) {
+	pr_char();
+	cim_printer();
+  }
+  prev_ct = cum_count;	/* record # characters printed so far */
+}

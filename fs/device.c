@@ -123,6 +123,7 @@ PUBLIC do_ioctl()
   if (dev_mess.m_type == SUSPEND) suspend(task);  /* User must be suspended. */
   m1.TTY_SPEK = dev_mess.TTY_SPEK;	/* erase and kill */
   m1.TTY_FLAGS = dev_mess.TTY_FLAGS;	/* flags */
+  m1.TTY_SPEED = dev_mess.TTY_FLAGS >> 16;	/* kludge for V1.2 TIOCGETP */
   return(dev_mess.REP_STATUS);
 }
 

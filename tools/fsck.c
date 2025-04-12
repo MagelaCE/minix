@@ -43,6 +43,13 @@
 #define BITMASK		((1 << BITSHIFT) - 1)
 #define PARB 6
 
+#ifdef STANDALONE
+#  include "../h/boot.h"
+struct bparam_s boot_parameters =
+  { DROOTDEV, DRAMIMAGEDEV, DRAMSIZE, DSCANCODE, DPROCESSOR };
+char *ramimname = "/dev/fd0";
+char *rootname = "/dev/ram";
+#endif
 
 #define between(c,l,u)	((unsigned short) ((c) - (l)) <= ((u) - (l)))
 #define isprint(c)	between(c, ' ', '~')
@@ -51,8 +58,7 @@
 #define isupper(c)	between(c, 'A', 'Z')
 #define toupper(c)	( (c) + 'A' - 'a' )
 
-#define quote(x)	x
-#define nextarg(t)	(*argp.quote(u_)t++)
+#define nextarg(t)	(*argp.t++)
 
 #define prn(t,b,s)	{ printnum((long)nextarg(t),b,s,width,pad); width = 0; }
 #define prc(c)		{ width -= printchar(c, mode); }
@@ -287,19 +293,19 @@ union types argp;
 			mode = isupper(*fmt);
 			switch (*fmt) {
 			case 'c':
-			case 'C':  prc(nextarg(char));		break;
-			case 'b':  prn(unsigned,  2, 0);	break;
-			case 'B':  prn(long,      2, 0);	break;
-			case 'o':  prn(unsigned,  8, 0);	break;
-			case 'O':  prn(long,      8, 0);	break;
-			case 'd':  prn(int,      10, 1);	break;
-			case 'D':  prn(long,     10, 1);	break;
-			case 'u':  prn(unsigned, 10, 0);	break;
-			case 'U':  prn(long,     10, 0);	break;
-			case 'x':  prn(unsigned, 16, 0);	break;
-			case 'X':  prn(long,     16, 0);	break;
+			case 'C':  prc(nextarg(u_char));	break;
+			case 'b':  prn(u_unsigned,  2, 0);	break;
+			case 'B':  prn(u_long,      2, 0);	break;
+			case 'o':  prn(u_unsigned,  8, 0);	break;
+			case 'O':  prn(u_long,      8, 0);	break;
+			case 'd':  prn(u_int,      10, 1);	break;
+			case 'D':  prn(u_long,     10, 1);	break;
+			case 'u':  prn(u_unsigned, 10, 0);	break;
+			case 'U':  prn(u_long,     10, 0);	break;
+			case 'x':  prn(u_unsigned, 16, 0);	break;
+			case 'X':  prn(u_long,     16, 0);	break;
 			case 's':
-			case 'S':  s = nextarg(charp);
+			case 'S':  s = nextarg(u_charp);
 				   while (*s) prc(*s++);	break;
 			case '\0': break;
 			default:   putchar(*fmt);
@@ -1815,9 +1821,20 @@ char **argv;
 	printf("\n\n\n\n");
 	for (;;) {
 		printf("\nHit key as follows:\n\n");
-		printf("    =  start MINIX (root file system in drive 0)\n");
-		printf("    u  start MINIX on PS/2 Model 30, U.S. keyboard (root file sys in drive 0)\n");
-		printf("    d  start MINIX on PS/2 Model 30, Dutch keyboard (root file sys in drive 0)\n");
+		printf("    =  start MINIX, standard keyboard\n");
+		printf("    u  start MINIX, U.S. keyboard\n");
+		printf("    d  start MINIX, Dutch keyboard\n\n");
+		printf("    r  select root device (now %s)\n", rootname);
+		printf("    i  select RAM image device (now %s)%s\n",
+		       ramimname,
+		       boot_parameters.bp_rootdev == DEV_RAM ?
+		       "" : " (not used - root is not RAM disk)");
+		printf("    s  set RAM disk size (now %u)%s\n",
+		       boot_parameters.bp_ramsize,
+		       boot_parameters.bp_rootdev == DEV_RAM ?
+		       " (real size is from RAM image)" : "");
+		printf("    p  set limit on processor type (now %u)\n\n",
+		       boot_parameters.bp_processor);
 		printf("    f  check the file system (first insert any file system diskette)\n");
 		printf("    l  check and list file system (first insert any file system diskette)\n");
 		printf("    m  make an (empty) file system (first insert blank, formatted diskette)\n");
@@ -1866,9 +1883,33 @@ char **argv;
 			}
 			break;
 			
-		case '=': return((c >> 8) & 0xFF);
-		case 'u': return((c >> 8) & 0xFF);
-		case 'd': return((c >> 8) & 0xFF);
+		case '=':
+		case 'u':
+		case 'd':
+			return(boot_parameters.bp_scancode = (c >> 8) & 0xFF);
+
+		case 'i':
+			boot_parameters.bp_ramimagedev =
+			get_device(&ramimname, "ram image", 0);
+			printf("\n\n");
+			continue;
+
+		case 'p':
+			boot_parameters.bp_processor = get_processor();
+			printf("\n\n");
+			continue;
+
+		case 'r':
+			boot_parameters.bp_rootdev =
+			get_device(&rootname, "root", 1);
+			printf("\n\n");
+			continue;
+
+		case 's':
+			boot_parameters.bp_ramsize = get_ramsize();
+			printf("\n\n");
+			continue;
+
 		default:
 			printf("Illegal command\n");
 			continue;
@@ -1981,6 +2022,98 @@ int read_partition()
   if ((part_offset % (BLOCK_SIZE/SECTOR_SIZE)) != 0)
     part_offset = (part_offset/(BLOCK_SIZE/SECTOR_SIZE)+1)*(BLOCK_SIZE/SECTOR_SIZE);
   return(0);
+}
+
+int get_device(pname, description, ram_allowed)
+char **pname;
+char *description;
+int ram_allowed;
+{
+  char chr;
+  static char *devname[] = {
+	"/dev/fd0",
+	"/dev/fd1",
+	"/dev/hd1",
+	"/dev/hd2",
+	"/dev/hd3",
+	"/dev/hd4",
+	"",
+	"/dev/hd6",
+	"/dev/hd7",
+	"/dev/hd8",
+	"/dev/hd9",
+  };
+  printf("\nPlease enter (abbreviated) name of %s device.\n", description);
+  printf("Floppy f0, f1, hard h1 to h4, h6 to h9");
+  if (ram_allowed)
+	printf (", RAM r");
+  printf(".\nThen hit RETURN: ");
+  while (1) {
+	switch(chr = getc()) {
+	case 'f':
+		putc(chr);
+		while ((chr = getc()) < '0' || chr > '1')
+			;
+		putc(chr);
+		getnewline();
+		*pname = devname[chr - '0'];
+		return DEV_FD0 + chr - '0';
+	case 'h':
+		putc(chr);
+		while (((chr = getc()) < '1' || chr > '4') &&
+				  (chr < '6' || chr > '9'))
+			;
+		putc(chr);
+		getnewline();
+		*pname = devname[chr +  1 - '0'];
+		return DEV_HD0 + chr - '0';
+	case 'r':
+		if (ram_allowed) {
+			putc(chr);
+			getnewline();
+			*pname = "/dev/ram";
+			return DEV_RAM;
+		}
+	}
+  }
+}
+
+getnewline()
+{
+	while ((char) getc() != '\r')
+		;
+	putc('\n');
+}
+
+int get_processor()
+{
+  printf("\nPlease enter limit on processor type. Then hit RETURN: ");
+  return get_size();
+}
+
+int get_ramsize()
+{
+  printf("\nPlease enter size of RAM disk. Then hit RETURN: ");
+  return get_size();
+}
+
+int get_size()
+{
+  char chr;
+  long size;
+
+  while ((chr = getc()) < '0' || chr > '9')
+	;
+  size = chr - '0';
+  putc(chr);
+  while ((chr = getc()) != '\r') {
+	if (chr >= '0' && chr <= '9' && 10 * size + (chr - '0') < 0x10000) {
+		putc(chr);
+		size = 10 * size + (chr - '0');
+	}
+  }
+  putc('\n');
+  return size;
 }
 
 sort(val)

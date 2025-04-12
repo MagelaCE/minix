@@ -21,6 +21,7 @@
 #include "../h/signal.h"
 #include "const.h"
 #include "type.h"
+#include "dev.h"
 #include "file.h"
 #include "fproc.h"
 #include "glo.h"
@@ -245,9 +246,10 @@ PUBLIC int do_unpause()
 	dev = f->filp_ino->i_zone[0];	/* device on which proc is hanging */
 	mess.TTY_LINE = (dev >> MINOR) & BYTE;
 	mess.PROC_NR = proc_nr;
-	mess.COUNT = f->filp_mode;	/* tell kernel whether R or W */
+	/* Tell kernel whether R or W. Mode is from current call, not open. */
+	mess.COUNT = (rfp->fp_fd & BYTE) == READ ? R_BIT : W_BIT;
 	mess.m_type = CANCEL;
-	rw_dev(task, &mess);
+	(*dmap[(dev >> MAJOR) & BYTE].dmap_rw)(task, &mess);
 	revive(proc_nr, EINTR);	/* signal interrupted call */
   }
 

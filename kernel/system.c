@@ -15,6 +15,9 @@
  *   SYS_SIG	 send a signal to a process
  *   SYS_KILL	 cause a signal to be sent via MM
  *   SYS_COPY	 requests a block of data to be copied between processes
+ *   SYS_GBOOT	 copies the boot parameters to a process
+ *   SYS_UMAP	 compute the physical address for a given virtual address
+ *   SYS_MEM	 returns the next free chunk of physical memory 
  *
  * Message type m1 is used for all except SYS_SIG and SYS_COPY, both of
  * which need special parameter types.
@@ -34,6 +37,8 @@
  * | SYS_TIMES  | proc nr |         | buf ptr |         |
  * |------------+---------+---------+---------+---------|
  * | SYS_ABORT  |         |         |         |         |
+ * |------------+---------+---------+---------+---------|
+ * | SYS_GBOOT  | proc nr |         |         | bootptr |
  * ------------------------------------------------------
  *
  *
@@ -49,16 +54,26 @@
  * --------------------------------------------------------------------------
  * | SYS_COPY   |src seg|src proc|src vir|dst seg|dst proc|dst vir| byte ct |
  * --------------------------------------------------------------------------
+ * | SYS_UMAP   |  seg  |proc nr |vir adr|       |        |       | byte ct |
+ * --------------------------------------------------------------------------
  *
- * In addition to the main sys_task() entry point, there are three other minor
+ *
+ *    mem_type    DEVICE    PROC_NR    COUNT   POSITION
+ * |------------+---------+---------+---------+---------|
+ * | SYS_MEM    | extflag |         |mem size |mem base |
+ * ------------------------------------------------------
+ *
+ * In addition to the main sys_task() entry point, there are 4 other minor
  * entry points:
  *   cause_sig:	take action to cause a signal to occur, sooner or later
  *   inform:	tell MM about pending signals
  *   umap:	compute the physical address for a given virtual address
+ *   alloc_segments: allocate segments for 8088 or higher processor
  */
 
 #include "../h/const.h"
 #include "../h/type.h"
+#include "../h/boot.h"
 #include "../h/callnr.h"
 #include "../h/com.h"
 #include "../h/error.h"
@@ -67,9 +82,11 @@
 #include "type.h"
 #include "glo.h"
 #include "proc.h"
+#include "protect.h"
 
 #define COPY_UNIT     65534L	/* max bytes to copy at once */
 
+extern phys_bytes check_mem();
 extern phys_bytes umap();
 
 PRIVATE message m;
@@ -98,6 +115,9 @@ PUBLIC sys_task()
 	    case SYS_SIG:	r = do_sig(&m);		break;
 	    case SYS_KILL:	r = do_kill(&m);	break;
 	    case SYS_COPY:	r = do_copy(&m);	break;
+	    case SYS_GBOOT:	r = do_gboot(&m);	break;
+	    case SYS_UMAP:	r = do_umap(&m);	break;
+	    case SYS_MEM:	r = do_mem(&m);		break;
 	    default:		r = E_BAD_FCN;
 	}
 
@@ -111,35 +131,38 @@ PUBLIC sys_task()
  *				do_fork					     * 
  *===========================================================================*/
 PRIVATE int do_fork(m_ptr)
-message *m_ptr;			/* pointer to request message */
+register message *m_ptr;	/* pointer to request message */
 {
-/* Handle sys_fork().  'k1' has forked.  The child is 'k2'. */
+/* Handle sys_fork().  m_ptr->PROC1 has forked.  The child is m_ptr->PROC2. */
 
+#ifdef i80286
+  u16_t old_ldt_sel;
+#endif
   register struct proc *rpc;
-  register char *sptr, *dptr;	/* pointers for copying proc struct */
-  int k1;			/* number of parent process */
-  int k2;			/* number of child process */
-  int pid;			/* process id of child */
-  int bytes;			/* counter for copying proc struct */
+  struct proc *rpp;
 
-  k1 = m_ptr->PROC1;		/* extract parent slot number from msg */
-  k2 = m_ptr->PROC2;		/* extract child slot number */
-  pid = m_ptr->PID;		/* extract child process id */
-
-  if (k1 < 0 || k1 >= NR_PROCS || k2 < 0 || k2 >= NR_PROCS)return(E_BAD_PROC);
-  rpc = proc_addr(k2);
+  if (!isoksusern(m_ptr->PROC1) || !isoksusern(m_ptr->PROC2))
+	return(E_BAD_PROC);
+  rpp = proc_addr(m_ptr->PROC1);
+  rpc = proc_addr(m_ptr->PROC2);
 
   /* Copy parent 'proc' struct to child. */
-  sptr = (char *) proc_addr(k1);	/* parent pointer */
-  dptr = (char *) proc_addr(k2);	/* child pointer */
-  bytes = sizeof(struct proc);		/* # bytes to copy */
-  while (bytes--) *dptr++ = *sptr++;	/* copy parent struct to child */
+#ifdef i80286
+  old_ldt_sel = rpc->p_ldt_sel;	/* stop this being obliterated by copy */
+#endif
+  *rpc = *rpp;
+  rpc->p_nr = m_ptr->PROC2;	/* this was obliterated by copy */
+#ifdef i80286
+  rpc->p_ldt_sel = old_ldt_sel;
+#endif
 
   rpc->p_flags |= NO_MAP;	/* inhibit the process from running */
-  rpc->p_flags &= ~PENDING;	/* only one in group should have PENDING */
+  rpc->p_flags &= ~(PENDING | SIG_PENDING);
+				/* only one in group should have PENDING */
   rpc->p_pending = 0;
-  rpc->p_pid = pid;		/* install child's pid */
-  rpc->p_reg[RET_REG] = 0;	/* child sees pid = 0 to know it is child */
+  rpc->p_pendcount = 0;
+  rpc->p_pid = m_ptr->PID;	/* install child's pid */
+  rpc->p_reg.r16.retreg = 0;	/* child sees pid = 0 to know it is child*/
 
   rpc->user_time = 0;		/* set all the accounting times to 0 */
   rpc->sys_time = 0;
@@ -169,7 +192,7 @@ message *m_ptr;			/* pointer to request message */
   caller = m_ptr->m_source;
   k = m_ptr->PROC1;
   map_ptr = (struct mem_map *) m_ptr->MEM_PTR;
-  if (k < -NR_TASKS || k >= NR_PROCS) return(E_BAD_PROC);
+  if (!isokprocn(k)) return(E_BAD_PROC);
   rp = proc_addr(k);		/* ptr to entry of user getting new map */
   rsrc = proc_addr(caller);	/* ptr to MM's proc entry */
   vn = NR_SEGS * sizeof(struct mem_map);
@@ -178,21 +201,13 @@ message *m_ptr;			/* pointer to request message */
   vsys = (vir_bytes) rp->p_map;	/* again, careful about sign extension */
   if ( (src_phys = umap(rsrc, D, vmm, vn)) == 0)
 	panic("bad call to sys_newmap (src)", NO_NUM);
-  if ( (dst_phys = umap(proc_addr(SYSTASK), D, vsys, vn)) == 0)
+  if ( (dst_phys = umap(cproc_addr(SYSTASK), D, vsys, vn)) == 0)
 	panic("bad call to sys_newmap (dst)", NO_NUM);
   phys_copy(src_phys, dst_phys, pn);
-
-#ifdef i8088
-  /* On 8088, set segment registers. */
-  rp->p_reg[CS_REG] = rp->p_map[T].mem_phys;	/* set cs */
-  rp->p_reg[DS_REG] = rp->p_map[D].mem_phys;	/* set ds */
-  rp->p_reg[SS_REG] = rp->p_map[D].mem_phys;	/* set ss */
-  rp->p_reg[ES_REG] = rp->p_map[D].mem_phys;	/* set es */
-#endif
-
+  alloc_segments(rp);
   old_flags = rp->p_flags;	/* save the previous value of the flags */
   rp->p_flags &= ~NO_MAP;
-  if (old_flags != 0 && rp->p_flags == 0) ready(rp);
+  if (old_flags != 0 && rp->p_flags == 0) lockready(rp);
   return(OK);
 }
 
@@ -201,24 +216,22 @@ message *m_ptr;			/* pointer to request message */
  *				do_exec					     * 
  *===========================================================================*/
 PRIVATE int do_exec(m_ptr)
-message *m_ptr;			/* pointer to request message */
+register message *m_ptr;	/* pointer to request message */
 {
 /* Handle sys_exec().  A process has done a successful EXEC. Patch it up. */
 
   register struct proc *rp;
-  int k;			/* which process */
   int *sp;			/* new sp */
 
-  k = m_ptr->PROC1;		/* 'k' tells which process did EXEC */
-  sp = (int *) m_ptr->STACK_PTR;
-  if (k < 0 || k >= NR_PROCS) return(E_BAD_PROC);
-  rp = proc_addr(k);
-  rp->p_sp = sp;		/* set the stack pointer */
-  rp->p_pcpsw.pc = (int (*)()) 0;	/* reset pc */
+  sp = (int *) m_ptr->STACK_PTR;	/* bad ptr type */
+  if (!isoksusern(m_ptr->PROC1)) return E_BAD_PROC;
+  rp = proc_addr(m_ptr->PROC1);
+  rp->p_reg.r16.sp = (u16_t) sp;	/* set the stack pointer (bad type) */
+  rp->p_reg.r16.pc = 0;		/* reset pc */
   rp->p_alarm = 0;		/* reset alarm timer */
   rp->p_flags &= ~RECEIVING;	/* MM does not reply to EXEC call */
-  if (rp->p_flags == 0) ready(rp);
-  set_name(k, (char *)sp);	/* save command string for F1 display */
+  if (rp->p_flags == 0) lockready(rp);
+  set_name(m_ptr->PROC1, (char *)sp); /* save command string for F1 display */
   return(OK);
 }
 
@@ -238,14 +251,16 @@ message *m_ptr;			/* pointer to request message */
 
   parent = m_ptr->PROC1;	/* slot number of parent process */
   proc_nr = m_ptr->PROC2;	/* slot number of exiting process */
-  if (parent < 0 || parent >= NR_PROCS || proc_nr < 0 || proc_nr >= NR_PROCS)
+  if (!isoksusern(parent) || !isoksusern(proc_nr))
 	return(E_BAD_PROC);
   rp = proc_addr(parent);
   rc = proc_addr(proc_nr);
+  lock();
   rp->child_utime += rc->user_time + rc->child_utime;	/* accum child times */
   rp->child_stime += rc->sys_time + rc->child_stime;
+  unlock();
   rc->p_alarm = 0;		/* turn off alarm timer */
-  if (rc->p_flags == 0) unready(rc);
+  if (rc->p_flags == 0) lockunready(rc);
   set_name(proc_nr, (char *) 0);	/* disable command printing for F1 */
 
   /* If the process being terminated happens to be queued trying to send a
@@ -254,7 +269,7 @@ message *m_ptr;			/* pointer to request message */
    */
   if (rc->p_flags & SENDING) {
 	/* Check all proc slots to see if the exiting process is queued. */
-	for (rp = &proc[0]; rp < &proc[NR_TASKS + NR_PROCS]; rp++) {
+	for (rp = BEG_PROC_ADDR; rp < END_PROC_ADDR; rp++) {
 		if (rp->p_callerq == NIL_PROC) continue;
 		if (rp->p_callerq == rc) {
 			/* Exiting process is on front of this queue. */
@@ -274,6 +289,8 @@ message *m_ptr;			/* pointer to request message */
 	}
   }
   if (rc->p_flags & PENDING) --sig_procs;
+  rc->p_pending = 0;
+  rc->p_pendcount = 0;
   rc->p_flags = P_SLOT_FREE;
   return(OK);
 }
@@ -283,17 +300,15 @@ message *m_ptr;			/* pointer to request message */
  *				do_getsp				     * 
  *===========================================================================*/
 PRIVATE int do_getsp(m_ptr)
-message *m_ptr;			/* pointer to request message */
+register message *m_ptr;		/* pointer to request message */
 {
 /* Handle sys_getsp().  MM wants to know what sp is. */
 
   register struct proc *rp;
-  int k;				/* whose stack pointer is wanted? */
 
-  k = m_ptr->PROC1;
-  if (k < 0 || k >= NR_PROCS) return(E_BAD_PROC);
-  rp = proc_addr(k);
-  m.STACK_PTR = (char *) rp->p_sp;	/* return sp here */
+  if (!isoksusern(m_ptr->PROC1)) return(E_BAD_PROC);
+  rp = proc_addr(m_ptr->PROC1);
+  m.STACK_PTR = (char *) rp->p_reg.r16.sp;	/* return sp here (bad t) */
   return(OK);
 }
 
@@ -302,20 +317,20 @@ message *m_ptr;			/* pointer to request message */
  *				do_times				     * 
  *===========================================================================*/
 PRIVATE int do_times(m_ptr)
-message *m_ptr;			/* pointer to request message */
+register message *m_ptr;	/* pointer to request message */
 {
 /* Handle sys_times().  Retrieve the accounting information. */
 
   register struct proc *rp;
-  int k;
 
-  k = m_ptr->PROC1;		/* k tells whose times are wanted */
-  if (k < 0 || k >= NR_PROCS) return(E_BAD_PROC);
-  rp = proc_addr(k);
+  if (!isoksusern(m_ptr->PROC1)) return E_BAD_PROC;
+  rp = proc_addr(m_ptr->PROC1);
 
   /* Insert the four times needed by the TIMES system call in the message. */
+  lock();
   m_ptr->USER_TIME   = rp->user_time;
   m_ptr->SYSTEM_TIME = rp->sys_time;
+  unlock();
   m_ptr->CHILD_UTIME = rp->child_utime;
   m_ptr->CHILD_STIME = rp->child_stime;
   return(OK);
@@ -351,12 +366,20 @@ message *m_ptr;			/* pointer to request message */
 
   /* Extract parameters and prepare to build the words that get pushed. */
   proc_nr = m_ptr->PR;		/* process being signalled */
-  sig = m_ptr->SIGNUM;		/* signal number, 1 to 16 */
-  sig_handler = m_ptr->FUNC;	/* run time system addr for catching sigs */
-  if (proc_nr < LOW_USER || proc_nr >= NR_PROCS) return(E_BAD_PROC);
+  if (!isokusern(proc_nr)) return(E_BAD_PROC);
   rp = proc_addr(proc_nr);
+  sig = m_ptr->SIGNUM;		/* signal number, 1 to 16 */
+  if (sig == -1) {
+	/* Except -1 is kludged to mean "finished one KSIG". */
+	if (rp->p_pendcount != 0 &&
+	    --rp->p_pendcount == 0 &&
+	    (rp->p_flags &= ~SIG_PENDING) == 0)
+		lockready(rp);
+	return;
+  }
+  sig_handler = m_ptr->FUNC;	/* run time system addr for catching sigs */
   vir_addr = (vir_bytes) sig_stuff;	/* info to be pushed is in 'sig_stuff' */
-  new_sp = (vir_bytes) rp->p_sp;
+  new_sp = (vir_bytes) rp->p_reg.r16.sp;
 
   /* Actually build the block of words to push onto the stack. */
   build_sig(sig_stuff, rp, sig);	/* build up the info to be pushed */
@@ -370,13 +393,13 @@ message *m_ptr;			/* pointer to request message */
   phys_copy(src_phys, dst_phys, (phys_bytes) sig_size);	/* push pc, psw */
 
   /* Change process' sp and pc to reflect the interrupt. */
-  rp->p_sp = (int *) new_sp;
-  rp->p_pcpsw.pc = sig_handler;
+  rp->p_reg.r16.sp = new_sp;
+  rp->p_reg.r16.pc = (u16_t) sig_handler;	/* bad ptr type */
   return(OK);
 }
 
 
-/*===========================================================================*
+/*===========================================================================
  *				do_kill					     * 
  *===========================================================================*/
 PRIVATE int do_kill(m_ptr)
@@ -389,7 +412,7 @@ message *m_ptr;			/* pointer to request message */
 
   proc_nr = m_ptr->PR;		/* process being signalled */
   sig = m_ptr->SIGNUM;		/* signal number, 1 to 16 */
-  if (proc_nr < LOW_USER || proc_nr >= NR_PROCS) return(E_BAD_PROC);
+  if (!isokusern(proc_nr)) return(E_BAD_PROC);
   cause_sig(proc_nr, sig);
   return(OK);
 }
@@ -447,20 +470,28 @@ int sig_nr;			/* signal to be sent in range 1 - 16 */
  * that directly, for fear of what would happen if MM were busy.  Instead they
  * call cause_sig, which sets bits in p_pending, and then carefully checks to
  * see if MM is free.  If so, a message is sent to it.  If not, when it becomes
- * free, a message is sent.  The calling process is blocked as long as
- * p_pending is non-zero.
+ * free, a message is sent.  The process being signaled is blocked while MM
+ * has not seen or finished with all signals for it.  These signals are
+ * counted in p_pendcount, and the SIG_PENDING flag is kept nonzero while
+ * there are some.  It is not sufficient to ready the process when MM is
+ * informed, because MM can block waiting for FS to do a core dump.
  */
 
   register struct proc *rp, *mmp;
 
   rp = proc_addr(proc_nr);
-  if ((rp->p_flags & PENDING) == 0)
-	sig_procs++;		/* incr if a new proc is now pending */
-  if (rp->p_flags == 0) unready(rp);
-  rp->p_flags |= PENDING;
+  if (rp->p_pending & (1 << (sig_nr - 1)))
+	return;			/* this signal already pending */
   rp->p_pending |= 1 << (sig_nr - 1);
+  ++rp->p_pendcount;		/* count new signal pending */
+  if (rp->p_flags & PENDING)
+	return;			/* another signal already pending */
+  if (rp->p_flags == 0)
+	lockunready(rp);
+  rp->p_flags |= PENDING | SIG_PENDING;
+  ++sig_procs;			/* count new process pending */
 
-  mmp = proc_addr(MM_PROC_NR);
+  mmp = cproc_addr(MM_PROC_NR);
   if ( ((mmp->p_flags & RECEIVING) == 0) || mmp->p_getfrom != ANY)
 	return;
   inform();
@@ -482,21 +513,23 @@ PUBLIC inform()
   register struct proc *rp;
 
   /* MM is waiting for new input.  Find a process with pending signals. */
-  for (rp = proc_addr(0); rp < proc_addr(NR_PROCS); rp++)
+  for (rp = BEG_SERV_ADDR; rp < END_PROC_ADDR; rp++)
 	if (rp->p_flags & PENDING) {
 		m.m_type = KSIG;
-		m.PROC1 = rp - proc - NR_TASKS;
+		m.PROC1 = proc_number(rp);
 		m.SIG_MAP = rp->p_pending;
 		sig_procs--;
-		if (mini_send(HARDWARE, MM_PROC_NR, &m) != OK) 
+		if (lockmini_send(cproc_addr(HARDWARE), MM_PROC_NR, &m) != OK)
 			panic("can't inform MM", NO_NUM);
 		rp->p_pending = 0;	/* the ball is now in MM's court */
-		rp->p_flags &= ~PENDING;
-		if (rp->p_flags == 0) ready(rp);
+		rp->p_flags &= ~PENDING;/* remains inhibited by SIG_PENDING */
+		lockpick_proc();	/* avoid delay in scheduling MM */
 		return;
 	}
 }
 
+
+#ifdef i8088
 
 /*===========================================================================*
  *				umap					     * 
@@ -536,3 +569,121 @@ vir_bytes bytes;		/* # of bytes to be copied */
   pa -= rp->p_map[seg].mem_vir << CLICK_SHIFT;
   return(seg_base + pa);
 }
+
+
+/*==========================================================================*
+ *				alloc_segments				    *
+ *==========================================================================*/
+PUBLIC alloc_segments(rp)
+register struct proc *rp;
+{
+#ifdef i80286
+  offset_t code_bytes;
+  offset_t data_bytes;
+  int privilege;
+
+  if (processor >= 286) {
+	data_bytes = (offset_t)(rp->p_map[S].mem_vir + rp->p_map[S].mem_len)
+	             << CLICK_SHIFT;
+	if (rp->p_map[T].mem_len == 0)
+		code_bytes = data_bytes;	/* common I&D, poor protect */
+	else
+		code_bytes = (offset_t) rp->p_map[T].mem_len << CLICK_SHIFT;
+	privilege = istaskp(rp) ? TASK_PRIVILEGE : USER_PRIVILEGE;
+	init_codeseg(&rp->p_ldt[CS_LDT_INDEX],
+	             (offset_t) rp->p_map[T].mem_phys << CLICK_SHIFT,
+	             code_bytes, privilege);
+	init_dataseg(&rp->p_ldt[DS_LDT_INDEX],
+	             (offset_t) rp->p_map[D].mem_phys << CLICK_SHIFT,
+	             data_bytes, privilege);
+	rp->p_reg.r16.cs = (CS_LDT_INDEX*DESC_SIZE) | TI | privilege;
+	rp->p_reg.r16.ss =
+	rp->p_reg.r16.es =
+	rp->p_reg.r16.ds = (DS_LDT_INDEX*DESC_SIZE) | TI | privilege;
+  }
+  else
+#endif /* i80286 */
+  {
+	rp->p_reg.r16.cs = click_to_hclick(rp->p_map[T].mem_phys);
+	rp->p_reg.r16.ss =
+	rp->p_reg.r16.es =
+	rp->p_reg.r16.ds = click_to_hclick(rp->p_map[D].mem_phys);
+  }
+}
+#endif /* i8088 */
+
+
+/*==========================================================================*
+ *				do_gboot				    *
+ *==========================================================================*/
+PUBLIC struct bparam_s boot_parameters =  /* overwritten if new boot */
+{
+  DROOTDEV, DRAMIMAGEDEV, DRAMSIZE, DSCANCODE, DPROCESSOR,
+};
+
+PUBLIC unsigned sizeof_bparam = sizeof boot_parameters;	/* for asm to see */
+
+PRIVATE int do_gboot(m_ptr)
+message *m_ptr;			/* pointer to request message */
+{
+/* Copy the boot parameters.  Normally only called during fs init. */
+
+  phys_bytes src_phys, dst_phys;
+
+  src_phys = umap(cproc_addr(SYSTASK), D, (vir_bytes) &boot_parameters,
+                  (vir_bytes) sizeof boot_parameters);
+  if ( (dst_phys = umap(proc_addr(m_ptr->PROC1), D,
+                        (vir_bytes) m_ptr->MEM_PTR,
+			(vir_bytes) sizeof boot_parameters)) == 0)
+	panic("bad call to SYS_GBOOT", NO_NUM);
+  phys_copy(src_phys, dst_phys, (phys_bytes) sizeof boot_parameters);
+  return(OK);
+}
+
+
+/*==========================================================================*
+ *				do_umap					    *
+ *==========================================================================*/
+PRIVATE int do_umap(m_ptr)
+register message *m_ptr;		/* pointer to request message */
+{
+/* Same as umap(), for non-kernel processes. */
+
+  m_ptr->SRC_BUFFER = umap(proc_addr((int) m_ptr->SRC_PROC_NR),
+                           (int) m_ptr->SRC_SPACE,
+                           (vir_bytes) m_ptr->SRC_BUFFER,
+                           (vir_bytes) m_ptr->COPY_BYTES);
+  return(OK);
+}
+
+
+#ifdef i8088
+/*===========================================================================*
+ *				do_mem					     *
+ *===========================================================================*/
+PRIVATE int do_mem(m_ptr)
+register message *m_ptr;		/* pointer to request message */
+{
+/* Return the base and size of the next chunk of memory of a given type. */
+
+  unsigned mem;
+
+  for (mem = 0; mem < NR_MEMS; ++mem) {
+	if (memtype[mem] & 0x80) {
+	    memsize[mem] = check_mem((phys_bytes) membase[mem] << CLICK_SHIFT,
+	                             (phys_bytes) memsize[mem] << CLICK_SHIFT)
+	                   >> CLICK_SHIFT;
+	    memtype[mem] &= ~0x80;
+	}
+	if (memsize[mem] != 0 && m_ptr->DEVICE == memtype[mem]) {
+		m_ptr->COUNT = memsize[mem];
+		m_ptr->POSITION = membase[mem];
+		memsize[mem] = 0;	/* now MM has it */
+		return(OK);
+	}
+  }
+  m_ptr->COUNT = 0;		/* no more */
+  m_ptr->POSITION = 0;
+  return(OK);
+}
+#endif /* i8088 */

@@ -1,0 +1,22 @@
+		W-MAIL Local Mail Agent (MINIX)
+
+		     MicroWalt W-MAIL V2.5
+		     =====================
+
+This archive contains the sources of the W-MAIL program;
+which is a MINIX version of the MAILX program available
+on most UNIXes.
+
+It does not need the presence of UUCP in order to run.
+However, for non-local mail delivery a remote mailer
+(like MicroWalt UMAIL) is required to be present.
+
+Enjoy!
++-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-+
+| MINIX User Group (Holland)   UUCP: hp4nl!kyber!minixug!waltje	|
+| c/o Fred van Kempen,		 or: minixug!waltje@kyber.UUCP	|
+| Hoefbladhof  27						|
+| 2215 DV  VOORHOUT						|
+| The Netherlands	"A good programmer knows his Sources"	|
++-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-+
+

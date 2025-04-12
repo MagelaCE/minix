@@ -3,6 +3,7 @@
  *     /dev/mem		- absolute memory
  *     /dev/kmem	- kernel virtual memory
  *     /dev/ram		- RAM disk
+ *     /dev/port	- i/o ports (i8088 only)
  * It accepts three messages, for reading, for writing, and for
  * control. All use message format m2 and with these parameters:
  *
@@ -29,10 +30,14 @@
 #include "../h/error.h"
 #include "const.h"
 #include "type.h"
+#include "glo.h"
 #include "proc.h"
 
-#define NR_RAMS            4	/* number of RAM-type devices */
-#define EM_ORIGIN   0x100000	/* origin of extended memory on the AT */
+#ifdef i8088
+#define NR_RAMS            5	/* number of RAM-type devices */
+#else
+#define NR_RAMS            4
+#endif
 PRIVATE message mess;		/* message buffer */
 PRIVATE phys_bytes ram_origin[NR_RAMS];	/* origin of each RAM disk  */
 PRIVATE phys_bytes ram_limit[NR_RAMS];	/* limit of RAM disk per minor dev. */
@@ -46,13 +51,24 @@ PUBLIC mem_task()
 
   int r, caller, proc_nr;
   extern unsigned sizes[8];
-  extern phys_clicks get_base();
-
+  extern phys_bytes umap();
 
   /* Initialize this task. */
-  ram_origin[KMEM_DEV] = (phys_bytes) get_base() << CLICK_SHIFT;
-  ram_limit[KMEM_DEV] = (sizes[0] + sizes[1]) << CLICK_SHIFT;
-  ram_limit[MEM_DEV] = MEM_BYTES;
+  ram_origin[KMEM_DEV] = umap(cproc_addr(SYSTASK), D, (vir_bytes) 0,
+                              (vir_bytes) 1);
+  ram_limit[KMEM_DEV] = ((phys_bytes) sizes[1] << CLICK_SHIFT) +
+                        ram_origin[KMEM_DEV];
+#ifdef i8088
+  if (processor < 286)
+	ram_limit[MEM_DEV] = 0x100000;
+  else if (processor < 386)
+	ram_limit[MEM_DEV] = 0x1000000;
+  else
+	ram_limit[MEM_DEV] = MAX_P_LONG;	/* not big enough */
+  ram_limit[PORT_DEV] = 0x10000;
+#else
+#error /* memory limit not set up */
+#endif
 
   /* Here is the main loop of the memory task.  It waits for a message, carries
    * it out, and sends a reply.
@@ -88,12 +104,11 @@ PUBLIC mem_task()
 PRIVATE int do_mem(m_ptr)
 register message *m_ptr;	/* pointer to read or write message */
 {
-/* Read or write /dev/null, /dev/mem, /dev/kmem, or /dev/ram. */
+/* Read or write /dev/null, /dev/mem, /dev/kmem, /dev/ram or /dev/port. */
 
-  int device, count, words, status;
+  int device, count, endport, port, portval;
   phys_bytes mem_phys, user_phys;
   struct proc *rp;
-  extern phys_clicks get_base();
   extern phys_bytes umap();
 
   /* Get minor device number and check for /dev/null. */
@@ -113,24 +128,30 @@ register message *m_ptr;	/* pointer to read or write message */
   user_phys = umap(rp, D, (vir_bytes) m_ptr->ADDRESS, (vir_bytes) count);
   if (user_phys == 0) return(E_BAD_ADDR);
 
-  /* Copy the data. Origin above EM_ORIGIN means AT extended memory */
-  if (ram_origin[device] < EM_ORIGIN) {
-	/* Ordinary case.  RAM disk is below 640K. */
-	if (m_ptr->m_type == DISK_READ)
-		phys_copy(mem_phys, user_phys, (long) count);
-	else
-		phys_copy(user_phys, mem_phys, (long) count);
-  } else {
-	/* AT with RAM disk in extended memory (above 1 MB). */
-	if (count & 1) panic("RAM disk got odd byte count\n", NO_NUM);
-	words = count >> 1;	/* # words is half # bytes */
-	if (m_ptr->m_type == DISK_READ) {
-		status = em_xfer(mem_phys, user_phys, words);
-	} else {
-		status = em_xfer(user_phys, mem_phys, words);
+#ifdef PORT_DEV
+  /* Do special case of /dev/port. */
+  if (device == PORT_DEV) {
+	port = mem_phys;
+	mem_phys = umap(cproc_addr(MEM), D, (vir_bytes) &portval,
+	                (vir_bytes) 1);
+	for (endport = port + count; port != endport; ++port) {
+		if (m_ptr->m_type == DISK_READ) {
+			port_in(port, &portval);
+			phys_copy(mem_phys, user_phys++, (phys_bytes) 1);
+		} else {
+			phys_copy(user_phys++, mem_phys, (phys_bytes) 1);
+			port_out(port, portval);
+		}
 	}
-	if (status != 0) count = -1;
-  }	
+	return(count);
+  }
+#endif
+
+  /* Copy the data. */
+  if (m_ptr->m_type == DISK_READ)
+	phys_copy(mem_phys, user_phys, (long) count);
+  else
+	phys_copy(user_phys, mem_phys, (long) count);
   return(count);
 }
 

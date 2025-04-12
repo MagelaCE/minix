@@ -48,12 +48,13 @@
 ** to AMOEBA_CLASS  (ie. as AMOEBA_CLASS+n, for the nth task added).
 */
 
+#define IDLE (AMOEBA_CLASS+1)	/* task to run when there's nothing to run */
+
 #define PRINTER           -7		/* printer  I/O class */
 /* the printer uses the same commands as TTY */
 
 #define WINCHESTER        -6	/* winchester (hard) disk class */
 #define FLOPPY            -5	/* floppy disk class */
-#	define DISKINT     1	/* fcn code for disk interrupt */
 #	define DISK_READ   3	/* fcn code to DISK (must equal TTY_READ) */
 #	define DISK_WRITE  4	/* fcn code to DISK (must equal TTY_WRITE) */
 #	define DISK_IOCTL  5	/* fcn code for setting up RAM disk */
@@ -63,10 +64,12 @@
 #	define MEM_DEV     1	/* minor device for /dev/mem */
 #	define KMEM_DEV    2	/* minor device for /dev/kmem */
 #	define NULL_DEV    3	/* minor device for /dev/null */
+#ifdef i8088
+#	define PORT_DEV    4	/* minor device for /dev/port */
+#endif
 
 #define CLOCK             -3	/* clock class */
 #	define SET_ALARM   1	/* fcn code to CLOCK, set up alarm */
-#	define CLOCK_TICK  2	/* fcn code for clock tick */
 #	define GET_TIME	   3	/* fcn code to CLOCK, get real time */
 #	define SET_TIME	   4	/* fcn code to CLOCK, set real time */
 #	define REAL_TIME   1	/* reply from CLOCK: here is real time */
@@ -83,6 +86,9 @@
 #	define SYS_ABORT   9	/* fcn code for sys_abort() */
 #	define SYS_FRESH  10	/* fcn code for sys_fresh()  (Atari only) */
 #	define SYS_KILL   11	/* fcn code for sys_kill(proc, sig) */
+#	define SYS_GBOOT  12	/* fcn code for sys_gboot(procno, bootptr) */
+#	define SYS_UMAP   13	/* fcn code for sys_umap(procno, etc) */
+#	define SYS_MEM    14	/* fcn code for sys_mem() */
 
 #define HARDWARE          -1	/* used as source on interrupt generated msgs */
 
@@ -152,3 +158,5 @@
 #define	AM_PADDR	m2_l1	/* to the transaction layer */
 
 #endif AMOEBA
+
+#define HARD_INT           2	/* fcn code for all hardware interrupts */

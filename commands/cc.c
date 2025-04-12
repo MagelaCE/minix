@@ -42,6 +42,7 @@ struct arglist {
 char *PP     = "/lib/cpp";
 char *CEM    = "/lib/cem";
 char *OPT    = "/usr/lib/opt";
+char *FPP    = "/usr/lib/fpp";
 char *CG     = "/usr/lib/cg";
 char *ASLD   = "/usr/bin/asld";
 char *AST    = "/usr/bin/ast";
@@ -54,6 +55,7 @@ char *LIBDIR = "/usr/lib";
 char *PP     = "/usr/lib/cpp";
 char *CEM    = "/usr/lib/cem";
 char *OPT    = "/usr/lib/opt";
+char *FPP    = "/usr/lib/fpp";
 char *CG     = "/usr/lib/cg";
 char *ASLD   = "/usr/bin/asld";
 char *AST    = "/usr/bin/ast";
@@ -66,6 +68,7 @@ char *LIBDIR = "/usr/lib";
 char *PP     = "/lib/cpp";
 char *CEM    = "/lib/cem";
 char *OPT    = "/lib/opt";
+char *FPP    = "/usr/fpp";
 char *CG     = "/lib/cg";
 char *ASLD   = "/bin/asld";
 char *AST    = "/bin/ast";
@@ -76,10 +79,12 @@ char *LIBDIR = "/lib";
 #ifdef RAMDISK
 struct arglist LD_HEAD =    {1, { "/lib/crtso.s" } };
 struct arglist M_LD_HEAD =  {1, { "/lib/mrtso.s" } };
+struct arglist LD_FPLIB =   {1, { "/lib/libfp.a" } };
 struct arglist LD_TAIL =    {2, { "/lib/libc.a", "/lib/end.s" } };
 #else
 struct arglist LD_HEAD =    {1, { "/usr/lib/crtso.s" } };
 struct arglist M_LD_HEAD =  {1, { "/usr/lib/mrtso.s" } };
+struct arglist LD_FPLIB =   {1, { "/usr/lib/libfp.a" } };
 struct arglist LD_TAIL =    {2, { "/usr/lib/libc.a", "/usr/lib/end.s" } };
 #endif
 
@@ -109,6 +114,7 @@ struct arglist CEM_FLAGS;
 int RET_CODE = 0;
 
 struct arglist OPT_FLAGS;
+struct arglist FPP_FLAGS;
 struct arglist CG_FLAGS;
 struct arglist ASLD_FLAGS;
 struct arglist DEBUG_FLAGS;
@@ -121,11 +127,12 @@ int v_flag = 0;
 int F_flag = 0;	/* use pipes by default */
 int s_flag = 0;
 int p_flag = 0;	/* profil flag */
+int f_flag = 0; /* use floating point flag */
 
 char *mkstr();
 char *alloc();
 
-USTRING ifile, kfile, sfile, mfile, ofile;
+USTRING ifile, kfile, sfile, mfile, Mfile, ofile;
 USTRING BASE;
 
 char *tmpdir = "/tmp";
@@ -218,6 +225,9 @@ main(argc, argv)
 		case 'p':
 			p_flag = 1;
 			s_flag = 1;
+			break;
+		case 'f':
+			f_flag = 1;
 			break;
 		case 'L':
 			if (strcmp(&str[1], "LIB") == 0) {
@@ -316,8 +326,23 @@ main(argc, argv)
 			cleanup(kfile);
 		}
 
-		/* .m to .s */
-		if (ext == 'm') {
+		/* .m to .M */
+		if (ext == 'm' && f_flag) {
+			init(call);
+			append(call, FPP);
+			concat(call, &FPP_FLAGS);
+			append(call, file);
+			f = mkstr(Mfile, tmpdir, tmpname, ".M", 0);
+			append(call, f);
+			if (runvec(call, (char *)0) == 0)
+				continue;
+			cleanup(mfile);
+			file = Mfile;
+			ext = 'M';
+		}
+
+		/* .m (or .M) to .s */
+		if (ext == 'm' || ext == 'M') {
 			ldfile = S_flag ? ofile : alloc(strlen(BASE) + 3);
 
 			init(call);
@@ -329,6 +354,7 @@ main(argc, argv)
 			if (runvec(call, (char *)0) == 0)
 				continue;
 			cleanup(mfile);
+			cleanup(Mfile);
 			file = ldfile;
 			ext = 's';
 		}
@@ -355,6 +381,7 @@ main(argc, argv)
 			concat(call, &M_LD_HEAD);
 		else	concat(call, &LD_HEAD);
 		concat(call, &LDFILES);
+		if(f_flag) concat(call, &LD_FPLIB);
 		concat(call, &LD_TAIL);
 		if (s_flag) 
 			f = SYMBOL_FILE;

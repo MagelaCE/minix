@@ -21,6 +21,7 @@ clean:
 
 cache.s:	const.h type.h $h/const.h $h/type.h
 cache.s:	$h/error.h
+cache.s:	$h/boot.h
 cache.s:	buf.h
 cache.s:	file.h
 cache.s:	fproc.h
@@ -47,6 +48,7 @@ filedes.s:	inode.h
 
 inode.s:	const.h type.h $h/const.h $h/type.h
 inode.s:	$h/error.h
+inode.s:	$h/boot.h
 inode.s:	buf.h
 inode.s:	file.h
 inode.s:	fproc.h
@@ -67,6 +69,7 @@ main.s:		const.h type.h $h/const.h $h/type.h
 main.s:		$h/callnr.h
 main.s:		$h/com.h
 main.s:		$h/error.h
+main.s:		$h/boot.h
 main.s:		buf.h
 main.s:		file.h
 main.s:		fproc.h
@@ -79,6 +82,7 @@ misc.s:		const.h type.h $h/const.h $h/type.h
 misc.s:		$h/callnr.h
 misc.s:		$h/com.h
 misc.s:		$h/error.h
+misc.s:		$h/boot.h
 misc.s:		buf.h
 misc.s:		file.h
 misc.s:		fproc.h
@@ -162,6 +166,7 @@ stadir.s:	param.h
 
 super.s:	const.h type.h $h/const.h $h/type.h
 super.s:	$h/error.h
+super.s:	$h/boot.h
 super.s:	buf.h
 super.s:	inode.h
 super.s:	super.h
@@ -192,6 +197,7 @@ time.s:		param.h
 utility.s:	const.h type.h $h/const.h $h/type.h
 utility.s:	$h/com.h
 utility.s:	$h/error.h
+utility.s:	$h/boot.h
 utility.s:	buf.h
 utility.s:	file.h
 utility.s:	fproc.h

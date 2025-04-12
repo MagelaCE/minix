@@ -15,6 +15,7 @@
 #include "../h/const.h"
 #include "../h/type.h"
 #include "../h/error.h"
+#include "../h/boot.h"
 #include "const.h"
 #include "type.h"
 #include "buf.h"
@@ -210,10 +211,8 @@ zone_nr z;			/* try to allocate new zone near this one */
 	err_code = ENOSPC;
 	major = (int) (sp->s_dev >> MAJOR) & BYTE;
 	minor = (int) (sp->s_dev >> MINOR) & BYTE;
-	if (sp->s_dev == ROOT_DEV)
-		printf("No space on root device (RAM disk)\n");
-	else
-		printf("No space on device %d/%d\n", major, minor);
+	printf("No space on %sdevice %d/%d\n",
+		sp->s_dev == ROOT_DEV ? "root " : "", major, minor);
 	return(NO_ZONE);
   }
   return(sp->s_firstdatazone - 1 + (zone_nr) b);

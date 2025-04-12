@@ -8,46 +8,48 @@
 /*
  * Main program
  */
-main(argc, argv)
-        int argc;
-        char **argv;
+main( argc, argv )
+int argc;
+char **argv;
 {
-        char gotrules, didfile, getstdin;
+        int gotrules, didfile, getstdin;
 
         getstdin =
-                didfile =
-                gotrules = 0;
+        didfile =
+        gotrules = 0;
 
         /*
-         * Initialize global variables: 
+         * Initialize global variables:
          */
-        Beginact = (char *) 0;
-        Endact = (char *) 0;
-        Rules = (RULE *) 0;
-        Rulep = (RULE *) 0;
+        Beginact =
+        Endact =
+        Rules =
+        Rulep =
 #ifdef DEBUG
-        Debug = 0;
+        Debug =
 #endif
-        Filename = (char *) 0;
-        Linecount = 0;
+        Filename =
+        Linecount =
         Saw_break = 0;
-
         Stackptr = Stackbtm - 1;
         Stacktop = Stackbtm + MAXSTACKSZ;
         Nextvar = Vartab;
 
-        strcpy(Fieldsep, " \t");
-        strcpy(Recordsep, "\n");
+        strcpy( Fieldsep, " \t" );
+        strcpy( Recordsep, "\n" );
 
         /*
-         * Parse command line 
+         * Parse command line
          */
-        while (--argc) {
-                if (**(++argv) == '-') {
+        while ( --argc )
+        {
+                if ( **(++argv) == '-' )
+                {
                         /*
-                         * Process dash options. 
+                         * Process dash options.
                          */
-                        switch (tolower(*(++(*argv)))) {
+                        switch ( tolower( *(++(*argv)) ) )
+                        {
 #ifdef DEBUG
                         case 'd':
                                 ++Debug;
@@ -58,59 +60,63 @@ main(argc, argv)
                                 --argv;
                                 goto dosomething;
                                 break;
-                        default:
-                                usage();
+                        default: usage();
                         }
                 }
-                else {
-        dosomething:
-                        if (gotrules) {
+                else
+                {
+dosomething:
+                        if ( gotrules )
+                        {
                                 /*
                                  * Already read rules file - assume this is
-                                 * is a text file for processing. 
+                                 * is a text file for processing.
                                  */
-                                if (++didfile == 1 && Beginact)
-                                        doaction(Beginact);
-                                if (getstdin) {
+                                if ( ++didfile == 1 && Beginact )
+                                        doaction( Beginact );
+                                if ( getstdin )
+                                {
                                         --getstdin;
-                                        newfile(0);
+                                        newfile( 0 );
                                 }
                                 else
-                                        newfile(*argv);
+                                        newfile( *argv );
                                 process();
                         }
-                        else {
+                        else
+                        {
                                 /*
                                  * First file name argument on command line
                                  * is assumed to be a rules file - attempt to
-                                 * compile it. 
+                                 * compile it.
                                  */
-                                if (getstdin) {
+                                if ( getstdin )
+                                {
                                         --getstdin;
-                                        newfile(0);
+                                        newfile( 0 );
                                 }
                                 else
-                                        newfile(*argv);
+                                        newfile( *argv );
                                 compile();
                                 gotrules = 1;
                         }
                 }
         }
-        if (!gotrules)
+        if ( !gotrules )
                 usage();
 
-        if (!didfile) {
+        if ( ! didfile )
+        {
                 /*
-                 * Didn't process any files yet - process stdin. 
+                 * Didn't process any files yet - process stdin.
                  */
-                newfile(0);
-                if (Beginact)
-                        doaction(Beginact);
+                newfile( 0 );
+                if ( Beginact )
+                        doaction( Beginact );
                 process();
         }
-        if (Endact)
-                doaction(Endact);
-        exit(0);
+        if ( Endact )
+                doaction( Endact );
 }
 
 /*
@@ -120,135 +126,143 @@ compile()
 {
         /*
          * Compile regular expressions and C actions into Rules struct,
-         * reading from current input file "Fileptr". 
+         * reading from current input file "Fileptr".
          */
         int c, len;
 
 #ifdef DEBUG
-        if (Debug)
-                error("compiling...", 0);
+        if ( Debug )
+                error( "compiling...", 0 );
 #endif
 
-        while ((c = getcharacter()) != -1) {
-                if (c == ' ' || c == '\t' || c == '\n')
+        while ( (c = getcharacter()) != -1 )
+        {
+                if ( c==' ' || c=='\t' || c=='\n' )
                         /* swallow whitespace */
                         ;
-                else if (c == '#') {
+                else if ( c=='#' )
+                {
                         /*
-                         * Swallow comments 
+                         * Swallow comments
                          */
-                        while ((c = getcharacter()) != -1 && c != '\n');
+                        while ( (c=getcharacter()) != -1 && c!='\n' )
+                                ;
                 }
-                else if (c == '{') {
+                else if ( c=='{' )
+                {
 #ifdef DEBUG
-                        if (Debug)
-                                error("action", 0);
+                        if ( Debug )
+                                error( "action", 0 );
 #endif
                         /*
                          * Compile (tokenize) the action string into our
-                         * global work buffer, then allocate some memory for
-                         * it and copy it over. 
+                         * global work buffer, then allocate some memory
+                         * for it and copy it over.
                          */
-                        ungetcharacter('{');
-                        len = act_compile(Workbuf);
+                        ungetcharacter( '{' );
+                        len = act_compile( Workbuf );
 
-                        if (Rulep && Rulep->action) {
-                                Rulep->nextrule =
-                                (struct rule *)getmem(sizeof(*Rulep));
+                        if ( Rulep && Rulep->action )
+                        {
+                                Rulep->nextrule = getmem( sizeof( *Rulep ) );
                                 Rulep = Rulep->nextrule;
-                                fillmem(Rulep, sizeof(*Rulep), 0);
+                                fillmem( Rulep, sizeof( *Rulep ), 0 );
                         }
-                        if (!Rulep) {
+                        if ( !Rulep )
+                        {
                                 /*
                                  * This is the first action encountered.
                                  * Allocate the first Rules structure and
-                                 * initialize it 
+                                 * initialize it
                                  */
-                                Rules = Rulep =
-                                        (RULE *) getmem(sizeof(*Rulep));
-                                fillmem(Rulep, sizeof(*Rulep), 0);
+                                Rules = Rulep = getmem( sizeof( *Rulep ) );
+                                fillmem( Rulep, sizeof( *Rulep ), 0 );
                         }
-                        Rulep->action = getmem(len);
-                        movemem(Workbuf, Rulep->action, len);
+                        Rulep->action = getmem( len );
+                        movemem( Workbuf, Rulep->action, len );
                 }
-                else if (c == ',') {
+                else if ( c==',' )
+                {
 #ifdef DEBUG
-                        if (Debug)
-                                error("stop pattern", 0);
+                        if ( Debug )
+                                error( "stop pattern", 0 );
 #endif
                         /*
                          * It's (hopefully) the second part of a two-part
                          * pattern string.  Swallow the comma and start
-                         * compiling an action string. 
+                         * compiling an action string.
                          */
-                        if (!Rulep || !Rulep->pattern.start)
-                                error("stop pattern without a start",
-                                      RE_ERROR);
-                        if (Rulep->pattern.stop)
-                                error("already have a stop pattern",
-                                      RE_ERROR);
-                        len = pat_compile(Workbuf);
-                        Rulep->pattern.stop = getmem(len);
-                        movemem(Workbuf, Rulep->pattern.stop, len);
+                        if ( !Rulep || !Rulep->pattern.start )
+                                error( "stop pattern without a start",
+                                        RE_ERROR );
+                        if ( Rulep->pattern.stop )
+                                error( "already have a stop pattern",
+                                        RE_ERROR );
+                        len = pat_compile( Workbuf );
+                        Rulep->pattern.stop = getmem( len );
+                        movemem( Workbuf, Rulep->pattern.stop, len );
                 }
-                else {
+                else
+                {
                         /*
-                         * Assume it's a regular expression pattern 
+                         * Assume it's a regular expression pattern
                          */
 #ifdef DEBUG
-                        if (Debug)
-                                error("start pattern", 0);
+                        if ( Debug )
+                                error( "start pattern", 0 );
 #endif
 
-                        ungetcharacter(c);
-                        len = pat_compile(Workbuf);
+                        ungetcharacter( c );
+                        len = pat_compile( Workbuf );
 
-                        if (*Workbuf == T_BEGIN) {
+                        if ( *Workbuf == T_BEGIN )
+                        {
                                 /*
                                  * Saw a "BEGIN" keyword - compile following
-                                 * action into special "Beginact" buffer. 
+                                 * action into special "Beginact" buffer.
                                  */
-                                len = act_compile(Workbuf);
-                                Beginact = getmem(len);
-                                movemem(Workbuf, Beginact, len);
+                                len = act_compile( Workbuf );
+                                Beginact = getmem( len );
+                                movemem( Workbuf, Beginact, len );
                                 continue;
                         }
-                        if (*Workbuf == T_END) {
+                        if ( *Workbuf == T_END )
+                        {
                                 /*
                                  * Saw an "END" keyword - compile following
-                                 * action into special "Endact" buffer. 
+                                 * action into special "Endact" buffer.
                                  */
-                                len = act_compile(Workbuf);
-                                Endact = getmem(len);
-                                movemem(Workbuf, Endact, len);
+                                len = act_compile( Workbuf );
+                                Endact = getmem( len );
+                                movemem( Workbuf, Endact, len );
                                 continue;
                         }
-                        if (Rulep) {
+                        if ( Rulep )
+                        {
                                 /*
                                  * Already saw a pattern/action - link in
-                                 * another Rules structure. 
+                                 * another Rules structure.
                                  */
-                                Rulep->nextrule =
-                                        (struct rule *) getmem(sizeof(*Rulep));
+                                Rulep->nextrule = getmem( sizeof( *Rulep ) );
                                 Rulep = Rulep->nextrule;
-                                fillmem(Rulep, sizeof(*Rulep), 0);
+                                fillmem( Rulep, sizeof( *Rulep ), 0 );
                         }
-                        if (!Rulep) {
+                        if ( !Rulep )
+                        {
                                 /*
                                  * This is the first pattern encountered.
                                  * Allocate the first Rules structure and
-                                 * initialize it 
+                                 * initialize it
                                  */
-                                Rules = Rulep = 
-                                        (RULE *) getmem(sizeof(*Rulep));
-                                fillmem(Rulep, sizeof(*Rulep), 0);
+                                Rules = Rulep = getmem( sizeof( *Rulep ) );
+                                fillmem( Rulep, sizeof( *Rulep ), 0 );
                         }
-                        if (Rulep->pattern.start)
-                                error("already have a start pattern",
-                                      RE_ERROR);
+                        if ( Rulep->pattern.start )
+                                error( "already have a start pattern",
+                                        RE_ERROR );
 
-                        Rulep->pattern.start = getmem(len);
-                        movemem(Workbuf, Rulep->pattern.start, len);
+                        Rulep->pattern.start = getmem( len );
+                        movemem( Workbuf, Rulep->pattern.start, len );
                 }
         }
         endfile();
@@ -260,200 +274,213 @@ compile()
 process()
 {
         /*
-         * Read a line at a time from current input file at "Fileptr", then
-         * apply each rule in the Rules chain to the input line. 
+         * Read a line at a time from current input file at "Fileptr",
+         * then apply each rule in the Rules chain to the input line.
          */
         int i;
 
 #ifdef DEBUG
-        if (Debug)
-                error("processing...", 0);
+        if ( Debug )
+                error( "processing...", 0 );
 #endif
 
         Recordcount = 0;
 
-        while (getline()) {
+        while ( getline() )
+        {
                 /*
-                 * Parse the input line. 
+                 * Parse the input line.
                  */
-                Fieldcount = parse(Linebuf, Fields, Fieldsep);
+                Fieldcount = parse( Linebuf, Fields, Fieldsep );
 #ifdef DEBUG
-                if (Debug > 1) {
-                        printf("parsed %d words:\n", Fieldcount);
-                        for (i = 0; i < Fieldcount; ++i)
-                                printf("<%s>\n", Fields[i]);
+                if ( Debug>1 )
+                {
+                        printf( "parsed %d words:\n", Fieldcount );
+                        for(i=0; i<Fieldcount; ++i )
+                                printf( "<%s>\n", Fields[i] );
                 }
 #endif
 
                 Rulep = Rules;
-                do {
-                        if (!Rulep->pattern.start) {
+                do
+                {
+                        if ( ! Rulep->pattern.start )
+                        {
                                 /*
-                                 * No pattern given - perform action on every
-                                 * input line. 
+                                 * No pattern given - perform action on
+                                 * every input line.
                                  */
-                                doaction(Rulep->action);
+                                doaction( Rulep->action );
                         }
-                        else if (Rulep->pattern.startseen) {
+                        else if ( Rulep->pattern.startseen )
+                        {
                                 /*
                                  * Start pattern already found - perform
-                                 * action then check if line matches stop
-                                 * pattern. 
+                                 * action then check if line matches
+                                 * stop pattern.
                                  */
-                                doaction(Rulep->action);
-                                if (dopattern(Rulep->pattern.stop))
+                                doaction( Rulep->action );
+                                if ( dopattern( Rulep->pattern.stop ) )
                                         Rulep->pattern.startseen = 0;
                         }
-                        else if (dopattern(Rulep->pattern.start)) {
+                        else if ( dopattern( Rulep->pattern.start ) )
+                        {
                                 /*
-                                 * Matched start pattern - perform action. If
-                                 * a stop pattern was given, set "start
+                                 * Matched start pattern - perform action.
+                                 * If a stop pattern was given, set "start
                                  * pattern seen" flag and process every input
-                                 * line until stop pattern found. 
+                                 * line until stop pattern found.
                                  */
-                                doaction(Rulep->action);
-                                if (Rulep->pattern.stop)
+                                doaction( Rulep->action );
+                                if ( Rulep->pattern.stop )
                                         Rulep->pattern.startseen = 1;
                         }
                 }
-                while (Rulep = Rulep->nextrule);
+                while ( Rulep = Rulep->nextrule );
 
                 /*
-                 * Release memory allocated by parse(). 
+                 * Release memory allocated by parse().
                  */
-                while (Fieldcount)
-                        free(Fields[--Fieldcount]);
+                while ( Fieldcount )
+                        free( Fields[ --Fieldcount ] );
         }
 }
 
 /*
  * Miscellaneous functions
  */
-parse(str, wrdlst, delim)
-        char *str;
-        char *wrdlst[];
+parse( str, wrdlst, delim )
+char *str;
+char *wrdlst[];
 char *delim;
 {
         /*
          * Parse the string of words in "str" into the word list at "wrdlst".
-         * A "word" is a sequence of characters delimited by one or more of
-         * the characters found in the string "delim". Returns the number of
-         * words parsed. CAUTION: the memory for the words in "wrdlst" is
-         * allocated by malloc() and should eventually be returned by
-         * free()... 
+         * A "word" is a sequence of characters delimited by one or more
+         * of the characters found in the string "delim".
+         * Returns the number of words parsed.
+         * CAUTION: the memory for the words in "wrdlst" is allocated
+         * by malloc() and should eventually be returned by free()...
          */
         int wrdcnt, wrdlen;
-        char wrdbuf[MAXLINELEN], c;
+        char wrdbuf[ MAXLINELEN ], c;
 
         wrdcnt = 0;
-        while (*str) {
-                while (instr(*str, delim))
+        while ( *str )
+        {
+                while ( instr( *str, delim ) )
                         ++str;
-                if (!*str)
+                if ( !*str )
                         break;
                 wrdlen = 0;
-                while ((c = *str) && !instr(c, delim)) {
-                        wrdbuf[wrdlen++] = c;
+                while ( (c = *str) && !instr( c, delim ) )
+                {
+                        wrdbuf[ wrdlen++ ] = c;
                         ++str;
                 }
-                wrdbuf[wrdlen++] = 0;
+                wrdbuf[ wrdlen++ ] = 0;
                 /*
-                 * NOTE: allocate a MAXLINELEN sized buffer for every word,
-                 * just in case user wants to copy a larger string into a
-                 * field. 
+                 * NOTE: allocate a MAXLINELEN sized buffer for every
+                 * word, just in case user wants to copy a larger string
+                 * into a field.
                  */
-                wrdlst[wrdcnt] = getmem(MAXLINELEN);
-                strcpy(wrdlst[wrdcnt++], wrdbuf);
+                wrdlst[ wrdcnt ] = getmem( MAXLINELEN );
+                strcpy( wrdlst[ wrdcnt++ ], wrdbuf );
         }
 
         return wrdcnt;
 }
 
-unparse(wrdlst, wrdcnt, str, delim)
-        char *wrdlst[];
+unparse( wrdlst, wrdcnt, str, delim )
+char *wrdlst[];
 int wrdcnt;
 char *str;
 char *delim;
 {
         /*
          * Replace all the words in "str" with the words in "wrdlst",
-         * maintaining the same word seperation distance as found in the
-         * string. A "word" is a sequence of characters delimited by one or
-         * more of the characters found in the string "delim". 
+         * maintaining the same word seperation distance as found in
+         * the string.
+         * A "word" is a sequence of characters delimited by one or more
+         * of the characters found in the string "delim".
          */
         int wc;
-        char strbuf[MAXLINELEN], *sp, *wp, *start;
+        char strbuf[ MAXLINELEN ], *sp, *wp, *start;
 
-        wc = 0;                 /* next word in "wrdlst" */
-        sp = strbuf;            /* points to our local string */
-        start = str;            /* save start address of "str" for later... */
-        while (*str) {
+        wc = 0;         /* next word in "wrdlst" */
+        sp = strbuf;    /* points to our local string */
+        start = str;    /* save start address of "str" for later... */
+        while ( *str )
+        {
                 /*
-                 * Copy the field delimiters from the original string to our
-                 * local version. 
+                 * Copy the field delimiters from the original string to
+                 * our local version.
                  */
-                while (instr(*str, delim))
+                while ( instr( *str, delim ) )
                         *sp++ = *str++;
-                if (!*str)
+                if ( !*str )
                         break;
                 /*
-                 * Skip over the field in the original string and... 
+                 * Skip over the field in the original string and...
                  */
-                while (*str && !instr(*str, delim))
+                while ( *str && !instr( *str, delim ) )
                         ++str;
 
-                if (wc < wrdcnt) {
+                if ( wc < wrdcnt )
+                {
                         /*
-                         * ...copy in the field in the wordlist instead. 
+                         * ...copy in the field in the wordlist instead.
                          */
-                        wp = wrdlst[wc++];
-                        while (*wp)
+                        wp = wrdlst[ wc++ ];
+                        while ( *wp )
                                 *sp++ = *wp++;
                 }
         }
         /*
-         * Tie off the local string, then copy it back to caller's string. 
+         * Tie off the local string, then copy it back to caller's string.
          */
         *sp = 0;
-        strcpy(start, strbuf);
+        strcpy( start, strbuf );
 }
 
-instr(c, s)
-        char c, *s;
+instr( c, s )
+char c, *s;
 {
-        while (*s)
-                if (c == *s++)
+        while ( *s )
+                if ( c==*s++ )
                         return 1;
         return 0;
 }
 
 char *
-getmem(len)
-        unsigned len;
+getmem( len )
+unsigned len;
 {
-        char *cp, *malloc();
+        char *cp;
 
-        if (cp = malloc(len))
+        if ( cp=malloc( len ) )
                 return cp;
-        error("out of memory", MEM_ERROR);
+        error( "out of memory", MEM_ERROR );
 }
 
-/* char * */
-newfile(s)
-        char *s;
+char *
+newfile( s )
+char *s;
 {
         Linecount = 0;
-        if (Filename = s) {
+        if ( Filename = s )
+        {
 #ifdef BDS_C
-                if (fopen(s, Fileptr = Curfbuf) == -1)
+                if ( fopen( s, Fileptr = Curfbuf ) == -1 )
 #else
-                if (!(Fileptr = fopen(s, "r")))
+                if ( !(Fileptr = fopen( s, "r" )) )
 #endif
-                        error("file not found", FILE_ERROR);
+                        error( "file not found", FILE_ERROR );
         }
-        else {
+        else
+        {
                 /*
-                 * No file name given - process standard input. 
+                 * No file name given - process standard input.
                  */
                 Fileptr = stdin;
                 Filename = "standard input";
@@ -463,19 +490,21 @@ newfile(s)
 getline()
 {
         /*
-         * Read a line of text from current input file.  Strip off trailing
-         * record seperator (newline). 
+         * Read a line of text from current input file.  Strip off
+         * trailing record seperator (newline).
          */
         int rtn, len;
 
-        for (len = 0; len < MAXLINELEN; ++len) {
-                if ((rtn = getcharacter()) == *Recordsep || rtn == -1)
+        for ( len=0; len<MAXLINELEN; ++len )
+        {
+                if ( (rtn = getcharacter()) == *Recordsep || rtn == -1 )
                         break;
-                Linebuf[len] = rtn;
+                Linebuf[ len ] = rtn;
         }
-        Linebuf[len] = 0;
+        Linebuf[ len ] = 0;
 
-        if (rtn == -1) {
+        if ( rtn == -1 )
+        {
                 endfile();
                 return 0;
         }
@@ -485,125 +514,126 @@ getline()
 getcharacter()
 {
         /*
-         * Read a character from curren input file. WARNING: your getc() must
-         * convert lines that end with CR+LF to LF and CP/M's EOF character
-         * (^Z) to a -1. Also, getc() must return a -1 when attempting to
-         * read from an unopened file. 
+         * Read a character from curren input file.
+         * WARNING: your getc() must convert lines that end with CR+LF
+         * to LF and CP/M's EOF character (^Z) to a -1.
+         * Also, getc() must return a -1 when attempting to read from
+         * an unopened file.
          */
         int c;
 
 #ifdef BDS_C
         /*
-         * BDS C doesn't do CR+LF to LF and ^Z to -1 conversions <gag> 
+         * BDS C doesn't do CR+LF to LF and ^Z to -1 conversions <gag>
          */
-        if ((c = getc(Fileptr)) == '\r') {
-                if ((c = getc(Fileptr)) != '\n') {
-                        ungetc(c);
+        if ( (c = getc( Fileptr )) == '\r' )
+        {
+                if ( (c = getc( Fileptr )) != '\n' )
+                {
+                        ungetc( c );
                         c = '\r';
                 }
         }
-        else if (c == 26)       /* ^Z */
+        else if ( c == 26 )     /* ^Z */
                 c = -1;
 #else
-        c = getc(Fileptr);
+        c = getc( Fileptr );
 #endif
 
-        if (c == *Recordsep)
+        if ( c == *Recordsep )
                 ++Recordcount;
-        if (c == '\n')
+        if ( c=='\n' )
                 ++Linecount;
 
         return c;
 }
 
-ungetcharacter(c)
+ungetcharacter( c )
 {
         /*
-         * Push a character back into the input stream. If the character is a
-         * record seperator, or a newline character, the record and line
-         * counters are adjusted appropriately. 
+         * Push a character back into the input stream.
+         * If the character is a record seperator, or a newline character,
+         * the record and line counters are adjusted appropriately.
          */
-        if (c == *Recordsep)
+        if ( c == *Recordsep )
                 --Recordcount;
-        if (c == '\n')
+        if ( c=='\n' )
                 --Linecount;
-        return ungetc(c, Fileptr);
+        return ungetc( c, Fileptr );
 }
 
 endfile()
 {
-        fclose(Fileptr);
-        Filename = "";
-        Linecount = 0;
+        fclose( Fileptr );
+        Filename = Linecount = 0;
 }
 
-error(s, severe)
-        char *s;
-        int severe;
+error( s, severe )
+char *s;
+int severe;
 {
         char *cp, *errat;
 
-        if (Filename)
-                fprintf(stderr, "%s:", Filename);
+        if ( Filename )
+                fprintf( stderr, "%s:", Filename );
 
-        if (Linecount)
-                fprintf(stderr, " line %d:", Linecount);
+        if ( Linecount )
+                fprintf( stderr, " line %d:", Linecount );
 
-        fprintf(stderr, " %s\n", s);
-        if (severe)
-                exit(1);
+        fprintf( stderr, " %s\n", s );
+        if ( severe )
+                exit( severe );
 }
 
 usage()
 {
-        error("Usage: bawk <actfile> [<file> ...]\n", USAGE_ERROR);
+        error( "Usage: bawk <actfile> [<file> ...]\n", USAGE_ERROR );
 }
 
-movemem(from, to, count)
-        char *from, *to;
-        int count;
+movemem( from, to, count )
+char *from, *to;
+int count;
 {
-        while (count-- > 0)
+        while ( count-- > 0 )
                 *to++ = *from++;
 }
 
-
-strncmp(s, t, n)
-        char *s, *t;
-        int n;
+fillmem( array, count, value )
+char *array, value;
+int count;
 {
-        while (--n > 0 && *s && *t && *s == *t) {
+        while ( count-- > 0 )
+                *array++ = value;
+}
+
+strncmp( s, t, n )
+char *s, *t;
+int n;
+{
+        while ( --n>0 && *s && *t && *s==*t )
+        {
                 ++s;
                 ++t;
         }
-        if (*s || *t)
+        if ( *s || *t )
                 return *s - *t;
         return 0;
 }
 
-num(c)
-        char c;
+num( c )
+char c;
 {
-        return '0' <= c && c <= '9';
+        return '0'<=c && c<='9';
 }
 
-alpha(c)
-        char c;
+alpha( c )
+char c;
 {
-        return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
+        return ('a'<=c && c<='z') || ('A'<=c && c<='Z') || c=='_';
 }
 
-alphanum(c)
-        char c;
+alphanum( c )
+char c;
 {
-        return alpha(c) || num(c);
+        return alpha( c ) || num( c );
 }
-
-fillmem(array, count, value)
-        char *array, value;
-        int count;
-{
-        while (count-- > 0)
-                *array++ = value;
-}
-

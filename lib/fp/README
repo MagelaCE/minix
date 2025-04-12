@@ -1,0 +1,28 @@
+This package contains a floating-point arithmetic package for Minix-PC
+version 1.3, and a few ``mostly ANSI-compatible'' additions to the C
+library.  Installation instructions are in the file INSTALL, and notes
+on implementation are in the file NOTES.
+
+This is more-or-less a medium quality implementation of floating point
+arithmetic for the Minix C compiler.  No 80x87 math coprocessor is
+required (or even useful) to use this package.  The binary format
+should be identical to that of most IEEE 754 implementations, and many
+operations give bit-for-bit identical results.  It is by no means,
+however, fully standard-conforming.  (There is no support for
+infinities, NaN's, or denormalized numbers, for example.)
+
+Whenever compiling a program which uses floating-point constants,
+and/or when linking any program which uses floating-point arithmetic,
+the "-f" option of the C compiler should be used. (This causes the
+floating point constant postprocessor to be run, and adds the floating
+point library to the list of libraries linked with the program.)
+
+Although the goal is to eventually provide all of the math functions
+mentioned in the math.h file (and in section B4 of K&R2), not all of
+these are available yet. (Due to portability problems, the BSD 4.3
+freely-redistributable portions of libm are not yet usable.)
+
+Any bug reports, suggestions, questions, or improved code would be
+appreciated.
+
+-Peter S. Housel-	housel@ecn.purdue.edu		...!pur-ee!housel

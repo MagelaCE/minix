@@ -115,7 +115,7 @@ extern rw_dev(), rw_dev2(), tty_open();
 /* The order of the entries here determines the mapping between major device
  * numbers and tasks.  The first entry (major device 0) is not used.  The
  * next entry is major device 1, etc.  Character and block devices can be
- * intermixed at random.  If this ordering is changed, BOOT_DEV and ROOT_DEV
+ * intermixed at random.  If this ordering is changed, the devices in h/boot.h
  * must be changed to correspond to the new values.  Note that the major
  * device numbers used in /dev are NOT the same as the task numbers used
  * inside the kernel (as defined in h/com.h).

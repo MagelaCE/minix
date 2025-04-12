@@ -17,6 +17,7 @@
 #include "../h/callnr.h"
 #include "../h/com.h"
 #include "../h/error.h"
+#include "../h/boot.h"
 #include "const.h"
 #include "type.h"
 #include "buf.h"
@@ -37,8 +38,7 @@
 #define RAM_IMAGE (dev_nr)0x303	/* major-minor dev where root image is kept */
 
 #ifdef i8088
-#define EM_ORIGIN   0x100000	/* origin of extended memory RAM disk on AT */
-#define MAX_CRD           255	/* if root fs > MAX_CRD, use extended mem */
+FORWARD phys_bytes get_physbase();
 #endif
 
 /*===========================================================================*
@@ -141,7 +141,8 @@ PRIVATE fs_init()
   extern struct inode *get_inode();
 
   buf_pool();			/* initialize buffer pool */
-  load_ram();			/* Load RAM disk from root diskette. */
+  get_boot_parameters();
+  load_ram();			/* init RAM disk, load if it is root */
   load_super();			/* Load super block for root device */
 
   /* Initialize the 'fproc' fields for process 0 and process 2. */
@@ -182,7 +183,6 @@ PRIVATE buf_pool()
 #ifdef i8088
   vir_bytes low_off, high_off;
   phys_bytes org;
-  extern phys_clicks get_base();
 #endif
 
   bufs_in_use = 0;
@@ -201,7 +201,7 @@ PRIVATE buf_pool()
   /* Delete any buffers that span a 64K boundary. */
 #ifdef i8088
   for (bp = &buf[0]; bp < &buf[NR_BUFS]; bp++) {
-	org = get_base() << CLICK_SHIFT;	/* phys addr where FS is */
+	org = get_physbase();	/* phys addr where FS is */
 	low_off = (vir_bytes) bp->b_data;
 	high_off = low_off + BLOCK_SIZE - 1;
 	if (((org + low_off) & M64K) != ((org + high_off) & M64K)) {
@@ -230,8 +230,9 @@ PRIVATE buf_pool()
  *===========================================================================*/
 PRIVATE load_ram()
 {
-/* The root diskette contains a block-by-block image of the root file system
- * starting at 0.  Go get it and copy it to the RAM disk. 
+/* If the root device is the RAM disk, copy the entire root image device
+ * block-by-block to a RAM disk with the same size as the image.
+ * Otherwise, just allocate a RAM disk with size given in the boot parameters.
  */
 
   register struct buf *bp, *bp1;
@@ -239,9 +240,8 @@ PRIVATE load_ram()
   long k_loaded;
   struct super_block *sp;
   block_nr i;
-  dev_nr root_device;
+  dev_nr root_device;		/* this should be called boot_device */
   phys_clicks ram_clicks, init_org, init_text_clicks, init_data_clicks;
-  long base;
   extern phys_clicks data_org[INFO + 2];
   extern struct buf *get_block();
 
@@ -249,8 +249,12 @@ PRIVATE load_ram()
   init_org = data_org[INFO];
   init_text_clicks = data_org[INFO + 1];
   init_data_clicks = data_org[INFO + 2];
-  base = (long) init_org + (long) init_text_clicks + (long) init_data_clicks;
-  base = base << CLICK_SHIFT;
+
+  /* If the root device is specified in the boot parameters, use it. */
+  if (ROOT_DEV != DEV_RAM) {
+	count = boot_parameters.bp_ramsize;
+	goto got_root_dev;	/* kludge to avoid excessive indent/diffs */
+  }
 
   /* Get size of RAM disk by reading root file system's super block.
    * First read block 0 from the floppy.  If this is a valid file system, use
@@ -277,22 +281,10 @@ PRIVATE load_ram()
 		panic("Invalid root file system", NO_NUM);
   }
   count = sp->s_nzones << sp->s_log_zone_size;	/* # blocks on root dev */
+  put_block(bp, FULL_DATA_BLOCK);
+got_root_dev:
   if (count > MAX_RAM) panic("RAM disk is too big. # blocks = ", count);
   ram_clicks = count * (BLOCK_SIZE/CLICK_SIZE);
-  put_block(bp, FULL_DATA_BLOCK);
-
-#ifdef i8088
-  /* There are two possibilities now (by convention):  
-   *    count < MAX_CRD  ==> RAM disk is in core
-   *    count >=MAX_CRD  ==> RAM disk is in extended memory (AT only)
-   * In the latter case, tell MM that RAM disk size is 0 and tell the ram disk
-   * driver than the device begins at 1MB.
-   */
-  if (count > MAX_CRD) {
-	ram_clicks = 0;		/* MM does not have to allocate any core */
-	base = EM_ORIGIN;	/* tell RAM disk driver RAM disk origin */
-  }
-#endif
 
   /* Tell MM the origin and size of INIT, and the amount of memory used for the
    * system plus RAM disk combined, so it can remove all of it from the map.
@@ -308,23 +300,44 @@ PRIVATE load_ram()
 #endif
   if (sendrec(MM_PROC_NR, &m1) != OK) panic("FS Can't report to MM", NO_NUM);
 
-  /* Tell RAM driver where RAM disk is and how big it is. */
+  /* Tell RAM driver where RAM disk is and how big it is. The BRK2 call has
+   * filled in the m1.POSITION field.
+   */
   m1.m_type = DISK_IOCTL;
   m1.DEVICE = RAM_DEV;
-  m1.POSITION = base;
   m1.COUNT = count;
   if (sendrec(MEM, &m1) != OK) panic("Can't report size to MEM", NO_NUM);
 
+  /* If the root device is not the RAM disk, it doesn't need loading. */
+  if (ROOT_DEV != DEV_RAM)
+	return;
+
   /* Copy the blocks one at a time from the root diskette to the RAM */
-#ifdef i8088
-  if (ram_clicks == 0) 	
-	printf("RAM disk of %d blocks is in extended memory\n\n", count);
-#endif
 #ifdef FASTLOAD
-  fastload(root_device, (char *)base);
+  fastload(root_device, (char *) m1.POSITION);	/* assumes 32 bit pointers */
 #else
   printf("Loading RAM disk.                          Loaded:   0K ");
   for (i = 0; i < count; i++) {
+	/* Prefetch blocks into cache according to interleave.
+	 * The floppy driver should be rewritten to do this and should attain
+	 * an interleave of 1 even on slow PC's.
+	 * Here we can only handle interleave > 1.
+	 * 2 is good for AT's, but nothing seems to help PC's.
+	 * Assume standard DOS format with interleave of 1.
+	 */
+#define N_PREFETCH 11		/* prime > blocks/track on all floppy types */
+#define INTERLEAVE  2
+	if (i % N_PREFETCH == 0) {
+		int j, k;
+
+		for (k = j = 0; j < N_PREFETCH; ++j, k += INTERLEAVE) {
+			if (k > N_PREFETCH)
+				k -= N_PREFETCH;
+			if (i + k < count)
+				put_block(get_block(root_device, i + k,
+				                    NORMAL), NORMAL);
+		}
+	}
 	bp = get_block(root_device, (block_nr) i, NORMAL);
 	bp1 = get_block(ROOT_DEV, i, NO_READ);
 	copy(bp1->b_data, bp->b_data, BLOCK_SIZE);
@@ -336,7 +349,7 @@ PRIVATE load_ram()
   }
 #endif FASTLOAD
 
-  if (root_device == BOOT_DEV)
+  if ( ((root_device ^ DEV_FD0) & ~BYTE) == 0 )
 	printf("\rRAM disk loaded.    Please remove root diskette.           \n\n");
   else
 	printf("\rRAM disk loaded.                                           \n\n");
@@ -504,3 +517,43 @@ dev_nr boot_dev;
   panic("lastused", NO_NUM);
 }
 #endif FASTLOAD
+
+/*===========================================================================*
+ *				get_boot_parameters			     *
+ *===========================================================================*/
+PUBLIC struct bparam_s boot_parameters =  /* overwritten if new kernel */
+{
+  DROOTDEV, DRAMIMAGEDEV, DRAMSIZE, DSCANCODE,
+};
+
+PRIVATE get_boot_parameters()
+{
+/* Ask kernel for boot parameters. */
+
+  struct bparam_s temp_parameters;
+
+  m1.m_type = SYS_GBOOT;
+  m1.PROC1 = FS_PROC_NR;
+  m1.MEM_PTR = (char *) &temp_parameters;
+  if (sendrec(SYSTASK, &m1) == OK && m1.m_type == OK)
+	boot_parameters = temp_parameters;
+}
+
+#ifdef i8088
+/*===========================================================================*
+ *				get_physbase				     *
+ *===========================================================================*/
+PRIVATE phys_bytes get_physbase()
+{
+/* Ask kernel for base of fs data space. */
+
+  m1.m_type = SYS_UMAP;
+  m1.SRC_PROC_NR = FS_PROC_NR;
+  m1.SRC_SPACE = D;
+  m1.SRC_BUFFER = 0;
+  m1.COPY_BYTES = 1;
+  if (sendrec(SYSTASK, &m1) != OK || m1.SRC_BUFFER == 0)
+	panic("Can't get fs base", NO_NUM);
+  return m1.SRC_BUFFER;
+}
+#endif

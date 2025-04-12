@@ -1,0 +1,25 @@
+	  U-MAIL Remote Mail Transport Agent (MINIX)
+
+		     MicroWalt U-MAIL V2.5
+		     =====================
+
+
+This archive contains the sources of the UMAIL Network Mailer
+for the MINIX operating system. It runs on most UNIXes as well.
+
+The file 'umail' is the executable program, and 'umail.doc' is
+the (preliminary) documentation of the program.
+See 'umail.cf' for configuration information.
+
+Of course, this program needs the presence of either UUCP or
+RSMTP to run properly...
+
+Enjoy!
++-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-+
+| MINIX User Group (Holland)   UUCP: hp4nl!kyber!minixug!waltje	|
+| c/o Fred van Kempen,		 or: minixug!waltje@kyber.UUCP	|
+| Hoefbladhof  27						|
+| 2215 DV  VOORHOUT						|
+| The Netherlands	"A good programmer knows his Sources"	|
++-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-+
+

@@ -1,5 +1,14 @@
-NAME
+/*
+	HEADER:		CUG000.00;
+	TITLE:		BAWK User Manual;
+	DATE:		05/17/1987;
+	VERSION:	1.1;
+	FILENAME:	BAWK.DOC;
+	SEE-ALSO:	BAWK.C;
+	AUTHORS:	B. Brodt;
+*/
 
+NAME
 	bawk - text processor
 
 SYNOPSIS
@@ -15,19 +24,23 @@ DESCRIPTION
 	using a subset of the "C" language.
 
 	The patterns and actions are usually placed in a "rules" file
-	whose name must be the first argument in the command line.
-	All other arguments are taken to be the names of text files on
-	which the rules are to be applied.
-	The special file name "-" may also be used anywhere on the
-	command line to take input from the standard input device.
+	whose name must be the first argument in the command line,
+	preceeded by the flag -f.  Otherwise, the first argument on the
+	command line is taken to be a string containing the rules
+	themselves. All other arguments are taken to be the names of text
+	files on which the rules are to be applied, with '-' being the
+	standard input.
 
 	The command:
 
-		bawk - prog.c - prog.h
+		bawk -f rules prog.*
 
-	would read the patterns and actions rules from the standard
-	input, then apply them to the files "prog.c", the standard
-	input and "prog.h" in that order.
+	would read the patterns and actions rules from the file "rules"
+	and apply them to all the files found by "prog.*".
+
+		bawk '{ print $0 }' prog.*
+
+	would print all the lines of all the files found by prog.*.
 
 	The general format of a rules file is:
 
@@ -47,7 +60,7 @@ DESCRIPTION
 PATTERNS
 
 	The <pattern>'s may consist of any valid C expression.  If the
-	<pattern> consists of two expressions seperated by a comma, it
+	<pattern> consists of two expressions separated by a comma, it
 	is taken to be a range and the <action> is performed on all
 	lines of input that match the range.  <pattern>'s may contain
 	"regular expressions" delimited by an '@' symbol.  Regular
@@ -143,20 +156,21 @@ ACTIONS
 FIELDS
 
 	When bawk reads a line from the current input file, the
-	record is automatically seperated into "fields".  A field is
+	record is automatically separated into "fields".  A field is
 	simply a string of consecutive characters delimited by either
-	the beginning or end of line, or a "field seperator" character
-	Initially, the field seperators are the space and tab character.
+	the beginning or end of line, or a "field separator" character
+	Initially, the field separators are the space and tab character.
 	The special unary operator '$' is used to reference one of the
 	fields in the current input record (line).  The fields are
 	numbered sequentially starting at 1.  The expression "$0"
 	references the entire input line.
 
-	Similarly, the "record seperator" is used to determine the end
-	of an input "line", initially the newline character.
-	The field and record seperators may be changed programatically
-	by one of the actions and will remain in effect until changed
-	again.
+	Similarly, the "record separator" is used to determine the end
+	of an input "line", initially the newline character.  The field
+	and record separators may be changed programatically by one of
+	the actions and will remain in effect until changed again.
+	Multiple (up to 10) field separators are allowed at a time, but
+	only one record separator.
 
 	Fields behave exactly like strings; and can be used in the same
 	context as a character array.  These "arrays" can be considered
@@ -201,8 +215,8 @@ PREDEFINED VARIABLES
 
 	The following variables are pre-defined:
 
-		FS		Field seperator (see below).
-		RS		Record seperator (see below also).
+		FS		Field separator (see below).
+		RS		Record separator (see below also).
 		NF		Number of fields in current input
 				record (line).
 		NR		Number of records processed thus far.
@@ -217,6 +231,8 @@ PREDEFINED VARIABLES
 	Bawk also provides some useful builtin functions for string
 	manipulation and printing:
 
+		print(arg)	Simple printing of strings only,
+				automatically terminated by '\n'.
 		printf(arg..)	Exactly the printf() function from C.
 		getline()	Reads the next record from the current
 				input file and returns 0 on end of file.
@@ -241,8 +257,7 @@ EXAMPLES
 	number of mismatched parentheses, brackets, and braces.
 
 		/[()\[\]{}]/
-		{
-			parens = parens + match( $0, @(@ );
+		{	parens = parens + match( $0, @(@ );
 			parens = parens - match( $0, @)@ );
 			bracks = bracks + match( $0, @[@ );
 			bracks = bracks - match( $0, @]@ );
@@ -252,13 +267,12 @@ EXAMPLES
 		END { printf("parens=%d, brackets=%d, braces=%d\n",
 				parens, bracks, braces );
 		}
-
 	This program will capitalize the first word in every sentence of
 	a document:
 
 		BEGIN
 		{
-			RS = '.';  # set record seperator to a period
+			strcpy( RS, "." );  # set record separator to a period
 		}
 		{
 			if ( match( $1, @^[a-z]@ ) )
@@ -303,3 +317,10 @@ ACKNOWLEDGEMENTS
 	copy or modify the grep program.
 
 	UNIX is a trademark of AT&T Bell Labs.
+
+AMENDMENTS
+
+	Addition of command line input option, the simple print function,
+	and MSDOS wildexp.c from the CUG library by C W Rose.  Program
+	amended to compile under Microsoft Quick C version 1.0.  Program
+	subsequently compiled unchanged under MINIX.
