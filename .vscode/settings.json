@@ -1,5 +1,6 @@
 {
 	"C_Cpp.default.defines": [
 		"i8088"
-	]
+	],
+	"editor.tabSize": 8
 }

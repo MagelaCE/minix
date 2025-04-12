@@ -11,6 +11,7 @@
 #include "type.h"
 #include "glo.h"
 #include "proc.h"
+#include "protect.h"
 #include "tty.h"
 
 extern char alt_c[], unsh[], sh[], unm24[], m24[];
@@ -18,8 +19,6 @@ extern char dutch_unsh[], dutch_sh[], dutch_alt[];
 extern char unsh_usx[], sh_usx[], scode_map[];
 
 /* Definitions used by the console driver. */
-#define COLOR_BASE    0xB800	/* video ram paragraph for color display */
-#define MONO_BASE     0xB000	/* video ram address for mono display */
 #define C_VID_MASK    0x3FFF	/* mask for 16K video RAM */
 #define M_VID_MASK    0x0FFF	/* mask for  4K video RAM */
 #define C_RETRACE     0x0300	/* how many characters to display at once */
@@ -151,12 +150,14 @@ PUBLIC keyboard()
    * tty_driver_buf[0] is the current count, and tty_driver_buf[2] is the
    * maximum allowed to be stored.
    */
+  lock();			/* the buffer is shared with RS232 */
   if ( (k = tty_buf_count(tty_driver_buf)) < tty_buf_max(tty_driver_buf)) {
 	/* There is room to store this character; do it. */
 	k = k + k;			/* each entry contains two bytes */
 	tty_driver_buf[k+4] = code;	/* store the scan code */
 	tty_driver_buf[k+5] = CONSOLE;	/* tell which line it came from */
 	tty_buf_count(tty_driver_buf)++;		/* increment counter */
+	unlock();
 
 	/* Build and send the interrupt message. */
 	keybd_mess.m_type = TTY_CHAR_INT;
@@ -164,6 +165,7 @@ PUBLIC keyboard()
 	interrupt(TTY, &keybd_mess);	/* send a message to the tty task */
   } else {
 	/* Too many characters have been buffered.  Discard excess. */
+	unlock();
 	port_out(INT_CTL, ENABLE);	/* re-enable 8259A controller */
   }
 }
@@ -180,19 +182,17 @@ register struct tty_struct *tp;	/* tells which terminal is to be used */
  * finished, and the counts updated.  Keep repeating until all I/O done.
  */
 
-  extern char get_byte();
   int count;
   char c;
-  unsigned segment, offset, offset1;
+  unsigned long offset, offset1;
 
   /* Loop over the user bytes one at a time, outputting each one. */
-  segment = (tp->tty_phys >> 4) & WORD_MASK;
-  offset = tp->tty_phys & OFF_MASK;
+  offset = tp->tty_phys;
   offset1 = offset;
   count = 0;
 
   while (tp->tty_outleft > 0 && tp->tty_inhibited == RUNNING) {
-	c = get_byte(segment, offset);	/* fetch 1 byte from user space */
+	c = get_phys_byte(offset);	/* fetch 1 byte from user space */
 	out_char(tp, c);	/* write 1 byte to terminal */
 	offset++;		/* advance one character in user buffer */
 	tp->tty_outleft--;	/* decrement count */
@@ -885,16 +885,21 @@ PUBLIC tty_init()
   }
 
   if (color) {
-	vid_base = COLOR_BASE;
+	vid_base = COLOR_BASE >> HCLICK_SHIFT;
 	vid_mask = C_VID_MASK;
 	vid_port = C_6845;
 	vid_retrace = C_RETRACE;
   } else {
-	vid_base = MONO_BASE;
+	vid_base = MONO_BASE >> HCLICK_SHIFT;
 	vid_mask = M_VID_MASK;
 	vid_port = M_6845;
 	vid_retrace = M_RETRACE;
   }
+
+#ifdef i80286
+  if (processor >= 286)
+	vid_base = color ? COLOR_SELECTOR : MONO_SELECTOR;
+#endif
 
   if (ega) {
 	vid_mask = C_VID_MASK;
@@ -922,6 +927,8 @@ PUBLIC tty_init()
 	case US_EXT_SCAN:	keyb_type = US_EXT;
 				load_us_ext(); break;
   }
+
+  enable_irq(KEYBOARD_IRQ);	/* safe now everything initialised! */
 }
 
 /*===========================================================================*
@@ -1019,3 +1026,25 @@ char ch;			/* scan code for a function key */
 #endif AM_KERNEL
   if (ch == F9 && control) sigchar(&tty_struct[0], SIGKILL);	/* SIGKILL */
 }
+
+
+#ifndef DEBUGGER		/* debugger already has it */
+/*==========================================================================*
+ *				scan_keyboard				    *
+ *==========================================================================*/
+PUBLIC int scan_keyboard()
+{
+  /* Fetch the character from the keyboard hardware and acknowledge it.
+   * Code extracted from keyboard(). Keyboard() should call it instead. 
+   */
+
+  int code;
+  int val;
+
+  port_in(KEYBD, &code);	/* get the scan code for the key struck */
+  port_in(PORT_B, &val);	/* strobe the keyboard to ack the char */
+  port_out(PORT_B, val | KBIT);	/* strobe the bit high */
+  port_out(PORT_B, val);	/* now strobe it low */
+  return code;
+}
+#endif				/* DEBUGGER false - scan_keyboard() */

@@ -1,0 +1,75 @@
+# makepost new old postdir
+# prepares a posting and puts the files in postdir
+# All three arguments must be absolute path names
+
+new=$1
+old=$2
+post=$3
+dir=`basename $new`
+case $# in
+3)	echo "" >/dev/null ;;
+*)	echo Usage: makepost newdir olddir postdir
+		exit 1 ;;
+esac
+
+rm -rf W$$
+mkdir W$$
+cd W$$
+for i in $new/*
+do  b=`basename $i`
+    if test -d $i
+	then 
+	    # It is a directory.  Skip
+	    echo $i is a dir "(skipping)"
+#	    makepost $new/$b $old/$b $post
+#	    exit 0
+	else
+	    # It is a regular file.  See if it existed last time.
+	    if test -r $old/$b
+		then 
+		    # It existed last time. Did it change?
+		    if cmp -s $new/$b $old/$b
+			then
+			    # File didn't change.  Don't do anything.
+			    echo $b is unchanged
+			else
+			    # File did change.
+			    echo $b has been modified
+			    cdiff $old/$b $new/$b >$b.CD
+			    if bigger $b.CD $new/$b
+				then cp $new/$b .
+echo $b.CD bigger than $new/$b
+ls -l $b.CD $new/$b
+				     rm $b.CD
+			    fi
+		    fi
+		else
+		    # This file is new.
+		    cp $new/$b .
+	    fi
+   fi
+done
+
+# At this point, W$$ contains *.CD and new files (*.c, *.h etc).
+crc * >Crc
+cat *.CD >$dir.cdif
+if test -s $dir.cdif
+    then echo "" >/dev/null
+    else rm $dir.cdif
+fi
+ls -l			# for the log
+rm -rf *.CD
+shar * >/tmp/$dir.sh
+rm *
+compress -fc /tmp/$dir.sh >$dir.sh.Z
+crc *Z
+rm /tmp/$dir.sh
+uuencode $dir.sh.Z <$dir.sh.Z >$dir.uue
+rm $dir.sh.Z
+split -800 $dir.uue
+echo "------------------------- cut here -------------------------" >cutline
+for j in xa?
+do cat cutline $j cutline >$post/$dir.$j
+done
+rm -rf W$$
+exit 0

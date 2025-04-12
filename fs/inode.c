@@ -15,6 +15,7 @@
 #include "../h/const.h"
 #include "../h/type.h"
 #include "../h/error.h"
+#include "../h/boot.h"
 #include "const.h"
 #include "type.h"
 #include "buf.h"
@@ -116,10 +117,8 @@ mask_bits bits;			/* mode of the inode */
 	err_code = ENFILE;
 	major = (int) (sp->s_dev >> MAJOR) & BYTE;
 	minor = (int) (sp->s_dev >> MINOR) & BYTE;
-	if (sp->s_dev == ROOT_DEV)
-		printf("Out of i-nodes on root device (RAM disk)\n");
-	else
-		printf("Out of i-nodes on device %d/%d\n", major, minor);
+	printf("Out of i-nodes on %sdevice %d/%d\n",
+		sp->s_dev == ROOT_DEV ? "root " : "", major, minor);
 	return(NIL_INODE);
   }
   numb = (inode_nr) b;

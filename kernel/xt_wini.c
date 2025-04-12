@@ -245,7 +245,7 @@ struct wini *wn;		/* pointer to the drive struct */
  * 512-byte block starting at physical address 65520).
  */
 
-  int mode, low_addr, high_addr, top_addr, low_ct, high_ct, top_end, old_state;
+  int mode, low_addr, high_addr, top_addr, low_ct, high_ct, top_end;
   vir_bytes vir, ct;
   phys_bytes user_phys;
   extern phys_bytes umap();
@@ -271,7 +271,6 @@ struct wini *wn;		/* pointer to the drive struct */
   if (top_end != top_addr) panic("Trying to DMA across 64K boundary", top_addr);
 
   /* Now set up the DMA registers. */
-  old_state = lock();
   port_out(DMA_M2, mode);	/* set the DMA mode */
   port_out(DMA_M1, mode);	/* set it again */
   port_out(DMA_ADDR, low_addr);	/* output low-order 8 bits */
@@ -279,7 +278,6 @@ struct wini *wn;		/* pointer to the drive struct */
   port_out(DMA_TOP, top_addr);	/* output highest 4 bits */
   port_out(DMA_COUNT, low_ct);	/* output low 8 bits of count - 1 */
   port_out(DMA_COUNT, high_ct);	/* output high 8 bits of count - 1 */
-  restore(old_state);
 }
 
 /*=========================================================================*
@@ -317,9 +315,9 @@ register struct wini *wn;	/* pointer to the drive struct */
 
 
 /*===========================================================================*
- *				win_results					 * 
+ *				old_win_results					 * 
  *===========================================================================*/
-PRIVATE int win_results(wn)
+PRIVATE int old_win_results(wn)
 register struct wini *wn;	/* pointer to the drive struct */
 {
 /* Extract results from the controller after an operation. */
@@ -477,14 +475,11 @@ PRIVATE win_specify(drive, paramp)
 int drive;
 struct param *paramp;
 {
-  int old_state;
-
   command[0] = WIN_SPECIFY;		/* Specify some parameters */
   command[1] = drive << 5;		/* Drive number */
 
 	if (com_out(NO_DMA_INT) != OK)		/* Output command block */
 		return(ERR);
-	old_state = lock();
 
 	/* No. of cylinders (high byte) */
   win_out(paramp->nr_cyl >> 8);
@@ -509,7 +504,6 @@ struct param *paramp;
 
 	/* Ecc burst length */
   win_out(paramp->max_ecc);
-	restore(old_state);
 
 	if (check_init() != OK) {  /* See if controller accepted parameters */
 		w_need_reset = TRUE;
@@ -599,7 +593,7 @@ int mode;
 /* Output the command block to the winchester controller and return status */
 
 	register int i;
-	int r, old_state;
+	int r;
 
 	port_out(WIN_DMA, mode);
 	port_out(WIN_SELECT, mode);
@@ -615,8 +609,6 @@ int mode;
 	}
 
 
-	old_state = lock();
-
 	for (i=0; i<6; i++) {
 		if(hd_wait(WST_REQ) != OK)
 			break;		/* No data request pending */
@@ -630,8 +622,6 @@ int mode;
 		port_out(WIN_DATA, command[i]);
 	}
 
-	restore(old_state);
-
 	if(i != 6) {
 		return(ERR);
 	}
@@ -642,6 +632,7 @@ int mode;
 /*============================================================================*
  *				init_params				      *
  *===========================================================================*/
+
 PRIVATE init_params()
 {
 /* This routine is called at startup to initialize the partition table,
@@ -654,7 +645,7 @@ PRIVATE init_params()
   extern int vec_table[];
 
   /* Get the number of drives from the bios */
-  phys_copy(0x475L, umap(proc_addr(WINCHESTER), D, buf, 1), 1L);
+  phys_copy(0x475L, umap(cproc_addr(WINCHESTER), D, buf, 1), 1L);
   nr_drives = (int) *buf > MAX_DRIVES ? MAX_DRIVES : (int) *buf;
 
   /* Read the switches from the controller */
@@ -729,7 +720,7 @@ PRIVATE init_params()
 
   /* Calculate the address off the parameters and copy them to buf */
   address = ((phys_bytes)segment << 4) + offset;
-  phys_copy(address, umap(proc_addr(WINCHESTER), D, buf, 64), 64L);
+  phys_copy(address, umap(cproc_addr(WINCHESTER), D, buf, 64), 64L);
 
   /* Copy the parameters to the structures */
   copy_param(&buf[type_0 * 16], &param0);
@@ -781,9 +772,9 @@ PRIVATE init_params()
 }
 
 /*==========================================================================*
- *								copy_params					 				*
+ *								copy_param					 				*
  *==========================================================================*/
-PRIVATE copy_params(src, dest)
+PRIVATE copy_param(src, dest)
 register unsigned char *src;
 register struct param *dest;
 {
@@ -818,11 +809,13 @@ int drive;
 	wn = &wini[i + drive + 1];
 	offset = PART_TABLE + i * 0x10;
 	wn->wn_low = *(long *)&buf[offset];
+#ifdef STUPID_WINI_ADJUST
 	if ((wn->wn_low % (BLOCK_SIZE/SECTOR_SIZE)) != 0) {
 		adjust = wn->wn_low;
 		wn->wn_low = (wn->wn_low/(BLOCK_SIZE/SECTOR_SIZE)+1)*(BLOCK_SIZE/SECTOR_SIZE);
 		adjust = wn->wn_low - adjust;
 	}
+#endif
 	wn->wn_size = *(long *)&buf[offset + sizeof(long)] - adjust;
   }
   sort(&wini[drive + 1]);
@@ -849,4 +842,21 @@ register struct wini *first, *second;
   tmp = *first;
   *first = *second;
   *second = tmp;
+}
+
+/*==========================================================================*
+ *				win_results				    *
+ *==========================================================================*/
+PRIVATE int win_results(wn)
+register struct wini *wn;	/* pointer to the drive struct */
+{
+/* Extract results from the controller after an operation, then reenable the
+ * interrupt controller.
+ */
+
+  int r;
+
+  r = old_win_results(wn);
+  cim_xt_wini();
+  return(r);
 }

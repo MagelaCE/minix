@@ -1,0 +1,53 @@
+NRO is a Word Processor similar to Unix NROFF or RSX-11M RNO -
+it is an adaptation of the text processor given in "Software Tools", 
+by Kernighan and Plauger.
+
+NRO was written by Stephen L. Browning, 5723 North Parker Avenue,
+Indianapolis, Indiana 46220, and contributed to the C Users' Group.
+
+NRO was originally written in BDS C for CP/M systems, and was
+adapted (rather less than perfectly) to compile under standard, K & R
+and UNIX-compatible compilers.
+
+NRO comes in three parts:
+
+nro.c	the main function, parameter initialization, and several
+        support routines;
+
+nro2.c  the command processor and related routines;
+
+nro3.c  the text processing portion and related routines.
+
+There is also a header file, nro.h, which declares constants, external
+variables, and structures used by the program.
+
+The NRO manual is in nro.1, and is in nro-input format. To format it,
+the macro package, tmac.an, should be used. It needs to be installed
+in a directory which corresponds to the string constant TMAC which is
+defined in nro.h. The default definition corresponds to the location 
+of nroff/troff macro packages on UNIX systems, /usr/lib/tmac/tmac.*,
+but can of course be changed. The command to format the NRO Manual to
+the screen, then, would be as follows:
+
+	nro -man nro.1
+
+There are a number of features which are not currently supported by
+NRO, but which would be useful. Here is a partial list:
+
+- "define string" capability
+
+- non-expandable space (i.e for fixed gutters in numbered paragraphs)
+
+- table-driven printer control strings (i.e. printcap definitions for
+  various printers, specified by a command-line option).
+
+- diversions
+
+- a simple table pre-processor
+
+According to Robert Ward of the C Users Group, they have not heard
+from the author of the program in a few years, so I guess he is no
+longer working on it or even interested in it.
+-----------------------
+Wolf N. Paul, 290 Dogwood, Plano, TX. 75075
+ihnp4!killer!mcomp!wnp

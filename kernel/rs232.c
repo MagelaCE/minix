@@ -171,6 +171,7 @@ PUBLIC rs_flush()
   rs232_rd_mess.m_type = TTY_CHAR_INT;
   rs232_rd_mess.ADDRESS = tty_driver_buf;
   interrupt(TTY, &rs232_rd_mess);	/* send a message to the tty task */
+  lock();			/* new interrupt() may unlock() */
 }
 
 
@@ -227,6 +228,7 @@ int line;
 	tp->tty_waiting = COMPLETED;	/* mark this line as done */
 	output_done++;			/* # of RS232 lines now completed */
 	interrupt(TTY, &rs232_wt_mess);	/* send the message to the tty task */
+	lock();			/* new interrupt() may unlock() */
   } else {
 	port_out(INT_CTL, ENABLE);	/* re-enable 8259A controller */
   }
@@ -277,7 +279,7 @@ register struct tty_struct *tp;	/* tells which terminal is to be used */
  */
   int bytes, line;
   char c, *limit;
-  unsigned short segment, offset, offset1;
+  unsigned long offset, offset1;
   register struct rs_struct *rs;
   extern char get_byte();
 
@@ -288,13 +290,12 @@ register struct tty_struct *tp;	/* tells which terminal is to be used */
 	
   /* Copy bytes from user space to rs_buf. */
   limit = &rs->rs_buf[RS_BUF_SIZE - SPARE];
-  segment = (tp->tty_phys >> 4) & WORD_MASK;
-  offset = tp->tty_phys & OFF_MASK;
+  offset = tp->tty_phys;
   offset1 = offset;
 
   /* While there is still data to output and there is still room in buf, copy*/
   while (tp->tty_outleft > 0 && rs->rs_next + rs->rs_left < limit) {
-	c = get_byte(segment, offset);	/* fetch 1 byte */
+	c = get_phys_byte(offset);	/* fetch 1 byte */
 	offset++;
 	tp->tty_outleft--;
 	if (c < ' ') {
@@ -320,7 +321,7 @@ register struct tty_struct *tp;	/* tells which terminal is to be used */
 /*===========================================================================*
  *				rs_out_char				     *
  *===========================================================================*/
-PRIVATE rs_out_char(tp, c)
+PUBLIC rs_out_char(tp, c)
 register struct tty_struct *tp;	/* pointer to tty struct */
 char c;				/* character to be output */
 {
@@ -418,10 +419,10 @@ PUBLIC int tty_o_done()
 	if (tp->tty_waiting == COMPLETED) {
 		replyee = (int) tp->tty_otcaller;
 		caller = (int) tp->tty_outproc;
-		tty_reply(REVIVE, replyee, caller, tp->tty_cum, 0L, 0L);
 		tp->tty_waiting = NOT_WAITING;
 		output_done--;
-		restore(old_state);
+		restore(old_state);	/* don't try to lock the reply */
+		tty_reply(REVIVE, replyee, caller, tp->tty_cum, 0L, 0L);
 		return(1);
 	}
   }
@@ -451,7 +452,7 @@ struct tty_struct *tp;
 /*===========================================================================*
  *				init_rs232				     * 
  *===========================================================================*/
-PRIVATE	init_rs232()
+PUBLIC init_rs232()
 {
   register struct tty_struct *tp;
   register struct rs_struct *rs;
@@ -489,13 +490,19 @@ PRIVATE	init_rs232()
 	port_out(rs->rs_base + RS232_MODEM_CONTROL, MODEM_CONTROLS);
 	port_out(rs->rs_base + RS232_INTERRUPTS, RS232_INTERRUPT_CLASSES);
   }
+#if NR_RS_LINES > 0
+    enable_irq( RS232_IRQ );
+#endif
+#if NR_RS_LINES > 1
+    enable_irq( SECONDARY_IRQ );
+#endif
 }
 
 
 /*===========================================================================*
  *				set_uart			 	     *
  *===========================================================================*/
-PRIVATE set_uart(line, mode, speeds)
+PUBLIC set_uart(line, mode, speeds)
 int line;			/* which line number (>= NR_CONS) */
 int mode;			/* sgtty.h sg_mode word */
 int speeds;			/* low byte is input speed, next is output */
@@ -563,4 +570,35 @@ int data_bits;			/* 5, 6, 7, or 8 */
 	line_controls |= (data_bits - 5);
 
   port_out(base + RS232_LINE_CONTROL, line_controls);
+}
+
+
+/* Kludges to get this old tty version to work with the protected kernel. */
+
+PUBLIC rs232_1handler()
+{
+  rs232(1);
+}
+
+
+PUBLIC rs232_2handler()
+{
+  rs232(2);
+}
+
+
+PUBLIC tty_wakeup()
+{
+/* Wake up TTY after a timeout if there is something to flush. */
+
+#define WAKEUP_TIMEOUT (8*HZ/60)
+
+  static unsigned wakeup_timeout = WAKEUP_TIMEOUT;
+
+  lock();
+  if (flush_flag && --wakeup_timeout == 0) {
+	wakeup_timeout = WAKEUP_TIMEOUT;
+	rs_flush();
+  }
+  unlock();
 }

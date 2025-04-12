@@ -1,0 +1,131 @@
+UMAIL(1)             MINIX User's Manual               UMAIL(1)
+
+
+NAME     
+     umail - electronic mail delivery agent.
+
+SYNOPSIS     
+     umail [-c <config> [-d] [-i <inputfile> [-n] <user>
+
+DESCRIPTION     
+     Umail is a  semi-intelligent  mail transporting  program
+     which  knows something  about Internet adresses and mail
+     adress routing to other systems.
+     It  is  used as  a back-end to  the Mailx program; which
+     is used  to  read or create  messages. Umail  only takes
+     care  of the transportation  of  the  message  to  other
+     MINIX (or UNIX) systems  through  the  available network
+     software like UUCP and RSMTP.
+
+     In  restricted mode ('rmail') it  functions as a message
+     delivery program for incoming network mail.
+     Networking programs like uucico(1)  and rsmtp(8) execute
+     the rmail(1)  command to  deliver a  received message to
+     the adressed user, or to forward  the message to another
+     system.
+
+     The  program  has  some  command-line options, which are
+     used  to alter  the "standard" behaviour of the program.
+     The options are:
+
+	-c <config>	Debug; use 'config' as the configura-
+			tion file  instead  of  the  standard
+			one. This is  sometimes  useful  when
+			debugging the package.
+
+	-d		Debug; generate  some  useful  output
+			while working.
+
+	-i <infile>	Input; use file 'infile' as  the mes-
+			sage file instead of  standard input.
+
+	-n		Now;  call  the  networking  delivery
+			software immediately  after  queueing
+			the message. Not recommended!
+
+     The 'user' string  identifies the  network-adress of the
+     user who is  to receive the message. It can be any legal
+     UUCP or Internet mail-adress.
+
+DELIVERY     
+     The Mailx program can serve as  both a  user agent and a
+     local  delivery  agent. If Mailx sees that the  adressed
+     user is  on the  local system, it  will do  the delivery
+     itself. No  header (except  for From, To and Subject) is
+     added, and  delivery  errors  will  cause the message to
+     be returned to the user as a file 'dead.letter'.
+
+     Otherwise,  if  the  specified  adress is not local, the
+     message  is sent  to  the  Remote Mailer  on the system.
+
+
+
+				-- 1 --
+
+
+
+UMAIL(1)             MINIX User's Manual               UMAIL(1)
+
+
+
+     Usually,  this is  the rmail(1)  command; programs  like
+     sendmail(8)  or  smail(1) (or links to them) are used as
+     well. On  MINIX systems, rmail(1) is a separate program.
+
+     This small remote mailer knows something about UUCP, and
+     how to interpret old-style UUCP (host!user) adresses.
+     This works fine for most users, but it is sometimes nice
+     to have a somewhat more intelligent mailer.
+     Therefore, one could install Umail as a link to rmail(1)
+     so that the mail(1) or Mailx(1) programs will never  see
+     the difference.
+
+     These (more or less)  intelligent mailers add a standard
+     (RFC-822) header to the message, and then send it to the
+     networking software. On MINIX  systems, messages will be
+     transported  using  either  the UUCP networking software
+     (serial lines) or the Amoeba RSMTP (Ethernet) software.
+
+     Because  it would  be too difficult to program all sorts
+     of  networks, system names  and  the lot  in  the mailer
+     software, a file exists which contains the Configuration
+     parameters  of  Umail: the  Config File. This is a plain
+     ASCII text file, containing a mixture  of comments, data
+     and instructions.
+
+AUTHOR     
+     Steve R. Sampson (first draft of rmail program)
+     Fred van Kempen, waltje@kyber.UUCP
+
+FILES     
+     /usr/spool/mail/user   	maildrop file
+     /usr/spool/mail/user.lock  lock for maildrop files
+     /tmp/um*      		temporary file
+     /usr/spool/uucp/*		UUCP networking files
+     /usr/spool/rsmtp/*         SMTP networking files
+     /usr/lib/uucp/umail.cf     configuration file
+
+SEE ALSO    
+     wmail.doc
+
+BUGS     
+     The routing algorithm could be improved a lot.
+     Also, the Config scanner should be more robust.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				-- 2 --
+
+

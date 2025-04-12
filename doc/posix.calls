@@ -1,0 +1,127 @@
+.tr _\(ru
+.PP
+Below is a complete list of the POSIX functions (excluding the 
+C library functions required by Chap. 8).  A prototype and description 
+is given for each one.
+Next comes a phrase about the implementation.  The designation "V1.4" means
+that the MINIX V1.4b version is pretty close.  In no case is it exact however.
+The last column tells whether the function is a system call (S) or a library
+routine that makes other system calls (L).
+.sp 2
+.TS
+center allbox tab(;);
+l l l l .
+POSIX Chap. 3 Functions;Description;Implementation;SL
+_
+pid_t fork();Fork;V1.4;S
+int exec(...);Execl, execv, etc.;V1.4;S
+pid_t wait(int *stat_loc);Wait for child;Just call waitpid();L
+pid_t waitpid(pid_t pid, int *stat_loc, int options);Wait for child;New call;S
+void _exit(int status);Terminate process;V1.4 exit();S
+int kill(pid_t pid, int sig);Send a signal;Modified V1.4;S
+int sigemptyset(sigset_t *set);Create signal set;New lib;L
+int sigfillset(sigset_t *set);Create signal set;New lib;L
+int sigaddset(sigset_t *set, int signo);Add sig to set;New lib;L
+int sigdelset(sigset_t *set, int signo);Remove sig from set;New lib;L
+int sigismember(sigset_t *set, int signo);Test for membership;New lib;L
+int sigaction(int sig, struct sigaction *act, *oact);Replaces signal;New call;S
+int sigprocmask(int how, sigset *set, *oset);Manipulate mask;New call;S
+int sigpending(sigset_t *set);Inspect pending sigs;New call;S
+int sigsuspend(sigset_t *sigmask);Replace sig mask;New call;S
+unsigned int alarm(unsigned int sec);Set timer;V1.4;S
+int pause();Suspend caller;V1.4;S
+unsigned int sleep(int sleep);Sleep;Truly hairy lib;L
+.TE
+.sp
+.TS
+center allbox tab(;);
+l l l l .
+POSIX Chap. 4 Functions;Description;Implementation;SL
+_
+pid_t getpid();Get process id;V1.4;S
+pid_t getppid();Get parent's id;New call;S
+uid_t getuid();Get user id;V1.4;S
+uid_t geteuid();Get effective user id;V1.4;S
+gid_t getgid();Get group id;V1.4;S
+gid_t getegid();Get effective group id;V1.4;S
+int setuid(uid_t uid);Set uid;Modified V1.4;S
+int setgid(gid_t gid);Set gid;Modified V1.4;S
+int getgroups(int gidsetsize, gid_t grouplist[]);Get groups;No-op;L
+char *getlogin();Get login name;V1.4 lib;L
+char *cuserid(char *s);Get current user id;V1.4 lib;L
+pid_t getpgrp();Get process group;New call;S
+pid_t setsid();Set session id;New call;S
+pid_t setpgid(pid_t pid, pid_t pgid);Set process group;New call;S
+int uname(struct utsname *name);Get system id;New lib;L
+time_t time(time_t *loc);Get time since 1970;V1.4;S
+clock_t times(struct tms *buffer);Get accounting;V1.4;S
+char *getenv(char *name);Search environment;V1.4 lib;L
+char *ctermid(char *s);Get controlling tty name;V1.4 lib;L
+char *ttyname(int fd);Get tty name;V1.4 lib;L
+char *isatty(int fd);See if fd is tty;V1.4 lib;L
+long sysconf(int name);Get config params;New lib;L
+.TE
+.bp
+.TS
+center allbox tab(;);
+l l l l .
+POSIX Chap. 5 Functions;Description;Implementation;SL
+_
+DIR *opendir(char *dirname);Open a dir;Doug Gwynn's lib routine;L
+struct dirent *readdir(DIR *dirp);Read dir entry;Doug Gwynn's lib routine;L
+void rewinddir(DIR *dirp);Rewind dir;Doug Gwynn's lib routine;L
+int closedir(DIR *dirp);Close dir;Doug Gwynn's lib routine;L
+int chdir(char *path);Change dir;V1.4 syscall;S
+char *getcwd(char *buf, int size);Get working dir;V1.4 lib routine;L
+int open(char *path, int oflag, mode_t mode);Open a file;Modified V1.4;S
+int creat(char *path, mode_t mode);Create file;Just call open();L
+mode_t umask(mode_t cmask);Set file mask;V1.4;S
+int link(char *path1, char *path2);Link file;V1.4;S
+int mkdir(char *path, mode_t mode);Make dir;New call;S
+int mkfifo(char *path, mode_t mode);Make FIFO;Use mknod();S
+int unlink(char *path);Unlink file;V1.4;S
+int rmdir(char *path);Remove dir;New call;S
+int rename(char *old, char *new);Rename file;New call;S
+int stat(char *path, struct stat *buf);Stat file;V1.4;S
+int fstat(int fd, struct stat *buf);Stat file;V1.4;S
+int access(char *path, int amode);Determine access;V1.4;S
+int chmod(char *path, mode-t mode);Change mode;V1.4;S
+int chown(char *path, uid_t owner, gid_t group);Change group;Modified V1.4;S
+int utime(char *path, struct utimbuf *times);Set times;V1.4;S
+long pathconf(char *path, int name);Get values;Trivial lib;L
+long fpathconf(int fd, int name);Get values;Trivial lib;L
+.TE
+.sp 0.5
+.TS
+center allbox tab(;);
+l l l l .
+POSIX Chap. 6 Functions;Description;Implementation;SL
+_
+int pipe(int fd[]);Create pipe;V1.4;S
+int dup(int fd);Duplicate file descr.;Lib call to fcntl;L
+int dup2(int fd);Duplicate file descr.;Lib call to fcnl;L
+int close(int fd);Close file;V1.4;S
+int read(int fd, char *buf, unsigned nbyte);Read data;Modified V1.4;S
+int write(int fd, char *buf, unsigned nbyte);Write data;Modified V1.4;S
+int fcntl(int fd, int cmd, int arg);Misc. junk;New call;S
+off_t lseek(int fd, off_t offset, int whence);Seek;V1.4;S
+.TE
+.sp 0.5
+.TS
+center allbox tab(;);
+l l l l .
+POSIX Chap. 7 Functions;Description;Implementation;SL
+_
+speed_t cfgetospeed(struct termios ptr);Get output speed;New call;S
+int cfsetospeed(struct termios ptr, int speed);Set output speed;New call;S
+speed_t cfgetispeed(struct termios ptr);Get input speed;New call;S
+int cfsetispeed(struct termios ptr, int speed);Set input speed;New call;S
+int tcgetattr(int fd, struct termios ptr);Get tty attributes;New call;S
+int tcsetattr(int fd, int act, struct termios ptr);Set tty attributes;New call;S
+tcsendbreak(int fd, int duration);Send a break;New call;S
+int tcdrain(int fd);Wait until output done;New call;S
+int tcflush(int fd, int queue_selctor);Purge input/output;New call;S
+int tcflow(int fd, int action);Start/stop tty line;New call;S
+pid_t tcgetpgrp(int fd);Get process group;New call;S
+int tcsetpgrp(int fd, pid_t pgrp_id);Set process group;New call;S
+.TE

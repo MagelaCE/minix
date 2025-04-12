@@ -189,7 +189,7 @@ register struct wini *wn;	/* pointer to the drive struct */
 {
   extern phys_bytes umap();
   phys_bytes usr_buf;
-  register int i, old_state;
+  register int i;
   int r = 0;
 
   /* The command is issued by outputing 7 bytes to the controller chip. */
@@ -213,14 +213,12 @@ register struct wini *wn;	/* pointer to the drive struct */
   if (wn->wn_opcode == DISK_READ) {
 	for (i=0; i<BLOCK_SIZE/SECTOR_SIZE; i++) {
 		receive(HARDWARE, &w_mess);
-/*		old_state = lock(); */
-		dma_read((unsigned)(usr_buf >> 4), (unsigned)(usr_buf & 0x0F));
-/*		restore(old_state); */
-		usr_buf += 0x200;
 		if (win_results() != OK) {
 			w_need_reset = TRUE;
 			return(ERR);
 		}
+		port_read(WIN_REG1, usr_buf, (phys_bytes) SECTOR_SIZE);
+		usr_buf += SECTOR_SIZE;
 	}
 	r = OK;
   } else {
@@ -231,10 +229,8 @@ register struct wini *wn;	/* pointer to the drive struct */
 		return(ERR);
 	}
 	for (i=0; i<BLOCK_SIZE/SECTOR_SIZE; i++) {
-/*		old_state = lock(); */
-		dma_write((unsigned)(usr_buf >> 4), (unsigned)(usr_buf&0x0F));
-/*		restore(old_state); */
-		usr_buf += 0x200;
+		port_write(WIN_REG1, usr_buf, (phys_bytes) SECTOR_SIZE);
+		usr_buf += SECTOR_SIZE;
 		receive(HARDWARE, &w_mess);
 		if (win_results() != OK) {
 			w_need_reset = TRUE;
@@ -258,15 +254,13 @@ PRIVATE w_reset()
  * like the controller refusing to respond.
  */
 
-  int i, r, old_state;
+  int i, r;
 
   /* Strobe reset bit low. */
-  old_state = lock();
   port_out(WIN_REG9, 4);
   for (i = 0; i < 10; i++)
 	 ;
   port_out(WIN_REG9, wini[0].wn_ctlbyte & 0x0F);
-  restore(old_state);
   for (i = 0; i < MAX_WIN_RETRY && drive_busy(); i++)
 	;
   if (drive_busy()) {
@@ -342,9 +336,9 @@ PRIVATE win_init()
 }
 
 /*============================================================================*
- *				win_results				      *
+ *				old_win_results				      *
  *============================================================================*/
-PRIVATE win_results()
+PRIVATE old_win_results()
 {
 /* Routine to check if controller has done the operation succesfully */
   int r;
@@ -386,7 +380,7 @@ PRIVATE com_out()
 {
 /* Output the command block to the winchester controller and return status */
 
-	register int i, old_state;
+	register int i;
 	int r;
 
 	if (drive_busy()) {
@@ -394,11 +388,9 @@ PRIVATE com_out()
 		return(ERR);
 	}
 	r = WIN_REG2;
-	old_state = lock();
 	port_out(WIN_REG9, command[0]);
 	for (i=1; i<8; i++, r++)
 		port_out(r, command[i]);
-	restore(old_state);
 	return(OK);
 }
 
@@ -420,8 +412,8 @@ PRIVATE init_params()
   segment = vec_table[2 * 0x41 + 1];
 
   /* Calculate the address off the parameters and copy them to buf */
-  address = ((long)segment << 4) + offset;
-  phys_copy(address, umap(proc_addr(WINCHESTER), D, (vir_bytes)buf, 16), 16L);
+  address = ((long)segment << HCLICK_SHIFT) + offset;
+  phys_copy(address, umap(cproc_addr(WINCHESTER), D, (vir_bytes)buf, 16), 16L);
 
   /* Copy the parameters to the structures */
   copy_params(buf, &wini[0]);
@@ -431,14 +423,14 @@ PRIVATE init_params()
   segment = vec_table[2 * 0x46 + 1];
 
   /* Calculate the address off the parameters and copy them to buf */
-  address = ((long)segment << 4) + offset;
-  phys_copy(address, umap(proc_addr(WINCHESTER), D, (vir_bytes)buf, 16), 16L);
+  address = ((long)segment << HCLICK_SHIFT) + offset;
+  phys_copy(address, umap(cproc_addr(WINCHESTER), D, (vir_bytes)buf, 16), 16L);
 
   /* Copy the parameters to the structures */
   copy_params(buf, &wini[5]);
 
   /* Get the nummer of drives from the bios */
-  phys_copy(0x475L, umap(proc_addr(WINCHESTER), D, (vir_bytes)buf, 1), 1L);
+  phys_copy(0x475L, umap(cproc_addr(WINCHESTER), D, (vir_bytes)buf, 1), 1L);
   nr_drives = (int) *buf;
 
   /* Set the parameters in the drive structure */
@@ -514,11 +506,13 @@ int drive;
 	wn = &wini[i + drive + 1];
 	offset = PART_TABLE + i * 0x10;
 	wn->wn_low = *(long *)&buf[offset];
+#ifdef STUPID_WINI_ADJUST
 	if ((wn->wn_low % (BLOCK_SIZE/SECTOR_SIZE)) != 0) {
 		adjust = wn->wn_low;
 		wn->wn_low = (wn->wn_low/(BLOCK_SIZE/SECTOR_SIZE)+1)*(BLOCK_SIZE/SECTOR_SIZE);
 		adjust = wn->wn_low - adjust;
 	}
+#endif
 	wn->wn_size = *(long *)&buf[offset + sizeof(long)] - adjust;
   }
   sort(&wini[drive + 1]);
@@ -547,4 +541,21 @@ delay()
   for (i = 0; i < 1000; i++)
 	for (j = 0; j < 1000; j ++)
 		;
+}
+
+
+/*==========================================================================*
+ *				win_results				    *
+ *==========================================================================*/
+PRIVATE int win_results()
+{
+/* Extract results from the controller after an operation, then reenable the
+ * (slave) interrupt controller.
+ */
+
+  int r;
+
+  r = old_win_results();
+  cim_at_wini();
+  return(r);
 }

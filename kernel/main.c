@@ -5,13 +5,12 @@
  * 
  * The entries into this file are:
  *   main:		MINIX main program
- *   unexpected_int:	called on an interrupt to an unused vector < 16 occurs
- *   trap:		called on an unexpected trap to a vector >= 16 occurs
  *   panic:		abort MINIX due to a fatal error
  */
 
 #include "../h/const.h"
 #include "../h/type.h"
+#include "../h/boot.h"
 #include "../h/callnr.h"
 #include "../h/com.h"
 #include "../h/error.h"
@@ -21,26 +20,28 @@
 #include "glo.h"
 #include "proc.h"
 
-#define SAFETY             8	/* margin of safety for stack overflow (ints)*/
-#define VERY_BIG       39328	/* must be bigger than kernel size (clicks) */
+#define CLOCK_MASK	(1 << (CLOCK_IRQ & 0x07))
+#define CASCADE_MASK	(1 << (CASCADE_IRQ & 0x07))
+#define XT_WINI_MASK	(1 << (XT_WINI_IRQ & 0x07))
+#define FLOPPY_MASK	(1 << (FLOPPY_IRQ & 0x07))
+#define PRINTER_MASK	(1 << (PRINTER_IRQ & 0x07))
+#define AT_WINI_MASK	(1 << (AT_WINI_IRQ & 0x07))
+
+#define SAFETY            32	/* safety margin for stack overflow (bytes) */
 #define BASE            1536	/* address where MINIX starts in memory */
 #define SIZES              8	/* sizes array has 8 entries */
 #define CPU_TY1       0xFFFF	/* BIOS segment that tells CPU type */
 #define CPU_TY2       0x000E	/* BIOS offset that tells CPU type */
 #define PC_AT           0xFC	/* IBM code for PC-AT (in BIOS at 0xFFFFE) */
 #define PS              0xFA	/* IBM code for PS/2  (in BIOS at 0xFFFFE) */
-#define EM_VEC          0x15	/* vector for extended memory BIOS calls */
-#define CMASK1          0x00	/* interrupt mask: ptr, dsk, keybd, clk, PIC */
-#define CMASK2          0xBF	/* interrupt mask for secondary PIC */
-#define CMASK3          0x3C	/* interrupt mask for PS/2 */
 #define CMASK4          0x9E	/* Planar Control Register */
-#define HIGH_INT          16	/* limit of the interrupt vectors */
+#define HIGH_INT          17	/* limit of the interrupt vectors */
 
 extern int int00(), int01(), int02(), int03(), int04(), int05(), int06(), 
            int07(), int08(), int09(), int10(), int11(), int12(), int13(), 
-           int14(), int15();
+           int14(), int15(), int16();
 int (*int_vec[HIGH_INT])() = {int00, int01, int02, int03, int04, int05, int06,
-    int07, int08, int09, int10, int11, int12, int13, int14, int15};     
+    int07, int08, int09, int10, int11, int12, int13, int14, int15, int16};
 
 
 /*===========================================================================*
@@ -52,21 +53,18 @@ PUBLIC main()
 
   register struct proc *rp;
   register int t;
-  int i, old_state;
   vir_clicks size;
   phys_clicks base_click, mm_base, previous_base;
   phys_bytes phys_b;
   int	stack_size;
-  int * ktsb;			/* kernel task stack base */
+  offset_t ktsb;		/* kernel task stack base */
   extern unsigned sizes[8];	/* table filled in by build */
   extern int port_65, ega, color, vec_table[], get_chrome();
   extern int s_call(), disk_int(), tty_int(), clock_int(), disk_int();
   extern int wini_int(), lpr_int(), trp(), rs232_int(), secondary_int();
   extern phys_bytes umap();
-  extern char get_byte();
   extern struct tasktab tasktab[];	/* see table.c */
-  extern int t_stack[];			/* see table.c */
-  extern int k_stack[];			/* see table.c */
+  extern char t_stack[];		/* see table.c */
 
 #ifdef AM_KERNEL
 #ifndef NONET
@@ -77,45 +75,75 @@ PUBLIC main()
   /* Set up proc table entry for user processes.  Be very careful about
    * sp, since the 3 words prior to it will be clobbered when the kernel pushes
    * pc, cs, and psw onto the USER's stack when starting the user the first
-   * time.  This means that with initial sp = 0x10, user programs must leave 
-   * the words at 0x000A, 0x000C, and 0x000E free.
+   * time.  And if an interrupt happens before the user loads a better stack
+   * pointer, these 3 words will be used to save the state, and the interrupt
+   * handler will use another 3, and a debugger trap may use another 3. This
+   * means that with INIT_SP == 0x1C, user programs must leave the memory
+   * between 0x000A and 0x001B free.
    */
 
-  old_state = lock();			/* we can't handle interrupts yet */
+  /* Interrupts are disabled here (by fsck.s and then redundantly by mpx88.x),
+   * so it is unnecessary to call lock().  They are reenabled when INIT_PSW is
+   * loaded by the first restart().
+   */
+
+#ifdef DEBUGGER
+#ifdef DEBUG_EARLY
+  db();
+#endif
+#endif
+
+  /* Mask all interrupts.  BIOS calls will reenable interrupts, which hurts
+   * if someone has hooked the vectors and Minix is copied over the handlers.
+   */
+  port_out(INT_CTLMASK, ~0);
+
+  proc_init(); 
+  processor = get_processor();
+  if (processor > boot_parameters.bp_processor)
+	processor = boot_parameters.bp_processor;
+#ifdef i80286
+  prot_init();
+#endif
+
+  /* Align stack base suitably. */
+  ktsb = ((offset_t) t_stack + (ALIGNMENT - 1)) & ~((offset_t) ALIGNMENT - 1);
+
   base_click = BASE >> CLICK_SHIFT;
   size = sizes[0] + sizes[1];	/* kernel text + data size in clicks */
   mm_base = base_click + size;	/* place where MM starts (in clicks) */
 
-  for (ktsb = t_stack, t = -NR_TASKS, rp = &proc[0];
-		rp <= &proc[NR_TASKS+LOW_USER];  rp++, t++) {
-	for (i = 0; i < NR_REGS; i++) rp->p_reg[i] = 0100 * i;	/* debugging */
+  for (rp = BEG_PROC_ADDR; rp <= BEG_USER_ADDR; ++rp, ++t)
+  {
+	t = proc_number(rp);
+
 	if (t < 0) {
 		stack_size = tasktab[t+NR_TASKS].stksize;
-		ktsb += stack_size / sizeof (int);
-		rp->p_sp = ktsb;
-		rp->p_splimit = ktsb - (stack_size - SAFETY) / sizeof(int);
+		rp->p_splimit = ktsb + SAFETY;
+		ktsb += stack_size;
+		rp->p_reg.r16.sp = ktsb;
 	} else {
-		rp->p_sp = INIT_SP;
-		rp->p_splimit = rp->p_sp;
+		rp->p_reg.r16.sp = INIT_SP;
+		rp->p_splimit = rp->p_reg.r16.sp;
 	}
-	rp->p_pcpsw.pc = tasktab[t + NR_TASKS].initial_pc;
-	if (rp->p_pcpsw.pc != 0 || t >= 0) ready(rp);
-	rp->p_pcpsw.psw = INIT_PSW;
+
+	rp->p_reg.r16.pc = (u16_t) tasktab[t + NR_TASKS].initial_pc;
+	if (!isidlehardware(t)) lockready(rp);	/* IDLE, HARDWARE neveready */
+	rp->p_reg.r16.psw = istaskp(rp) ? INIT_TASK_PSW : INIT_PSW;
 	rp->p_flags = 0;
 
 	/* Set up memory map for tasks and MM, FS, INIT. */
 	if (t < 0) {
 		/* I/O tasks. */
-		rp->p_map[T].mem_len  = VERY_BIG; 
+		rp->p_map[T].mem_len  = sizes[0];
 		rp->p_map[T].mem_phys = base_click;
-		rp->p_map[D].mem_len  = VERY_BIG; 
+		rp->p_map[D].mem_len  = sizes[1];
 		rp->p_map[D].mem_phys = base_click + sizes[0];
-		rp->p_map[S].mem_len  = VERY_BIG; 
 		rp->p_map[S].mem_phys = base_click + sizes[0] + sizes[1];
-		rp->p_map[S].mem_vir = sizes[0] + sizes[1];
+		rp->p_map[S].mem_vir = sizes[1];
 	} else {
 		/* MM, FS, and INIT. */
-		previous_base = proc[NR_TASKS + t - 1].p_map[S].mem_phys;
+		previous_base = proc_addr(t - 1)->p_map[S].mem_phys;
 		rp->p_map[T].mem_len  = sizes[2*t + 2];
 		rp->p_map[T].mem_phys = (t == 0 ? mm_base : previous_base);
 		rp->p_map[D].mem_len  = sizes[2*t + 3];
@@ -126,30 +154,22 @@ PUBLIC main()
 
 
 #ifdef i8088
-	rp->p_reg[CS_REG] = rp->p_map[T].mem_phys;
-	rp->p_reg[DS_REG] = rp->p_map[D].mem_phys;
-	rp->p_reg[SS_REG] = rp->p_map[D].mem_phys;
-	rp->p_reg[ES_REG] = rp->p_map[D].mem_phys;
+	alloc_segments(rp);
 #endif
   }
-
-  proc[NR_TASKS+(HARDWARE)].p_sp = k_stack;
-  proc[NR_TASKS+(HARDWARE)].p_sp += K_STACK_BYTES/sizeof (int);
-  proc[NR_TASKS+(HARDWARE)].p_splimit = k_stack;
-  proc[NR_TASKS+(HARDWARE)].p_splimit += SAFETY/sizeof (int);
-
-  for (rp = proc_addr(LOW_USER+1); rp < proc_addr(NR_PROCS); rp++)
-	rp->p_flags = P_SLOT_FREE;
 
   /* Determine if display is color or monochrome and CPU type (from BIOS). */
   color = get_chrome();		/* 0 = mono, 1 = color */
   ega = get_ega();
-  t = (int)get_byte(CPU_TY1, CPU_TY2) & 0xFF;	/* is this PC, XT, AT ... ? */
+  t = get_phys_byte(((phys_bytes) CPU_TY1 << HCLICK_SHIFT) + CPU_TY2);
   if (t == PC_AT) pc_at = TRUE;
   else if (t == PS) ps = TRUE;
 
+  /* Get memory sizes from the BIOS. */
+  mem_init();
+
   /* Save the old interrupt vectors. */
-  phys_b = umap(proc_addr(HARDWARE), D, (vir_bytes) vec_table, VECTOR_BYTES);
+  phys_b = umap(proc_addr(SYSTASK), D, (vir_bytes) vec_table, VECTOR_BYTES);
   phys_copy(0L, phys_b, (long) VECTOR_BYTES);	/* save all the vectors */
   if (ps) save_tty_vec();	/* save tty vector 0x71 for reboot() */
 
@@ -171,7 +191,6 @@ PUBLIC main()
 #endif
   if (pc_at) {
 	set_vec(AT_WINI_VECTOR, wini_int, base_click);
-	phys_copy(phys_b + 4L*EM_VEC, 4L*EM_VEC, 4L);	/* extended mem vec */
   } else
 	set_vec(XT_WINI_VECTOR, wini_int, base_click);
 
@@ -180,57 +199,43 @@ PUBLIC main()
 
   /* Put a ptr to proc table in a known place so it can be found in /dev/mem */
   set_vec( (BASE - 4)/4, proc, (phys_clicks) 0);
+  
+  bill_ptr = cproc_addr(IDLE);  /* it has to point somewhere */
+  lockpick_proc();
 
-  bill_ptr = proc_addr(HARDWARE);	/* it has to point somewhere */
-  pick_proc();
+#ifdef DEBUGGER
+  dbinit();
+#endif
 
-  /* Mask out interupts except ptr, disk, clock, keyboard, PIC */
+  /* Patch assembler modules. */
+#ifdef i80286
+  if (processor >= 286)
+	klib286_init();
+#endif
+
+  /* Finish initializing 8259 (needs pc_at). */
+  init_8259(IRQ0_VECTOR, IRQ8_VECTOR);
+
+  /* Unmask interrupts for clock, floppy, printer, hard disk.  The other
+   * devices are (correctly) unmasked _after_ they initialize themselves.
+   * The ethernet driver will need to unmask itself when it is fixed to
+   * work with this kernel.
+   */
   if (ps) {
 	port_in(PCR, &port_65);		/* save Planar Control Register */
 	port_out(0x65, CMASK4);		/* set Planar Control Register */
-	port_out(INT_CTLMASK, CMASK3);
-  } else {
-	port_out(INT_CTLMASK, CMASK1);	/* mask out unwanted 8259 interrupts */
-	port_out(INT2_MASK, CMASK2);	/* same for second intr controller */
-  }
+	port_out(INT_CTLMASK,
+		 ~(CLOCK_MASK | XT_WINI_MASK | FLOPPY_MASK | PRINTER_MASK));
+  } else if (pc_at) {
+	port_out(INT_CTLMASK,
+		 ~(CLOCK_MASK | CASCADE_MASK | FLOPPY_MASK | PRINTER_MASK));
+	port_out(INT2_MASK, ~AT_WINI_MASK);
+  } else
+	port_out(INT_CTLMASK,
+		 ~(CLOCK_MASK | XT_WINI_MASK | FLOPPY_MASK | PRINTER_MASK));
 
   /* Now go to the assembly code to start running the current process. */
   restart();
-}
-
-
-/*===========================================================================*
- *                                   unexpected_int                          * 
- *===========================================================================*/
-PUBLIC unexpected_int(vecnr)
-int vecnr;				/* vector number, 0 to 15 */
-{
-/* A trap or interrupt has occurred that was not expected. */
-
-  if (vecnr == DIVIDE_VECTOR) {
-	printf("Division overflow trap.  SIGILL will be sent to process.\n");
-	cause_sig(cur_proc, SIGILL);	/* send signal to current process */
-	unready(proc_addr(cur_proc));	/* deschedule current process */
-  } else {
-	printf("Unexpected interrupt or trap: vector = %d.  ", vecnr);
-  }
-  printf("pc = 0x%x   text+data+bss = 0x%x\n",proc_ptr->p_pcpsw.pc,
-					proc_ptr->p_map[D].mem_len<<4);
-}
-
-
-/*===========================================================================*
- *                                   trap                                    * 
- *===========================================================================*/
-PUBLIC trap()
-{
-/* A trap (vector >= 16) has occurred.  It was not expected. */
-
-  printf("\nUnexpected trap: vector >= 16.  ");
-  printf("pc = 0x%x    text+data+bss = 0x%x\n",proc_ptr->p_pcpsw.pc,
-					proc_ptr->p_map[D].mem_len<<4);
-  printf("This may be due to accidentally including a non-MINIX\n");
-  printf("library routine that is trying to make a system call.\n");
 }
 
 
@@ -248,13 +253,15 @@ int n;
  */
 
   if (*s != 0) {
-	printf("\nKernel panic: %s",s); 
+	printf("\r\nKernel panic: %s",s); 
 	if (n != NO_NUM) printf(" %d", n);
-	printf("\n");
+	printf("\r\n");
   }
-  printf("\nType space to reboot\n");
+  printf("Type any key to reboot\r\n");
+#ifdef DEBUGGER
+  db();
+#endif
   wreboot();
-
 }
 
 #ifdef i8088
@@ -269,18 +276,14 @@ phys_clicks base_click;		/* click where kernel sits in memory */
 /* Set up an interrupt vector. */
 
   unsigned vec[2];
-  unsigned u;
   phys_bytes phys_b;
-  extern unsigned sizes[8];
 
   /* Build the vector in the array 'vec'. */
   vec[0] = (unsigned) addr;
-  vec[1] = (unsigned) base_click;
-  u = (unsigned) vec;
+  vec[1] = (unsigned) click_to_hclick(base_click);
 
   /* Copy the vector into place. */
-  phys_b = ( (phys_bytes) base_click + (phys_bytes) sizes[0]) << CLICK_SHIFT;
-  phys_b += u;
+  phys_b = umap(cproc_addr(SYSTASK), D, (vir_bytes) vec, 4);
   phys_copy(phys_b, (phys_bytes) vec_nr*4, (phys_bytes) 4);
 }
 #endif

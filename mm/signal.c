@@ -123,7 +123,10 @@ PUBLIC int do_ksig()
   for (i = 0, j = 1; i < NR_SIGS - 1; i++, j++) {
 	id = (j == SIGINT || j == SIGQUIT) ? 0 : proc_id;
 	if (j == SIGKILL) id = -1;	/* simulate kill -1 9 */
-	if ( (sig_map >> i) & 1) check_sig(id, j, SUPER_USER);
+	if ( (sig_map >> i) & 1) {
+		check_sig(id, j, SUPER_USER);
+		sys_sig(proc_nr, -1, SIG_DFL);	/* tell kernel it's done */
+	}
   }
 
   return(OK);

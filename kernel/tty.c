@@ -158,7 +158,7 @@ message *m_ptr;			/* message containing pointer to char(s) */
   struct tty_struct *tp;
 
   old_state = lock();
-  ptr = m_ptr->ADDRESS;		/* pointer to accumulated char array */
+  ptr = tty_driver_buf;		/* pointer to accumulated char array */
   copy_ptr = tty_copy_buf;	/* ptr to shadow array where chars copied */
   n = tty_buf_count(ptr);	/* how many chars have been accumulated */
   count = n;			/* save the character count */
@@ -166,7 +166,7 @@ message *m_ptr;			/* message containing pointer to char(s) */
   ptr += 4;			/* skip count field at start of array */
   while (n-- > 0)
 	*copy_ptr++ = *ptr++;	/* copy the array to safety */
-  ptr = m_ptr->ADDRESS;
+  ptr = tty_driver_buf;
   tty_buf_count(ptr) = 0;		/* accumulation count set to 0 */
   restore(old_state);
 

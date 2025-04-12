@@ -34,6 +34,7 @@
 #include "proc.h"
 #include "tty.h"
 
+extern int idle_task();
 extern int sys_task(), clock_task(), mem_task(), floppy_task(),
            winchester_task(), tty_task(), printer_task();
 #ifdef AM_KERNEL
@@ -48,12 +49,14 @@ extern int amint_task();
 #define	SMALL_STACK	256
 
 #define	TTY_STACK	SMALL_STACK
+#define	IDLE_STACK	(3 * 3 * 2)	/* 3 words each for int, temps & db */
 #define	PRINTER_STACK	SMALL_STACK
 #define	WINCH_STACK	SMALL_STACK
 #define	FLOP_STACK	SMALL_STACK
 #define	MEM_STACK	SMALL_STACK
 #define	CLOCK_STACK	SMALL_STACK
 #define	SYS_STACK	SMALL_STACK
+#define	HARDWARE_STACK	0		/* dummy task, uses kernel stack */
 
 
 
@@ -66,6 +69,7 @@ extern int amint_task();
 #endif
 
 #define	TOT_STACK_SPACE		(TTY_STACK + AMOEBA_STACK_SPACE + \
+				 IDLE_STACK + HARDWARE_STACK + \
 				 PRINTER_STACK + WINCH_STACK + FLOP_STACK + \
 				 MEM_STACK + CLOCK_STACK + SYS_STACK)
 
@@ -88,22 +92,20 @@ PUBLIC struct tasktab tasktab[] = {
 	amoeba_task,		AMOEBA_STACK,	"AMTASK",
 	amoeba_task,		AMOEBA_STACK,	"AMTASK",
 #endif
+	idle_task,		IDLE_STACK,	"IDLE  ",
 	printer_task,		PRINTER_STACK,	"PRINTR",
 	winchester_task,	WINCH_STACK,	"WINCHE",
 	floppy_task,		FLOP_STACK,	"FLOPPY",
 	mem_task,		MEM_STACK,	"RAMDSK",
 	clock_task,		CLOCK_STACK,	"CLOCK ",
 	sys_task,		SYS_STACK,	"SYS   ",
-	0,			0,		"IDLE  ",
+	0,			HARDWARE_STACK,	"HARDWA",
 	0,			0,		"MM    ",
 	0,			0,		"FS    ",
 	0,			0,		"INIT  "
 };
 
-int t_stack[TOT_STACK_SPACE/sizeof (int)];
-
-int k_stack[K_STACK_BYTES/sizeof (int)];	/* The kernel stack. */
-
+PUBLIC char t_stack[TOT_STACK_SPACE + ALIGNMENT - 1];	/* to be aligned */
 
 /*
 ** The number of kernel tasks must be the same as NR_TASKS.

@@ -1,0 +1,476 @@
+Here are some notes on the implementation of the PC-Minix floating
+point routines, and a (rather extensive) list of bibliographical
+references on floating point arithmetic.
+
+1. IMPLEMENTATION
+
+1.1 A Brief Overview of Floating-Point Math
+
+Several of the references have better explanations of what floating
+point numbers are and how arithmetic works on them.  The Sterbenz book
+gives a fairly rigorous mathematical treatment; the first of the
+Plaugher references provides an excellent in-depth explanation from the
+user's point of view.  Briefly, my attempt:
+
+Most of the computations done by computers are done on integers.  These
+are simply represented - each bit of a binary quantity is used to
+represent a power of two.  The least significant bit represents the
+number 1; the next, the number 2; and so on.
+
+Floating-point numbers are often referred to as "reals".  This is a
+misnomer; the number of distinct values that a 32-bit floating-point
+number can take on is the same as, or even less than, the number of
+distinct 32-bit integers.  However, floats can represent a much larger
+range of values.  As an example, 32-bit binary integers can range from
+-2^31 to 2^31. A common format for 32-bit floats can have magnitudes from
+2^-127 to 2^128.
+
+This is accomplished by splitting up the bits of the binary quantity
+into three fields: a sign, a biased exponent, and a significand
+(commonly called the mantissa).  The significand represents a number
+between zero and one, and is usually normalized so that it ranges from
+1/2 to one.  The number represented is then:
+	(sign) mantissa * 2^exponent
+
+The exponent is stored in the bit field with a bias added.  The bias is
+greater than or equal to the minimum actual exponent, so that the
+biased exponent is always an unsigned quantity, and no exponent sign
+bit is required.
+
+Zero is usually represented by a zero biased exponent and a zero
+mantissa.  This allows a floating point zero to be represented by an
+"all-zeroes" binary number.
+
+1.2 IEEE Standard Number Representation
+
+The IEEE (Institute of Electrical and Electronics Engineers) Standards
+Committee has defined a standard behaviour for floating point
+arithmetic implementations.  This standard, IEEE 754-1985, defines the
+formats, operations, conversions, and exceptions supported by a
+conforming implementation.  Four formats are defined: single precision,
+single extended, double precision, and double extended.  Field widths
+and interpretations are defined for the non-extended formats as follows:
+
+			Single		Double
+Mantissa bits		24		53
+Exponent max		+127		+1023
+Exponent min		-126		-1022
+Exponent width		+127		+1023
+Exponent width in bits	8		11
+Format width in bits	32		64
+
+(The IEEE standard numbers the bias and exponent differently from a lot
+of other floating point literature, including the ANSI float.h and the
+source code of this package.)
+
+In addition, representations are defined for positive and negative
+infinity.  There are also quantities called NaN's, for Not a Number.
+These result from illegal operations, and can either cause an exception
+or propagate as operations are performed on them.
+
+The standard defines several arithmetic operations: add, subtract,
+multiply, divide, remainder, square root, and format conversion.  The
+behaviour of each these operations when given a number, infinity, or
+NaN is detailed.  Rounding modes and exceptions are also defined.
+Numbers can gracefully underflow as "denormalized" numbers with a zero
+biased-exponent.
+
+Many of these features are nontrivial or slow to implement in software.
+For this reason, this implementation does not strictly conform to the
+standard.  The number of bits for single and double precision, the
+bitfield layout, and the exponent bias are the same.  However,
+infinities, NaN's, and denormalized numbers are not recognized.  There
+is only one rounding mode, round-to-nearest with round-to-even in the
+tie case.
+
+(A newer standard, IEEE 854-1987, is similar to 754-1985 but is more
+general.  For example, numbers may be represented either in binary or
+decimal, and the formats are not specified exactly.)
+
+1.3 Floating-Point Math in C
+
+The C language defines three floating point sizes: float, double, and
+long double.  (long double is new with the draft ANSI C standard, and
+is not available in the Minix C compilers.) The standard states that
+precision(float) <= precision(double) <= precision(long double), but
+that they may have the same representation. 
+
+The primary floating point datatype in C is double.  In K&R C
+(including the Minix compiler), all floating point quantities are
+extended to double before doing arithmetic on them.  This is part of
+the "usual arithmetic conversions." (ANSI Standard C will relax this,
+so that expressions containing strictly floats may be done using
+float-arithmetic, provided the result is the same "as if" doubles had
+been used.) Floating point arguments to functions are also widened to
+double, except in Standard C when an in-scope prototype says that the
+function takes a float argument.  All of the standard library functions
+return doubles.
+
+1.4 The ACK routines
+
+The Minix C (and Pascal) compilers are based on the Amsterdam Compiler
+Kit, or ACK.  The compiler generates 8086/8088 assembly code files from
+C program text using several passes (each found in /lib or /usr/lib) as
+follows:
+
+ file.c       <file.i>       file.k        file.m      
+--------> cpp --------> cem --------> opt --------> cg --------> file.s
+
+(The "-v" option of the "cc" command allows the invocation of each of
+these passes to be seen.)
+
+The "cpp" program is a version of the usual C macro preprocessor, which
+does "#-command" processing and macro substitution on the C source
+code.
+
+The ACK compiler "frontends" take as input a program in the source
+language (in the case of "cem", C) and generate EM machine code.  The
+EM ("Encoding Machine") machine (which does not exist in hardware, but
+was defined as a generic machine for the ACK system to generate code
+for) is a byte-addressable, stack-oriented processor.  It supports
+operations on integers (signed and unsigned), pointers, sets, and
+floating-point numbers.  Each data type is available in one or more
+sizes, which are identified by their lengths in bytes.  The
+architecture was designed based on research on instructions used by
+block-structured high-level languages.
+
+The output of "cem" is in EM compact assembly format.  This is EM
+assembly-language represented in a compact byte-code representation.
+The definition of this format, as well as the format of the ASCII
+assembly language and the object code format, is described in a
+document included with the ACK system.  An excerpt of this document was
+posted to comp.os.minix as articles <1650@ast.cs.vu.nl> and
+<1651@ast.cs.vu.nl>.
+
+The "opt" program takes the "cem" output and performs some
+machine-independent peephole optimizations on the EM code.  There are
+as many as 400 EM instruction sequences which the optimizer can
+transform into more efficient ones.  This take the pressure of
+generating optimal code off of the frontend and reduces code
+duplication between frontends.
+
+The ACK system also includes a global optimizer, which is capable of
+many more powerful optimizations.  This program is, however, too big to
+run under Minix and is not included or available.
+
+The code generator, "cg", reads the output of "opt" and translates the
+EM assembly into code for the target machine.  For Minix-PC, this is
+8086 assembly language in the Minix compressed-assembly format.  Most
+EM instructions translate into a small number of 8086 instructions.
+However, there are several which would translate to a larger number,
+perhaps six or more.  These are broken out into subroutines.
+
+These auxiliary subroutines are found "near the end" of the C library,
+and do such things as implement switch-statement jumptables, convert
+between various sizes of integers, do 32-bit arithmetic, and so on.
+
+One of the files in this set of auxiliary routines is called "fakfp.s,"
+for "fake floating point." The "cg" program is capable of generating
+calls to a set of auxiliary routines which implement floating-point
+arithmetic, but no real routines are included.  Instead, fakfp.s
+includes a stub-routine which generates an EM "Illegal EM instruction"
+trap and aborts the program.
+
+This package includes many of the omitted routines.  There are stubs in
+fakfp.s for the following:
+
+.mlf	.mlf4	.mlf8		multiply
+.dvf	.dvf4	.dvf8		divide
+.ngf	.ngf4	.ngf8		negate
+.adf	.adf4	.adf8		add
+.sbf	.sbf4	.sbf8		subtract
+.cmf	.cmf4	.cmf8		compare
+.zrf	.zrf4	.zrf8		zero
+.fif	.fif4	.fif8		split into exponent and fraction part
+.fef	.fef4	.fef8		multiply and split integer and fraction part
+.cif				convert integer to float
+.cfi				convert float to integer
+.cuf				convert unsigned to float
+.cfu				convert float to unsigned
+.cff				convert float to float (float <==> double)
+
+Because of the "usual conversions" rules for expressions in pre-ANSI C,
+all arithmetic is done in "double" floating point, even when all of the
+elements are of type "float".  This makes it unnecessary to include
+most of the auxiliary routines for doing arithmetic on float-sized
+quantities. (The exceptions to this are the conversion routines, which
+convert between all different sizes of floating point and integer numbers.)
+The "C" compiler does not generate FEF or FIF instructions either, so
+these are also not implemented.
+
+1.5 Implementation notes on the ACK routines
+
+All of the routines named above expect their arguments on the stack,
+and return their results there. This, and the use of the normalization
+subroutines, determine most of the structure of the routines.
+
+Most of the floating point ACK-auxiliary routines call .norm8 or .norm4,
+which take a denormalized mantissa, an exponent, and a sign, and pack
+them into a standard-format normalized number.  (Note that these are
+not actually EM instructions.)
+
+When calling .norm8 (.norm4), there should be a 64-bit (32-bit)
+mantissa on the stack. The radix point is assumed to be in front of
+bit 52 (bit 23). The bx register should contain a properly biased
+exponent. The high bit of dh is 1 for negative numbers and 0 for
+positive numbers. The dl register should contain eight bits of information
+to be used for rounding.
+
+Most of the work of normalization involves shifting the mantissa up or
+down until there is a 1-bit in the position where the implied 1-bit
+would be, and packing the exponent and sign into the number.  When bits
+are lost (by shifting off of the lower end), it is necessary to round
+the number to minimize the error introduced. (Simply truncating those
+bits which are lost, known as "chopping", has a high average error and
+a high error bias.) Round-to-nearest is used, and tie cases round to
+even (lowest bit is jammed to zero). When 1-bits are shifted out of the
+eight-bit rounding register, its least significant bit "sticks" to 1,
+to allow those bits to participate in the rounding process. (Only three
+bits, usually one each of "guard," "round," and "sticky," are necessary
+for this type of rounding. However, coding for a three-bit register
+would be larger and slower when there are already instructions for
+manipulating eight-bit registers.) Overflows cause EM traps, and
+underflows return a zero.
+
+The .zrf4 and .zrf8 routines simply push a zero of the appropriate
+size.  The .ngf8 routine flips the sign bit of its argument.
+
+Most of the rest of the routines have a couple of code segments in
+common which set the si and/or di registers to point to the
+arguments or result, and which unpack a number into its
+sign/exponent/mantissa components.
+
+The addition and subtraction routines, .adf8 and .sbf8, are the most
+difficult.  The algorithm used is described in pseudocode in Rick
+Grehan's "Floating Point without a Coprocessor" (see the references).
+Basically the scheme is to line up the radix points of the two numbers
+and add or subtract them depending on their relative magnitudes.  Most
+of the problems are caused by the scarcity and small size of the
+registers in the 8086.
+
+Multiplication (mlf8.x) consists, basically, of adding the exponents
+(being careful with the bias), exclusive-or-ing the signs, and
+multiplying the mantissas.  In order to take advantage of the 8086 MUL
+instruction, Algorithm M from section 4.3.1 of Knuth's Seminumerical
+Algorithms (again, see the references) is used.  The loop is unrolled
+and some special cases are commented out or otherwise avoided.  (No
+doubt a faster multiply would have been possible using the algorithms
+in section 4.3.3, but that would have required much more study than I
+was willing to do, as well as requiring anyone else who maintained the
+code to understand it.  The method used is reasonably fast and
+reasonably straightforward.) A 106-bit mantissa is generated; the most
+significant of these are used for the answer and the rest are packed
+into a rounding byte.
+
+Division (dvf8.x) is like multiplication except that the exponents are
+subtracted and the mantissas are divided.  Again, see the Grehan
+article for the pseudocode.  Division by zero causes an EM trap.
+
+The convert-float-to-float instructions (cff.x) convert either an
+eight-byte float into a four-byte float, or vice versa.  This basically
+involves unpacking the number, realigning the mantissas, and adjusting
+the bias.  The normalization routines are used to re-pack the result.
+
+Converting a floating point number into an integer (cfi.x) or an
+unsigned integer (cfu.x) involves realigning the mantissa until
+the radix point is at a known point, and taking everything before
+that point as the integer.
+
+The inverse operations, in cif.x and cfi.x, are implemented by placing
+the integers into a mantissa field, placing the radix point at the
+end, and normalizing.
+
+The floating-point comparison routine, in cmf8.x, uses a quick
+algorithm outlined by Plaugher in the "Safe Math" article.  It takes
+advantage of the way floating point numbers are packed into memory, in
+that larger floating point numbers, when taken as integers, compare as
+greater than smaller ones.  The main point of difficulty is that
+floating point numbers use sign-magnitude representation, so they must
+be converted to pseudo-2's-complement before the comparison.  The
+return value is a 16-bit integer on the stack.  If it is less than
+zero, the first argument was less than the second; if zero, they
+compared equal; if greater than zero, the first was greater than the
+second.
+
+When an EM instruction is supposed to indicate failure, the auxiliary
+routine will usually call the EM trap routines.  A "trp.x" file is
+already included with the library, but the one presented here provides
+messages for more trap codes. All of the codes are defined in the EM
+definition documents.
+
+(In general, in all of these routines, watch out for the bits whizzing
+this way and that.  Be especially careful of the ones that fall off of
+the ends.)
+
+1.6 Assorted other library routines and their implementation
+
+The above routines are all called implicitly by C code.  Most C
+libraries also provide several explicitly-callable subroutines that do
+floating-point math.
+
+The ldexp() and frexp() routines are implemented in assembly code.
+frexp() is basically a frontend for the number-unpacking routines,
+and ldexp() is a frontend for the normalization routine's repacking
+function. The ldexp() function is careful to keep the exponent within
+the legal range, and returns HUGE_VAL (defined in <math.h>) of the proper
+sign when it is not.
+
+The modf() function is also written in assembly.  It unpacks an
+arbitrary floating-point number into two floating-point point components,
+an integer and a fractional part. Numbers which are large enough or small
+enough to be entirely one or the other are special cases. Otherwise,
+the number is shifted until the radix point lines up with the end of
+the integer part, the result is split into two parts and each half is
+renormalized.
+
+The Standard C routines used to convert human-readable forms of
+floating point numbers into their internal representations are atof()
+and strtod().  They are mostly the same, except that strtod() can store
+a pointer to the end of the number being converted.  Therefore, atof()
+is defined in terms of strtod().
+
+Part of strtod() is in C, although the entire subroutine was translated
+from VAX/11 assembly (the freely-redistributable 4.3BSD-Tahoe version
+of atof(), which is not included here).  The C portion uses _mul10add()
+(written in assembly, and included in strtod_aux.x) to accumulate
+digits in a 64-bit accumulator until it overflows.  Then the optional
+exponent is parsed, the base-10 exponent is computed, and _adjust()
+(also in strtod_aux.x) is called to multiply the 64-bit integer by
+10^decexp, and pack the result into a double-format floating point
+number.  All sorts of clever tricks are used in _adjust() to maximize
+speed and precision; credit for these goes to the author of atof.s.
+
+Standard C defines vfprintf() as a for producing formatted output from
+a variable-length vector of arguments. The version included here is
+a very slight modification of 4.3BSD-Tahoe's _doprnt() code (which
+is freely redistributable.) vfprintf.c should be compiled with
+the "-DFLOATLIB" flag if the floating-point conversion options
+are to be included.
+
+All of the other members of the "printf() family" are defined in terms
+of vfprintf().  To my knowledge, all of these (along with the other
+math.h functions provided) conform to the relevant portions of the
+draft proposed ANSI C standard.
+
+Preliminary versions of several functions traditionally provided in
+"libm" are also included.  A few of them are not especially accurate,
+perhaps to only about 40 bits.  They were written in haste and
+ignorance, and will be replaced with provably better routines at the
+earliest opportunity.
+
+ceil() and floor() truncate numbers to integral floating-point
+numbers in different ways. They use modf() to split up the
+integer and fraction parts of their arguments.
+
+_poly() and _mult() are internal routines, and are not meant to be
+called by user-level programs.  The names are inspired by the Plaugher
+"Safe Math" article.  _poly() evaluates a polynomial function with
+given coefficients at a given value.  No overflow checking is done, so
+the value should be "reduced".  _mult() multiplies two numbers and
+returns HUGE_VAL (from <math.h>) with errno properly set if the result
+is out of range, or the result otherwise.
+
+log() returns the natural logarithm of its argument. The series expansion
+used was found in A Survey of Numerical Mathematics, and the constants
+are from the BSD 4.3-Tahoe libm source. log10() is trivially defined
+using log().
+
+exp() uses the argument reduction described in the previous reference.
+The constants, except for the polynomial coefficient vector, come from
+the libm source.
+
+pow() uses log() and exp(), with a bit of code to handle special cases.
+
+sqrt() was inspired quite directly by the Plaugher article "Do-it-yourself
+Math Functions". The linear-approximation constants are a least-squares
+estimator for the square root over [.5,1).
+
+1.7 The EM-file postprocessor
+
+For portability and machine-independence, the "cem" compiler frontend
+outputs floating-point constants in human-readable ASCII notation
+exactly as they were included in the original source program.  It is
+intended that the code generator handle the machine-dependent
+conversion to binary representation.  However, the "cg" program
+distributed with Minix-PC is not able to do this conversion, and simply
+treats all float constants as 0.0. (The 1.2-1.3 generator prints a
+warning, "Warning: dummy floating point constant(s)".) Someone
+with the source to "cg" could add this capability, but this option
+is not available to everyone (myself included).
+
+To solve this problem, it is necessary to introduce another pass into
+the C compilation process.  The "fpp" postprocessor takes the
+EM-assembly output of the "opt" program, and copies it to the output.
+However, floating point constants are intercepted and converted to
+binary format using atof().  The result is split up and output as
+either two or four 16-bit integer constants.
+
+The result is that the "cg" program never sees floating point constant
+arguments. The conversion and copy is very fast, but since it is not
+always necessary, the "fpp" pass is only run when the "-f" option is
+given to the C compiler driver.
+
+The EM format documentation mentioned above is, unfortunately, required
+to understand the logic of the fpp.c program. (I have also written a
+program to convert compact EM-assembly into a sort of human-readable
+EM-assembly (though not identical to the format used in the ACK because
+I have not seen enough to get it right). If you would like a copy of this
+program please write and ask.)
+
+2. REFERENCES
+
+1. ANSI/IEEE, IEEE Standard for Binary Floating-Point Arithmetic, ANSI/IEEE
+Std. 754-1985. New York, N.Y.: The Institute of Electrical and Electronics
+Engineers, Inc., 1985.
+
+2. ANSI/IEEE, IEEE Standard for Radix-Independent Floating-Point Arithmetic,
+ANSI/IEEE Std. 854-1987. New York, N.Y.: The Institute of Eletrical and
+Electronics Engineers, Inc., 1987.
+
+3. Cody, William J., and William Waite. Software Manual for the
+Elementary Functions, Englewood Cliffs, NJ: Prentice-Hall, 1980.
+
+4. Grehan, Rick. "Some Assembly Required: Floating-Point Without a
+Coprocessor, Part 1," Byte 13(9): pp. 313-319, Sep. 1988.
+
+5. Grehan, Rick. "Some Assembly Required: Floating-Point Without a
+Coprocessor, Part 2," Byte 13(10): pp. 293-298, Oct. 1988.
+
+6.  Hart, John F., E.W. Cheney, et al. Computer Approximations, New York:
+Robert E. Krieger Publishing Company, 1978.
+
+7. Kernighan, Brian W., Dennis M. Richie. The C Programming Language,
+Second Edition. Englewood Cliffs, NJ: Prentice-Hall, 1988.
+
+7. Knuth, Donald E. The Art of Computer Programming, Second Ed., Vol. 2,
+Chapter 4. Reading, Mass.: Addison-Wesley, 1981.
+
+8. Motorola, Inc. MC68881/MC68882 Floating-Point Coprocessor User's Manual,
+Englewood Cliffs, NJ: Prentice-Hall, 1987.
+
+9. Ochs, Tom. "Theory and Practice," Computer Language, 6(3): pp. 67-81,
+March 1989.
+
+10. Plaugher, P.J. "Computer Arithmetic," Programming on Purpose, Computer
+Language, 5(2): pp. 17-23, Feb. 1988.
+
+11.  Plaugher, P.J. "Properties of Floating-point Arithmetic,"
+Programming on Purpose, Computer Language, 5(3): pp. 17-22, Mar. 1988.
+
+12. Plaugher, P.J. "Safe Math," Programming on Purpose, Computer
+Language, 5(5): pp. 17-21, May 1988.
+
+13. Plaugher, P.J. "Do-it-yourself Math Functions," Programming on Purpose,
+Computer Language, 5(6): pp. 17-22, Jun. 1988.
+
+14. Sterbenz, Pat. Floating Point Computation, Englewood Cliffs, NJ:
+Prentice-Hall, 1972.
+
+15. Tanenbaum, Andrew, et al. "A Practical Tool Kit for Making Portable
+Compilers," Communications of the ACM 26(9): pp. 654-660, September 1983.
+
+16. Wilson, Pete. "Floating-Point Survival Kit," Byte 13(3): pp. 217-226,
+Mar. 1988.
+
+17. Young, David M., Robert Todd Gregory. A Survey of Mumerical Mathematics,
+Volume I, Reading, Mass: Addison-Wesley, 1972.

@@ -1,0 +1,28 @@
+Instructions for installing the floating point package:
+
+1. Install all of the following include files in /usr/include:
+
+math.h     stdarg.h   stddef.h   float.h
+
+2. If you are still using the 1.1 compiler, a) you shouldn't be,
+b) uncomment the "MINIX1_1OBJS =" line in the Makefile. Much of
+the development work was done using the 1.1 compiler, but I switched
+in mid-project and so am unable to test this. If there are any
+problems I will try to fix them.
+
+3. Make and install the floating point preprocessor:
+
+	# make fpp
+	# chmem =4096 fpp
+	# mv fpp /usr/lib
+
+4. Patch the C compiler-driver using the enclosed "cc.c.cdif". This
+file is relative to the 1.3 release, and includes the 1.4a patches.
+Make a new binary for "cc", and install it. This patch adds the
+"-f" flag to the compiler driver, which must be used whenever
+a program uses floating point math.
+
+5. Make and install the floating point library, libfp.a:
+
+	# make libfp.a
+	# mv libfp.a /usr/lib

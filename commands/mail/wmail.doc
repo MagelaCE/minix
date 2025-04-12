@@ -1,0 +1,196 @@
+WMAIL(1)             MINIX User's Manual               WMAIL(1)
+
+
+NAME     
+     wmail - read or send electronic mail.
+
+SYNOPSIS     
+     wmail [-epqrv] [-f mailbox]
+     wmail [-dvt] [-i inputfile] [-s subject] <user> ...
+     lmail [-v] [-i inputfile] <user> ...
+
+DESCRIPTION     
+     Wmail is  used  to read  or create messages. Wmail  only
+     knows  about  local  users; messages to  non-local users
+     will be handed to the Remote Mailer of the system.
+
+     Wmail actually consists  of two  parts; namely  the user
+     agent (the part that reads or creates a message) and the
+     local  delivery  agent, which takes care of delivering a
+     message to the mailbox of a local user.
+
+     When  Wmail  is  called  without the 'user' argument, it
+     will read  the  contents  of  the  users's  mailbox  and
+     display a summary of messages. This summary contains one
+     line for each message indicating message number, sender,
+     date of creation and the subject of the message.
+     Wmail will  then display a prompt (containing the number
+     of the  current message), and waits for the user to type
+     a command. A  list  of this commands can be requested by
+     typing the '?' command.
+
+     When  the program is called with the 'user' argument, it
+     is assumed that the calling user wants to send a message
+     to that  user. Depending  on the name by which Wmail was
+     called ('lmail' or something else), the message  will be
+     generated and then delivered to the user.
+     If  the program  name is  'lmail', then the program only
+     delivers  the  message  to  the indicated  user. This is
+     used by intelligent mail routing programs that cannot do
+     local message delivery themselves.
+
+     Otherwise, if  the  name was not 'lmail', the message is
+     prepended with  a message  header,  which  contains  the
+     following lines:
+
+	From <user> <date>
+	To: <adressee>
+	Subject: <subject of message>
+	<empty line>
+
+     The 'To:' and 'Subject:' lines  are  optional, but often
+     they  are  present  in  the  message. After this message
+     header, there is the message itself.
+
+     After the message has been completed (by typing a '.' on     
+     an  empty  line or by typing an EOT (CTRL-D) character),
+     Wmail checks if a  signature file exists. This is a file
+     which  contains a standard  end-of-letter  text for that
+     user. Wmail  checks  the user's HOME  directory  for the
+     presence of a '.signature' file. If that file exists, it
+     is appended to the message.
+
+				-- 1 --
+
+
+
+WMAIL(1)             MINIX User's Manual               WMAIL(1)
+
+
+     If that file does not exist, Wmail checks if there is an
+     environment variable called 'SIGNATURE'. If that exists,
+     its value is assumed to be the path name of a  signature
+     file which will be appended to the message if it exists.
+
+     Finally,  the message is delivered to the adressed user.
+     Note, that  if  the adressee  is  not  a local user, the
+     message  will be passed on to the 'rmail' program, which
+     handles all remote-mail requests.
+     If the adressee  is just a local user, Wmail will do the
+     work  itself. If  any  errors  occur  during  the  local
+     delivery, the message is stored  in a file called in the
+     user's  HOME  directory with the name 'dead.letter', and
+     some diagnostics  will be printed on theterminal screen.
+
+OPTIONS
+     Some  command-line  options  are available to alter  the
+     "standard" behaviour  of the program. While  functioning
+     as a mail reader, the following options areavailable:
+
+	-e		Only check for the presence of mail.
+			When  this  option  is  given,  Wmail
+			checks the user's mailbox and returns
+			to the command level with  one of the
+			following exit values:
+
+				0  There is mail.
+				1  No mail.
+				2  Error.
+			
+			This  feature  can  be  used  in  the
+			system profile to warn the user if he
+			or she has mail.
+
+	-f filename	Use 'filename' as the mailbox instead
+			of the standard system mailbox.
+
+	-p		Print  the messages;  no  interactive
+			selection is needed.
+
+	-q		Quit after an interrupt occurs.
+			Usually Wmail catches all  interrupt;
+			this option may be  given to override
+			the interrupt catching mechanism.
+
+	-r		Print mail in Reverse order.
+			This option  is recognized for compa-
+			tibility with older programs only. It
+                        does not do anything, as the messages
+                        are usually selected by the user.
+
+    When  used  as a  message  creating  agent, the following
+    options are available:
+
+	-d		Deliver; call  the  message  delivery
+			software  immediately  after queueing
+			the message. This  is only valid  for
+			mail  that  needs to  be delivered by
+
+				-- 2 --
+
+
+
+WMAIL(1)             MINIX User's Manual               WMAIL(1)
+
+
+			some other mailer, e.g. Remote Mail.
+
+	-i infile	Input; use file 'infile' as  the mes-
+			sage file instead of  standard input.
+
+
+	-t		Include  all  adressees  in the 'To:'
+			line of the message header; not only
+			the first adressed user.
+
+	-s subject	Use 'subject'  as  the  value of  the
+			'Subject:' line of the message header
+			and do not ask for it later.  When an
+			empty subject (only NEWLINE) is typed
+			no 'Subject:'  line  will be inserted
+			in the message header.
+
+	-v		Verbose; generate some useful  output
+			while processing mail.
+
+     The  'user'  argument  identifies  the  user to send the
+     message to. If it  contains any  '!' or  '@' characters,
+     the  adressee is assumed  to be on  a remote system, and
+     the message will  be  handed  over to the remote mailer.
+     Otherwise it  is assumed  to be  an existing local user,
+     and  the  '/etc/passwd'  file  will  be checked  for the
+     existence  of that  user. If the  user is  non-existant,
+     a  diagnostic  message is  printed  and the  message  is
+     saved in the 'dead.letter' file.
+
+AUTHOR     
+     Peter S. Housel (first draft of mail program)
+     Fred van Kempen, waltje@kyber.UUCP
+
+FILES     
+     /etc/passwd		check existence of users
+     /usr/spool/mail/user   	maildrop file
+     /usr/spool/mail/user.lock  lock for maildrop files
+     /tmp/wm*      		temporary file
+     $HOME/dead.letter		message after delivery error
+
+SEE ALSO    
+     umail.doc, "MINIX/UUCP Reference Manual"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+				-- 3 --
+

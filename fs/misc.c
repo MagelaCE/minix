@@ -16,6 +16,7 @@
 #include "../h/callnr.h"
 #include "../h/com.h"
 #include "../h/error.h"
+#include "../h/boot.h"
 #include "const.h"
 #include "type.h"
 #include "buf.h"

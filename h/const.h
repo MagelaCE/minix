@@ -29,11 +29,11 @@
 #define MINOR	           0	/* minor device = (dev>>MINOR) & 0377 */
 
 #ifdef AM_KERNEL
-#define NR_TASKS	  13	/* must be 5 more than without amoeba */
+#define NR_TASKS	  14	/* must be 5 more than without amoeba */
 #else
-#define NR_TASKS           8	/* number of tasks in the transfer vector */
+#define NR_TASKS           9	/* number of tasks in the transfer vector */
 #endif
-#define NR_PROCS          16	/* number of slots in proc table */
+#define NR_PROCS          32	/* number of slots in proc table */
 #define NR_SEGS            3	/* # segments per process */
 #define T                  0	/* proc[i].mem_map[T] is for text */
 #define D                  1	/* proc[i].mem_map[D] is for data */
@@ -43,12 +43,20 @@
 
 /* Memory is allocated in clicks. */
 #ifdef i8088
-#define CLICK_SIZE      0020	/* unit in which memory is allocated */
-#define CLICK_SHIFT        4	/* log2 of CLICK_SIZE */
+#define CLICK_SIZE       256	/* unit in which memory is allocated */
+#define CLICK_SHIFT        8	/* log2 of CLICK_SIZE */
 #endif
 #ifdef ATARI_ST
 #define CLICK_SIZE       256	/* unit in which memory is allocated */
 #define CLICK_SHIFT        8	/* log2 of CLICK_SIZE */
+#endif
+
+#define click_to_round_k(n) \
+	((unsigned) ((((unsigned long) (n) << CLICK_SHIFT) + 512) / 1024))
+#if CLICK_SIZE < 1024
+#define k_to_click(n) ((n) * (1024 / CLICK_SIZE))
+#else
+#define k_to_click(n) ((n) / (CLICK_SIZE / 1024))
 #endif
 
 /* Process numbers of some important processes */
@@ -75,10 +83,6 @@
 #define MAX_PATH            128	/* max length of path names */
 #define SIG_PUSH_BYTES	      8	/* how many bytes pushed by signal */
 #define MAX_ISTACK_BYTES   2048	/* maximum initial stack size for EXEC */
-
-/* Device numbers of root (RAM) and boot (fd0) devices. */
-#define ROOT_DEV (dev_nr)   256	/* major-minor device number of root dev */
-#define BOOT_DEV (dev_nr)   512	/* major-minor device number of boot diskette */
 
 /* Flag bits for i_mode in the inode. */
 #define I_TYPE          0170000	/* this field gives inode type */

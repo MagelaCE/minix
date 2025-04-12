@@ -130,7 +130,90 @@ char  reg_addr;
 {
   int val;
 
-  port_out( CLK_ELE, reg_addr );
-  port_in(CLK_IO, &val);
+  if ( port_out( CLK_ELE, reg_addr ) < 0 || port_in(CLK_IO, &val) < 0 ) {
+    printf( "-q\n" );
+    exit( 1 );
+  }
   return( val );
+}
+
+
+/***********************************************************************/
+/*                                                                     */
+/*    Peek and poke using /dev/mem.                                    */
+/*    Callers now ought to check the return values.                    */
+/*    In Minix 1.3c, /dev/mem is incorrectly truncated to 640K,        */
+/*    so the CPU type byte is not accessable.                          */
+/*                                                                     */
+/***********************************************************************/
+
+long lseek();
+
+int peek( seg, offset )
+unsigned seg;
+unsigned offset;
+{
+  static int memfd = -1;
+  unsigned char val;
+
+  if ( memfd < 0 )
+    memfd = open( "/dev/mem", 0 );
+  if ( lseek( memfd, (unsigned long) seg * 0x10 + offset, 0 ) < 0 ||
+       read( memfd, &val, 1 ) != 1 )
+    return -1;
+  return val;
+}
+
+int poke( seg, offset, val )
+unsigned seg;
+unsigned offset;
+unsigned char val;
+{
+  static int memfd = -1;
+
+  if ( memfd < 0 )
+    memfd = open( "/dev/mem", 1 );
+  if ( lseek( memfd, (unsigned long) seg * 0x10 + offset, 0 ) < 0 ||
+       write( memfd, &val, 1 ) != 1 )
+    return -1;
+  return val ;
+}
+
+
+/***********************************************************************/
+/*                                                                     */
+/*    Port i/o functions using /dev/port.                              */
+/*    Callers now ought to check the return values.                    */
+/*                                                                     */
+/***********************************************************************/
+
+long lseek();
+
+int port_in( port, valp )
+unsigned port;
+unsigned *valp;
+{
+  static int portfd = -1;
+  unsigned char val;
+
+  if ( portfd < 0 )
+    portfd = open( "/dev/port", 0 );
+  if ( lseek( portfd, (long) port, 0 ) < 0 ||
+       read( portfd, &val, 1 ) != 1 )
+    return *valp = -1;
+  return *valp = val;
+}
+
+int port_out( port, val )
+unsigned port;
+unsigned char val;
+{
+  static int portfd = -1;
+
+  if ( portfd < 0 )
+    portfd = open( "/dev/port", 1 );
+  if ( lseek( portfd, (long) port, 0 ) < 0 ||
+       write( portfd, &val, 1 ) != 1 )
+    return -1;
+  return val ;
 }
