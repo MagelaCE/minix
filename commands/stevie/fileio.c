@@ -254,7 +254,7 @@ LPTR	*start, *end;
 	/* also save link structure 			R. Regn*/
 
 	if (!rdonly && sbuf.st_nlink == 1)
-		rename(fname, backup);
+		rename1(fname, backup);
 
 
 	f = P(P_CR) ? fopen(fixname(fname), "w") : fopenb(fixname(fname), "w");
@@ -310,7 +310,7 @@ LPTR	*start, *end;
 	 * Remove the backup unless they want it left around
 	 */
 	if (!P(P_BK))
-		remove(backup);
+		remove1(backup);
 
 	free(backup);
 

@@ -1,171 +1,195 @@
 /* cron - clock daemon			Author: S.R. Sampson */
 
-/*	Cron is the clock daemon.  It is typically started up from the
- *	/etc/rc file by the line:
- *		/usr/bin/cron
- *	Cron automatically puts itself in the background, so no & is needed.
- *	If cron is used, it runs all day, spending most of its time asleep.
- *	Once a minute it wakes up and examines /usr/lib/crontab to see if there
- *	are any commands to be executed.  The format of this table is the same
- *	as in UNIX, except that % is not allowed to indicate 'new line.'
- *	
- *	Each crontab entry has six fields:
- *	   minute    hour  day-of-the-month  month  day-of-the-week  command
- *	Each entry is checked in turn, and any entry matching the current time
- *	is executed.  The entry * matches anything.  Some examples:
+/* Cron- 	clock daemon
  *
- *   min hr dat mo day   command
- *    *  *   *  *   *    /usr/bin/date >/dev/tty0   #print date every minute
- *    0  *   *  *   *    /usr/bin/date >/dev/tty0   #print date on the hour
- *   30  4   *  *  1-5   /bin/backup /dev/fd1       #do backup Mon-Fri at 0430
- *   30 19   *  *  1,3,5 /etc/backup /dev/fd1       #Mon, Wed, Fri at 1930
- *    0  9  25 12   *    /usr/bin/sing >/dev/tty0   #Xmas morning at 0900 only
+ * Usage:	Cron is the clock daemon.
+ *		It is typically started up from the /etc/rc file by the line:
+ *			/usr/bin/cron
+ *		Cron automatically puts itself in the background,
+ *		so no & is needed. If cron is used, it runs all day,
+ *		spending most of its time asleep. Once a minute it wakes
+ *		up and examines /etc/crontab to see if there are any
+ *		commands to be executed.  The format of this table is
+ *		the same as in UNIX, except that % is not allowed to
+ *		indicate 'new line.'
+ *
+ *		Each crontab entry has six fields:
+ *	   	 minute hour day-of-the-month month day-of-the-week command
+ *		Each entry is checked in turn, and any entry matching
+ *		the current time is executed.  The entry * matches anything.
+ *
+ * Example:
+ *	*   min hr dat mo day   command
+ *	*   *   *  *   *    /usr/bin/date >/dev/tty0  #print date every minute
+ *	0   *   *  *   *    /usr/bin/date >/dev/tty0  #print date on the hour
+ *	30  4   *  *  1-5   /bin/backup /dev/fd1      #backup Mon-Fri at 0430
+ *	30  19  *  *  1,3,5 /etc/backup /dev/fd1      #Mon, Wed, Fri at 1930
+ *	0   9  25 12   *    /usr/bin/sing >/dev/tty0  #Xmas at 0900 only
+ *
+ * Authors:	S.R. Sampson
+ * 		Simmule Turner        |Arpa: simmy@nu.cs.fsu.edu
+ * 		Florida State Univ    |Uucp: gatech!nu.cs.fsu.edu!simmy
+ * 		444 OSB               | Cis: 70651,67       Genie:simmy
+ * 		Tallahassee, FL 32306 | Tel: +1 904 644 1573
+ *
+ * History:
+ *		1.5c  Blayne Puklich (puklich@plains.nodak.edu)  89/12/07
+ *			Changed so parent exits, like in 1.3 version.
+ *
+ *		1.5b  FvK  89/09/28
+ *			Edited for MINIX Style Sheet
+ *
+ *		1.5a  Ralf Wenk	last update:	Sat Aug 26 15:40:59 1989
+ *			Little fixes.
+ *
+ * 		1.5  SrT  89/05/08
+ *      		Changed sleep code.
+ *
+ * 		1.4  SrT  89/03/17
+ *			Fixed a pointer problem, when reloading crontab.
+ *
+ * 		1.3  SrT  89/03/16
+ *			Loads crontab, into memory and only rereads the disk
+ *			version if it changes.  (Free up those CPU cycles!)
+ *
+ * 		Fixed 03/10/89, by Simmule Turner, simmy@nu.cs.fsu.edu
+ *			Now correctly cleans up zombie processes
+ *			Logs actions to /usr/adm/cronlog
+ *			Syncs with clock after each minute
+ *			Comments allowed in crontab
+ *			Fixed bug that prevented month, from matching
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
 #include <stdio.h>
 #include <signal.h>
-#include <errno.h>
 #include <time.h>
+#include <setjmp.h>
+#include <string.h>
+#include <fcntl.h>
 
-#define CRONTAB "/usr/lib/crontab"
-#define MAXLINE	132
-#define SIZE	64
+
+#define CRONTAB "/etc/crontab"
+#define LOGFILE "/usr/adm/cronlog"
+
+#define NULLDEV "/dev/null"
+#define SEPARATOR " \t"
+#define CRONSIZE  2048
+#define CRONSTRUCT struct cron_entry
+
 #define	TRUE	1
 #define	FALSE	0
 
-extern	int	errno;
+struct cron_entry {
+  char *mn;
+  char *hr;
+  char *day;
+  char *mon;
+  char *wkd;
+  char *cmd;
+  struct cron_entry *next;
+} *head, *p;
 
-FILE *fd;
-int eof;
-char min[SIZE], hour[SIZE], day[SIZE], month[SIZE], wday[SIZE], command[SIZE];
-char *tokv[] = { min, hour, day, month, wday };
+
+char crontab[CRONSIZE];
+FILE *cronlog;
+
+int wakeup(), nothing();
+
+long previous_time = 0L;
+extern int errno;
+extern char *malloc();
+
 
 main()
 {
-	int status,  wakeup(), no_action();
+  int pid;
+  long clock;
 
-	/* Put cron in the background by forking and having the parent exit. */
-	status=fork();
+  pid = fork();
+  if (pid == -1) {
+	fprintf(stderr, "Can't fork cron\n");
+	exit(1);
+  } else if (pid > 0)
+	exit(0);	/* parent exits */
+  signal(SIGINT, SIG_IGN);
+  signal(SIGHUP, SIG_IGN);
+  signal(SIGQUIT, SIG_IGN);
 
-	if ( status == (-1) ) {	/* Error - can't fork */
-		fprintf(stderr,"\007Cron: Error - can't fork!\n");
-		exit(-1); 
-	}
+  /* Release some file descriptors.  Don't release stdout because there are
+   * printfs later.  However, these printfs are silly - who would read them?
+   * Also, this program has been bloated by using printf.  DEBUG.  FIXME.
+   */
+  fclose(stdin);
+/*fclose(stdout);*/
+  fclose(stderr);
 
-	if (status > 0) exit(0);	/* parent exits */
+  /* Release current directory to avoid locking current device. */
+  chdir("/");
 
-	signal(SIGINT, SIG_IGN);
-	signal(SIGHUP, SIG_IGN);
-	signal(SIGQUIT, SIG_IGN);
+  open(NULLDEV, O_RDONLY);
+  if ((cronlog = fopen(LOGFILE, "a")) == (FILE *) NULL) {
+	open(NULLDEV, O_WRONLY);
+	open(NULLDEV, O_WRONLY);
+  } else {
+	setbuf(cronlog, (char *) NULL);
+	dup(fileno(cronlog));
+  }
 
-	close(0); close(1); close(2);	/* close all I/O paths */
+  p = (CRONSTRUCT *) malloc(sizeof(CRONSTRUCT));
+  p->next = (CRONSTRUCT *) NULL;
+  head = p;
 
-	for (;;)  {
-		signal(SIGALRM, wakeup);
-		alarm(59);
-		pause();		/* check for work every minute */
+  while (TRUE) {
+	signal(SIGALRM, wakeup);
+	time(&clock);
+	alarm((unsigned) (60 - clock % 60));
+	pause();
 
-		signal(SIGALRM, no_action);
-		alarm(1);
-		wait((int *)NULL);	/* clean up zombie children */
-	}
+	signal(SIGALRM, nothing);
+	alarm(1);
+	while (wait((int *) NULL) != -1);
+  }
 }
 
 
-int no_action()
+nothing()
 {
-  /* Do nothing.  Just return. */
 }
 
 
 wakeup()
 {
-	register struct tm *tm;
-	long cur_time;
-	extern struct tm *localtime();
+  register struct tm *tm;
+  long cur_time;
+  extern struct tm *localtime();
+  CRONSTRUCT *this_entry = head;
 
-	time(&cur_time);		/* get the current time */
-	tm = localtime(&cur_time);	/* break it down */
+  load_crontab();
 
-	fd = fopen(CRONTAB, "r");
-	eof = FALSE;
+  time(&cur_time);
+  tm = localtime(&cur_time);
 
-	while (!eof)  {
-		if (getline() && match(min,tm->tm_min) &&
-		   match(hour,tm->tm_hour) && match(day,tm->tm_mday) &&
-		   match(month,tm->tm_mon) && match(wday,tm->tm_wday))  {
+  while (this_entry->next && this_entry->mn) {
+	if (match(this_entry->mn, tm->tm_min) &&
+	    match(this_entry->hr, tm->tm_hour) &&
+	    match(this_entry->day, tm->tm_mday) &&
+	    match(this_entry->mon, tm->tm_mon + 1) &&
+	    match(this_entry->wkd, tm->tm_wday)) {
+		fprintf(cronlog, "%02d/%02d-%02d:%02d  %s\n",
+			tm->tm_mon + 1, tm->tm_mday, tm->tm_hour,
+			tm->tm_min, this_entry->cmd);
 
-		   /*  Execute command in the shell. */
-		   if (fork() == 0)  {
-			execl("/bin/sh", "/bin/sh", "-c", command, 0);
+		if (fork() == 0) {
+			execl("/bin/sh", "/bin/sh", "-c", this_entry->cmd,
+			      (char *) 0);
 			exit(1);
-		   }
-
 		}
 	}
-	fclose(fd);
-}
-
-
-/*
- *	A line consists of six fields.  The first five are:
- *
- *		minute:         0-59
- *		hour:           0-23
- *		day:            1-31
- *		month:          1-12
- *		weekday:        0-6 (Sunday = 0)
- *
- *	The fields are seperated by spaces or tabs, with the
- *	first field left justified (no leading spaces or tabs).
- *	See below for optional field syntax.
- *
- *	The last field is the command field.  This command will
- *	be executed by the shell just as if typed from a console.
- */
-
-getline()
-{
-	register char *p;
-	register int   i;
-	char     buffer[MAXLINE];
-	extern	 char *scanner();
-
-	if (fgets(buffer, sizeof buffer, fd) == (char *)NULL)  {
-		eof = TRUE;
-		return(FALSE);
-	}
-
-	for (p = buffer, i = 0; i < 5; i++)  {
-		if ((p = scanner(tokv[i], p)) == (char *)NULL)
-			return(FALSE);
-	}
-
-	strcpy(command, p);     /* scoop the command */
-	return(TRUE);
-}
-
-
-char *scanner(token, offset)
-register char   *token;		/* target buffer to receive scanned token */
-register char   *offset;	/* place holder into source buffer */
-{
-	while ((*offset != ' ') && (*offset != '\t') && *offset)
-		*token++ = *offset++;
-
-	/*
-	 *      Check for possible error condition
-	 */
-         
-	if (!*offset)
-		return ((char *)NULL);
-
-	*token = '\0';
-        
-	while ((*offset == ' ') || (*offset == '\t'))
-		offset++;
-
-	return (offset);
+	this_entry = this_entry->next;
+  }
 }
 
 
@@ -181,45 +205,104 @@ register char   *offset;	/* place holder into source buffer */
  */
 
 match(left, right)
-register char   *left;
-register int    right;
+register char *left;
+register int right;
 {
-	register int	n;
-	register char	c;
+  register int n;
+  register char c;
 
+  n = 0;
+  if (!strcmp(left, "*")) return(TRUE);
+
+  while ((c = *left++) && (c >= '0') && (c <= '9')) n = (n * 10) + c - '0';
+
+  switch (c) {
+      case '\0':
+	return(right == n);
+      case ',':
+	if (right == n) return(TRUE);
+	do {
+		n = 0;
+		while ((c = *left++) && (c >= '0') && (c <= '9'))
+			n = (n * 10) + c - '0';
+
+		if (right == n) return(TRUE);
+	} while (c == ',');
+	return(FALSE);
+      case '-':
+	if (right < n) return(FALSE);
 	n = 0;
-	if (!strcmp(left, "*"))
-		return(TRUE);
-
 	while ((c = *left++) && (c >= '0') && (c <= '9'))
-		n  =  (n * 10) + c - '0';
-
-	switch (c)  {
-		case '\0':
-			return (right == n);
-
-		case ',':
-			if (right == n)
-				return(TRUE);
-			do {
-			      n = 0;
-			      while ((c = *left++) && (c >= '0') && (c <= '9'))
-					n = (n * 10) + c - '0';
-
-			      if (right == n)
-					return(TRUE);
-			} while (c == ',');
-			return(FALSE);
-
-		case '-':
-			if (right < n)
-				return(FALSE);
-
-			n = 0;
-			while ((c = *left++) && (c >= '0') && (c <= '9'))
-				n = (n * 10) + c - '0';
-
-			return(right <= n);
-	}
+		n = (n * 10) + c - '0';
+	return(right <= n);
+  }
 }
 
+
+load_crontab()
+{
+  int pos = 0;
+  FILE *cfp;
+  struct stat buf;
+
+  if (stat(CRONTAB, &buf)) {
+	if (previous_time == 0L) printf("Can't stat crontab");
+	previous_time = 0L;
+	return;
+  }
+  if (buf.st_mtime <= previous_time) return;
+
+  if ((cfp = fopen(CRONTAB, "r")) == (FILE *) NULL) {
+	if (previous_time == 0L) printf("Can't open crontab");
+	previous_time = 0L;
+	return;
+  }
+  previous_time = buf.st_mtime;
+
+  p = head;
+  while (fgets(&crontab[pos], CRONSIZE - pos, cfp) != (char *) NULL) {
+	int len;
+
+	if (crontab[pos] == '#') continue;
+	len = strlen(&crontab[pos]);
+	if (crontab[pos + len - 1] == '\n') {
+		len--;
+		crontab[pos + len] = '\0';
+	}
+	assign(p, &crontab[pos]);
+	if (p->next == (CRONSTRUCT *) NULL) {
+		p->next = (CRONSTRUCT *) malloc(sizeof(CRONSTRUCT));
+		p->next->next = (CRONSTRUCT *) NULL;
+	}
+	p = p->next;
+	pos += ++len;
+	if (pos >= CRONSIZE) break;
+  }
+  fclose(cfp);
+
+  while (p) {
+	p->mn = (char *) NULL;
+	p = p->next;
+  }
+}
+
+
+assign(entry, line)
+CRONSTRUCT *entry;
+char *line;
+{
+  static char buf[256];
+  int where;
+
+  strncpy(buf, line, sizeof buf - 1);
+
+  entry->mn = strtok(line, SEPARATOR);
+  entry->hr = strtok((char *) NULL, SEPARATOR);
+  entry->day = strtok((char *) NULL, SEPARATOR);
+  entry->mon = strtok((char *) NULL, SEPARATOR);
+  entry->wkd = strtok((char *) NULL, SEPARATOR);
+  entry->cmd = strtok((char *) NULL, SEPARATOR);
+
+  where = entry->cmd - line;
+  strcpy(&line[where], &buf[where]);
+}

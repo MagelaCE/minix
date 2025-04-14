@@ -3,18 +3,14 @@
  * FS cause a panic.
  */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../h/signal.h"
-#include "const.h"
-#include "type.h"
-#include "glo.h"
+#include "kernel.h"
+#include <signal.h>
 #include "proc.h"
 
 /*==========================================================================*
  *				exception				    *
  *==========================================================================*/
-PUBLIC exception(vec_nr)
+PUBLIC void exception(vec_nr)
 unsigned vec_nr;
 {
 /* An exception or unexpected interrupt has occurred. */
@@ -28,7 +24,7 @@ unsigned vec_nr;
 	"Divide error", SIGFPE, 86,
 	"Debug exception", SIGTRAP, 86,		/* overidden by debugger */
 	"Nonmaskable interrupt", SIGBUS, 86,	/* needs separate handler */
-	"Breakpoint", SIGTRAP, 86,		/* overidden by debugger */
+	"Breakpoint", SIGEMT, 86,		/* overidden by debugger */
 	"Overflow", SIGFPE, 86,
 	"Bounds check", SIGFPE, 186,
 	"Invalid opcode", SIGILL, 186,
@@ -55,13 +51,13 @@ unsigned vec_nr;
   }
 
   /* This is not supposed to happen. */
-  if (ep->msg == NIL_PTR || get_processor() < ep->minprocessor)
+  if (ep->msg == NIL_PTR || processor < ep->minprocessor)
 	printf("\r\nIntel-reserved exception %d\r\n", vec_nr);
   else
 	printf("\r\n%s\r\n", ep->msg);
-  printf("process number %d, pc = 0x%04x:0x%04lx\r\n",
+  printf("process number %d, pc = 0x%04x:0x%08lx\r\n",
 	 proc_number(proc_ptr),
-	 (unsigned long) proc_ptr->p_reg.r16.cs,
-	 (unsigned long) proc_ptr->p_reg.r16.pc);
+	 (unsigned) proc_ptr->p_reg.cs,
+  	 (unsigned long) proc_ptr->p_reg.pc);
   panic("exception in kernel, mm or fs", NO_NUM);
 }

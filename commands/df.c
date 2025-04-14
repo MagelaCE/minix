@@ -2,11 +2,11 @@
 
 #include <minix/const.h>
 #include <minix/type.h>
-#include <fs/const.h>
-#include <fs/type.h>
-#include <fs/super.h>
 #include <sys/types.h>
-#include <sys/stat.h>
+#include <limits.h>
+#include <../fs/const.h>
+#include <../fs/type.h>
+#include <../fs/super.h>
 #include <stdio.h>
 
 char *mtab = "/etc/mtab";
@@ -177,13 +177,15 @@ defaults()
 getname(p)
 char *p;
 {
-  int c;
+  char c;
+  char ch;
 
   while (1) {
-	c = getchar();
-	if (c == EOF) exit(0);
+	ch = getchar();
+	if (ch == EOF) exit(0);
+	c = (char) ch;
 	if (c == ' ') c = 0;
-	*p++ = (char)c;
+	*p++ = c;
 	if (c == '\n') return;
   }
 }

@@ -24,17 +24,17 @@
 
 
 
-#define CPU_TYPE_SEGMENT   0xFFFF	/* BIOS segment for CPU type 	*/
-#define CPU_TYPE_OFFSET    0x000E	/* BIOS offset for CPU type 	*/
-#define PC_AT              0xFC	        /* IBM code for PC-AT (0xFFFFE) */
+#define CPU_TYPE_SEGMENT   0xFFFF	/* BIOS segment for CPU type 	 */
+#define CPU_TYPE_OFFSET    0x000E	/* BIOS offset for CPU type 	 */
+#define PC_AT              0xFC	/* IBM code for PC-AT (0xFFFFE) */
 
 
-#define CLK_ELE 0x70       /* ptr corresponding to element of time to be */
-#define CLK_IO 0x71        /* read or written is written to port clk_ele */
-                           /* the element can then be read or written by */
-                           /* reading or writing port clk_io.            */
+#define CLK_ELE 0x70		/* ptr corresponding to element of time to be*/
+#define CLK_IO 0x71		/* read or written is written to port clk_ele*/
+/* The element can then be read or written by */
+/* Reading or writing port clk_io.            */
 
-#define  YEAR             9	/*  Clock register addresses	*/
+#define  YEAR             9	/* Clock register addresses	 */
 #define  MONTH            8
 #define  DAY              7
 #define  HOUR             4
@@ -45,48 +45,46 @@
 #define  BCD_TO_DEC(x)	  ( (x>>4) * 10 + (x & 0x0f) )
 
 
-struct  time
-{ unsigned  year;
-  unsigned  month;
-  unsigned  day;
-  unsigned  hour;
-  unsigned  minute;
-  unsigned  second;
+struct time {
+  unsigned year;
+  unsigned month;
+  unsigned day;
+  unsigned hour;
+  unsigned minute;
+  unsigned second;
 };
 
 
 
 main()
 {
-  struct  time  time1;
-  struct  time  time2;
-  int     i;
+  struct time time1;
+  struct time time2;
+  int i;
 
-  if ( peek( CPU_TYPE_SEGMENT, CPU_TYPE_OFFSET ) != PC_AT ) {
-    printf( "-q\n" );
-    exit( 1 );
+  if (peek(CPU_TYPE_SEGMENT, CPU_TYPE_OFFSET) != PC_AT) {
+	printf("-q\n");
+	exit(1);
+  }
+  for (i = 0; i < 10; i++) {
+	get_time(&time1);
+	get_time(&time2);
+
+	if (time1.year == time2.year &&
+	    time1.month == time2.month &&
+	    time1.day == time2.day &&
+	    time1.hour == time2.hour &&
+	    time1.minute == time2.minute &&
+	    time1.second == time2.second) {
+		printf("%02d%02d%02d%02d%02d%02d\n",
+		       time1.month, time1.day, time1.year,
+		       time1.hour, time1.minute, time1.second);
+		exit(0);
+	}
   }
 
-  for ( i=0; i<10; i++ ) {
-    get_time( &time1 );
-    get_time( &time2 );
-
-    if ( time1.year   == time2.year    &&
-         time1.month  == time2.month   &&
-         time1.day    == time2.day     &&
-         time1.hour   == time2.hour    &&
-         time1.minute == time2.minute  &&
-         time1.second == time2.second  )
-      {
-      printf( "%02d%02d%02d%02d%02d%02d\n",
-		time1.month,   time1.day,     time1.year,
-		time1.hour,    time1.minute,  time1.second );
-      exit( 0 );
-      }
-    }
-
-  printf( "-q\n" );
-  exit( 1 );
+  printf("-q\n");
+  exit(1);
 }
 
 
@@ -102,118 +100,38 @@ main()
 /*                                                                     */
 /***********************************************************************/
 
-get_time( t )
-  struct  time  *t; {
-  t->year   = read_register( YEAR   );
-  t->month  = read_register( MONTH  );
-  t->day    = read_register( DAY    );
-  t->hour   = read_register( HOUR   );
-  t->minute = read_register( MINUTE );
-  t->second = read_register( SECOND );
- 
+get_time(t)
+struct time *t;
+{
+  t->year = read_register(YEAR);
+  t->month = read_register(MONTH);
+  t->day = read_register(DAY);
+  t->hour = read_register(HOUR);
+  t->minute = read_register(MINUTE);
+  t->second = read_register(SECOND);
 
 
-  if ( (read_register(STATUS) & 0x04) == 0) {
-    /* convert BCD to binary if necessary */
-    t->year   = BCD_TO_DEC( t->year   );
-    t->month  = BCD_TO_DEC( t->month  );
-    t->day    = BCD_TO_DEC( t->day    );
-    t->hour   = BCD_TO_DEC( t->hour   );
-    t->minute = BCD_TO_DEC( t->minute );
-    t->second = BCD_TO_DEC( t->second );
-   }
+
+  if ((read_register(STATUS) & 0x04) == 0) {
+	/* Convert BCD to binary if necessary */
+	t->year = BCD_TO_DEC(t->year);
+	t->month = BCD_TO_DEC(t->month);
+	t->day = BCD_TO_DEC(t->day);
+	t->hour = BCD_TO_DEC(t->hour);
+	t->minute = BCD_TO_DEC(t->minute);
+	t->second = BCD_TO_DEC(t->second);
+  }
 }
 
 
-read_register( reg_addr )
-char  reg_addr;
+read_register(reg_addr)
+char reg_addr;
 {
   int val;
 
-  if ( port_out( CLK_ELE, reg_addr ) < 0 || port_in(CLK_IO, &val) < 0 ) {
-    printf( "-q\n" );
-    exit( 1 );
+  if (port_out(CLK_ELE, reg_addr) < 0 || port_in(CLK_IO, &val) < 0) {
+	printf("-q\n");
+	exit(1);
   }
-  return( val );
-}
-
-
-/***********************************************************************/
-/*                                                                     */
-/*    Peek and poke using /dev/mem.                                    */
-/*    Callers now ought to check the return values.                    */
-/*    In Minix 1.3c, /dev/mem is incorrectly truncated to 640K,        */
-/*    so the CPU type byte is not accessable.                          */
-/*                                                                     */
-/***********************************************************************/
-
-long lseek();
-
-int peek( seg, offset )
-unsigned seg;
-unsigned offset;
-{
-  static int memfd = -1;
-  unsigned char val;
-
-  if ( memfd < 0 )
-    memfd = open( "/dev/mem", 0 );
-  if ( lseek( memfd, (unsigned long) seg * 0x10 + offset, 0 ) < 0 ||
-       read( memfd, &val, 1 ) != 1 )
-    return -1;
-  return val;
-}
-
-int poke( seg, offset, val )
-unsigned seg;
-unsigned offset;
-unsigned char val;
-{
-  static int memfd = -1;
-
-  if ( memfd < 0 )
-    memfd = open( "/dev/mem", 1 );
-  if ( lseek( memfd, (unsigned long) seg * 0x10 + offset, 0 ) < 0 ||
-       write( memfd, &val, 1 ) != 1 )
-    return -1;
-  return val ;
-}
-
-
-/***********************************************************************/
-/*                                                                     */
-/*    Port i/o functions using /dev/port.                              */
-/*    Callers now ought to check the return values.                    */
-/*                                                                     */
-/***********************************************************************/
-
-long lseek();
-
-int port_in( port, valp )
-unsigned port;
-unsigned *valp;
-{
-  static int portfd = -1;
-  unsigned char val;
-
-  if ( portfd < 0 )
-    portfd = open( "/dev/port", 0 );
-  if ( lseek( portfd, (long) port, 0 ) < 0 ||
-       read( portfd, &val, 1 ) != 1 )
-    return *valp = -1;
-  return *valp = val;
-}
-
-int port_out( port, val )
-unsigned port;
-unsigned char val;
-{
-  static int portfd = -1;
-
-  if ( portfd < 0 )
-    portfd = open( "/dev/port", 1 );
-  if ( lseek( portfd, (long) port, 0 ) < 0 ||
-       write( portfd, &val, 1 ) != 1 )
-    return -1;
-  return val ;
+  return(val);
 }

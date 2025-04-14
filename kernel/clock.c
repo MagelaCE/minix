@@ -25,15 +25,10 @@
  * it is certain that the task will be blocked when the timer goes off.
  */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../h/callnr.h"
-#include "../h/com.h"
-#include "../h/error.h"
-#include "../h/signal.h"
-#include "const.h"
-#include "type.h"
-#include "glo.h"
+#include "kernel.h"
+#include <signal.h>
+#include <minix/callnr.h>
+#include <minix/com.h>
 #include "proc.h"
 
 /* Constant definitions. */
@@ -41,26 +36,35 @@
 #define SCHED_RATE (MILLISEC*HZ/1000)	/* number of ticks per schedule */
 
 /* Clock parameters. */
-#define TIMER0          0x40	/* port address for timer channel 0 */
-#define TIMER_MODE      0x43	/* port address for timer channel 3 */
-#define IBM_FREQ    1193182L	/* IBM clock frequency for setting timer */
-#define TIMER_COUNT (unsigned) (IBM_FREQ/HZ)/* count to load into timer */
-#define SQUARE_WAVE     0x36	/* mode for generating square wave */
+#if (CHIP == INTEL)
+#define COUNTER_FREQ (2*TIMER_FREQ)	/* counter frequency using sqare wave*/
+#define LATCH_COUNT     0x00	/* cc00xxxx, c = channel, x = any */
+#define SQUARE_WAVE     0x36	/* ccaammmb, a = access, m = mode, b = BCD */
+				/*   11x11, 11 = LSB then MSB, x11 = sq wave */
+#define TIMER_COUNT ((unsigned) (TIMER_FREQ/HZ)) /* initial value for counter*/
+#define TIMER_FREQ   1193182L	/* clock frequency for timer in PC and AT */
+#endif
 
 /* Clock task variables. */
-PRIVATE real_time boot_time;	/* time in seconds of system boot */
-PRIVATE real_time next_alarm;	/* probable time of next alarm */
-PRIVATE real_time pending_ticks;	/* ticks seen by low level only */
-PRIVATE real_time realtime;	/* real time clock */
+PRIVATE time_t boot_time;	/* time in seconds of system boot */
+PRIVATE time_t next_alarm;	/* probable time of next alarm */
+PRIVATE time_t pending_ticks;	/* ticks seen by low level only */
+PRIVATE time_t realtime;	/* real time clock */
 PRIVATE int sched_ticks = SCHED_RATE;	/* counter: when 0, call scheduler */
 PRIVATE struct proc *prev_ptr;	/* last user process run by clock task */
 PRIVATE message mc;		/* message buffer for both input and output */
 PRIVATE int (*watch_dog[NR_TASKS+1])();	/* watch_dog functions to call */
 
+FORWARD void do_clocktick();
+FORWARD void do_get_time();
+FORWARD void do_set_time();
+FORWARD void do_setalarm();
+FORWARD void init_clock();
+
 /*===========================================================================*
  *				clock_task				     *
  *===========================================================================*/
-PUBLIC clock_task()
+PUBLIC void clock_task()
 {
 /* Main program of clock task.  It determines which of the 4 possible
  * calls this is by looking at 'mc.m_type'.   Then it dispatches.
@@ -68,7 +72,7 @@ PUBLIC clock_task()
  
   int opcode;
 
-  init_clock();			/* initialize clock tables */
+  init_clock();			/* initialize clock task */
 
   /* Main loop of the clock task.  Get work, process it, sometimes reply. */
   while (TRUE) {
@@ -98,7 +102,7 @@ PUBLIC clock_task()
 /*===========================================================================*
  *				do_setalarm				     *
  *===========================================================================*/
-PRIVATE do_setalarm(m_ptr)
+PRIVATE void do_setalarm(m_ptr)
 message *m_ptr;			/* pointer to request message */
 {
 /* A process wants an alarm signal or a task wants a given watch_dog function
@@ -118,7 +122,7 @@ message *m_ptr;			/* pointer to request message */
   rp = proc_addr(proc_nr);
   mc.SECONDS_LEFT = (rp->p_alarm == 0L ? 0 : (rp->p_alarm - realtime)/HZ );
   rp->p_alarm = (delta_ticks == 0L ? 0L : realtime + delta_ticks);
-  if istaskp(rp) watch_dog[-proc_nr] = function;
+  if (istaskp(rp)) watch_dog[-proc_nr] = function;
 
   /* Which alarm is next? */
   next_alarm = MAX_P_LONG;
@@ -131,7 +135,7 @@ message *m_ptr;			/* pointer to request message */
 /*===========================================================================*
  *				do_get_time				     *
  *===========================================================================*/
-PRIVATE do_get_time()
+PRIVATE void do_get_time()
 {
 /* Get and return the current clock time in ticks. */
 
@@ -143,7 +147,7 @@ PRIVATE do_get_time()
 /*===========================================================================*
  *				do_set_time				     *
  *===========================================================================*/
-PRIVATE do_set_time(m_ptr)
+PRIVATE void do_set_time(m_ptr)
 message *m_ptr;			/* pointer to request message */
 {
 /* Set the real time clock.  Only the superuser can use this call. */
@@ -155,18 +159,18 @@ message *m_ptr;			/* pointer to request message */
 /*===========================================================================*
  *				do_clocktick				     *
  *===========================================================================*/
-PRIVATE do_clocktick()
+PRIVATE void do_clocktick()
 {
 /* This routine called on clock ticks when a lot of work needs to be done. */
 
   register struct proc *rp;
-  register int t, proc_nr;
+  register int proc_nr;
 
   if (next_alarm <= realtime) {
 	/* An alarm may have gone off, but proc may have exited, so check. */
 	next_alarm = MAX_P_LONG;	/* start computing next alarm */
 	for (rp = BEG_PROC_ADDR; rp < END_PROC_ADDR; rp++) {
-		if (rp->p_alarm != (real_time) 0) {
+		if (rp->p_alarm != (time_t) 0) {
 			/* See if this alarm time has been reached. */
 			if (rp->p_alarm <= realtime) {
 				/* A timer has gone off.  If it is a user proc,
@@ -189,7 +193,7 @@ PRIVATE do_clocktick()
 
   /* If a user process has been running too long, pick another one. */
   if (--sched_ticks == 0) {
-	if (bill_ptr == prev_ptr) locksched();	/* process has run too long */
+	if (bill_ptr == prev_ptr) lock_sched();	/* process has run too long */
 	sched_ticks = SCHED_RATE;		/* reset quantum */
 	prev_ptr = bill_ptr;			/* new previous process */
   }
@@ -197,23 +201,67 @@ PRIVATE do_clocktick()
 }
 
 
-/*===========================================================================*
- *				accounting				     *
- *===========================================================================*/
-/* This is now done at the lowest level, in clock_handler(). */
-
-
-#ifdef i8088
+#if (CHIP == INTEL)
 /*===========================================================================*
  *				init_clock				     *
  *===========================================================================*/
-PRIVATE init_clock()
+PRIVATE void init_clock()
 {
-/* Initialize channel 2 of the 8253A timer to e.g. 60 Hz. */
+/* Initialize channel 0 of the 8253A timer to e.g. 60 Hz. */
 
-  port_out(TIMER_MODE, SQUARE_WAVE);	/* set timer to run continuously */
-  port_out(TIMER0, TIMER_COUNT);	/* load timer low byte */
-  port_out(TIMER0, TIMER_COUNT >> 8);	/* load timer high byte */
+  out_byte(TIMER_MODE, SQUARE_WAVE);	/* set timer to run continuously */
+  out_byte(TIMER0, TIMER_COUNT);	/* load timer low byte */
+  out_byte(TIMER0, TIMER_COUNT >> 8);	/* load timer high byte */
+  enable_irq(CLOCK_IRQ);	/* ready for clock interrupts */
+}
+
+
+/*==========================================================================*
+ *				milli_delay				    *
+ *==========================================================================*/
+PUBLIC void milli_delay(millisec)
+unsigned millisec;
+{
+/* Delay some milliseconds (or longer - interrupts may interfere). */
+
+  register unsigned count;
+  register unsigned diff;
+  unsigned prev_count;
+  unsigned long total_count;
+
+  total_count = (unsigned long) millisec * (COUNTER_FREQ / 1000);
+  diff = 100;			/* guess for emergencies */
+  prev_count = read_counter();
+  while (TRUE) {
+	count = read_counter();
+	/* Use difference between counts unless counter has not changed
+	 * (broken?) or has increased (due to reset).
+	 */
+	if (count < prev_count) diff = prev_count - count;
+	if (diff >= total_count) break;
+	total_count -= diff;
+	prev_count = count;
+  }
+}
+
+
+/*==========================================================================*
+ *				read_counter				    *
+ *==========================================================================*/
+PUBLIC unsigned read_counter()
+{
+/* Read the counter for channel 0 of the 8253A timer. The counter decrements
+ * at twice the timer frequency (one full cycle for each half of square wave).
+ * The counter normally has a value between 0 and TIMER_COUNT, but before
+ * the clock task has been initialized, its maximum value is 65535, as set by
+ * the BIOS.
+ */
+
+  register unsigned low_byte;
+
+  out_byte(TIMER_MODE, LATCH_COUNT);	/* make chip copy count to latch */
+  low_byte = in_byte(TIMER0);	/* countdown continues during 2-step read */
+  return((in_byte(TIMER0) << 8) + low_byte);
 }
 #endif
 
@@ -221,7 +269,7 @@ PRIVATE init_clock()
 /*===========================================================================*
  *				clock_handler				     *
  *===========================================================================*/
-PUBLIC clock_handler()
+PUBLIC void clock_handler()
 {
 /* Switch context to do_clocktick if an alarm has gone off.
  * Also switch there to reschedule if the reschedule will do something.
@@ -279,8 +327,7 @@ PUBLIC clock_handler()
   else
 	rp = proc_ptr;
   ++rp->user_time;
-  if (rp != bill_ptr)
-	++bill_ptr->sys_time;
+  if (rp != bill_ptr) ++bill_ptr->sys_time;
 
   ++pending_ticks;
   tty_wakeup();			/* possibly wake up TTY */

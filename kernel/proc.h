@@ -5,17 +5,13 @@
  * 'proc', be sure to change sconst.h to match.
  */
 
-EXTERN struct proc {
-  union stackframe_u p_reg;	/* process' registers saved in stack frame */
+struct proc {
+  struct stackframe_s p_reg;	/* process' registers saved in stack frame */
   int p_nr;			/* number of this process (for fast access) */
-
-#ifdef i80286
-  u16_t p_ldt_sel;		/* selector in gdt giving ldt base and limit*/
-  struct segdesc_s p_ldt[2];	/* local descriptor table cs:ds */
+  reg_t p_ldt_sel;		/* selector in gdt giving ldt base and limit*/
+  struct segdesc_s p_ldt[2];	/* local descriptors for code and data */
 				/* 2 is LDT_SIZE - avoid include protect.h */
-#endif
-
-  u16_t p_splimit;		/* lowest legal stack value */
+  reg_t p_splimit;		/* lowest legal stack value */
 
   int p_int_blocked;		/* nonzero if int msg blocked by busy task */
   int p_int_held;		/* nonzero if int msg held by busy syscall */
@@ -25,11 +21,11 @@ EXTERN struct proc {
   struct mem_map p_map[NR_SEGS];/* memory map */
   int p_pid;			/* process id passed in from MM */
 
-  real_time user_time;		/* user time in ticks */
-  real_time sys_time;		/* sys time in ticks */
-  real_time child_utime;	/* cumulative user time of children */
-  real_time child_stime;	/* cumulative sys time of children */
-  real_time p_alarm;		/* time of next alarm in ticks, or 0 */
+  time_t user_time;		/* user time in ticks */
+  time_t sys_time;		/* sys time in ticks */
+  time_t child_utime;		/* cumulative user time of children */
+  time_t child_stime;		/* cumulative sys time of children */
+  time_t p_alarm;		/* time of next alarm in ticks, or 0 */
 
   struct proc *p_callerq;	/* head of list of procs wishing to send */
   struct proc *p_sendlink;	/* link to next proc wishing to send */
@@ -48,6 +44,7 @@ EXTERN struct proc {
 #define RECEIVING        010	/* set when process blocked trying to recv */
 #define PENDING          020	/* set when inform() of signal pending */
 #define SIG_PENDING      040	/* keeps to-be-signalled proc from running */
+#define P_STOP		0100	/* set when process is being traced */
 
 /* Magic process table addresses. */
 #define BEG_PROC_ADDR (&proc[0])
@@ -73,7 +70,6 @@ EXTERN struct proc {
 EXTERN struct proc proc[NR_TASKS + NR_PROCS];	/* process table */
 EXTERN struct proc *pproc_addr[NR_TASKS + NR_PROCS];
 				/* ptrs to process table slots (fast) */
-EXTERN struct proc *proc_ptr;	/* &proc[cur_proc] */
 EXTERN struct proc *bill_ptr;	/* ptr to process to bill for clock ticks */
 EXTERN struct proc *rdy_head[NQ];	/* pointers to ready list headers */
 EXTERN struct proc *rdy_tail[NQ];	/* pointers to ready list tails */

@@ -12,9 +12,12 @@
  *
  */
 
+#include <sys/types.h>
+#include <fcntl.h>
 #include <sys/stat.h>
-#include <minix/blocksize.h>
+#include <blocksize.h>
 #include <signal.h>
+#include <errno.h>
 
 extern int errno;
 extern char *itoa();
@@ -32,28 +35,24 @@ char *argv[];
   signal(SIGPIPE, SIG_IGN);
 
   /* Fetch and verify the arguments. */
-  if (argc != 3 && argc != 4) 
+  if (argc != 3 && argc != 4)
 	message("Usage: vol [-u] size block-special\n", "");
   p = argv[1];
-  reading = (*p == '-' && *(p+1) == 'u' ? 1 : 0);
+  reading = (*p == '-' && *(p + 1) == 'u' ? 1 : 0);
   size = atoi(argv[reading + 1]);
   name = argv[reading + 2];
-  tty = open("/dev/tty", 0);
+  tty = open("/dev/tty", O_RDONLY);
 
-  if (size <= 0) 
-	message("vol: bad volume size\n", argv[reading+1]);
-  if (stat(name, &stb) < 0) 
-	message("vol: cannot stat %s\n", name);
-  if ( (stb.st_mode & S_IFMT)  != S_IFBLK) 
+  if (size <= 0) message("vol: bad volume size\n", argv[reading + 1]);
+  if (stat(name, &stb) < 0) message("vol: cannot stat %s\n", name);
+  if ((stb.st_mode & S_IFMT) != S_IFBLK)
 	message("vol: %s is not a block special file\n", name);
-  if (tty < 0)
-	message("vol: cannot open /dev/tty\n", "");
+  if (tty < 0) message("vol: cannot open /dev/tty\n", "");
 
   while (1) {
 	/* Open the special file. */
 	fd = open(name, 1 - reading);
-	if (fd < 0)
-		message("vol: cannot open %s\n", name);
+	if (fd < 0) message("vol: cannot open %s\n", name);
 
 	std_err("Please insert volume ");
 	num(volume);
@@ -63,7 +62,7 @@ char *argv[];
 
 	/* Read or write the requisite number of blocks. */
 	if (reading)
-		diskio(size, fd, 1, name, "stdout");	/* vol -u | tar xf -*/
+		diskio(size, fd, 1, name, "stdout");	/* vol -u | tar xf - */
 	else
 		diskio(size, 0, fd, "stdin", name);	/* tar cf - | vol */
 
@@ -82,7 +81,7 @@ char *errstr1, *errstr2;
   int n, m, count;
   long needed;
 
-  needed = (long) BLOCK_SIZE * (long) size;	/* # bytes to read */
+  needed = (long) BLOCK_SIZE *(long) size;	/* # bytes to read */
   while (needed > 0L) {
 	count = (needed > (long) BLOCK_SIZE ? BLOCK_SIZE : (int) needed);
 	n = read(fd1, buffer, count);
@@ -116,8 +115,8 @@ int n;
   if (n < 10) {
 	out[1] += n;
   } else {
-	out[1] += (n%10);
-	out[0] = '0' + (n/10);
+	out[1] += (n % 10);
+	out[0] = '0' + (n / 10);
   }
   std_err(out);
 }

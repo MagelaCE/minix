@@ -7,51 +7,55 @@
  *   reply:	send a reply to a process after the requested work is done
  */
 
-#ifdef ATARI_ST
-#define ASKDEV		/* ask for boot device */
-#define FASTLOAD	/* use multiple block transfers to init ram */
-#endif
-
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../h/callnr.h"
-#include "../h/com.h"
-#include "../h/error.h"
-#include "../h/boot.h"
-#include "const.h"
-#include "type.h"
+#include "fs.h"
+#include <minix/callnr.h>
+#include <minix/com.h>
+#include <minix/boot.h>
 #include "buf.h"
 #include "file.h"
 #include "fproc.h"
-#include "glo.h"
 #include "inode.h"
 #include "param.h"
 #include "super.h"
 
-#ifdef FASTLOAD
+#if FASTLOAD
 #include "dev.h"
-#endif FASTLOAD
+#endif
 
 #define M64K     0xFFFF0000L	/* 16 bit mask for DMA check */
-#define INFO               2	/* where in data_org is info from build */
 #define MAX_RAM        16384	/* maximum RAM disk size in blocks */
-#define RAM_IMAGE (dev_nr)0x303	/* major-minor dev where root image is kept */
+#define RAM_IMAGE (dev_t)0x303	/* major-minor dev where root image is kept */
 
-#ifdef i8088
+FORWARD void buf_pool();
+FORWARD void fs_init();
+FORWARD void get_boot_parameters();
+FORWARD void get_work();
+FORWARD void load_ram();
+FORWARD void load_super();
+
+#if ASKDEV
+FORWARD int askdev();
+#endif
+
+#if FASTLOAD
+FORWARD void fastload();
+FORWARD int lastused();
+#endif
+
+#if (CHIP == INTEL)
 FORWARD phys_bytes get_physbase();
 #endif
 
 /*===========================================================================*
  *				main					     *
  *===========================================================================*/
-PUBLIC main()
+PUBLIC void main()
 {
 /* This is the main program of the file system.  The main loop consists of
  * three major activities: getting new work, processing the work, and sending
  * the reply.  This loop never terminates as long as the file system runs.
  */
   int error;
-  extern int (*call_vector[NCALLS])();
 
   fs_init();
 
@@ -65,7 +69,7 @@ PUBLIC main()
 
 	/* Call the internal function that does the work. */
 	if (fs_call < 0 || fs_call >= NCALLS)
-		error = E_BAD_CALL;
+		error = EBADCALL;
 	else
 		error = (*call_vector[fs_call])();
 
@@ -80,7 +84,7 @@ PUBLIC main()
 /*===========================================================================*
  *				get_work				     *
  *===========================================================================*/
-PRIVATE get_work()
+PRIVATE void get_work()
 {  
   /* Normally wait for new input.  However, if 'reviving' is
    * nonzero, a suspended process must be awakened.
@@ -116,7 +120,7 @@ PRIVATE get_work()
 /*===========================================================================*
  *				reply					     *
  *===========================================================================*/
-PUBLIC reply(whom, result)
+PUBLIC void reply(whom, result)
 int whom;			/* process to reply to */
 int result;			/* result of the call (usually OK or error #) */
 {
@@ -132,13 +136,12 @@ int result;			/* result of the call (usually OK or error #) */
 /*===========================================================================*
  *				fs_init					     *
  *===========================================================================*/
-PRIVATE fs_init()
+PRIVATE void fs_init()
 {
 /* Initialize global variables, tables, etc. */
 
   register struct inode *rip;
   int i;
-  extern struct inode *get_inode();
 
   buf_pool();			/* initialize buffer pool */
   get_boot_parameters();
@@ -152,18 +155,18 @@ PRIVATE fs_init()
 	fp->fp_rootdir = rip;
 	dup_inode(rip);
 	fp->fp_workdir = rip;
-	fp->fp_realuid = (uid) SYS_UID;
-	fp->fp_effuid = (uid) SYS_UID;
-	fp->fp_realgid = (gid) SYS_GID;
-	fp->fp_effgid = (gid) SYS_GID;
+	fp->fp_realuid = (uid_t) SYS_UID;
+	fp->fp_effuid = (uid_t) SYS_UID;
+	fp->fp_realgid = (gid_t) SYS_GID;
+	fp->fp_effgid = (gid_t) SYS_GID;
 	fp->fp_umask = ~0;
   }
 
   /* Certain relations must hold for the file system to work at all. */
   if (ZONE_NUM_SIZE != 2) panic("ZONE_NUM_SIZE != 2", NO_NUM);
   if (SUPER_SIZE > BLOCK_SIZE) panic("SUPER_SIZE > BLOCK_SIZE", NO_NUM);
-  if(BLOCK_SIZE % INODE_SIZE != 0)panic("BLOCK_SIZE % INODE_SIZE != 0", NO_NUM);
-  if (NR_FDS > 127) panic("NR_FDS > 127", NO_NUM);
+  if(BLOCK_SIZE % INODE_SIZE != 0)panic("BLOCK_SIZE % INODE_SIZE != 0",NO_NUM);
+  if (OPEN_MAX > 127) panic("OPEN_MAX > 127", NO_NUM);
   if (NR_BUFS < 6) panic("NR_BUFS < 6", NO_NUM);
   if (sizeof(d_inode) != 32) panic("inode size != 32", NO_NUM);
 }
@@ -171,7 +174,7 @@ PRIVATE fs_init()
 /*===========================================================================*
  *				buf_pool				     *
  *===========================================================================*/
-PRIVATE buf_pool()
+PRIVATE void buf_pool()
 {
 /* Initialize the buffer pool.  On the IBM PC, the hardware DMA chip is
  * not able to cross 64K boundaries, so any buffer that happens to lie
@@ -180,10 +183,9 @@ PRIVATE buf_pool()
  * the PC hardware.
  */
   register struct buf *bp;
-#ifdef i8088
-  vir_bytes low_off, high_off;
+
+  vir_bytes low_off, high_off;		/* only used on INTEL chips */
   phys_bytes org;
-#endif
 
   bufs_in_use = 0;
   front = &buf[0];
@@ -199,7 +201,7 @@ PRIVATE buf_pool()
   buf[NR_BUFS - 1].b_next = NIL_BUF;
 
   /* Delete any buffers that span a 64K boundary. */
-#ifdef i8088
+#if (CHIP == INTEL)
   for (bp = &buf[0]; bp < &buf[NR_BUFS]; bp++) {
 	org = get_physbase();	/* phys addr where FS is */
 	low_off = (vir_bytes) bp->b_data;
@@ -228,7 +230,7 @@ PRIVATE buf_pool()
 /*===========================================================================*
  *				load_ram				     *
  *===========================================================================*/
-PRIVATE load_ram()
+PRIVATE void load_ram()
 {
 /* If the root device is the RAM disk, copy the entire root image device
  * block-by-block to a RAM disk with the same size as the image.
@@ -240,15 +242,18 @@ PRIVATE load_ram()
   long k_loaded;
   struct super_block *sp;
   block_nr i;
-  dev_nr root_device;		/* this should be called boot_device */
+  dev_t root_device;		/* really the root image device */
   phys_clicks ram_clicks, init_org, init_text_clicks, init_data_clicks;
-  extern phys_clicks data_org[INFO + 2];
-  extern struct buf *get_block();
 
   /* Get size of INIT by reading block on diskette where 'build' put it. */
   init_org = data_org[INFO];
   init_text_clicks = data_org[INFO + 1];
   init_data_clicks = data_org[INFO + 2];
+
+  /* Print ATARI copyright message. */
+#if (MACHINE == ATARI)
+  printf("Booting MINIX 1.5.  Copyright 1990 Prentice-Hall, Inc.\n");
+#endif
 
   /* If the root device is specified in the boot parameters, use it. */
   if (ROOT_DEV != DEV_RAM) {
@@ -260,13 +265,11 @@ PRIVATE load_ram()
    * First read block 0 from the floppy.  If this is a valid file system, use
    * it as the root image, otherwise try the hard disk (RAM_IMAGE).  
    */
-#ifdef ATARI_ST
-  printf("Booting MINIX-ST 1.1.  Copyright 1988 Prentice-Hall, Inc.\n");
-#endif ATARI_ST
-#ifdef ASKDEV
-  root_device = (dev_nr)askdev();
+#if ASKDEV
+  root_device = (dev_t)askdev();
   if (root_device == 0)
-#endif ASKDEV
+#endif
+
   root_device = BOOT_DEV;	/* try floppy disk first */
   bp = get_block(root_device, SUPER_BLOCK, NORMAL);  /* get RAM super block */
   copy(super_block, bp->b_data, sizeof(struct super_block));
@@ -293,11 +296,13 @@ got_root_dev:
   m1.m1_i1 = init_text_clicks;
   m1.m1_i2 = init_data_clicks;
   m1.m1_i3 = init_org + init_text_clicks + init_data_clicks + ram_clicks;
-#ifdef ATARI_ST
-  m1.m1_p1 = (char *) (int) init_org;	/* Bug in Alcyon 4.14 C */
+
+#if (MACHINE == ATARI)
+  m1.m1_p1 = (char *) (int) init_org;	/* bug in Alcyon 4.14 C */
 #else
-  m1.m1_p1 = (char *) init_org;
+  m1.m1_p1 = (char *) init_org;		/* other compilers */
 #endif
+
   if (sendrec(MM_PROC_NR, &m1) != OK) panic("FS Can't report to MM", NO_NUM);
 
   /* Tell RAM driver where RAM disk is and how big it is. The BRK2 call has
@@ -308,37 +313,28 @@ got_root_dev:
   m1.COUNT = count;
   if (sendrec(MEM, &m1) != OK) panic("Can't report size to MEM", NO_NUM);
 
+  /* Say if we are running in real mode or protected mode.
+   * 'bp_processor' is re-used to mean 'protected_mode'.
+   */
+  printf("Executing in %s mode\n\n",
+	 boot_parameters.bp_processor ? "protected" : "real");
+
   /* If the root device is not the RAM disk, it doesn't need loading. */
-  if (ROOT_DEV != DEV_RAM)
-	return;
+  if (ROOT_DEV != DEV_RAM) return;
 
   /* Copy the blocks one at a time from the root diskette to the RAM */
-#ifdef FASTLOAD
+
+#if FASTLOAD
   fastload(root_device, (char *) m1.POSITION);	/* assumes 32 bit pointers */
 #else
-  printf("Loading RAM disk.                          Loaded:   0K ");
-  for (i = 0; i < count; i++) {
-	/* Prefetch blocks into cache according to interleave.
-	 * The floppy driver should be rewritten to do this and should attain
-	 * an interleave of 1 even on slow PC's.
-	 * Here we can only handle interleave > 1.
-	 * 2 is good for AT's, but nothing seems to help PC's.
-	 * Assume standard DOS format with interleave of 1.
-	 */
-#define N_PREFETCH 11		/* prime > blocks/track on all floppy types */
-#define INTERLEAVE  2
-	if (i % N_PREFETCH == 0) {
-		int j, k;
+  printf("Loading RAM disk.                            Loaded:   0K ");
 
-		for (k = j = 0; j < N_PREFETCH; ++j, k += INTERLEAVE) {
-			if (k > N_PREFETCH)
-				k -= N_PREFETCH;
-			if (i + k < count)
-				put_block(get_block(root_device, i + k,
-				                    NORMAL), NORMAL);
-		}
-	}
-	bp = get_block(root_device, (block_nr) i, NORMAL);
+  inode[0].i_mode = I_BLOCK_SPECIAL;	/* temp inode for rahead */
+  inode[0].i_size = MAX_P_LONG;
+  inode[0].i_dev = inode[0].i_zone[0] = root_device;
+  for (i = 0; i < count; i++) {
+	bp = rahead(&inode[0], (block_nr) i, (off_t) BLOCK_SIZE * i,
+		    BLOCK_SIZE);
 	bp1 = get_block(ROOT_DEV, i, NO_READ);
 	copy(bp1->b_data, bp->b_data, BLOCK_SIZE);
 	bp1->b_dirt = DIRTY;
@@ -347,7 +343,7 @@ got_root_dev:
 	k_loaded = ( (long) i * BLOCK_SIZE)/1024L;	/* K loaded so far */
 	if (k_loaded % 5 == 0) printf("\b\b\b\b\b\b%4DK %c", k_loaded, 0);
   }
-#endif FASTLOAD
+#endif /* FASTLOAD */
 
   if ( ((root_device ^ DEV_FD0) & ~BYTE) == 0 )
 	printf("\rRAM disk loaded.    Please remove root diskette.           \n\n");
@@ -359,11 +355,10 @@ got_root_dev:
 /*===========================================================================*
  *				load_super				     *
  *===========================================================================*/
-PRIVATE load_super()
+PRIVATE void load_super()
 {
   register struct super_block *sp;
   register struct inode *rip;
-  extern struct inode *get_inode();
 
 /* Initialize the super_block table. */
 
@@ -389,7 +384,7 @@ PRIVATE load_super()
 	panic("init: can't load root bit maps", NO_NUM);
 }
 
-#ifdef ASKDEV
+#if ASKDEV
 /*===========================================================================*
  *				askdev					     *
  *===========================================================================*/
@@ -441,14 +436,14 @@ PRIVATE askdev()
 	return(0);
   return((maj << 8) | min);
 }
-#endif ASKDEV
+#endif /* ASKDEV */
 
-#ifdef FASTLOAD
+#if FASTLOAD
 /*===========================================================================*
  *				fastload				     *
  *===========================================================================*/
-PRIVATE fastload(boot_dev, address)
-dev_nr boot_dev;
+PRIVATE void fastload(boot_dev, address)
+dev_t boot_dev;
 char *address;
 {
   register i, blocks;
@@ -485,8 +480,8 @@ char *address;
 /*===========================================================================*
  *				lastused				     *
  *===========================================================================*/
-PRIVATE lastused(boot_dev)
-dev_nr boot_dev;
+PRIVATE int lastused(boot_dev)
+dev_t boot_dev;
 {
   register i, w, b, last, this, zbase;
   register struct super_block *sp = &super_block[0];
@@ -516,7 +511,7 @@ dev_nr boot_dev;
   }
   panic("lastused", NO_NUM);
 }
-#endif FASTLOAD
+#endif /* FASTLOAD */
 
 /*===========================================================================*
  *				get_boot_parameters			     *
@@ -526,7 +521,7 @@ PUBLIC struct bparam_s boot_parameters =  /* overwritten if new kernel */
   DROOTDEV, DRAMIMAGEDEV, DRAMSIZE, DSCANCODE,
 };
 
-PRIVATE get_boot_parameters()
+PRIVATE void get_boot_parameters()
 {
 /* Ask kernel for boot parameters. */
 
@@ -539,7 +534,7 @@ PRIVATE get_boot_parameters()
 	boot_parameters = temp_parameters;
 }
 
-#ifdef i8088
+#if (CHIP == INTEL)
 /*===========================================================================*
  *				get_physbase				     *
  *===========================================================================*/
@@ -556,4 +551,4 @@ PRIVATE phys_bytes get_physbase()
 	panic("Can't get fs base", NO_NUM);
   return m1.SRC_BUFFER;
 }
-#endif
+#endif /* INTEL */

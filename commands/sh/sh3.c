@@ -85,6 +85,7 @@ int act;
 		i = parent();
 		if (i != 0) {
 			if (i != -1) {
+				setval(lookup("!"), putn(i));
 				if (pin != NULL)
 					closepipe(pin);
 				if (talking) {
@@ -223,7 +224,7 @@ int *pforked;
 		/* strip all initial assignments */
 		/* not correct wrt PATH=yyy command  etc */
 		if (flag['x'])
-			echo(wp);
+			echo (cp ? wp: owp);
 		if (cp == NULL && t->ioact == NULL) {
 			while ((cp = *owp++) != NULL && assign(cp, COPYV))
 				;
@@ -254,9 +255,10 @@ int *pforked;
 		brklist = 0;
 		execflg = 0;
 	}
-	while ((cp = *owp++) != NULL && assign(cp, COPYV))
-		if (shcom == NULL)
-			export(lookup(cp));
+	if (owp != NULL)
+		while ((cp = *owp++) != NULL && assign(cp, COPYV))
+			if (shcom == NULL)
+				export(lookup(cp));
 #ifdef COMPIPE
 	if ((pin != NULL || pout != NULL) && shcom != NULL && shcom != doexec) {
 		err("piping to/from shell builtins not yet done");
@@ -314,7 +316,6 @@ parent()
 	if (i != 0) {
 		if (i == -1)
 			warn("try again");
-		setval(lookup("!"), putn(i));
 	}
 	return(i);
 }
@@ -801,10 +802,11 @@ dotrap(t)
 register struct op *t;
 {
 	register char *s;
-	register n, i;
+	register int  n, i;
+	register int  resetsig;
 
 	if (t->words[1] == NULL) {
-		for (i=0; i<NSIG; i++)
+		for (i=0; i<_NSIG; i++)
 			if (trap[i]) {
 				prn(i);
 				prs(": ");
@@ -813,23 +815,27 @@ register struct op *t;
 			}
 		return(0);
 	}
-	n = getsig((s = t->words[2])!=NULL? s: t->words[1]);
-	xfree(trap[n]);
-	trap[n] = 0;
-	if (s != NULL) {
-		if ((i = strlen(s = t->words[1])) != 0) {
-			trap[n] = strsave(s, 0);
-			setsig(n, sig);
-		} else
-			setsig(n, SIG_IGN);
-	} else {
-		if (talking)
-			if (n == SIGINT)
-				setsig(n, onintr);
+	resetsig = digit(*t->words[1]);
+	for (i = resetsig ? 1 : 2; t->words[i] != NULL; ++i) {
+		n = getsig(t->words[i]);
+		xfree(trap[n]);
+		trap[n] = 0;
+		if (!resetsig) {
+			if (*t->words[1] != '\0') {
+				trap[n] = strsave(t->words[1], 0);
+				setsig(n, sig);
+			} else
+				setsig(n, SIG_IGN);
+		} else {
+			if (talking)
+				if (n == SIGINT)
+					setsig(n, onintr);
+				else
+					setsig(n, n == SIGQUIT ? SIG_IGN 
+							       : SIG_DFL);
 			else
-				setsig(n, n == SIGQUIT ? SIG_IGN : SIG_DFL);
-		else
-			setsig(n, SIG_DFL);
+				setsig(n, SIG_DFL);
+		}
 	}
 	return(0);
 }
@@ -839,7 +845,7 @@ char *s;
 {
 	register int n;
 
-	if ((n = getn(s)) < 0 || n >= NSIG) {
+	if ((n = getn(s)) < 0 || n >= _NSIG) {
 		err("trap: bad signal number");
 		n = 0;
 	}
@@ -977,7 +983,9 @@ register struct op *t;
 		return(0);
 	}
 	if (*cp == '-') {
-		t->words++;
+		/* bad: t->words++; */
+		for(n = 0; (t->words[n]=t->words[n+1]) != NULL; n++)
+			;
 		if (*++cp == 0)
 			flag['x'] = flag['v'] = 0;
 		else
@@ -1016,6 +1024,28 @@ register char *s;
 	}
 }
 
+#include <stddef.h>
+#include <time.h>
+#include <sys/times.h>
+
+#define	SECS	60L
+#define	MINS	3600L
+
+dotimes()
+{
+	struct tms tbuf;
+
+	times(&tbuf);
+
+	prn((int)(tbuf.tms_cutime / MINS));
+	prs("m");
+	prn((int)((tbuf.tms_cutime % MINS) / SECS));
+	prs("s ");
+	prn((int)(tbuf.tms_cstime / MINS));
+	prs("m");
+	prn((int)((tbuf.tms_cstime % MINS) / SECS));
+	prs("s\n");
+}
 
 struct	builtin {
 	char	*command;
@@ -1040,6 +1070,7 @@ static struct	builtin	builtin[] = {
 	"umask",	doumask,
 	"login",	dologin,
 	"newgrp",	dologin,
+	"times",	dotimes,
 	0,
 };
 
@@ -1053,4 +1084,3 @@ register char *s;
 			return(bp->fn);
 	return(NULL);
 }
-

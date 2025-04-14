@@ -1,86 +1,81 @@
-# On a PC, cpp and cem are in /lib and will be removed to make space while
-# linking the kernel.  On an AT, they are in /usr/lib are are not removed.
-# This is because they have to be in /lib on a PC; the diskette is too small
-# for them to be in /usr/lib.
-#
-
-h=../h
+i=/usr/include
+s=/usr/include/sys
+h=/usr/include/minix
 l=/usr/lib
-CFLAGS = -Di8088 -F -T.
+a=const.h $h/const.h $h/type.h $h/config.h $i/errno.h $i/limits.h $s/types.h
+CFLAGS = -F
 
-obj =	main.s forkexit.s break.s exec.s signal.s getset.s  \
-	alloc.s utility.s table.s putc.s
+obj =	main.s forkexit.s break.s exec.s signal.s getset.s \
+	alloc.s utility.s table.s putc.s trace.s
 
 mm:	makefile    $l/head.s $(obj) $l/libc.a $l/end.s
-	@echo "Start linking MM."
-	@asld -o mm -T. $l/head.s $(obj) $l/libc.a $l/end.s
-	@echo "MM done. "
+	asld -o mm $l/head.s $(obj) $l/libc.a $l/end.s
 
 clean:
 	rm -f $(obj)
 
-alloc.s:	const.h $h/const.h $h/type.h
+alloc.s:	$a
+alloc.s:	glo.h
 
-break.s:	const.h $h/const.h $h/type.h
-break.s:	$h/error.h
-break.s:	$h/signal.h
+break.s:	$a
+break.s:	$i/signal.h
 break.s:	glo.h
 break.s:	mproc.h
 break.s:	param.h
 
-exec.s:		const.h $h/const.h $h/type.h
+exec.s:		$a
 exec.s:		$h/callnr.h
-exec.s:		$h/error.h
-exec.s:		$h/stat.h
+exec.s:		$s/stat.h
 exec.s:		glo.h
 exec.s:		mproc.h
 exec.s:		param.h
 
-forkexit.s:	const.h $h/const.h $h/type.h
+forkexit.s:	$a
 forkexit.s:	$h/callnr.h
-forkexit.s:	$h/error.h
 forkexit.s:	glo.h
 forkexit.s:	mproc.h
 forkexit.s:	param.h
 
-getset.s:	const.h $h/const.h $h/type.h
+getset.s:	$a
 getset.s:	$h/callnr.h
-getset.s:	$h/error.h
 getset.s:	glo.h
 getset.s:	mproc.h
 getset.s:	param.h
 
-main.s:		const.h $h/const.h $h/type.h
+main.s:		$a
 main.s:		$h/callnr.h
 main.s:		$h/com.h
-main.s:		$h/error.h
 main.s:		glo.h
 main.s:		mproc.h
 main.s:		param.h
 
-putc.s:		$h/const.h $h/type.h
+putc.s:		$a
 putc.s:		$h/com.h
+putc.s:		glo.h
 
-signal.s:	const.h $h/const.h $h/type.h
+signal.s:	$a
 signal.s:	$h/callnr.h
 signal.s:	$h/com.h
-signal.s:	$h/error.h
-signal.s:	$h/signal.h
-signal.s:	$h/stat.h
+signal.s:	$i/signal.h
 signal.s:	glo.h
 signal.s:	mproc.h
 signal.s:	param.h
 
-table.s:	const.h $h/const.h $h/type.h
+table.s:	$a
 table.s:	$h/callnr.h
 table.s:	glo.h
 table.s:	mproc.h
 table.s:	param.h
 
-utility.s:	const.h $h/const.h $h/type.h
+trace.s:	$a
+trace.s:	$i/signal.h
+trace.s:	glo.h
+trace.s:	mproc.h
+trace.s:	param.h
+
+utility.s:	$a
 utility.s:	$h/callnr.h
 utility.s:	$h/com.h
-utility.s:	$h/error.h
-utility.s:	$h/stat.h
+utility.s:	$s/stat.h
 utility.s:	glo.h
 utility.s:	mproc.h

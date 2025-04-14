@@ -283,7 +283,7 @@ void	outchar(), outstr(), beep();
 char	*fixname();
 #ifndef	OS2
 #ifndef	DOS
-void	remove(), rename();
+void	remove1(), rename1();
 #endif
 #endif
 void	windinit(), windexit(), windgoto();

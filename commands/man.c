@@ -81,7 +81,7 @@ extern void term_exit();
 #endif
 
 /* Arguments for do_wait() */
-#define	WAIT1		"press <return>"
+#define	WAIT1		"press <return> to go back to menu"
 #define WAIT2		"press <return> for "
 #define WAIT3		"press <return> for more ..."
 

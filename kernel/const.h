@@ -1,15 +1,17 @@
 /* General constants used by the kernel. */
-
-#ifdef i8088
+#if (CHIP == INTEL)
 
 #define INIT_PSW      0x0200	/* initial psw */
 #define INIT_TASK_PSW 0x1200	/* initial psw for tasks (with IOPL 1) */
+#define TRACEBIT       0x100	/* OR this with psw in proc[] for tracing */
+#define SETBITS(rp, new)	/* permits only certain bits to be set */ \
+	((rp)->p_reg.psw = (rp)->p_reg.psw & ~0xCD5 | (new) & 0xCD5)
 
 /* Initial sp for mm, fs and init.
  *	2 bytes for short jump
  *	2 bytes unused
  *	3 words for init_org[] used by fs only
- *	3 words for real mode debugger trap
+ *	3 words for real mode debugger trap (actually needs 1 more)
  *	3 words for save and restart temporaries
  *	3 words for interrupt
  * Leave no margin, to flush bugs early.
@@ -18,11 +20,19 @@
 
 #define HCLICK_SHIFT       4	/* log2 of HCLICK_SIZE */
 #define HCLICK_SIZE       16	/* hardware segment conversion magic */
+#if CLICK_SIZE >= HCLICK_SIZE
+#define click_to_hclick(n) ((n) << (CLICK_SHIFT - HCLICK_SHIFT))
+#else
+#define click_to_hclick(n) ((n) >> (HCLICK_SHIFT - CLICK_SHIFT))
+#endif
+#define hclick_to_physb(n) ((phys_bytes) (n) << HCLICK_SHIFT)
+#define physb_to_hclick(n) ((n) >> HCLICK_SHIFT)
 
 #define ALIGNMENT	   4	/* align large items to a multiple of this */
-#define VECTOR_BYTES     284	/* bytes of interrupt vectors to save */
+#define VECTOR_BYTES     512	/* bytes of interrupt vectors to save */
+#define VEC_TABLE_SEG      0	/* segment of vector table */
 
-/* Interrupt vectors defined/reserved by processor */
+/* Interrupt vectors defined/reserved by processor. */
 #define DIVIDE_VECTOR      0	/* divide error */
 #define DEBUG_VECTOR       1	/* single step (trace) */
 #define NMI_VECTOR         2	/* non-maskable interrupt */
@@ -31,12 +41,15 @@
 
 /* Fixed system call vector (the only software interrupt). */
 #define SYS_VECTOR        32	/* system calls are made with int SYSVEC */
+#define SYS386_VECTOR     33	/* except 386 system calls use this */
 
 /* Suitable irq bases for hardware interrupts.  Reprogram the 8259(s) from
  * the PC BIOS defaults since the BIOS doesn't respect all the processor's
  * reserved vectors (0 to 31).
  */
-#define IRQ0_VECTOR     0x28	/* more or less arbitrary, but > 32 */
+#define BIOS_IRQ0_VEC   0x08	/* base of IRQ0-7 vectors used by BIOS */
+#define BIOS_IRQ8_VEC   0x70	/* base of IRQ8-15 vectors used by BIOS */
+#define IRQ0_VECTOR     0x28	/* more or less arbitrary, but > SYS_VECTOR */
 #define IRQ8_VECTOR     0x30 	/* together for simplicity */
 
 /* Hardware interrupt numbers. */
@@ -82,10 +95,17 @@
 #define MONO_BASE    0xB0000L	/* base of mono video memory */
 #define MONO_SIZE     0x8000L	/* maximum usable mono video memory */
 
-/* Misplaced stuff */
-#define PCR		0x65	/* Planar Control Register */
+/* Cursor shape is needed by debugger as well as console driver. */
+#define CURSOR_SHAPE      15	/* block cursor for MDA/HGC/CGA/EGA/VGA... */
 
-#endif /* i8088 */
+/* Miscellaneous ports. */
+#define PCR		0x65	/* Planar Control Register */
+#define PORT_B          0x61	/* I/O port for 8255 port B (kbd, beeper...) */
+#define TIMER0          0x40	/* I/O port for timer channel 0 */
+#define TIMER2          0x42	/* I/O port for timer channel 2 */
+#define TIMER_MODE      0x43	/* I/O port for timer mode control */
+
+#endif /* (CHIP == INTEL) */
 
 #define K_STACK_BYTES    512	/* how many bytes for the kernel stack */
 
@@ -96,9 +116,3 @@
 #define USER_Q             2	/* ready users are scheduled via queue 2 */
 
 #define printf        printk	/* the kernel really uses printk, not printf */
-
-#if CLICK_SIZE >= HCLICK_SIZE
-#define click_to_hclick(n) ((n) << (CLICK_SHIFT - HCLICK_SHIFT))
-#else
-#define click_to_hclick(n) ((n) >> (HCLICK_SHIFT - CLICK_SHIFT))
-#endif

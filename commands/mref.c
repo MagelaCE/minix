@@ -46,6 +46,8 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 #define LINE_SIZE     512
 #define PHYS_PAGE      66	/* physical page length */
@@ -98,7 +100,7 @@ char *token[NTOKENS];		/* array of pointers to tokens */
  * entries in the symbol table as there are definitions.
  */
 struct symtab {
-  char sym_name[SYM_SIZE+1];	/* symbol, followed by at least one '\0' */
+  char sym_name[SYM_SIZE + 1];	/* symbol, followed by at least one '\0' */
   char sym_type;		/* PUB, PRIV, EXT, SYM, or DEF */
   int sym_val;			/* line number on which symbol occurs */
 } symtab[NSYMS];
@@ -108,7 +110,7 @@ char *ppmap2[] = {"", "#def", "EXTN", "PRIV", "PUBL", "SYMB"};
 char spaces[] = "                ";
 
 char *xref_text[] = {
-  ".nf\n" ,
+  ".nf\n",
   ".tr _\\(ru\n",
   ".ta 1.25i 2iR 2.45iR 2.9iR 3.35iR 3.8iR 4.25iR 4.7iR 5.15iR 5.6iR 6.05iR\n",
   (char *) 0
@@ -140,7 +142,7 @@ char *list_text[] = {
 };
 
 char *sym_text[] = {
-  ".nf\n" ,
+  ".nf\n",
   ".tr _\\(ru\n",
   ".ta 1.6iR 2.0i 3.6iR 4.0i 5.6iR\n",
   (char *) 0
@@ -161,17 +163,18 @@ char *argv[];
   int i, j;
   char *p;
 
+  prog_name = argv[0];
+
   /* Process the command line. */
   if (argc < 2) usage();
 
-  prog_name = argv[0];
-  for(i = 1; i < argc; i++) {
+  for (i = 1; i < argc; i++) {
 	p = argv[i];
 	if (*p != '-') break;
 	p++;
 	i += eat_flag(argv, i);
   }
-  stride = page_len/2;		/* allow for chapter opening */
+  stride = page_len / 2;	/* allow for chapter opening */
   stride2 = page_len;
 
 
@@ -206,44 +209,25 @@ int i;				/* process argv[i] */
   p++;
   if (*p >= '0' && *p <= '9') {
 	page_len = atoi(p);	/* e.g. numb -60 file */
-	return;
+	return(r);
   }
-
   while (1) {
 	/* Flag may be something like -dls. */
-	switch(*p) {
-	    case 'd':	
-		definitions = 0;
-		break;
-
-	    case 'l':
-		listing = 0;
-		break;
-
-	    case 'x':
-		xref = 0;
-		break;
-
-	    case 'm':
-		mflag = 1;
-		break;
-
-	    case 's':
-		sflag = 1;
-		break;
-
-	    case 't':	
-		tflag = 1;
-		break;
+	switch (*p) {
+	    case 'd':	definitions = 0;	break;
+	    case 'l':	listing = 0;	break;
+	    case 'x':	xref = 0;	break;
+	    case 'm':	mflag = 1;	break;
+	    case 's':	sflag = 1;	break;
+	    case 't':	tflag = 1;	break;
 
 	    case 'p':
-		cur_page = atoi(argv[i+1]);
+		cur_page = atoi(argv[i + 1]);
 		i++;
 		r = 1;
 		break;
 
-	    default:	
-		usage();
+	    default:	usage();
 	}
 	p++;
 	if (*p == 0) return(r);
@@ -260,40 +244,42 @@ make_files()
   if (tflag && listing) output_macros(stdout, list_text);
 
   if (definitions) {
-	if ( (fd = creat(SYM_FILE, 0666)) < 0) {
-		fprintf(stderr, "numb: cannot create %s\n", SYM_FILE);
+	if ((fd = creat(SYM_FILE, 0666)) < 0) {
+		fprintf(stderr, "%s: cannot create %s\n", prog_name, SYM_FILE);
 		exit(2);
 	}
 	close(fd);
 	sym = fopen(SYM_FILE, "w");
 	if (sym == NULL) {
-		fprintf(stderr, "numb: cannot open %s for output\n", SYM_FILE);
+		fprintf(stderr, 
+		       "%s: cannot open %s for output\n", prog_name, SYM_FILE);
 		exit(2);
 	}
 	if (tflag) output_macros(sym, sym_text);
   }
-
   if (xref) {
-	if ( (fd = creat(XREF_FILE, 0666)) < 0) {
-		fprintf(stderr, "numb: cannot create %s\n", XREF_FILE);
+	if ((fd = creat(XREF_FILE, 0666)) < 0) {
+		fprintf(stderr,"%s: cannot create %s\n", prog_name, XREF_FILE);
 		exit(2);
 	}
 	close(fd);
 	xr = fopen(XREF_FILE, "w");
 	if (xr == NULL) {
-		fprintf(stderr, "numb: cannot open %s for output\n",XREF_FILE);
+		fprintf(stderr,
+		      "%s: cannot open %s for output\n", prog_name, XREF_FILE);
 		exit(2);
 	}
 	if (tflag) output_macros(xr, xref_text);
 
-	if ( (fd = creat(TMP_FILE, 0666)) < 0) {
-		fprintf(stderr, "numb: cannot create %s\n", TMP_FILE);
+	if ((fd = creat(TMP_FILE, 0666)) < 0) {
+		fprintf(stderr, "%s: cannot create %s\n", prog_name, TMP_FILE);
 		exit(2);
 	}
 	close(fd);
 	tmp = fopen(TMP_FILE, "w");
 	if (xr == NULL) {
-		fprintf(stderr, "numb: cannot open %s for output\n", TMP_FILE);
+		fprintf(stderr,
+		       "%s: cannot open %s for output\n", prog_name, TMP_FILE);
 		exit(2);
 	}
   }
@@ -308,22 +294,21 @@ char *file;
   int k;
   FILE *f;
 
-  if ( (f = fopen(file, "r")) == NULL) {
-        fprintf(stderr, "numb: cannot open %s\n", file);
-        exit(1);
+  if ((f = fopen(file, "r")) == NULL) {
+	fprintf(stderr, "%s: cannot open %s\n", prog_name, file);
+	exit(1);
   }
-
   while (1) {
-        if (fgets(line_buf, LINE_SIZE, f) == NULL) {
+	if (fgets(line_buf, LINE_SIZE, f) == NULL) {
 		/* End of file hit. */
-                fclose(f);
+		fclose(f);
 		if (listing && cur_line % page_len != 0) {
 			fill_page();	/* fill out the e.g. 50 lines */
-			eject();	/* space to top of next sheet */
+			eject();/* space to top of next sheet */
 		}
-                return;
-        }
-	if (listing) 
+		return;
+	}
+	if (listing)
 		list(file);
 	else
 		cur_line++;
@@ -345,7 +330,7 @@ char *file;
 
   cur_line++;
   if (cur_line % page_len == 0) eject();
-	
+
   if (strlen(line_buf) > 1) suppressing = 0;
   if (strcmp(line_buf, "}\n") == 0 && sflag) suppressing = 1;
 }
@@ -369,7 +354,8 @@ get_sym()
   register char c;
   char *p, *q, *backup();
 
-  /* If we are hunting for the end of a declaration, the rules are different.*/
+  /* If we are hunting for the end of a declaration, the rules are
+   * different. */
   if (hunting) {
 	q = line_buf;
 	while (*q == ' ' || *q == '\t') q++;
@@ -382,8 +368,8 @@ get_sym()
 	enter_sym(q, cur_line - 1, hunting);
 	hunting = 0;
 	return;
-}
-	
+  }
+
   /* For efficiency, make a quick check to see if this line is interesting. */
   c = line_buf[0];
   if (c != 'P' && c != 'E' && c != 'S' && c != '#') return;
@@ -394,9 +380,9 @@ get_sym()
   type = 0;
   if (strncmp(b, "#define", 7) == 0) type = DEF;
   if (strncmp(b, "PRIVATE", 7) == 0) type = PRIV;
-  if (strncmp(b, "PUBLIC", 6)  == 0) type = PUB;
-  if (strncmp(b, "EXTERN", 6)  == 0) type = EXT;
-  if (strncmp(b, "SYMBOL", 6)  == 0) type = SYM;
+  if (strncmp(b, "PUBLIC", 6) == 0) type = PUB;
+  if (strncmp(b, "EXTERN", 6) == 0) type = EXT;
+  if (strncmp(b, "SYMBOL", 6) == 0) type = SYM;
   if (type == 0) return;
 
   /* Process #define */
@@ -418,7 +404,8 @@ get_sym()
 	/* It is a paren. */
 	q = b;
 	while (*q != '(') q++;
-	if (*(q+1) == '*') *q = ' ';	/* worry about: int (*foo[N])() */
+	if (*(q + 1) == '*')
+		*q = ' ';	/* worry about: int (*foo[N])() */
 	strip(b, "(", 1);
 	strip(b, "[", 1);
 	q = b + strlen(b) - 1;
@@ -432,7 +419,7 @@ get_sym()
 	/* It is a declaration. */
 	if (*q == ';') q--;
 	if (*q == ' ') q--;
-	*(q+1) = 0;
+	*(q + 1) = 0;
 	if (*q == ']') strip(b, "[", 1);	/* e.g. PRIVATE int foo[N]; */
 	q = b + strlen(b) - 1;
 	q = backup(q);
@@ -445,7 +432,6 @@ get_sym()
 	hunting = type;		/* Start hunting for the '}' */
 	return;
   }
-  
   panic("getsym got unknown line type");
 }
 
@@ -462,7 +448,8 @@ fill_page()
   k = cur_line % page_len;
   if (k > 0) k = page_len - k;
   cur_line += k;
-  if (tflag == 0) while (k--) printf("\n");
+  if (tflag == 0) while (k--)
+		printf("\n");
 }
 
 
@@ -475,7 +462,7 @@ eject()
   if (tflag) return;
 
   i = phys_page - page_len - HDR_SIZE;
-  while(i--) printf("\n");
+  while (i--) printf("\n");
 }
 
 
@@ -517,7 +504,7 @@ squash()
   }
   while (*p != '\0') {
 	if (*p == '\n' || *p == '=') break;
-	if (*p == '/' && *(p+1) == '*') break;
+	if (*p == '/' && *(p + 1) == '*') break;
 	if (*p == ' ' || *p == '\t') {
 		while (*p == ' ' || *p == '\t') p++;
 		*q++ = ' ';	/* copy one space */
@@ -525,8 +512,8 @@ squash()
 		*q++ = *p++;
 	}
   }
-  if (*(q-1) == ' ') q--;
-  *q = 0;	
+  if (*(q - 1) == ' ') q--;
+  *q = 0;
 }
 
 
@@ -545,7 +532,7 @@ int n;
   while (*p != '\0') {
 	if (strncmp(p, s, n) == 0) {
 		*p = 0;
-		if (*(p-1) == ' ') *(p-1) = 0;
+		if (*(p - 1) == ' ') *(p - 1) = 0;
 		return;
 	} else {
 		p++;
@@ -553,7 +540,7 @@ int n;
   }
 
 }
-  
+
 
 char *backup(q)
 char *q;
@@ -561,7 +548,7 @@ char *q;
 /* Back the pointer q up to the start of the word it points to. */
 
   while (*q != ' ' && *q != '*') q--;
-  return(q+1);
+  return(q + 1);
 }
 
 enter_sym(p, value, type)
@@ -570,7 +557,7 @@ int value;			/* line number on which symbol occurs */
 int type;			/* PUB, PRIV, EXT, DEF, SYM */
 {
 /* Enter a symbol in the hash table.  A symbol may be define in FS and again
- * in MM, etc.  Up to 3 definitions are stored.  
+ * in MM, etc.  Up to 3 definitions are stored.
  */
 
   int h, len;
@@ -584,7 +571,7 @@ int type;			/* PUB, PRIV, EXT, DEF, SYM */
   if (strcmp(p, "int") == 0) return;
   if (strcmp(p, "char") == 0) return;
   if (strcmp(p, "void") == 0) return;
-  
+
   strip(p, "(", 1);
   h = find_slot(p);
   hp = &symtab[h];
@@ -592,7 +579,7 @@ int type;			/* PUB, PRIV, EXT, DEF, SYM */
   if (len > SYM_SIZE) len = SYM_SIZE;
 
   /* Enter the symbol.  Multiple definitions are allowed. */
-  strncpy(hp->sym_name, p, len);	/* entry is SYM_SIZE+1 for \'0' */
+  strncpy(hp->sym_name, p, len);/* entry is SYM_SIZE+1 for \'0' */
   hp->sym_type = type;
   hp->sym_val = value;
 }
@@ -606,15 +593,15 @@ char *p;
  */
 
   unsigned int h, hash();
-  
+
   /* Search all entries starting at h for a free slot. */
   h = hash(p);
   while (1) {
- 	if (symtab[h].sym_type == 0) return((int)h);	/* empty slot */    
-	h = (h + 1) % NSYMS;		/* try next entry */
+	if (symtab[h].sym_type == 0) return((int) h);	/* empty slot */
+	h = (h + 1) % NSYMS;	/* try next entry */
   }
 }
-		
+
 int lookup(p)
 char *p;
 {
@@ -628,7 +615,7 @@ char *p;
   h = hash(p);
   while (1) {
 	if (symtab[h].sym_type == 0) return(-1);	/* not present */
-	if (strncmp(p, symtab[h].sym_name, n) == 0) return( (int) h);
+	if (strncmp(p, symtab[h].sym_name, n) == 0) return ((int) h);
 	h = (h + 1) % NSYMS;
   }
 }
@@ -645,7 +632,7 @@ char *p;
   n = strlen(p);
   if (n > SYM_SIZE) n = SYM_SIZE;
   h = 0;
-  for (i=0; i < n; i++) {
+  for (i = 0; i < n; i++) {
 	h += 23 * i * (int) *p;
 	p++;
   }
@@ -673,29 +660,29 @@ print_sym()
 	while (1) {
 		while (i < limit) {
 			ap = &symtab[i];
-			bp = &symtab[i+stride];
-			cp = &symtab[i+2*stride];
-			if (ap < &symtab[n]) 
-				fprintf(sym,"%s\t%d",ap->sym_name,ap->sym_val);
-			if (bp < &symtab[n]) 
-				fprintf(sym,"\t%s\t%d",bp->sym_name,bp->sym_val);
-			if (cp < &symtab[n]) 
-				fprintf(sym,"\t%s\t%d",cp->sym_name,cp->sym_val);
-		fprintf(sym, "\n");
+			bp = &symtab[i + stride];
+			cp = &symtab[i + 2 * stride];
+			if (ap < &symtab[n])
+				fprintf(sym, "%s\t%d", ap->sym_name, ap->sym_val);
+			if (bp < &symtab[n])
+				fprintf(sym, "\t%s\t%d", bp->sym_name, bp->sym_val);
+			if (cp < &symtab[n])
+				fprintf(sym, "\t%s\t%d", cp->sym_name, cp->sym_val);
+			fprintf(sym, "\n");
 			i++;
 		}
 		fprintf(sym, ".bp\n");
-		if (cp >= &symtab[n-1]) return;
+		if (cp >= &symtab[n - 1]) return;
 		i += 2 * stride;
-		stride = stride2;		/* 1st page may be different */
+		stride = stride2;	/* 1st page may be different */
 		limit = i + stride;
 	}
   } else {
 	/* Produce the flat version of symbol.out. */
 	for (ap = &symtab[0]; ap < &symtab[n]; ap++) {
 		k = strlen(ap->sym_name);
-		fprintf(sym, "%s%s %5d  %s\n", ap->sym_name, &spaces[k], 
-					ap->sym_val, ppmap[ap->sym_type]);
+		fprintf(sym, "%s%s %5d  %s\n", ap->sym_name, &spaces[k],
+			ap->sym_val, ppmap[ap->sym_type]);
 	}
   }
 }
@@ -708,12 +695,13 @@ compact()
   unsigned int d;
   struct symtab *ap, *bp;
 
-  bp = &symtab[NSYMS-1];	/* bp points to last entry */
+  bp = &symtab[NSYMS - 1];	/* bp points to last entry */
   for (ap = &symtab[0]; ap < bp; ap++) {
 	if (ap->sym_type != 0) continue;	/* skip used slots. */
 
-	/* ap points to an empty slot.  Find a full one and swap them. */
-	while (bp->sym_type == 0 && bp > symtab) bp--;	/* skip empty slots */
+	/* Ap points to an empty slot.  Find a full one and swap them. */
+	while (bp->sym_type == 0 && bp > symtab)
+		bp--;		/* skip empty slots */
 
 	if (bp <= ap) {
 		d = ap - symtab;
@@ -745,7 +733,7 @@ int n;				/* number of nonnull entries in symtab */
   int s;
   struct symtab *ap, *bp;
 
-  for (ap = &symtab[0]; ap < &symtab[n-1]; ap++) {
+  for (ap = &symtab[0]; ap < &symtab[n - 1]; ap++) {
 	for (bp = ap + 1; bp < &symtab[n]; bp++) {
 		s = strcmp(ap->sym_name, bp->sym_name);
 		if (s < 0) continue;
@@ -754,9 +742,9 @@ int n;				/* number of nonnull entries in symtab */
 	}
   }
 }
- 
 
-  
+
+
 gen_xref(file)
 char *file;
 {
@@ -770,16 +758,15 @@ char *file;
   char c, *skip_comment();
   FILE *f;
 
-  if ( (f = fopen(file, "r")) == NULL) {
-        fprintf(stderr, "numb: cannot open %s\n", file);
-        exit(1);
+  if ((f = fopen(file, "r")) == NULL) {
+	fprintf(stderr, "%s: cannot open %s\n", prog_name, file);
+	exit(1);
   }
-  
   while (1) {
 	/* Each iteration of this outer loop reads one line of the file. */
-        if (fgets(line_buf, LINE_SIZE, f) == NULL) {
+	if (fgets(line_buf, LINE_SIZE, f) == NULL) {
 		/* End of file hit. */
-                fclose(f);
+		fclose(f);
 		if (cur_line % page_len != 0) {
 			k = cur_line % page_len;
 			if (k > 0) k = page_len - k;
@@ -787,7 +774,6 @@ char *file;
 		}
 		return;
 	}
-
 	ntokens = 0;
 	p = line_buf;
 
@@ -798,7 +784,6 @@ char *file;
 			continue;	/* we haven't seen end yet */
 		}
 	}
-
 	c = *p;
 
 	while (c != '\n') {
@@ -807,14 +792,14 @@ char *file;
 			/* This is the start of a token. */
 			token[ntokens++] = p;	/* store start of token */
 			while (isalnum(*p) || *p == '_') p++;
-			c = *p;		/* save character after token */
-			*p = 0;		/* terminate the token */
+			c = *p;	/* save character after token */
+			*p = 0;	/* terminate the token */
 			continue;
 		}
 
 		/* Check to see if it is a comment. */
-		if (c == '/' && *(p+1) == '*') {
-			p = skip_comment(p+2);	/* it's a comment */
+		if (c == '/' && *(p + 1) == '*') {
+			p = skip_comment(p + 2);	/* it's a comment */
 			c = *p;
 			continue;
 		}
@@ -833,21 +818,25 @@ char *file;
 		c = *p;
 	}
 
-	/* Process the token array just constructed. This is where the
- 	 * cross references are written to TMP_FILE.  Put out leading
-	 * zeros so that sort will get them right.
-	 */
+	/* Process the token array just constructed. This is where
+	 * the cross references are written to TMP_FILE.  Put out
+	 * leading zeros so that sort will get them right. */
 	for (i = 0; i < ntokens; i++) {
 		p = token[i];
 		if (strlen(p) > SYM_SIZE) *(p + SYM_SIZE) = 0;
 		k = lookup(p);
 		if (k > 0) {
-		    fprintf(tmp, "%s ", p);
-		    if (cur_line < 10)      fprintf(tmp, "0000%d\n", cur_line);
-		    else if (cur_line < 100) fprintf(tmp, "000%d\n", cur_line);
-		    else if (cur_line < 1000) fprintf(tmp, "00%d\n", cur_line);
-		    else if (cur_line < 10000 )fprintf(tmp, "0%d\n", cur_line);
-		    else 		        fprintf(tmp, "%d\n", cur_line);
+			fprintf(tmp, "%s ", p);
+			if (cur_line < 10)
+				fprintf(tmp, "0000%d\n", cur_line);
+			else if (cur_line < 100)
+				fprintf(tmp, "000%d\n", cur_line);
+			else if (cur_line < 1000)
+				fprintf(tmp, "00%d\n", cur_line);
+			else if (cur_line < 10000)
+				fprintf(tmp, "0%d\n", cur_line);
+			else
+				fprintf(tmp, "%d\n", cur_line);
 		}
 	}
 
@@ -861,11 +850,10 @@ char *p;
 /* Skip a comment. */
 
   while (1) {
-	if (*p == '*' && *(p+1) == '/') {
+	if (*p == '*' && *(p + 1) == '/') {
 		comment = 0;
-		return(p+2);
+		return(p + 2);
 	}
-
 	if (*p == '\n') {
 		comment = 1;	/* next line is still comment. */
 		return(p);
@@ -881,12 +869,11 @@ collect_xref()
   int i, n, values[MAX_VALUES], used, nval, s, flag;
   register char *p;
   char *pname, *pnum;
-  char cur[SYM_SIZE+1];		/* name currently being processed. */
-  
+  char cur[SYM_SIZE + 1];	/* name currently being processed. */
 
-  /* Use the sort program to sort the file where the cross references have been
-   * accumulating.
-   */
+
+  /* Use the sort program to sort the file where the cross references
+   * have been accumulating. */
 
   fclose(tmp);			/* close temporary file to flush the buffer */
   sort_xref();			/* sort the cross references */
@@ -895,16 +882,16 @@ collect_xref()
   /* Open the sorted file to read it back. */
   sortf = fopen(SORTED_FILE, "r");
   if (sortf == NULL) {
-	fprintf(stderr, "numb: cannot read back %s \n", SORTED_FILE);
+	fprintf(stderr, "%s: cannot read back %s \n", prog_name, SORTED_FILE);
 	exit(2);
   }
 
   /* Read back each line in turn. */
   used = 0;
   while (1) {
-        if (fgets(line_buf, LINE_SIZE, sortf) == NULL) {
+	if (fgets(line_buf, LINE_SIZE, sortf) == NULL) {
 		/* EOF seen.  Flush current line and return. */
-  		fprintf(xr, "\n");
+		fprintf(xr, "\n");
 		fclose(xr);
 		unlink(SORTED_FILE);
 		return;
@@ -923,17 +910,17 @@ collect_xref()
 	/* Is this name the one we are currently working on? */
 	if (used == 0 || strcmp(pname, cur) != 0) {
 		nval = new_name(cur, used, pname, values);
-		xcount = nval;		/* # refs on this line so far */
+		xcount = nval;	/* # refs on this line so far */
 	}
 	used = 1;
 
-	/* For every reference, see if it is a definition.  If so, do not
-	 * print it, since the definitions are printed when the symbol is
- 	 * encountered for the first time.
-	 */
+	/* For every reference, see if it is a definition.  If so, do
+	 * not print it, since the definitions are printed when the
+	 * symbol is encountered for the first time. */
 	s = atoi(pnum);
 	flag = 0;
-	for (i = 0; i < nval; i++) if (s == values[i]) flag = 1;
+	for (i = 0; i < nval; i++)
+		if (s == values[i]) flag = 1;
 	if (flag) continue;
 	if (mflag && s == prev_ref) continue;	/* max 1 citation/line */
 	if (xcount > 0 && xcount % MAX_PER_LINE == 0) {
@@ -956,25 +943,25 @@ collect_xref()
 
 
 int new_name(cur, used, pname, values)
-char *cur[SYM_SIZE+1];		/* storage for current name */
+char *cur[SYM_SIZE + 1];	/* storage for current name */
 int used;			/* 0 only on first call. */
 char *pname;			/* pointer to the new name */
 int values[MAX_VALUES];		/* all the definitions of the new name */
 {
 /* A new name has been read.  Finish off the old one and prepare new one. */
 
-  int slot, nval, i,j, type, temp;
+  int slot, nval, i, j, type, temp;
 
   /* If a name is currently in use (all except first time), finish it. */
   if (used && xcount % MAX_PER_LINE > 0) fprintf(xr, "\n");
   xcount = 0;
 
-  /* Copy the new name in place and fetch its definitions. Multiple definitions
-   * are allowed, e.g., do_fork may appear in FS and also in MM, but if they
-   * are different types (e.g., one PUBLIC and one PRIVATE) only one of them
-   * will be included in the listing, to avoid messing up the layout.
-   */
-  strcpy(cur, pname);  
+  /* Copy the new name in place and fetch its definitions. Multiple
+   * definitions are allowed, e.g., do_fork may appear in FS and also
+   * in MM, but if they are different types (e.g., one PUBLIC and one
+   * PRIVATE) only one of them will be included in the listing, to
+   * avoid messing up the layout. */
+  strcpy(cur, pname);
   cur[SYM_SIZE] = 0;
   slot = lookup(pname);
   nval = 0;
@@ -989,8 +976,8 @@ int values[MAX_VALUES];		/* all the definitions of the new name */
   }
 
   /* Sort the values. */
-  for (i = 0; i < nval-1; i++) {
-	for (j = i+1; j < nval; j++) {
+  for (i = 0; i < nval - 1; i++) {
+	for (j = i + 1; j < nval; j++) {
 		if (values[i] > values[j]) {
 			temp = values[i];
 			values[i] = values[j];
@@ -1003,14 +990,14 @@ int values[MAX_VALUES];		/* all the definitions of the new name */
   fprintf(xr, "%s", pname);
   if (tflag) {
 	fprintf(xr, "\t%s\\fB", ppmap2[type]);
-	for (i = 0; i < nval; i++) fprintf(xr, "\t%d",values[i]);
+	for (i = 0; i < nval; i++) fprintf(xr, "\t%d", values[i]);
 	fprintf(xr, "\\fR");
   } else {
 	i = strlen(pname);
-	fprintf(xr,"%s %s ", &spaces[i], ppmap2[type]);
-	for (i = 0; i < nval; i++) fprintf(xr, "%5d ",values[i]);
+	fprintf(xr, "%s %s ", &spaces[i], ppmap2[type]);
+	for (i = 0; i < nval; i++) fprintf(xr, "%5d ", values[i]);
   }
-  
+
   return(nval);
 }
 
@@ -1031,7 +1018,7 @@ sort_xref()
 	/* Child execs sort. */
 	close(0);
 	close(1);
-	if (open(TMP_FILE, 0) < 0) exit(1);
+	if (open(TMP_FILE, O_RDONLY) < 0) exit(1);
 	if (creat(SORTED_FILE, 0644) < 0) exit(2);
 	execl("/bin/sort", "sort", 0);
 	execl("/usr/bin/sort", "sort", 0);
@@ -1078,6 +1065,6 @@ char *s;
 
 usage()
 {
-  fprintf(stderr,"Usage: %s [-<n>] [-dlmtsx] [-p pagenr] file ... \n", 
-								prog_name);
+  fprintf(stderr, "Usage: %s [-<n>] [-dlmtsx] [-p pagenr] file ... \n",
+	prog_name);
 }

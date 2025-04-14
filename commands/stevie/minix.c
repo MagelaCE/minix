@@ -96,20 +96,20 @@ beep()
 }
 
 /*
- * remove(file) - remove a file
+ * remove1(file) - remove a file
  */
 void
-remove(file)
+remove1(file)
 char *file;
 {
 	unlink(file);
 }
 
 /*
- * rename(of, nf) - rename existing file 'of' to 'nf'
+ * rename1(of, nf) - rename existing file 'of' to 'nf'
  */
 void
-rename(of, nf)
+rename1(of, nf)
 char	*of, *nf;
 {
 	unlink(nf);

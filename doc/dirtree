@@ -1,0 +1,54 @@
+Description of the official MINIX directory tree
+
+/bin				     # cache of common system binaries
+/dev				     # special files
+/etc				     # cache of common miscellaneous files
+/lib				     # cache of common libraries
+/tmp				     # directory for temporary files
+/usr				     # user files
+    /usr/adm			     # place for utmp, wtmp files
+    /usr/ast			     # sample user directory
+    /usr/bin			     # main binary directory
+    /usr/doc			     # system documentation files
+    /usr/etc			     # main miscellaneous directory
+    /usr/include		     # system include files
+        /usr/include/minix	     # minix OS includes (formerly ../h)
+        /usr/include/sys	     # certain POSIX include files
+    /usr/lib			     # main directory for libraries
+    /usr/man			     # man pages (used by 'man' program)
+    /usr/spool			     # spooling directory
+    /usr/spool/at		     # used by 'at' program
+    /usr/spool/lpd		     # line printer daemon spooling directory
+    /usr/spool/mail		     # used by 'mail' program
+    /usr/spool/uucp		     # used by various programs
+    /usr/src			     # start of the source tree
+        /usr/src/commands	     # sources of the utility programs
+            /usr/src/commands/basic  # basic
+            /usr/src/commands/bawk   # basic awk
+            /usr/src/commands/de     # disk editor
+            /usr/src/commands/dis88  # 8088 disassembler
+            /usr/src/commands/elle   # EMACS-like editor
+            /usr/src/commands/ic     # integer calculator
+            /usr/src/commands/indent # indentation program
+            /usr/src/commands/kermit # kermit file transfer program
+            /usr/src/commands/m4     # M4 macro processor
+            /usr/src/commands/make   # make utility
+            /usr/src/commands/mined  # mined editor
+            /usr/src/commands/nroff  # text processor
+            /usr/src/commands/patch  # program patcher
+            /usr/src/commands/sh     # Bourne shell
+            /usr/src/commands/stevie # vi clone
+            /usr/src/commands/zmodem # zmodem
+        /usr/src/fs		     # file system sources
+        /usr/src/lib		     # library sources
+            /usr/src/lib/ansi	     # ANSI C library
+            /usr/src/lib/atari	     # ATARI ST specific procedures
+            /usr/src/lib/ibm         # PC specific procedures
+            /usr/src/lib/other	     # miscellaneous library procedures
+            /usr/src/lib/posix	     # IEEE POSIX procedures
+            /usr/src/lib/string	     # fast assembly language string stuff
+        /usr/src/kernel		     # kernel sources
+        /usr/src/mm		     # memory manager sources
+        /usr/src/test		     # test programs
+        /usr/src/tools		     # tools for building the OS
+    /usr/tmp			     # additional directory for temporaries

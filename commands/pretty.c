@@ -5,19 +5,12 @@
  * the output from indent and fixes up a couple of items:
  *
  * 	- the first tab stop is at line_length 3 instead of 9
- *	- short 'if' and 'while' statements should be on a single line
+ *	- short 'if', 'while' and 'for' statements should be on a single line
  *	- placement of comments
  *	- return (value)  ==> return(value)
  *	- etc.
  *
- * To use pretty, install "indent" in /bin or /usr/bin, and put
- * a file named ".indent.pro" in your home directory.  This file must
- * contain a single line with the following contents:
- *
- * -bap -bbb -br -ncdb -cli0.5 -di1 -lp -npsl -nfc1 -nip
- *
- * Do not include the asterisk, i.e., -bap starts in column 1.
- * Do not modify .indent.pro as this program expects this version only.
+ * To use pretty, install "indent" in /bin or /usr/bin.
  */
 
 #include <stdio.h>
@@ -32,6 +25,7 @@
 char buf[BUF_SIZE];
 char buf2[BUF_SIZE];
 char buf3[BUF_SIZE];
+int loops;
 
 main(argc, argv)
 int argc;
@@ -56,12 +50,13 @@ char *s;			/* name of file to prettyprint */
 
   strcpy(buf, "indent ");
   strcat(buf, s);
-  strcat(buf, "\n");
+  strcat(buf," -npro -bap -bbb -br -ncdb -cli0.5 -di1 -lp -npsl -nfc1 -nip\n");
   n = system(buf);
   if (n < 0) {
 	fprintf(stderr, "pretty: cannot indent %s\n", s);
 	exit(1);
   }
+
   /* Rename the intermediate file. */
   strcpy(buf, "mv ");
   strcat(buf, s);
@@ -84,8 +79,7 @@ char *s;			/* name of file to prettyprint */
   FILE *in, *out;
   char *p;
 
-  /* If the original file was called abc, the output from indent is now
-   * +abc. */
+  /* If the original file was called abc, the output from indent is +abc. */
   strcpy(buf, "+");
   strcat(buf, s);
   in = fopen(buf, "r");
@@ -93,13 +87,16 @@ char *s;			/* name of file to prettyprint */
 	fprintf(stderr, "pretty: cannot open %s\n", buf);
 	exit(1);
   }
+
   /* Create the output file. */
   out = fopen(s, "w");
   if (out == NULL) {
 	fprintf(stderr, "pretty: cannot open %s for writing\n", s);
 	exit(1);
   }
+
   /* Process the file a line at a time. */
+  loops = 0;
   fgets(buf, BUF_SIZE, in);
   fgets(buf2, BUF_SIZE, in);
   while (1) {
@@ -122,8 +119,7 @@ char *s;			/* name of file to prettyprint */
 			/* Line starts with two tabs. */
 			shift_left(buf);
 
-			/* If there are more tabs, compensate for
-			 * lost tab. */
+			/* If there are more tabs, compensate for lost tab. */
 			skip_whitespace(p);
 			while (*p != '\t' && *p != '\n') p++;
 			if (*p == '\t') {
@@ -137,15 +133,18 @@ char *s;			/* name of file to prettyprint */
 			buf[1] = ' ';
 		}
 	}
-
-	ifwhile(in, out);
+	ifwhilefor(in, out);
 	do_return(buf);
 	do_case(in);
 	place_comment(buf);	/* align comment right */
 	splice_comment(in);
+	three_liner(in);
+	capitalize();
+	add_blank();
 	fputs(buf, out);
 	strcpy(buf, buf2);
 	strcpy(buf2, buf3);
+	loops++;		/* keep track of loop iterations */
   }
 }
 
@@ -158,10 +157,9 @@ join()
   /* Don't join two if statements. */
   p = buf2;
   skip_whitespace(p);
-  if (strncmp(p, "if ", 3) == 0) return (MAX_LINE + 100);
+  if (strncmp(p, "if ", 3) == 0) return(MAX_LINE + 100);
 
   /* Don't join if the third line is 'else'. */
-
   p = buf3;
   skip_whitespace(p);
   if (strncmp(p, "else", 4) == 0) return(MAX_LINE + 100);
@@ -170,7 +168,7 @@ join()
   q = buf2;
   skip_whitespace(q);
   col = line_length(buf) + line_length(q) + 1;
-  return (col);
+  return(col);
 }
 
 
@@ -214,7 +212,7 @@ char *p;
 	}
 	p++;
   }
-  return (col - 1);
+  return(col - 1);
 }
 
 place_comment(buf)
@@ -231,12 +229,13 @@ char *buf;
 
   /* Skip any initial white space in buf. */
   while (*p == ' ' || *p == '\t') {
-	if (*p == ' ') col++;
+	if (*p == ' ')
+		col++;
 	else
 		col += TAB - (col - 1) % TAB;
 	p++;
   }
-  if (*p == '\n') return;		/* empty line */
+  if (*p == '\n') return;	/* empty line */
   if (*p == '/' && *(p + 1) == '*')
 	return;			/* line starts with comment */
 
@@ -244,9 +243,10 @@ char *buf;
   quotes = 0;
   while (1) {
 	if (*p == '\n') return;
-	if (*p == '"')  quotes++;	/* careful about strings */
+	if (*p == '"') quotes++;	/* careful about strings */
 	if (*p == '/' && *(p + 1) == '*') break;
-	if (*p != '\t') col++;
+	if (*p != '\t')
+		col++;
 	else
 		col += TAB - (col - 1) % TAB;
 	if (*p != ' ' && *p != '\t') last = col;
@@ -260,7 +260,7 @@ char *buf;
   } else {
 	comcol = ((last - 1) / TAB) * TAB + TAB + 1;
   }
-  if (comcol == col) return;		/* it is ok as is */
+  if (comcol == col) return;	/* it is ok as is */
 
   if (comcol > col) {
 	/* Move comment to the right. */
@@ -268,6 +268,7 @@ char *buf;
 	*p = '\t';
 	return;
   }
+
   /* Move comment to the left. */
   q = p - 1;			/* q points to char before comment */
   while (*q == ' ' || *q == '\t') q--;
@@ -275,7 +276,8 @@ char *buf;
   rt = tmp;
   col2 = 1;
   while (rb <= q) {
-	if (*rb != '\t') col2++;
+	if (*rb != '\t')
+		col2++;
 	else
 		col2 += TAB - (col2 - 1) % TAB;
 	*rt++ = *rb++;		/* copy one character */
@@ -290,38 +292,36 @@ char *buf;
 }
 
 
-ifwhile(in, out)
+ifwhilefor(in, out)
 FILE *in, *out;
 {
 /* Check for 'if' or 'while' split over two lines. */
 
-  int is_if, is_while;
+  int is_if, is_while, is_for;
   char *first1, *first2, *second1;
 
-	/* Check for 'if' or 'while' statements split over two lines. */
-	first1 = &buf[0];
-	while (*first1 == ' ' || *first1 == '\t') first1++;
-	first2 = first1 + strlen(first1) - 2;		/* last char */
-	while (first2 > &buf[0] && (*first2 == ' ' || *first2 == '\t'))
-		first2--;
-	
-	/* first1 and first2 now point to first/last nonblank chars. */
-	is_if = (strncmp(first1, "if ", 3) == 0 ? 1 : 0);
-	is_while = (strncmp(first1, "while ", 6) == 0 ? 1 : 0);
+  /* Check for 'if', 'while' or 'for' statements split over two lines. */
+  first1 = &buf[0];
+  skip_whitespace(first1);
+  first2 = first1 + strlen(first1) - 2;	/* last char */
+  while (first2 > &buf[0] && (*first2 == ' ' || *first2 == '\t')) first2--;
 
-	if ( (is_if || is_while) && *first2 == ')') {
-		/* This is an 'if' or 'while' statement ending with ')'. */
-		if (join() < MAX_LINE) {
-			*(first2 + 1) = ' ';
-			*(first2 + 2) = 0;
-			second1 = &buf2[0];
-			while (*second1 == ' ' || *second1 == '\t')
-				second1++;
-			strcat(first2, second1);
-			strcpy(buf2, buf3);
-			if (fgets(buf3, BUF_SIZE, in) == NULL) buf3[0] = '\0';
-		}
+  /* First1 and first2 now point to first/last nonblank chars. */
+  is_if = (strncmp(first1, "if ", 3) == 0 ? 1 : 0);
+  is_for = (strncmp(first1, "for ", 4) == 0 ? 1 : 0);
+  is_while = (strncmp(first1, "while ", 6) == 0 ? 1 : 0);
+
+  if ((is_if || is_for || is_while) && *first2 == ')') {
+	/* This is an 'if' or 'while' statement ending with ')'. */
+	if (join() < MAX_LINE) {
+		*(first2 + 1) = ' ';
+		*(first2 + 2) = 0;
+		second1 = &buf2[0];
+		while (*second1 == ' ' || *second1 == '\t') second1++;
+		strcat(first2, second1);
+		scrunch(in);
 	}
+  }
 }
 
 do_return(b)
@@ -334,7 +334,7 @@ char *b;
   p = b;
   skip_whitespace(p);
   if (strncmp(p, "return (", 8) != 0) return;
-  shift_left(p+6);
+  shift_left(p + 6);
 }
 
 
@@ -342,31 +342,46 @@ splice_comment(in)
 FILE *in;
 {
 /* Indent has the problem that it sometimes breaks one line comments over two
- * lines, even though the original comment fir quite well on one line.  Fix it.
+ * lines, even though the original comment fits quite well on one line.  Fix.
  */
 
   char *p, *q;
 
-  p = buf2;			/* affect lines are followed by  * something */
+  p = buf2;			/* affected lines are followed by * something */
   skip_whitespace(p);
-  if (*p != '*' || *(p+1) != ' ') return;
+  if (*p != '*' || *(p + 1) != ' ') return;
 
-  /* Second line starts with * something.  See if first one contains comment.*/
+  /* Second line starts with * something.  See if first one contains
+   * comment. */
   q = buf;
   while (1) {
 	while (*q != '/' && *q != '\n') q++;
 	if (*q == '\n') return;
-	if (*(q+1) == '*') break;
+	if (*(q + 1) == '*') break;
 	q++;
   }
 
   /* We found a comment here.  See if the two lines can be merged. */
-  if (line_length(buf) + line_length(p+1) >= MAX_LINE) return;
+  if (line_length(buf) + line_length(p + 1) > MAX_LINE) return;
   q = buf + strlen(buf) - 1;	/* q points to '\n' */
   *q = 0;
-  strcat(buf, p+1);
-  strcpy(buf2, buf3);
-  if (fgets(buf3, BUF_SIZE, in) == NULL) buf3[0] = '\0';
+  strcat(buf, p + 1);
+  scrunch(in);
+}
+
+
+add_blank()
+{
+/* Add a blank line between closing bracket and comment. */
+
+  char *p, *q;
+  p = buf;
+  skip_whitespace(p);
+  q = buf2;
+  skip_whitespace(q);
+  if (strcmp(p, "}\n") == 0 && strncmp(q, "/*", 2) == 0) {
+	strcat(buf, "\n");
+  }
 }
 
 
@@ -384,30 +399,86 @@ FILE *in;
 
   p = buf;
   skip_whitespace(p);
-  if (strncmp(p, "case ", 5) != 0) return;
+  if (strncmp(p, "case ", 5) != 0 && strncmp(p, "default", 7) != 0) return;
+  shift_right(p);
+  *p++ = ' ';
+  shift_right(p);
+  *p++ = ' ';
+  shift_right(p);
+  *p++ = ' ';
+  shift_right(p);
+  *p++ = ' ';
 
   q = buf2;
   skip_whitespace(q);
 
   r = buf3;
   skip_whitespace(r);
-  if (strncmp(r, "break;", 6) != 0) return;
+  if (strncmp(r, "break;", 6) != 0 && strcmp(r, "}\n") != 0) return;
 
   /* This is a case statement and the case is only 1 line long (+ break). */
-  if (line_length(buf) + 3*TAB + line_length(q) + line_length(r) > MAX_LINE) 
+  if (line_length(buf) + 3 * TAB + line_length(q) + line_length(r) > MAX_LINE)
 	return;
-  shift_right(p);  *p++ = ' ';
-  shift_right(p);  *p++ = ' ';
-  shift_right(p);  *p++ = ' ';
-  shift_right(p);  *p++ = ' ';
   p = buf + strlen(buf) - 1;
   *p = 0;
   strcat(buf, "\t");
   strcat(buf, q);
   p = buf + strlen(buf) - 1;
   *p = 0;
-  strcat(buf, "\t");
+  if (strncmp(r, "break;", 6) == 0) {
+	strcat(buf, "\t");	/* 'break' case */
+  } else {
+	strcat(buf, "\n");	/* 'default' case */
+  }
+  if (strncmp(r, "}", 1) == 0) {
+	/* The "}' at the end of the switch has to be fudged. */
+	p = buf;
+	while (*p++ == '\t') strcat(buf, "\t");
+  }
   strcat(buf, r);
   if (fgets(buf2, BUF_SIZE, in) == NULL) buf2[0] = '\0';
   if (fgets(buf3, BUF_SIZE, in) == NULL) buf3[0] = '\0';
+}
+
+
+capitalize()
+{
+/* Capitalize the first word of comments that begin a section. */
+
+  char *p, *q;
+
+  if (loops == 0) return;
+  p = buf;
+  skip_whitespace(p);
+  if (strncmp(p, "/* ", 3) != 0) return;
+  q = p + 3;
+  if (*q >= 'a' && *q <= 'z') *q = *q - 'a' + 'A';
+}
+
+scrunch(in)
+FILE *in;
+{
+/* Move buf3 to buf2 and reload buf3. */
+
+  strcpy(buf2, buf3);
+  if (fgets(buf3, BUF_SIZE, in) == NULL) buf3[0] = '\0';
+}
+
+three_liner(in)
+FILE *in;
+{
+/* Handle three line comments that get munged. */
+
+  char *p, *q;
+
+  p = buf;
+  q = buf2;
+  skip_whitespace(p);
+  skip_whitespace(q);
+  if (*p == '/' && *(p + 1) == '*' && *q == '*' && *(q + 1) == '/') {
+	q = p + strlen(p) - 1;
+	*q = 0;
+	strcat(p, " */\n");
+	scrunch(in);
+  }
 }

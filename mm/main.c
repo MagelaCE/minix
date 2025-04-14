@@ -13,26 +13,19 @@
  *   do_brk2:	pseudo-call for FS to report its size
  */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../h/callnr.h"
-#include "../h/com.h"
-#include "../h/error.h"
-#include "const.h"
-#include "glo.h"
+#include "mm.h"
+#include <minix/callnr.h>
+#include <minix/com.h>
 #include "mproc.h"
 #include "param.h"
 
-extern (*call_vec[])();
-extern phys_clicks alloc_mem();
-extern phys_clicks mem_left();
-
-FORWARD phys_clicks get_mem();
+FORWARD void get_work();
+FORWARD void mm_init();
 
 /*===========================================================================*
  *				main					     *
  *===========================================================================*/
-PUBLIC main()
+PUBLIC void main()
 {
 /* Main routine of the memory manager. */
 
@@ -53,7 +46,7 @@ PUBLIC main()
 
 	/* If the call number is valid, perform the call. */
 	if (mm_call < 0 || mm_call >= NCALLS)
-		error = E_BAD_CALL;
+		error = EBADCALL;
 	else
 		error = (*call_vec[mm_call])();
 
@@ -68,7 +61,7 @@ PUBLIC main()
 /*===========================================================================*
  *				get_work				     *
  *===========================================================================*/
-PRIVATE get_work()
+PRIVATE void get_work()
 {  
 /* Wait for the next message and extract useful information from it. */
 
@@ -81,7 +74,7 @@ PRIVATE get_work()
 /*===========================================================================*
  *				reply					     *
  *===========================================================================*/
-PUBLIC reply(proc_nr, result, res2, respt)
+PUBLIC void reply(proc_nr, result, res2, respt)
 int proc_nr;			/* process to reply to */
 int result;			/* result of the call (usually OK or error #)*/
 int res2;			/* secondary result */
@@ -104,7 +97,7 @@ char *respt;			/* result if pointer */
 /*===========================================================================*
  *				mm_init					     *
  *===========================================================================*/
-PRIVATE mm_init()
+PRIVATE void mm_init()
 {
 /* Initialize the memory manager. */
 
@@ -114,6 +107,7 @@ PRIVATE mm_init()
   mproc[MM_PROC_NR].mp_flags |= IN_USE;
   mproc[FS_PROC_NR].mp_flags |= IN_USE;
   mproc[INIT_PROC_NR].mp_flags |= IN_USE;
+  mproc[INIT_PROC_NR].mp_pid = INIT_PID;
   procs_in_use = 3;
 }
 
@@ -121,7 +115,7 @@ PRIVATE mm_init()
 /*===========================================================================*
  *				do_brk2	   				     *
  *===========================================================================*/
-PUBLIC do_brk2()
+PUBLIC int do_brk2()
 {
 /* This "call" is made once by FS during system initialization and then never
  * again by anyone.  It contains the origin and size of INIT, and the combined
@@ -153,7 +147,7 @@ PUBLIC do_brk2()
   /* Remove the memory used by the RAM disk from the memory map. */
   tot_clicks = mm_in.m1_i3;		/* total size of MINIX + RAM disk */
   ram_clicks = tot_clicks - minix_clicks;	/* size of RAM disk */
-#ifdef i8088
+#if (CHIP == INTEL)
   /* Put RAM disk in extended memory, if any. */
   if (get_mem(&ram_base, TRUE) >= ram_clicks)
 	goto got_base;
@@ -168,7 +162,7 @@ got_base:
   mem1 = click_to_round_k(minix_clicks + ram_clicks + mem_left());  
   mem2 = click_to_round_k(minix_clicks);
   mem3 = click_to_round_k(ram_clicks);
-#ifndef ATARI_ST
+#if (CHIP == INTEL)
   printf("%c[H%c[J",033, 033);	/* go to top of screen and clear screen */
 #endif
   printf("Memory size = %3dK     ", mem1);
@@ -187,7 +181,7 @@ got_base:
   rmp->mp_seg[D].mem_phys = init_org + init_text_clicks;
   rmp->mp_seg[D].mem_len  = init_data_clicks;
   rmp->mp_seg[S].mem_phys = init_org + init_clicks;
-#ifdef ATARI_ST
+#if (MACHINE == ATARI)
   rmp->mp_seg[T].mem_vir  = rmp->mp_seg[T].mem_phys;
   rmp->mp_seg[D].mem_vir  = rmp->mp_seg[D].mem_phys;
   rmp->mp_seg[S].mem_vir  = rmp->mp_seg[S].mem_phys;
@@ -198,39 +192,6 @@ got_base:
 
   return(OK);
 }
-
-#ifdef ATARI_ST
-/* This should be moved to the kernel, like the PC version.  It has already
- * been modified to match the other changes, but won't compile as is since
- * there this file also contains the preferred version of get_mem() (which
- * doesn't deserve #ifdef i8088).
- */
-/*===========================================================================*
- *				get_mem					     *
- *===========================================================================*/
-/*
- * Current memory size is set by TOS in variable 'phystop'.
- * The TOS variable '_memtop' compensates for VIDEO memory.
- */
-PRIVATE phys_clicks get_mem(pbase, extflag)
-phys_clicks *pbase;		/* where to return the base */
-int extflag;			/* nonzero for extended memory */
-{
-  long i;
-  static unsigned already;
-
-  *pbase = 0;
-  if (already) return(0);	/* only one chunk */
-  already = TRUE;
-  if (mem_copy(
-	HARDWARE, D, (long)0x0436,	/* TOS variable _memtop */
-	MM_PROC_NR, D, (long)&i,
-	(long)sizeof(i)
-  ) != OK)
-	panic("get_tot_mem", NO_NUM);
-  return((phys_clicks)(i >> CLICK_SHIFT));
-}
-#endif
 
 
 /*===========================================================================*

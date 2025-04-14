@@ -1,19 +1,20 @@
 /* strings - print ASCII strings in a file	Author: Peter S. Housel */
 
 /*
-	This is a version of the BSD "strings" program for Minix. It is used
-to search a file for printable strings. To install,
+  This is a version of the BSD "strings" program for Minix. It is used
+  to search a file for printable strings. To install,
 
-	cc -o strings strings.c
-	chmem =8000 strings
+  cc -o strings strings.c
+  chmem =8000 strings
 
 Command:  strings - search file for printable strings
 Syntax:	  strings [-] [-o] [-len] file ...
 Flags:	  -	Search the entire file. If this option is not given, only
-		the initialized data segment of files that appear to be
+	 	the initialized data segment of files that appear to be
 		"a.out" format is searched.
-	  -o	Print the offset (in octal) with each string.
-	  -len	Use "len" as the minimum string length. The default is 4.
+    	  -o	Print the offset (in octal) with each string.
+          -len	Use "len" as the minimum string length. The default is 4.
+
 Examples: strings core
 	  strings -o a.out > str
 
@@ -38,116 +39,97 @@ not everybody has a.out.h yet. Future revisions probably ought to, though.
 #define SMALLMAGIC	0x04100301L	/* small model a.out magic number */
 #define SEPARATEMAGIC	0x04200301L	/* separate instruction/data a.out */
 
-#define HDR_MAGIC	0		/* 0'th long  magic number */
-#define HDR_HSIZE	1		/* 1'st long  size of header */
-#define HDR_TSIZE	2		/* 2'nd long  size of text */
-#define HDR_DSIZE	3		/* 3'rd long  size of init'ed data */
-#define HDR_BSIZE	4		/* 4'th long  size of bss */
-#define HDR_TOTMEM	6		/* 6'th long  total memory */
+#define HDR_MAGIC	0	/* 0'th long  magic number */
+#define HDR_HSIZE	1	/* 1'st long  size of header */
+#define HDR_TSIZE	2	/* 2'nd long  size of text */
+#define HDR_DSIZE	3	/* 3'rd long  size of init'ed data */
+#define HDR_BSIZE	4	/* 4'th long  size of bss */
+#define HDR_TOTMEM	6	/* 6'th long  total memory */
 
-#define HDR_LEN		8		/* total length of header */
+#define HDR_LEN		8	/* total length of header */
 
-/* miscellaneous definitions */
-#define	STRLEN		4		/* default minimum string length */
-#define STRBUF		512		/* buffer length for strings */
+/* Miscellaneous definitions */
+#define	STRLEN		4	/* default minimum string length */
+#define STRBUF		512	/* buffer length for strings */
 
 void strings(), usage();
 
-int strmin = STRLEN;			/* minimum string length */
-int printoff = 0;			/* print octal offset of each str */
-int objall = 0;				/* search entire a.out file, not */
-					/* just initialized data segment */
+int strmin = STRLEN;		/* minimum string length */
+int printoff = 0;		/* print octal offset of each str */
+int objall = 0;			/* search entire a.out file, not */
+
+/* Just initialized data segment */
 
 main(argc, argv)
-int argc; char *argv[];
+int argc;
+char *argv[];
 {
- while((++argv, --argc) && '-' == (*argv)[0])
-      {
-       if(!strcmp(*argv, "-"))
-	  ++objall;
-       else if(!strcmp(*argv, "-o"))
-	  ++printoff;
-       else if(isdigit((*argv)[1]))
-	  strmin = atoi(&(*argv)[1]);
-       else
-	  usage();
-      } 
+  while ((++argv, --argc) && '-' == (*argv)[0]) {
+	if (!strcmp(*argv, "-"))
+		++objall;
+	else if (!strcmp(*argv, "-o"))
+		++printoff;
+	else if (isdigit((*argv)[1]))
+		strmin = atoi(&(*argv)[1]);
+	else
+		usage();
+  }
 
- if(0 == argc)
-    usage();
-
- while(argc--)
-       strings(*argv++);
-
- exit(0);
+  if (0 == argc) usage();
+  while (argc--) strings(*argv++);
+  exit(0);
 }
 
 void strings(filename)
 char *filename;
 {
- char buf[STRBUF];	/* the strings buffer */
- char *bufptr;		/* pointer into the strings buffer */ 
- FILE *input;		/* input file */
- long header[HDR_LEN];	/* buffer for reading the header */
- long offset;		/* file offset */
- long limit;		/* limit, if doing data segment only */
- int c;			/* input character */
+  char buf[STRBUF];		/* the strings buffer */
+  char *bufptr;			/* pointer into the strings buffer */
+  FILE *input;			/* input file */
+  long header[HDR_LEN];		/* buffer for reading the header */
+  long offset;			/* file offset */
+  long limit;			/* limit, if doing data segment only */
+  int c;			/* input character */
 
+  if (NULL == (input = fopen(filename, "r"))) {
+	fprintf(stderr, "strings: ");
+	perror(filename);
+	exit(1);
+  }
+  if (HDR_LEN == fread(header, sizeof(long), HDR_LEN, input)
+      && (SMALLMAGIC == header[HDR_MAGIC]
+	||SEPARATEMAGIC == header[HDR_MAGIC]) && !objall) {
+	offset = header[HDR_HSIZE] + header[HDR_TSIZE];	/* object file */
+	limit = offset + header[HDR_DSIZE];
+  } else {
+	offset = 0L;
+	limit = 0L;
+  }
 
- extern FILE *fopen();
- extern int fread();
+  fseek(input, offset, 0);
+  bufptr = buf;
 
- if(NULL == (input = fopen(filename, "r")))
-   {
-    fprintf(stderr, "strings: ");
-    perror(filename);
-    exit(1);
-   }
+  while (!limit || offset < limit) {
+	if (EOF == (c = getc(input))) break;
+	if ((('\0' == c || '\n' == c) && bufptr - buf >= strmin)
+	    || (bufptr - buf == STRBUF - 1)) {
+		*bufptr = '\0';
+		if (printoff) printf("%lo:", offset - (bufptr - buf));
+		puts(buf);
+		bufptr = buf;
+	} else if ((' ' <= c && c < 0177) || '\t' == c)
+		*bufptr++ = c;
+	else
+		bufptr = buf;
 
- if(HDR_LEN == fread(header, sizeof(long), HDR_LEN, input)
-    && (SMALLMAGIC == header[HDR_MAGIC]
-	|| SEPARATEMAGIC == header[HDR_MAGIC]) && !objall)
-   {
-    offset = header[HDR_HSIZE] + header[HDR_TSIZE]; /* object file */
-    limit = offset + header[HDR_DSIZE];
-   }
- else
-   {
-    offset = 0L;
-    limit = 0L;
-   }
+	++offset;
+  }
 
- fseek(input, offset, 0);
- bufptr = buf;
-
- while(!limit || offset < limit)
-      {
-       if(EOF == (c = getc(input)))
-          break;
-       if((('\0' == c || '\n' == c) && bufptr - buf >= strmin)
-	  || (bufptr - buf == STRBUF - 1))
-         {
-	  *bufptr = '\0';
-	  if(printoff)
-             printf("%O:", offset - (bufptr - buf));
-	  puts(buf);
-	  bufptr = buf;
-	 }
-       else if((' ' <= c && c < 0177) || '\t' == c)
-	  *bufptr++ = c;
-       else
-	  bufptr = buf;
-
-       ++offset;
-      }
-
- fclose(input);  
+  fclose(input);
 }
 
 void usage()
 {
- fprintf(stderr, "usage: strings [-] [-o] [-num] file ...\n");
- exit(1);
+  fprintf(stderr, "usage: strings [-] [-o] [-num] file ...\n");
+  exit(1);
 }
-
-

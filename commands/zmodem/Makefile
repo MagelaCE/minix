@@ -1,0 +1,12 @@
+all: rz sz
+
+CFLAGS= -DV7 -D_MINIX -D_POSIX_SOURCE -DLCASE
+BIN=/usr/lib
+
+rz: rz.c rbsb.c zm.c zmodem.h
+	cc $(CFLAGS) -o rz rz.c
+	chmem =10000 rz
+
+sz: sz.c rbsb.c zm.c zmodem.h
+	cc $(CFLAGS) -o sz sz.c
+	chmem =10000 sz

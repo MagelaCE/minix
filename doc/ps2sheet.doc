@@ -1,0 +1,107 @@
+
+
+
+
+
+		INSTALLATION INSTRUCTIONS FOR MINIX ON THE PS/2
+
+
+MINIX is a new operating system for the IBM PC, XT, AT, and PS/2 computers,
+as well as for the Atari ST and Mega ST.  The system is described in detail
+in the following book:
+
+	Title: Operating Systems: Design and Implementation
+	Author: Andrew S. Tanenbaum
+	Publisher: Prentice-Hall
+	Date: 1987
+	ISBN: 0-13-637406-9
+
+Instructions for using MINIX are included in that book, especially in the
+Appendices.  This sheet is only intended to show you how to boot MINIX on
+a PS/2 computer.  For information about how to use it after booting,  see
+the book.  In addition, consult the file  USER_GUIDE in the doc directory
+in this distribution.
+
+As an alternative to the book, there is a paperback MINIX Reference Manual
+also available from Prentice-Hall (ISBN 0-13-584400-2).
+
+ 1. To boot MINIX, turn off your PS/2 computer and insert the boot diskette.
+
+ 2. Turn on the computer and wait until the menu appears on the screen.
+
+ 3. Type one of the 3 characters:  u d =  depending on which keyboard you
+    have.  If you are not sure, try u first.
+
+ 4. MINIX will now be loaded.  When you are asked to type the date and time, 
+    enter 12 digits, for example Jan 23, 1989 at 4:17 pm is: 012389161700.
+
+ 5. When the "login: " message appears, type: root
+
+ 6. When "password: " appears, type: Geheim .  Note the capital "G".
+
+ 7. Type ls -l.  This will display the current directory.
+
+ 8. Check the hard disk by typing:  dd if=/dev/hd0 of=/dev/null count=100.
+    This should read 100 records and print a little message afterwards.  If
+    this works, you can proceed with installing MINIX on your hard disk.  If
+    it gives an error message, you can only use MINIX with diskettes.
+
+ 9. Choose a partition on your hard disk for MINIX.  If you intended to
+    install the MINIX sources, you will need at least 5MB.  Since partition
+    numbering is not standardized, type:
+	fdisk /dev/hd0
+    to see which partition is which.  Compute the size of your partition in
+    1K blocks (two 512 sectors form 1 block).  Partitions must begin at an even
+    sector and contain an even number of sectors.  If you have chosen partition
+    1, subtract one from the size (for the partition table).  For example, 
+    300 cylinders with 17 sectors and 4 heads per cylinder would be of size 
+    10200 blocks if it were partition 2 or more, and 10199 as partition 1.  
+    To create a minix file system, on, for example, partition 2, type:
+	mkfs /dev/hd2 10200
+    The special file /dev/hd2 must be replaced by /dev/hdN for partition N.
+    In the examples below we will assume you are using parition 2 (/dev/hd2).
+    Running mkfs will overwrite all information on that partition, so
+    be sure you have backed up anything important on it.
+
+10. To unmount the diskette and mount say, hard disk partition 2, type:
+	/etc/umount /dev/fd0
+	/etc/mount /dev/hd2 /usr
+	/etc/mount /dev/fd0 /user
+    Note that the first line is /etc/umount, not /etc/unmount.  At this
+    point, /usr is the hard disk and /user is the diskette.
+
+11. To install all the diskettes on the hard disk, type:
+	/user/install
+    Just follow the instructions on the screen.  First all the files from
+    Diskette 3 will be copied to the hard disk, then in turn, you will be
+    ask to insert the remaining diskettes one by one.
+
+12. When the /user/install shell script terminates, you may wish to edit the
+    /etc/rc file on the root file system diskette (#2), so it mounts the
+    hard disk partition instead of the floppy at boot time.  To do this, 
+    insert diskette 2 and type:
+	/etc/mount /dev/fd0 /user
+	ed /user/etc/rc
+	g/fd0/s//hd2/
+	w
+	q
+	/etc/umount /dev/fd0
+
+13. If you prefer loading the root file system from hard disk, instead of
+    having to insert the root file system floppy every time you boot, you 
+    should free up partition 3, then insert the root file system diskette (but
+    do not mount it).  Instead just type:
+	cp /dev/fd0 /dev/hd3
+    In this way, when the boot menu asks you to insert the root file system,
+    do not do it.  Just leave the boot diskette there when typing u, d, or =.
+
+14. When the installation is completed, you can use MINIX as described in
+    the book and in the file doc/USER_GUIDE.  Before logging out or rebooting
+    type:
+	sync
+    to avoid data loss.  If you accidentally forget, use the fsck program to
+    repair the damage to your data.  Logging out with CTRL-D also does a sync.
+
+15. PS/2 users with access to USENET, ARPANET, or BITNET, can send questions
+    about MINIX to the author by electronic mail at ast@cs.vu.nl.  There is
+    also a worldwide MINIX users group on USENET, named comp.os.minix.

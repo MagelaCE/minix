@@ -1,4 +1,6 @@
-#include "signal.h"
+/* test 7 */
+
+#include <signal.h>
 extern int errno;
 int testnr;
 int errct;
@@ -27,7 +29,8 @@ test70()
 
   signal(SIGQUIT, SIG_IGN);
   err = 0;
-  for (i=0; i<5000; i++) if (zilch[i] != 0) err++;
+  for (i = 0; i < 5000; i++)
+	if (zilch[i] != 0) err++;
   if (err > 0) e(1);
   kill(getpid(), SIGQUIT);
 }

@@ -15,6 +15,8 @@
  * The -v flag (verbose) prints the directory names as they are processed.
  */
 
+#include <sys/types.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 
 #define BUFSIZE 4096		/* size of file buffers */
@@ -22,7 +24,7 @@
 #define DIRENTLEN 14		/* number of characters in a file name */
 
 struct dirstruct {		/* layout of a directory entry */
-  unsigned inum;
+  ino_t inum;
   char fname[DIRENTLEN];
 };
 
@@ -42,12 +44,11 @@ char *argv[];
   if (argc < 3 || argc > 4) usage();
   p = argv[1];
   if (argc == 4) {
-	if (*p == '-' && *(p+1) == 'v') 
+	if (*p == '-' && *(p + 1) == 'v')
 		verbose++;
 	else
 		usage();
   }
-
   if (argc == 3)
 	compare(argv[1], argv[2]);
   else
@@ -66,12 +67,11 @@ char *f1, *f2;
 
   int type1, type2;
 
-  if (stat(f1, &stat1)  < 0) {
+  if (stat(f1, &stat1) < 0) {
 	printf("Cannot stat %s\n", f1);
 	return;
   }
-
-  if (stat(f2, &stat2)  < 0) {
+  if (stat(f2, &stat2) < 0) {
 	printf("Missing file: %s\n", f2);
 	return;
   }
@@ -85,17 +85,11 @@ char *f1, *f2;
   }
 
   /* The types are the same. */
-  switch(type1) {
-	case S_IFREG:	regular(f1, f2);
-			break;
-
-	case S_IFDIR:	directory(f1, f2);
-			break;
-
-	case S_IFCHR:
-	case S_IFBLK:	break;
-
-	default:	printf("Unknown file type %o\n", type1);
+  switch (type1) {
+      case S_IFREG:	regular(f1, f2);	break;
+      case S_IFDIR:	directory(f1, f2);	break;
+      case S_IFCHR:	case S_IFBLK:		break;
+      default:		printf("Unknown file type %o\n", type1);
   }
   return;
 }
@@ -116,18 +110,16 @@ char *f1, *f2;
   }
 
   /* The sizes are the same.  We actually have to read the files now. */
-  fd1 = open(f1, 0);
+  fd1 = open(f1, O_RDONLY);
   if (fd1 < 0) {
 	printf("Cannot open %s for reading\n", f1);
 	return;
   }
-
-  fd2 = open(f2, 0);
+  fd2 = open(f2, O_RDONLY);
   if (fd2 < 0) {
 	printf("Cannot open %s for reading\n", f2);
 	return;
   }
-
   count = stat1.st_size;
   while (count > 0L) {
 	bytes = (unsigned) (count > BUFSIZE ? BUFSIZE : count);	/* rd count */
@@ -179,7 +171,6 @@ char *f1, *f2;
 	printf("Cannot process directory %s: out of memory\n", f1);
 	return;
   }
-
   dir2bytes = (unsigned) stat2.st_size;
   dir2buf = malloc(dir2bytes);
   if (dir2buf == 0) {
@@ -189,7 +180,7 @@ char *f1, *f2;
   }
 
   /* Read in the directories. */
-  fd1 = open(f1, 0);
+  fd1 = open(f1, O_RDONLY);
   if (fd1 > 0) n1 = read(fd1, dir1buf, dir1bytes);
   if (fd1 < 0 || n1 != dir1bytes) {
 	printf("Cannot read directory %s\n", f1);
@@ -200,7 +191,7 @@ char *f1, *f2;
   }
   close(fd1);
 
-  fd2 = open(f2, 0);
+  fd2 = open(f2, O_RDONLY);
   if (fd2 > 0) n2 = read(fd2, dir2buf, dir2bytes);
   if (fd2 < 0 || n2 != dir2bytes) {
 	printf("Cannot read directory %s\n", f2);
@@ -213,14 +204,14 @@ char *f1, *f2;
   close(fd2);
 
   /* Linearly search directories */
-  ent1 = dir1bytes/sizeof(struct dirstruct);
+  ent1 = dir1bytes / sizeof(struct dirstruct);
   dp1 = (struct dirstruct *) dir1buf;
   for (i = 0; i < ent1; i++) {
 	if (dp1->inum != 0) used1++;
 	dp1++;
   }
 
-  ent2 = dir2bytes/sizeof(struct dirstruct);
+  ent2 = dir2bytes / sizeof(struct dirstruct);
   dp2 = (struct dirstruct *) dir2buf;
   for (i = 0; i < ent2; i++) {
 	if (dp2->inum != 0) used2++;
@@ -233,10 +224,10 @@ char *f1, *f2;
   dp1 = (struct dirstruct *) dir1buf;
   dp2 = (struct dirstruct *) dir2buf;
   for (i = 0; i < ent2; i++) {
-	if (dp2->inum == 0 || strcmp(dp2->fname, ".") == 0 || 
-		strcmp(dp2->fname, "..") == 0) {
-			dp2++;
-			continue;
+	if (dp2->inum == 0 || strcmp(dp2->fname, ".") == 0 ||
+	    strcmp(dp2->fname, "..") == 0) {
+		dp2++;
+		continue;
 	}
 	check(dp2->fname, dp1, ent1, f1);
 	dp2++;
@@ -245,10 +236,10 @@ char *f1, *f2;
   /* Recursively process all the entries in dir1. */
   dp1 = (struct dirstruct *) dir1buf;
   for (i = 0; i < ent1; i++) {
-	if (dp1->inum == 0 || strcmp(dp1->fname, ".") == 0 || 
-		strcmp(dp1->fname, "..") == 0) {
-			dp1++;
-			continue;
+	if (dp1->inum == 0 || strcmp(dp1->fname, ".") == 0 ||
+	    strcmp(dp1->fname, "..") == 0) {
+		dp1++;
+		continue;
 	}
 	if (strlen(f1) + DIRENTLEN >= MAXPATH) {
 		printf("Path too long: %s\n", f1);
@@ -262,14 +253,13 @@ char *f1, *f2;
 		free(dir2buf);
 		return;
 	}
-	
 	strcpy(name1buf, f1);
 	strcat(name1buf, "/");
 	strncat(name1buf, dp1->fname, DIRENTLEN);
 	strcpy(name2buf, f2);
 	strcat(name2buf, "/");
 	strncat(name2buf, dp1->fname, DIRENTLEN);
- 
+
 	/* Here is the recursive call to process an entry. */
 	compare(name1buf, name2buf);	/* recursive call */
 	dp1++;
@@ -300,4 +290,3 @@ usage()
   printf("Usage: treecmp [-v] dir1 dir2\n");
   exit(0);
 }
-

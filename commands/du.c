@@ -2,6 +2,8 @@
 
 /*
  *	du.c		1.1	27/5/87		agc	Joypace Ltd.
+ *			1.2	24 Mar 89	nick@nswitgould.oz
+ *			1.3	31 Mar 89	nick@nswitgould.oz
  *
  *	Copyright 1987, Joypace Ltd., London UK. All rights reserved.
  *	This code may be freely distributed, provided that this notice
@@ -9,34 +11,38 @@
  *
  *	du - a public domain interpretation of du(1).
  *
+ *  1.2: 	Fixed bug involving 14 character long filenames
+ *  1.3:	Add [-l levels] option to restrict printing.
+ *
  */
 
 
 #include <stdio.h>
 #include <sys/types.h>
+#include <fcntl.h>
 #include <sys/stat.h>
-#include <minix/blocksize.h>
+#include <blocksize.h>
 
-char *prog;				/* program name */
-char *optstr = "as";			/* -a and -s arguments */
-int silent = 0;				/* silent mode */
-int all = 0;				/* all directory entries mode */
-char *startdir = ".";			/* starting from here */
+char *prog;			/* program name */
+char *optstr = "asl:";		/* -a and -s arguments */
+int silent = 0;			/* silent mode */
+int all = 0;			/* all directory entries mode */
+char *startdir = ".";		/* starting from here */
+int levels = 255;		/* # of directory levels to print */
 
 #define	LINELEN 256
 
 #define DIRNAMELEN 14
 #define	LSTAT stat
 typedef struct _dirstr {
-  int	inum;
-  char	d_name[DIRNAMELEN];
+  ino_t inum;
+  char d_name[DIRNAMELEN];
 } DIR;
 DIR dir;
-#define ino_t unsigned short
 
 typedef struct _alstr {
   int al_dev;
-  ino_t	al_inum;
+  ino_t al_inum;
 } ALREADY;
 
 #define	MAXALREADY	50
@@ -47,12 +53,11 @@ int alc = 0;
  *	myindex - stop the scanf bug
  */
 char *myindex(s, c)
-register char	*s;
-register char	c;
+register char *s;
+register char c;
 {
   for (; *s; s++)
-	if (*s == c)
-		return(s);
+	if (*s == c) return(s);
   return(NULL);
 }
 
@@ -61,24 +66,24 @@ register char	c;
  *	getopt - parse the arguments given.
  *	retrieved from net.sources
  */
-int	opterr = 1;
-int	optind = 1;
-int	optopt;
-char	*optarg;
+int opterr = 1;
+int optind = 1;
+int optopt;
+char *optarg;
 
 #define BADCH	(int)'?'
 #define EMSG	""
 #define TELL(s)	fputs(*nargv, stderr); fputs(s, stderr);\
-	fputc(optopt, stderr); fputc('\n', stderr);\
-	return(BADCH);
+  fputc(optopt, stderr); fputc('\n', stderr);\
+  return(BADCH);
 
 int getopt(nargc, nargv, ostr)
-int	nargc;
-char	**nargv;
-char	*ostr;
+int nargc;
+char **nargv;
+char *ostr;
 {
-  register char	*oli;
-  static char	*place = EMSG;
+  register char *oli;
+  static char *place = EMSG;
 
   if (!*place) {
 	if (optind >= nargc || *(place = nargv[optind]) != '-' || !*++place)
@@ -88,15 +93,13 @@ char	*ostr;
 		return(EOF);
 	}
   }
-  if ((optopt = (int)*place++) == (int)':' || !(oli = myindex(ostr, optopt))) {
-	if (!*place)
-		++optind;
+  if ((optopt = (int) *place++) == (int) ':' || !(oli = myindex(ostr, optopt))) {
+	if (!*place) ++optind;
 	TELL(": illegal option -- ");
   }
   if (*++oli != ':') {
 	optarg = NULL;
-	if (!*place)
-		++optind;
+	if (!*place) ++optind;
   } else {
 	if (*place)
 		optarg = place;
@@ -112,26 +115,27 @@ char	*ostr;
 }
 
 /*
- *	makedname - make the direcory entry from the directory name,
- *	and the file name, placing it in out. If this would overflow,
+ *	makedname - make the pathname from the directory name, and the
+ *	directory entry, placing it in out. If this would overflow,
  *	return 0, otherwise 1.
  */
 int makedname(d, f, out, outlen)
-char	*d;
-char	*f;
-char	*out;
-int	outlen;
+char *d;
+char *f;
+char *out;
+int outlen;
 {
-  char	*cp;
+  char *cp;
+  int length;
 
-  if (strlen(d) + strlen(f) + 2 > outlen)
-	return(0);
-  for (cp = out ; *d ; *cp++ = *d++)
-	;
-  if (*(cp-1) != '/')
-	*cp++ = '/';
-  while (*f)
-	*cp++ = *f++;
+  /* Find length (1-14) of directory entry */
+  cp = f;
+  for (length = 0; *cp && (length < 14); ++cp) ++length;
+
+  if (strlen(d) + length + 2 > outlen) return(0);
+  for (cp = out; *d; *cp++ = *d++);
+  if (*(cp - 1) != '/') *cp++ = '/';
+  while (length--) *cp++ = *f++;
   *cp = '\0';
   return(1);
 }
@@ -141,14 +145,14 @@ int	outlen;
  *	0 for no, and remembers (dev, inum).
  */
 int done(dev, inum)
-int	dev;
-ino_t	inum;
+int dev;
+ino_t inum;
 {
-  register ALREADY	*ap;
-  register int		i;
-  int			ret = 0;
+  register ALREADY *ap;
+  register int i;
+  int ret = 0;
 
-  for (i = 0, ap = already ; i < alc ; ap++, i++)
+  for (i = 0, ap = already; i < alc; ap++, i++)
 	if (ap->al_dev == dev && ap->al_inum == inum) {
 		ret = 1;
 		break;
@@ -164,42 +168,41 @@ ino_t	inum;
  *	dodir - process the directory d. Return the long size (in blocks)
  *	of d and its descendants.
  */
-long dodir(d)
-char	*d;
+long dodir(d, thislev)
+char *d;
+int thislev;
 {
-  struct stat	s;
-  long		total = 0L;
-  char		dent[LINELEN];
-  int		fd;
-  
-  if ((fd = open(d, 0)) < 0)
-	return(0L);
+  struct stat s;
+  long total = 0L;
+  char dent[LINELEN];
+  int fd;
+
+  if ((fd = open(d, O_RDONLY)) < 0) return(0L);
   while (read(fd, &dir, sizeof(dir)) > 0) {
 	if (strcmp(dir.d_name, ".") == 0 ||
 	    strcmp(dir.d_name, "..") == 0)
 		continue;
-	if (dir.inum == 0)
-		continue;
-	if (!makedname(d, dir.d_name, dent, sizeof(dent)))
-		continue;
-	if (LSTAT(dent, &s) < 0)
-		continue;
-	if (s.st_nlink > 1 && done(s.st_dev, s.st_ino))
-		continue;
+	if (dir.inum == 0) continue;
+	if (!makedname(d, dir.d_name, dent, sizeof(dent))) continue;
+	if (LSTAT(dent, &s) < 0) continue;
+	if (s.st_nlink > 1 && done(s.st_dev, s.st_ino)) continue;
 	if ((s.st_mode & S_IFMT) == S_IFDIR)
-		total += dodir(dent);
-	switch(s.st_mode & S_IFMT) {
-	case S_IFREG:
-	case S_IFDIR:
+		total += dodir(dent, thislev - 1);
+	switch (s.st_mode & S_IFMT) {
+	    case S_IFREG:
+	    case S_IFDIR:
 		total += (s.st_size + BLOCK_SIZE) / BLOCK_SIZE;
 		break;
 	}
 	if (all && (s.st_mode & S_IFMT) != S_IFDIR)
-		printf("%D\t%s\n", (s.st_size + BLOCK_SIZE) / BLOCK_SIZE, dent);
+		if (thislev > 0)	/* this is correct - file in subdir */
+			printf("%ld\t%s\n",
+				(s.st_size + BLOCK_SIZE) / BLOCK_SIZE, dent);
   }
   close(fd);
   if (!silent)
-	printf("%D\t%s\n", total, d);
+	if (thislev >= 0)	/* this is correct - subdir itself */
+		printf("%ld\t%s\n", total, d);
   return(total);
 }
 
@@ -207,29 +210,24 @@ char	*d;
  *	OK, here goes...
  */
 main(argc, argv)
-int	argc;
-char	**argv;
+int argc;
+char **argv;
 {
-  long	tot;
-  int	c;
+  long tot;
+  int c;
 
   prog = argv[0];
-  while ((c = getopt(argc, argv, optstr)) != EOF)
-	switch(c) {
-	case 'a' :
-		all = 1;
-		break;
-	case 's' :
-		silent = 1;
-		break;
-	default :
-		fprintf(stderr, "Usage: %s [-a] [-s] [startdir]\n", prog);
+  while ((c = getopt(argc, argv, optstr)) != EOF) switch (c) {
+	    case 'a':	all = 1;	break;
+	    case 's':	silent = 1;	break;
+	    case 'l':	levels = atoi(optarg);	break;
+	    default:
+		fprintf(stderr,
+			"Usage: %s [-a] [-s] [-l levels] [startdir]\n", prog);
 		exit(1);
 	}
-  if (optind < argc)
-	startdir = argv[optind];
-  tot = dodir(startdir);
-  if (silent)
-	printf("%D\t%s\n", tot, startdir);
+  if (optind < argc) startdir = argv[optind];
+  tot = dodir(startdir, levels);
+  if (silent) printf("%ld\t%s\n", tot, startdir);
   exit(0);
 }

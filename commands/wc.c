@@ -12,7 +12,7 @@
  *			w - count words.
  *			c - count characters.
  *
- *		Flags l, w, and c are default.  
+ *		Flags l, w, and c are default.
  *		Words are delimited by any non-alphabetic character.
  *
  *  Released into the PUBLIC-DOMAIN 02/10/86
@@ -22,7 +22,7 @@
  *
  *	Written by: David L. Messer
  *				P.O. Box 19130, Mpls, MN,  55119
- *      Program (heavily) modified by Andy Tanenbaum 
+ *      Program (heavily) modified by Andy Tanenbaum
  */
 
 
@@ -51,22 +51,22 @@ char *argv[];
   files = argc - 1;
   k = 1;
   cp = argv[1];
-  if (argc >1 && *cp++ == '-') {
+  if (argc > 1 && *cp++ == '-') {
 	files--;
 	k++;			/* points to first file */
 	while (*cp != 0) {
 		switch (*cp) {
-			case 'l':	lflag++;	break;
-			case 'w':	wflag++;	break;
-			case 'c':	cflag++;	break;
-			default:	usage();
+		    case 'l':	lflag++;	break;
+		    case 'w':	wflag++;	break;
+		    case 'c':	cflag++;	break;
+		    default:	usage();
 		}
 		cp++;
 	}
   }
 
   /* If no flags are set, treat as wc -lwc. */
-  if(!lflag && !wflag && !cflag) {
+  if (!lflag && !wflag && !cflag) {
 	lflag = 1;
 	wflag = 1;
 	cflag = 1;
@@ -78,9 +78,9 @@ char *argv[];
   /* Check to see if input comes from std input. */
   if (k >= argc) {
 	count();
-	if(lflag) printf(" %6D", lcount);
-	if(wflag) printf(" %6D", wcount);
-	if(cflag) printf(" %6D", ccount);
+	if (lflag) printf(" %6D", lcount);
+	if (wflag) printf(" %6D", wcount);
+	if (cflag) printf(" %6D", ccount);
 	printf(" \n");
 	fflush(stdout);
 	exit(0);
@@ -98,21 +98,20 @@ char *argv[];
 	} else {
 		/* Next file has been opened as std input. */
 		count();
-		if(lflag) printf(" %6D", lcount);
-		if(wflag) printf(" %6D", wcount);
-		if(cflag) printf(" %6D", ccount);
+		if (lflag) printf(" %6D", lcount);
+		if (wflag) printf(" %6D", wcount);
+		if (cflag) printf(" %6D", ccount);
 		printf(" %s\n", argv[k]);
 	}
 	k++;
   }
 
-  if(tflag) {
-	if(lflag) printf(" %6D", ltotal);
-	if(wflag) printf(" %6D", wtotal);
-	if(cflag) printf(" %6D", ctotal);
+  if (tflag) {
+	if (lflag) printf(" %6D", ltotal);
+	if (wflag) printf(" %6D", wtotal);
+	if (cflag) printf(" %6D", ctotal);
 	printf(" total\n");
   }
-
   fflush(stdout);
   exit(0);
 }
@@ -122,15 +121,15 @@ count()
   register int c;
   register int word = 0;
 
-	lcount = 0;
-	wcount = 0;
-	ccount = 0L;
+  lcount = 0;
+  wcount = 0;
+  ccount = 0L;
 
-  while((c = getc(stdin)) >= 0) {
+  while ((c = getc(stdin)) >= 0) {
 	ccount++;
 
-	if(isspace(c)) {
-		if(word) wcount++;
+	if (isspace(c)) {
+		if (word) wcount++;
 		word = 0;
 	} else {
 		word = 1;
@@ -148,5 +147,3 @@ usage()
   std_err("Usage: wc [-lwc] [name ...]\n");
   exit(1);
 }
-
-

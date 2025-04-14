@@ -1,5 +1,8 @@
 /* cmp - compare two files	Authors: Paul Polderman & Michiel Huisjes */
 
+#include <sys/types.h>
+#include <fcntl.h>
+
 #define BLOCK_SIZE 8192
 typedef unsigned short unshort;
 
@@ -15,43 +18,39 @@ char *argv[];
   int fd1, fd2, i, exit_status;
 
   if (argc < 3 || argc > 4) usage();
-  lflag = 0; sflag = 0;
-  fd1 = -1; fd2 = -1;
+  lflag = 0;
+  sflag = 0;
+  fd1 = -1;
+  fd2 = -1;
   for (i = 1; i < argc && argv[i][0] == '-'; i++) {
-  	switch (argv[i][1]) {
-  		case 'l' :
-  			lflag++;
-  			break;
-  		case 's' :
-  			sflag++;
-  			break;
-  		case '\0' :
-  			fd1 = 0;	/* First file is stdin. */
-  			break;
-  		default :
-  			usage();
-  	}
+	switch (argv[i][1]) {
+	    case 'l':	lflag++;	break;
+	    case 's':	sflag++;	break;
+	    case '\0':
+		fd1 = 0;	/* First file is stdin. */
+		break;
+	    default:	usage();
+	}
   }
 
-  if (fd1 == -1) {					/* Open first file. */
-  	if (i == argc || (fd1 = open(argv[i], 0)) < 0) 
+  if (fd1 == -1) {		/* Open first file. */
+	if (i == argc || (fd1 = open(argv[i], O_RDONLY)) < 0)
 		cantopen(argv[i]);
-  	 else
-  		file_1 = argv[i++];
-  }
-  else
-  	file_1 = "stdin";
+	else
+		file_1 = argv[i++];
+  } else
+	file_1 = "stdin";
 
-  if (i == argc || (fd2 = open(argv[i], 0)) < 0)	/* Open second file. */
-  	cantopen(argv[i]);
+  if (i == argc || (fd2 = open(argv[i], O_RDONLY)) < 0)	/* Open second file. */
+	cantopen(argv[i]);
   file_2 = argv[i];
 
   exit_status = cmp(fd1, fd2);
 
-  close (fd1);
-  close (fd2);
+  close(fd1);
+  close(fd2);
 
-  exit (exit_status);
+  exit(exit_status);
 }
 
 
@@ -68,7 +67,8 @@ int fd1, fd2;
   unshort n1, n2, exit_status;
   int c1, c2;
 
-  char_cnt = 1L; line_cnt = 1L;
+  char_cnt = 1L;
+  line_cnt = 1L;
   exit_status = 0;
   do {
 	n1 = read(fd1, buf[ONE], BLOCK_SIZE);
@@ -79,22 +79,23 @@ int fd1, fd2;
 			if (sflag)	/* Exit silently */
 				return(1);
 			if (!lflag) {
-				printf("%s %s differ: char %D, line %D\n",
-					file_1, file_2, char_cnt, line_cnt);
+				printf("%s %s differ: char %ld, line %ld\n",
+				file_1, file_2, char_cnt, line_cnt);
 				return(1);
 			}
 			c1 = buf[ONE][i];
 			c2 = buf[TWO][i];
-			printf("\t%D %3o %3o\n",
-					char_cnt, c1&0377, c2&0377);
+			printf("\t%ld %3o %3o\n",
+			       char_cnt, c1 & 0377, c2 & 0377);
 			exit_status = 1;
 		}
-		if (buf[ONE][i] == '\n')
-			line_cnt++;
+		if (buf[ONE][i] == '\n') line_cnt++;
 		i++;
 		char_cnt++;
 	}
 	if (n1 != n2) {		/* EOF on one of the input files. */
+		if (sflag)	/* Exit silently */
+			return(1);
 		if (n1 < n2)
 			prints("cmp: EOF on %s\n", file_1);
 		else

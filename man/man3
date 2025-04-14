@@ -1,0 +1,2501 @@
+#INTRO
+NAME
+	  intro	- introduction to subroutines and libraries
+SYNTAX
+	  #include <stdio.h>
+	  #include <math.h>
+DESCRIPTION
+	  This section describes functions found in various libraries,
+	  other	than those functions that directly invoke UNIX system
+	  primitives, which are	described in Section 2 of this volume.
+	  Certain major	collections are	identified by a	letter after
+	  the section number:
+	  (3C)	These functions, together with those of	Section	2 and
+		those marked (3S), constitute the Standard C Library
+		libc, which is automatically loaded by the C compiler,
+		cc(1).	The link editor	ld(1) searches this library
+		under the -lc option.  Declarations for	some of	these
+		functions may be obtained from #include	files
+		indicated on the appropriate pages.
+	  (3S)	These functions	constitute the ``standard I/O
+		package'' [see stdio(3S)].  These functions are	in the
+		library	libc, already mentioned.  Declarations for
+		these functions	may be obtained	from the #include file
+		<stdio.h>.
+	  (3M)	These functions	constitute the Math Library, libm.
+		They are automatically loaded as needed	by the FORTRAN
+		compiler f77(1).  They are not automatically loaded by
+		the C compiler,	cc(1); however,	the link editor
+		searches this library under the	-lm option.
+		Declarations for these functions may be	obtained from
+		the #include file <math.h>.  Several generally useful
+		mathematical constants are also	defined	there [see
+		math(5)].
+	  (3X)	Various	specialized libraries.	The files in which
+		these libraries	are found are given on the appropriate
+		pages.
+	  (3F)	These functions	constitute the FORTRAN intrinsic
+		function library, libF77.  These functions are
+		automatically available	to the FORTRAN programmer and
+		require	no special invocation of the compiler.
+	  There	are separate library files for use with	small, large
+	  and huge model programs (see "Files,"	below).	 Normally,
+	  ld(1)	automatically selects the correct library file for the
+	  memory model you are using.  However,	if you specify the
+	  library file yourself, be sure that it matches the memory
+	  model	of your	program.
+     DEFINITIONS
+				  
+	  A character is any bit pattern able to fit into a byte on
+	  the machine.	The null character is a	character with value
+	  0, represented in the	C language as '\0'.  A character array
+	  is a sequence	of characters.	A null-terminated character
+	  array	is a sequence of characters, the last of which is the
+	  null character.  A string is a designation for a null-
+	  terminated character array.  The null	string is a character
+	  array	containing only	the null character.  A NULL pointer is
+	  the value that is obtained by	casting	0 into a pointer.  The
+	  C language guarantees	that this value	will not match that of
+	  any legitimate pointer, so many functions that return
+	  pointers return it to	indicate an error.  NULL is defined as
+	  0 in <stdio.h>; the user can include an appropriate
+	  definition if	not using <stdio.h>.
+	  Many groups of FORTRAN intrinsic functions have generic
+	  function names that do not require explicit or implicit type
+	  declaration.	The type of the	function will be determined by
+	  the type of its argument(s).	For example, the generic
+	  function max will return an integer value if given integer
+	  arguments (max0), a real value if given real arguments
+	  (amax1), or a	double-precision value if given	double-
+	  precision arguments (dmax1).
+FILES
+	  /lib/small/libc.a
+	  /lib/large/libc.a
+	  /lib/huge/libc.a
+	  /lib/small/libm.a
+	  /lib/large/libm.a
+	  /lib/huge/libm.a
+	  /usr/small/lib/libF77.a
+	  /usr/large/lib/libF77.a
+	  /usr/huge/lib/libF77.a
+SEE ALSO
+	  intro(2), stdio(3S), math(5).
+	  ar(1), cc(1),	f77(1),	ld(1), lint(1),	nm(1) in the UNIX
+	  System V User	Reference Manual.
+DIAGNOSTICS
+	  Functions in the C and Math Libraries	(3C and	3M) may	return
+	  the conventional values 0 or _HUGE (the largest-magnitude
+	  single-precision floating-point numbers; HUGE	is defined in
+	  the <math.h> header file) when the function is undefined for
+	  the given arguments or when the value	is not representable.
+	  In these cases, the external variable	errno [see intro(2)]
+	  is set to the	value EDOM or ERANGE.  As many of the FORTRAN
+	  intrinsic functions use the routines found in	the Math
+	  Library, the same conventions	apply.
+     WARNING
+	  Many of the functions	in the libraries call and/or refer to
+	  other	functions and external variables described in this
+	  section and in section 2 (System Calls).  If a program
+	  inadvertantly	defines	a function or external variable	with
+	  the same name, the presumed library version of the function
+	  or external variable may not be loaded.  The lint(1) program
+	  checker reports name conflicts of this kind as ``multiple
+	  declarations'' of the	names in question.  Definitions	for
+	  sections 2, 3C, and 3S are checked automatically.  Other
+	  definitions can be included by using the -l option (for
+	  example, -lm includes	definitions for	the Math Library,
+	  section 3M).	Use of lint is highly recommended.
+ 
+#abs
+NAME
+	  abs -	return integer absolute	value
+SYNTAX
+	  int abs (i)
+	  int i;
+DESCRIPTION
+	  Abs returns the absolute value of its	integer	operand.
+BUGS
+	  In two's-complement representation, the absolute value of
+	  the negative integer with largest magnitude is undefined.
+	  Some implementations trap this error,	but others simply
+	  ignore it.
+SEE ALSO
+	  floor(3M).
+				  
+NAME
+	  abs, iabs, dabs, cabs, zabs -	FORTRAN	absolute value
+SYNTAX
+	  integer i1, i2
+	  real r1, r2
+	  double precision dp1,	dp2
+	  complex cx1, cx2
+	  double complex dx1, dx2
+	  r2 = abs(r1)
+	  i2 = iabs(i1)
+	  i2 = abs(i1)
+	  dp2 =	dabs(dp1)
+	  dp2 =	abs(dp1)
+	  cx2 =	cabs(cx1)
+	  cx2 =	abs(cx1)
+	  dx2 =	zabs(dx1)
+	  dx2 =	abs(dx1)
+DESCRIPTION
+	  Abs is the family of absolute	value functions.  Iabs returns
+	  the integer absolute value of	its integer argument.  Dabs
+	  returns the double-precision absolute	value of its double-
+	  precision argument.  Cabs returns the	complex	absolute value
+	  of its complex argument.  Zabs returns the double-complex
+	  absolute value of its	double-complex argument.  The generic
+	  form abs returns the type of its argument.
+SEE ALSO
+	  floor(3M).
+				  
+#crypt
+NAME
+	  crypt, encrypt - a one way hashing encryption	algorithm
+SYNTAX
+	  char *crypt (key, salt)
+	  char *key, *salt;
+	  void encrypt (block)
+	  char *block;
+DESCRIPTION
+	  Crypt	is the password	encryption function.  It is based on a
+	  one way hashing encryption algorithm with variations
+	  intended (among other	things)	to frustrate use of hardware
+	  implementations of a key search.
+	  Key is a user's typed	password.  Salt	is a two-character
+	  string chosen	from the set [a-zA-Z0-9./]; this string	is
+	  used to perturb the hashing algorithm	in one of 4096
+	  different ways, after	which the password is used as the key
+	  to encrypt repeatedly	a constant string.  The	returned value
+	  points to the	encrypted password.  The first two characters
+	  are the salt itself.
+	  There	is a character array of	length 64 containing only the
+	  characters with numerical value 0 and	1.  When this string
+	  is divided into groups of 8, the low-order bit in each group
+	  is ignored; this gives a 56-bit key which is set into	the
+	  machine by crypt.
+	  The encrypt entry provides (rather primitive)	access to the
+	  actual hashing algorithm.  The argument to the encrypt entry
+	  is a character array of length 64 containing only the
+	  characters with numerical value of 0 and 1.  The argument
+	  array	is modified in place to	a similar array	representing
+	  the bits of the argument after having	been subjected to the
+	  hashing algorithm using the key set by crypt.
+SEE ALSO
+	  getpass(3C), passwd(4).
+	  login(1), passwd(1) in the UNIX System V User	Reference
+	  Manual.
+BUGS
+	  The return value points to static data that are overwritten
+	  by each call.
+				  
+ 
+#ctermid
+NAME
+	  ctermid - generate file name for terminal
+SYNTAX
+	  #include <stdio.h>
+	  char *ctermid	(s)
+	  char *s;
+DESCRIPTION
+	  Ctermid generates the	path name of the controlling terminal
+	  for the current process, and stores it in a string.
+	  If s is a NULL pointer, the string is	stored in an internal
+	  static area, the contents of which are overwritten at	the
+	  next call to ctermid,	and the	address	of which is returned.
+	  Otherwise, s is assumed to point to a	character array	of at
+	  least	L_ctermid elements; the	path name is placed in this
+	  array	and the	value of s is returned.	 The constant
+	  L_ctermid is defined in the <stdio.h>	header file.
+     NOTES
+	  The difference between ctermid and ttyname(3C) is that
+	  ttyname must be handed a file	descriptor and returns the
+	  actual name of the terminal associated with that file
+	  descriptor, while ctermid returns a string (/dev/tty)	that
+	  will refer to	the terminal if	used as	a file name.  Thus
+	  ttyname is useful only if the	process	already	has at least
+	  one file open	to a terminal.
+SEE ALSO
+	  ttyname(3C).
+				  
+ 
+#ctime
+NAME
+	  ctime, localtime, gmtime, asctime, - convert date and
+	  time to string
+SYNTAX
+	  #include <time.h>
+	  char *ctime (clock)
+	  long *clock;
+	  struct tm *gmtime (clock)
+	  long *clock;
+	  char *asctime	(tm)
+	  struct tm *tm;
+DESCRIPTION
+	  Ctime	converts a long	integer, pointed to by clock,
+	  representing the time	in seconds since 00:00:00 GMT, January
+	  1, 1970, and returns a pointer to a 26-character string in
+	  the following	form.  All the fields have constant width.
+	       Sun Sep 16 01:03:52 1973\n\0
+	  Gmtime returns a pointer to a ``tm'' structure,
+	  described below. Gmtime converts directly to Greenwich
+	  Mean Time (GMT), which is the time the UNIX system uses.
+	  Asctime converts a ``tm'' structure to a 26-character
+	  string, as shown in the above	example, and returns a pointer
+	  to the string.
+	  Declarations of all the functions and	externals, and the
+	  ``tm'' structure, are	in the <time.h>	header file.  The
+	  structure declaration	is:
+	       struct tm {
+		       int tm_sec; /* seconds (0 - 59) */
+		       int tm_min; /* minutes (0 - 59) */
+				  
+		       int tm_hour;	/* hours (0 - 23) */
+		       int tm_mday;	/* day of month	(1 - 31) */
+		       int tm_mon;	/* month of year (0 - 11) */
+		       int tm_year;	/* year	- 1900 */
+		       int tm_wday;	/* day of week (Sunday = 0) */
+		       int tm_yday;	/* day of year (0 - 365) */
+	       };
+SEE ALSO
+	  time(2).
+BUGS
+	  The return values point to static data whose content is
+	  overwritten by each call.
+ 
+#ctype
+NAME
+	  isalpha, isupper, islower, isdigit, isxdigit,	isalnum,
+	  isspace, ispunct, isprint, isgraph, iscntrl, isascii -
+	  classify characters
+SYNTAX
+	  #include <ctype.h>
+	  int isalpha (c)
+	  int c;
+	  . . .
+DESCRIPTION
+	  These	macros classify	character-coded	integer	values by
+	  table	lookup.	 Each is a predicate returning nonzero for
+	  true,	zero for false.	 Isascii is defined on all integer
+	  values; the rest are defined only where isascii is true and
+	  on the single	non-ASCII value	EOF [-1	- see stdio(3S)].
+	  isalpha	 c is a	letter.
+	  isupper	 c is an upper-case letter.
+	  islower	 c is a	lower-case letter.
+	  isdigit	 c is a	digit [0-9].
+	  isxdigit	 c is a	hexadecimal digit [0-9], [A-F] or [a-
+			 f].
+	  isalnum	 c is an alphanumeric (letter or digit).
+	  isspace	 c is a	space, tab, carriage return, new-line,
+			 vertical tab, or form-feed.
+	  ispunct	 c is a	punctuation character (neither control
+			 nor alphanumeric).
+	  isprint	 c is a	printing character, code 040 (space)
+			 through 0176 (tilde).
+	  isgraph	 c is a	printing character, like isprint
+			 except	false for space.
+	  iscntrl	 c is a	delete character (0177)	or an ordinary
+			 control character (less than 040).
+	  isascii	 c is an ASCII character, code less than 0200.
+DIAGNOSTICS
+	  If the argument to any of these macros is not	in the domain
+				  
+	  of the function, the result is undefined.
+SEE ALSO
+	  stdio(3S), ascii(5).
+ 
+#cuserid
+NAME
+	  cuserid - get	character login	name of	the user
+SYNTAX
+	  #include <stdio.h>
+	  char *cuserid	(s)
+	  char *s;
+DESCRIPTION
+	  Cuserid generates a character-string representation of the
+	  login	name that the owner of the current process is logged
+	  in under.  If	s is a NULL pointer, this representation is
+	  generated in an internal static area,	the address of which
+	  is returned.	Otherwise, s is	assumed	to point to an array
+	  of at	least L_cuserid	characters; the	representation is left
+	  in this array.  The constant L_cuserid is defined in the
+	  <stdio.h> header file.
+DIAGNOSTICS
+	  If the login name cannot be found, cuserid returns a NULL
+	  pointer; if s	is not a NULL pointer, a null character	(\0)
+	  will be placed at s[0].
+SEE ALSO
+	  getlogin(3C),	getpwent(3C).
+				  
+ 
+#directory
+SUBROUTINES
+    directory(3)	- directory operations
+INVOCATION
+    #include <sys/types.h>
+    #include <dirent.h>
+    DIR *opendir( dirname )
+      char *dirname;
+    struct dirent *readdir( dirp )
+      DIR *dirp;
+    off_t telldir( dirp )
+      DIR *dirp;
+    void seekdir( dirp, loc )
+      DIR *dirp;
+      off_t loc;
+    void rewinddir( dirp )
+      DIR *dirp;
+    int closedir( dirp )
+      DIR *dirp;
+EXPLANATION
+    Opendir(3) establishes a connection between the directory named
+    by <dirname> and a unique object of type DIR known as a
+    directory stream that it creates. Opendir(3) returns a pointer
+    to be used to identify the directory stream in subsequent
+    operations. A NULL pointer is returned if <dirname> cannot be
+    accessed or is not a directory, or if opendir(3) is unable to
+    create the DIR object (perhaps due to insufficient  memory).
+    Readdir(3) returns a pointer to an internal structure containing
+    information about the next active directory entry. No inactive
+    entries are reported. The internal structure may be overwritten
+    by another operation on the same directory stream; the amount of
+    storage needed to hold a copy of the internal structure is given
+    by the value of a macro, DIRENTSIZ(strlen(direntp->d_name)), not
+    by sizeof(struct dirent) as one might expect. A NULL pointer is
+    returned upon reaching the end of the directory, upon detecting
+    an invalid location in the directory, or upon occurrence of an
+    error while reading the directory.
+    Telldir(3) returns the current position associated with the named
+    directory stream for later use as an argument to seekdir(3).
+    Seekdir(3) sets the position of the next readdir(3) operation on
+    the named directory stream. The new position reverts to the one
+    associated with the directory stream when the telldir(3) operation
+    from which <loc> was obtained was performed.
+    Rewinddir(3) resets the position of the named directory stream to
+    the beginning of the directory. All buffered data for the directory
+    stream is discarded, thereby guaranteeing that the actual file
+    system directory will be referred to for the next readdir(3) on the
+    directory stream.
+    Closedir(3) closes the named directory stream; internal resources
+    used for the directory stream are liberated, and subsequent use of
+    the associated DIR object is no longer valid. Closedir(3) returns
+    a value of zero if no error occurs, -1 otherwise.  There are several
+    possible errors that can occur as a result of these operations; the
+    external integer variable <errno> is set to indicate the specific
+    error. (Readdir's detection of the normal end of a directory is not
+    considered to be an error.)
+EXAMPLE
+    Sample code which searches the current working directory for
+    an entry. Usage: "a.out directory filename".
+    #include <sys/types.h>
+    #include <dirent.h>
+    #include <stdio.h>
+    main( argc, argv )
+	int   argc;
+	char *argv[];
+	{
+	DIR *dirp;
+	struct dirent *dp;
+	if ( (dirp = opendir( argv[1] )) == NULL )
+	    {
+	    fprintf( stderr, "Cannot open directory\n" );
+	    exit( 1 );
+	    }
+	while ( (dp = readdir( dirp )) != NULL )
+	    if ( strcmp( dp->d_name, argv[2] ) == 0 )
+		{
+		(void) closedir( dirp );
+		printf( "Found\n" );
+		exit( 0 );
+		}
+	(void) closedir( dirp );
+	printf( "Not found\n" );
+	exit( 1 );
+	}
+REFERENCES
+    dirent(4)
+WARNINGS
+    The value returned by telldir(3) need not have any simple
+    interpretation and should only be used as an argument to
+    seekdir(3). Similarly, the <loc> argument to seekdir(3) must
+    be obtained from a previous telldir(3) operation on the same
+    directory stream. Telldir(3) and seekdir(3) are unreliable
+    when the directory stream has been closed and reopened. It
+    is best to avoid using telldir(3) and seekdir(3) altogether.
+    The exact set of <errno> values and meanings may vary among
+    implementations.
+    Because directory entries can dynamically appear and disappear,
+    and because directory contents are buffered by these routines,
+    an application may need to continually rescan a directory to
+    maintain an accurate picture of its active entries.
+AUTHOR
+    Douglas A. Gwyn
+ 
+#fclose
+NAME
+	  fclose, fflush - close or flush a stream
+SYNTAX
+	  #include <stdio.h>
+	  int fclose (stream)
+	  FILE *stream;
+	  int fflush (stream)
+	  FILE *stream;
+DESCRIPTION
+	  Fclose causes	any buffered data for the named	stream to be
+	  written out, and the stream to be closed.
+	  Fclose is performed automatically for	all open files upon
+	  calling exit(2).
+	  Fflush causes	any buffered data for the named	stream to be
+	  written to that file.	 The stream remains open.
+DIAGNOSTICS
+	  These	functions return 0 for success,	and EOF	if any error
+	  (such	as trying to write to a	file that has not been opened
+	  for writing) was detected.
+SEE ALSO
+	  close(2), exit(2), fopen(3S),	setbuf(3S).
+				  
+ 
+#ferror
+NAME
+	  ferror, feof,	clearerr, fileno - stream status inquiries
+SYNTAX
+	  #include <stdio.h>
+	  int ferror (stream)
+	  FILE *stream;
+	  int feof (stream)
+	  FILE *stream;
+	  void clearerr	(stream)
+	  FILE *stream;
+	  int fileno (stream)
+	  FILE *stream;
+DESCRIPTION
+	  Ferror returns non-zero when an I/O error has	previously
+	  occurred reading from	or writing to the named	stream,
+	  otherwise zero.
+	  Feof returns non-zero	when EOF has previously	been detected
+	  reading the named input stream, otherwise zero.
+	  Clearerr resets the error indicator and EOF indicator	to
+	  zero on the named stream.
+	  Fileno returns the integer file descriptor associated	with
+	  the named stream; see	open(2).
+     NOTE
+	  All these functions are implemented as macros; they cannot
+	  be declared or redeclared.
+SEE ALSO
+	  open(2), fopen(3S).
+				  
+ 
+#fopen
+NAME
+	  fopen, freopen, fdopen - open	a stream
+SYNTAX
+	  #include <stdio.h>
+	  FILE *fopen (file-name, type)
+	  char *file-name, *type;
+	  FILE *freopen	(file-name, type, stream)
+	  char *file-name, *type;
+	  FILE *stream;
+	  FILE *fdopen (fildes,	type)
+	  int fildes;
+	  char *type;
+DESCRIPTION
+	  Fopen	opens the file named by	file-name and associates a
+	  stream with it.  Fopen returns a pointer to the FILE
+	  structure associated with the	stream.
+	  File-name points to a	character string that contains the
+	  name of the file to be opened.
+	  Type is a character string having one	of the following
+	  values:
+	       "r"	 open for reading
+	       "w"	 truncate or create for	writing
+	       "a"	 append; open for writing at end of file, or
+			 create	for writing
+	       "r+"	 open for update (reading and writing)
+	       "w+"	 truncate or create for	update
+	       "a+"	 append; open or create	for update at end-of-
+			 file
+	  Freopen substitutes the named	file in	place of the open
+	  stream.  The original	stream is closed, regardless of
+	  whether the open ultimately succeeds.	 Freopen returns a
+	  pointer to the FILE structure	associated with	stream.
+	  Freopen is typically used to attach the preopened streams
+	  associated with stdin, stdout	and stderr to other files.
+	  Fdopen associates a stream with a file descriptor.  File
+	  descriptors are obtained from	open, dup, creat, or pipe(2),
+				  
+	  which	open files but do not return pointers to a FILE
+	  structure stream. Streams are	necessary input	for many of
+	  the Section 3S library routines.  The	type of	stream must
+	  agree	with the mode of the open file.
+	  When a file is opened	for update, both input and output may
+	  be done on the resulting stream.  However, output may	not be
+	  directly followed by input without an	intervening fseek or
+	  rewind, and input may	not be directly	followed by output
+	  without an intervening fseek,	rewind,	or an input operation
+	  which	encounters end-of-file.
+	  When a file is opened	for append (i.e., when type is "a" or
+	  "a+"), it is impossible to overwrite information already in
+	  the file.  Fseek may be used to reposition the file pointer
+	  to any position in the file, but when	output is written to
+	  the file, the	current	file pointer is	disregarded.  All
+	  output is written at the end of the file and causes the file
+	  pointer to be	repositioned at	the end	of the output.	If two
+	  separate processes open the same file	for append, each
+	  process may write freely to the file without fear of
+	  destroying output being written by the other.	 The output
+	  from the two processes will be intermixed in the file	in the
+	  order	in which it is written.
+SEE ALSO
+	  creat(2), dup(2), open(2), pipe(2), fclose(3S), fseek(3S).
+DIAGNOSTICS
+	  Fopen	and freopen return a NULL pointer on failure.
+ 
+#fread
+NAME
+	  fread, fwrite	- binary input/output
+SYNTAX
+	  #include <stdio.h>
+	  int fread (ptr, size,	nitems,	stream)
+	  char *ptr;
+	  int size, nitems;
+	  FILE *stream;
+	  int fwrite (ptr, size, nitems, stream)
+	  char *ptr;
+	  int size, nitems;
+	  FILE *stream;
+DESCRIPTION
+	  Fread	copies,	into an	array pointed to by ptr, nitems	items
+	  of data from the named input stream, where an	item of	data
+	  is a sequence	of bytes (not necessarily terminated by	a null
+	  byte)	of length size.	 Fread stops appending bytes if	an
+	  end-of-file or error condition is encountered	while reading
+	  stream, or if	nitems items have been read.  Fread leaves the
+	  file pointer in stream, if defined, pointing to the byte
+	  following the	last byte read if there	is one.	 Fread does
+	  not change the contents of stream.
+	  Fwrite appends at most nitems	items of data from the array
+	  pointed to by	ptr to the named output	stream.	 Fwrite	stops
+	  appending when it has	appended nitems	items of data or if an
+	  error	condition is encountered on stream.  Fwrite does not
+	  change the contents of the array pointed to by ptr.
+	  The argument size is typically sizeof(*ptr) where the
+	  pseudo-function sizeof specifies the length of an item
+	  pointed to by	ptr.  If ptr points to a data type other than
+	  char it should be cast into a	pointer	to char.
+SEE ALSO
+	  read(2), write(2), fopen(3S),	getc(3S), gets(3S),
+	  printf(3S), putc(3S),	puts(3S), scanf(3S).
+DIAGNOSTICS
+	  Fread	and fwrite return the number of	items read or written.
+	  If size or nitems is non-positive, no	characters are read or
+	  written and 0	is returned by both fread and fwrite.
+BUGS
+	  On the PDP-11	and iAPX286, the number	of bytes transferred
+	  is the product of size and nitems, modulo 65536.
+				  
+ 
+#fseek
+NAME
+	  fseek, rewind, ftell - reposition a file pointer in a	stream
+SYNTAX
+	  #include <stdio.h>
+	  int fseek (stream, offset, ptrname)
+	  FILE *stream;
+	  long offset;
+	  int ptrname;
+	  void rewind (stream)
+	  FILE *stream;
+	  long ftell (stream)
+	  FILE *stream;
+DESCRIPTION
+	  Fseek	sets the position of the next input or output
+	  operation on the stream.  The	new position is	at the signed
+	  distance offset bytes	from the beginning, from the current
+	  position, or from the	end of the file, according as ptrname
+	  has the value	0, 1, or 2.
+	  Rewind(stream) is equivalent to fseek(stream,	0L, 0),	except
+	  that no value	is returned.
+	  Fseek	and rewind undo	any effects of ungetc(3S).
+	  After	fseek or rewind, the next operation on a file opened
+	  for update may be either input or output.
+	  Ftell	returns	the offset of the current byte relative	to the
+	  beginning of the file	associated with	the named stream.
+SEE ALSO
+	  lseek(2), fopen(3S), popen(3S), ungetc(3S).
+DIAGNOSTICS
+	  Fseek	returns	non-zero for improper seeks, otherwise zero.
+	  An improper seek can be, for example,	an fseek done on a
+	  file that has	not been opened	via fopen; in particular,
+	  fseek	may not	be used	on a terminal, or on a file opened via
+	  popen(3S).
+     WARNING
+	  Although on the UNIX system an offset	returned by ftell is
+	  measured in bytes, and it is permissible to seek to
+	  positions relative to	that offset, portability to non-UNIX
+	  systems requires that	an offset be used by fseek directly.
+	  Arithmetic may not meaningfully be performed on such an
+	  offset, which	is not necessarily measured in bytes.
+				  
+ 
+#ftype
+NAME
+	  int, ifix, idint, real, float, sngl, dble, cmplx, dcmplx,
+	  ichar, char -	explicit FORTRAN type conversion
+SYNTAX
+	  integer i, j
+	  real r, s
+	  double precision dp, dq
+	  complex cx
+	  double complex dcx
+	  character*1 ch
+	  i = int(r)
+	  i = int(dp)
+	  i = int(cx)
+	  i = int(dcx)
+	  i = ifix(r)
+	  i = idint(dp)
+	  r = real(i)
+	  r = real(dp)
+	  r = real(cx)
+	  r = real(dcx)
+	  r = float(i)
+	  r = sngl(dp)
+	  dp = dble(i)
+	  dp = dble(r)
+	  dp = dble(cx)
+	  dp = dble(dcx)
+	  cx = cmplx(i)
+	  cx = cmplx(i,	j)
+	  cx = cmplx(r)
+	  cx = cmplx(r,	s)
+	  cx = cmplx(dp)
+	  cx = cmplx(dp, dq)
+	  cx = cmplx(dcx)
+	  dcx =	dcmplx(i)
+	  dcx =	dcmplx(i, j)
+	  dcx =	dcmplx(r)
+	  dcx =	dcmplx(r, s)
+	  dcx =	dcmplx(dp)
+	  dcx =	dcmplx(dp, dq)
+	  dcx =	dcmplx(cx)
+	  i = ichar(ch)
+	  ch = char(i)
+DESCRIPTION
+	  These	functions perform conversion from one data type	to
+				  
+	  another.
+	  The function int converts to integer form its	real, double
+	  precision, complex, or double	complex	argument.  If the
+	  argument is real or double precision,	int returns the
+	  integer whose	magnitude is the largest integer that does not
+	  exceed the magnitude of the argument and whose sign is the
+	  same as the sign of the argument (i.e., truncation). For
+	  complex types, the above rule	is applied to the real part.
+	  ifix and idint convert only real and double precision
+	  arguments respectively.
+	  The function real converts to	real form an integer, double
+	  precision, complex, or double	complex	argument.  If the
+	  argument is double precision or double complex, as much
+	  precision is kept as is possible. If the argument is one of
+	  the complex types, the real part is returned.	 float and
+	  sngl convert only integer and	double precision arguments
+	  respectively.
+	  The function dble converts any integer, real,	complex, or
+	  double complex argument to double precision form.  If	the
+	  argument is of a complex type, the real part is returned.
+	  The function cmplx converts its integer, real, double
+	  precision, or	double complex argument(s) to complex form.
+	  The function dcmplx converts to double complex form its
+	  integer, real, double	precision, or complex argument(s).
+	  Either one or	two arguments may be supplied to cmplx and
+	  dcmplx . If there is only one	argument, it is	taken as the
+	  real part of the complex type	and an imaginary part of zero
+	  is supplied. If two arguments	are supplied, the first	is
+	  taken	as the real part and the second	as the imaginary part.
+	  The function ichar converts from a character to an integer
+	  depending on the character's position	in the collating
+	  sequence.
+	  The function char returns the	character in the ith position
+	  in the processor collating sequence where i is the supplied
+	  argument.
+	  For a	processor capable of representing n characters,
+	  ichar(char(i)) = i for 0 < i < n, and
+	  char(ichar(ch)) = ch for any representable character ch.
+ 
+#getarg
+NAME
+	  getarg - return FORTRAN command-line argument
+SYNTAX
+	  character*N c
+	  integer i
+	  getarg(i, c)
+DESCRIPTION
+	  Getarg returns the i-th command-line argument	of the current
+	  process. Thus, if a program were invoked via
+	       foo arg1	arg2 arg3
+	  getarg(2, c) would return the	string ``arg2''	in the
+	  character variable c.
+SEE ALSO
+	  getopt(3C).
+				  
+ 
+#getc
+NAME
+	  getc,	getchar, fgetc,	getw - get character or	word from a
+	  stream
+SYNTAX
+	  #include <stdio.h>
+	  int getc (stream)
+	  FILE *stream;
+	  int getchar ()
+	  int fgetc (stream)
+	  FILE *stream;
+	  int getw (stream)
+	  FILE *stream;
+DESCRIPTION
+	  Getc returns the next	character (i.e., byte) from the	named
+	  input	stream,	as an integer.	It also	moves the file
+	  pointer, if defined, ahead one character in stream.  Getchar
+	  is defined as	getc(stdin).  Getc and getchar are macros.
+	  Fgetc	behaves	like getc, but is a function rather than a
+	  macro.  Fgetc	runs more slowly than getc, but	it takes less
+	  space	per invocation and its name can	be passed as an
+	  argument to a	function.
+	  Getw returns the next	word (i.e., integer) from the named
+	  input	stream.	 Getw increments the associated	file pointer,
+	  if defined, to point to the next word.  The size of a	word
+	  is the size of an integer and	varies from machine to
+	  machine.  Getw assumes no special alignment in the file.
+SEE ALSO
+	  fclose(3S), ferror(3S), fopen(3S), fread(3S),	gets(3S),
+	  putc(3S), scanf(3S).
+DIAGNOSTICS
+	  These	functions return the constant EOF at end-of-file or
+	  upon an error.  Because EOF is a valid integer, ferror(3S)
+	  should be used to detect getw	errors.
+     WARNING
+	  If the integer value returned	by getc, getchar, or fgetc is
+	  stored into a	character variable and then compared against
+	  the integer constant EOF, the	comparison may never succeed,
+	  because sign-extension of a character	on widening to integer
+	  is machine-dependent.
+BUGS
+				  
+	  Because it is	implemented as a macro,	getc treats
+	  incorrectly a	stream argument	with side effects.  In
+	  particular, getc(*f++) does not work sensibly.  Fgetc	should
+	  be used instead.
+	  Because of possible differences in word length and byte
+	  ordering, files written using	putw are machine-dependent,
+	  and may not be read using getw on a different	processor.
+ 
+#getdents
+SUBROUTINES
+    getdents(3)		 - get directory entries
+INVOCATION
+    int getdents( fildes, buf, nbyte )
+      int fildes;
+      char *buf;
+      unsigned nbyte;
+  
+EXPLANATION
+    Getdents(3) reads directory entries in a file system independent
+    format. This routine is only used by readdir(3) and should
+    never be used directly by a user's program.
+REFERENCES
+    directory(3), dirent(4)
+ 
+#getenv
+NAME
+	  getenv - return value	for environment	name
+SYNTAX
+	  char *getenv (name)
+	  char *name;
+DESCRIPTION
+	  Getenv searches the environment list [see environ(5)]	for a
+	  string of the	form name=value, and returns a pointer to the
+	  value	in the current environment if such a string is
+	  present, otherwise a NULL pointer.
+SEE ALSO
+	  exec(2), putenv(3C), environ(5).
+				  
+NAME
+	  getenv - return FORTRAN environment variable
+SYNTAX
+	  character*N c
+	  getenv( TMPDIR , c)
+DESCRIPTION
+	  Getenv returns the character-string value of the environment
+	  variable represented by its first argument into the
+	  character variable of	its second argument.  If no such
+	  environment variable exists, all blanks will be returned.
+SEE ALSO
+	  getenv(3C), environ(5).
+				  
+ 
+#getopt
+NAME
+	  getopt - get option letter from argument vector
+SYNTAX
+	  int getopt (argc, argv, optstring)
+	  int argc;
+	  char **argv, *opstring;
+	  extern char *optarg;
+	  extern int optind, opterr;
+DESCRIPTION
+	  Getopt returns the next option letter	in argv	that matches a
+	  letter in optstring.	Optstring is a string of recognized
+	  option letters; if a letter is followed by a colon, the
+	  option is expected to	have an	argument that may or may not
+	  be separated from it by white	space.	Optarg is set to point
+	  to the start of the option argument on return	from getopt.
+	  Getopt places	in optind the argv index of the	next argument
+	  to be	processed.  Because optind is external,	it is normally
+	  initialized to zero automatically before the first call to
+	  getopt.
+	  When all options have	been processed (i.e., up to the	first
+	  non-option argument),	getopt returns EOF.  The special
+	  option -- may	be used	to delimit the end of the options; EOF
+	  will be returned, and	-- will	be skipped.
+DIAGNOSTICS
+	  Getopt prints	an error message on stderr and returns a
+	  question mark	(?)  when it encounters	an option letter not
+	  included in optstring.  This error message may be disabled
+	  by setting opterr to a non-zero value.
+     EXAMPLE
+	  The following	code fragment shows how	one might process the
+	  arguments for	a command that can take	the mutually exclusive
+	  options a and	b, and the options f and o, both of which
+	  require arguments:
+	       main (argc, argv)
+	       int argc;
+	       char **argv;
+	       {
+		    int	c;
+		    extern char	*optarg;
+		    extern int optind;
+		    .
+		    .
+		    .
+		    while ((c =	getopt(argc, argv, "abf:o:")) != EOF)
+				  
+			 switch	(c) {
+			 case 'a':
+			      if (bflg)
+				   errflg++;
+			      else
+				   aflg++;
+			      break;
+			 case 'b':
+			      if (aflg)
+				   errflg++;
+			      else
+				   bproc( );
+			      break;
+			 case 'f':
+			      ifile = optarg;
+			      break;
+			 case 'o':
+			      ofile = optarg;
+			      break;
+			 case '?':
+			      errflg++;
+			 }
+		    if (errflg)	{
+			 fprintf(stderr, "usage: . . . ");
+			 exit (2);
+		    }
+		    for	( ; optind < argc; optind++) {
+			 if (access(argv[optind], 4)) {
+		    .
+		    .
+		    .
+	       }
+SEE ALSO
+	  getopt(1) in the UNIX	System V User Reference	Manual.
+ 
+#getpass
+NAME
+	  getpass - read a password
+SYNTAX
+	  char *getpass	(prompt)
+	  char *prompt;
+DESCRIPTION
+	  Getpass reads	up to a	newline	or EOF from the	file /dev/tty,
+	  after	prompting on the standard error	output with the	null-
+	  terminated string prompt and disabling echoing.  A pointer
+	  is returned to a null-terminated string of at	most 8
+	  characters.  If /dev/tty cannot be opened, a NULL pointer is
+	  returned.  An	interrupt will terminate input and send	an
+	  interrupt signal to the calling program before returning.
+FILES
+	  /dev/tty
+SEE ALSO
+	  crypt(3C).
+     WARNING
+	  The above routine uses <stdio.h>, which causes it to
+	  increase the size of programs	not otherwise using standard
+	  I/O, more than might be expected.
+BUGS
+	  The return value points to static data whose content is
+	  overwritten by each call.
+				  
+ 
+#getpw
+NAME
+	  getpw	- get name from	UID
+SYNTAX
+	  int getpw (uid, buf)
+	  int uid;
+	  char *buf;
+DESCRIPTION
+	  Getpw	searches the password file for a user id number	that
+	  equals uid, copies the line of the password file in which
+	  uid was found	into the array pointed to by buf, and returns
+	  0.  Getpw returns non-zero if	uid cannot be found.
+	  This routine is included only	for compatibility with prior
+	  systems and should not be used; see getpwent(3C) for
+	  routines to use instead.
+FILES
+	  /etc/passwd
+SEE ALSO
+	  getpwent(3C),	passwd(4).
+DIAGNOSTICS
+	  Getpw	returns	non-zero on error.
+     WARNING
+	  The above routine uses <stdio.h>, which causes it to
+	  increase, more than might be expected, the size of programs
+	  not otherwise	using standard I/O.
+				  
+ 
+#gets
+NAME
+	  gets,	fgets -	get a string from a stream
+SYNTAX
+	  #include <stdio.h>
+	  char *gets (s)
+	  char *s;
+	  char *fgets (s, n, stream)
+	  char *s;
+	  int n;
+	  FILE *stream;
+DESCRIPTION
+	  Gets reads characters	from the standard input	stream,	stdin,
+	  into the array pointed to by s, until	a new-line character
+	  is read or an	end-of-file condition is encountered.  The
+	  new-line character is	discarded and the string is terminated
+	  with a null character.
+	  Fgets	reads characters from the stream into the array
+	  pointed to by	s, until n-1 characters	are read, or a new-
+	  line character is read and transferred to s, or an end-of-
+	  file condition is encountered.  The string is	then
+	  terminated with a null character.
+SEE ALSO
+	  ferror(3S), fopen(3S), fread(3S), getc(3S), scanf(3S).
+DIAGNOSTICS
+	  If end-of-file is encountered	and no characters have been
+	  read,	no characters are transferred to s and a NULL pointer
+	  is returned.	If a read error	occurs,	such as	trying to use
+	  these	functions on a file that has not been opened for
+	  reading, a NULL pointer is returned.	Otherwise s is
+	  returned.
+				  
+ 
+#getut
+NAME
+	  getutent, getutid, getutline,	pututline, setutent, endutent,
+	  utmpname - access utmp file entry
+SYNTAX
+	  #include <utmp.h>
+	  struct utmp *getutent	( )
+	  struct utmp *getutid (id)
+	  struct utmp *id;
+	  struct utmp *getutline (line)
+	  struct utmp *line;
+	  void pututline (utmp)
+	  struct utmp *utmp;
+	  void setutent	( )
+	  void endutent	( )
+	  void utmpname	(file)
+	  char *file;
+DESCRIPTION
+	  Getutent, getutid and	getutline each return a	pointer	to a
+	  structure of the following type:
+	       struct utmp {
+		      char	 ut_user[8];	    /* User login name */
+		      char	 ut_id[4];	    /* /etc/inittab id
+						     * (usually	line #)	*/
+		      char	 ut_line[12];	    /* device name (console,
+						     * lnxx) */
+		      short	 ut_pid;	    /* process id */
+		      short	 ut_type;	    /* type of entry */
+		      struct	 exit_status {
+			  short	     e_termination; /* Process termination status */
+			  short	     e_exit;	    /* Process exit status */
+		      }	ut_exit;		    /* The exit	status of a process
+						     * marked as DEAD_PROCESS. */
+		      time_t	 ut_time;	    /* time entry was made */
+	       };
+	  Getutent reads in the	next entry from	a utmp-like file.  If
+	  the file is not already open,	it opens it.  If it reaches
+	  the end of the file, it fails.
+	  Getutid searches forward from	the current point in the utmp
+	  file until it	finds an entry with a ut_type matching
+	  id->ut_type if the type specified is RUN_LVL,	BOOT_TIME,
+				  
+	  OLD_TIME or NEW_TIME.	 If the	type specified in id is
+	  INIT_PROCESS,	LOGIN_PROCESS, USER_PROCESS or DEAD_PROCESS,
+	  then getutid will return a pointer to	the first entry	whose
+	  type is one of these four and	whose ut_id field matches
+	  id->ut_id.  If the end of file is reached without a match,
+	  it fails.
+	  Getutline searches forward from the current point in the
+	  utmp file until it finds an entry of the type	LOGIN_PROCESS
+	  or USER_PROCESS which	also has a ut_line string matching the
+	  line->ut_line	string.	 If the	end of file is reached without
+	  a match, it fails.
+	  Pututline writes out the supplied utmp structure into	the
+	  utmp file.  It uses getutid to search	forward	for the	proper
+	  place	if it finds that it is not already at the proper
+	  place.  It is	expected that normally the user	of pututline
+	  will have searched for the proper entry using	one of the
+	  getut	routines.  If so, pututline will not search.  If
+	  pututline does not find a matching slot for the new entry,
+	  it will add a	new entry to the end of	the file.
+	  Setutent resets the input stream to the beginning of the
+	  file.	 This should be	done before each search	for a new
+	  entry	if it is desired that the entire file be examined.
+	  Endutent closes the currently	open file.
+	  Utmpname allows the user to change the name of the file
+	  examined, from /etc/utmp to any other	file.  It is most
+	  often	expected that this other file will be /etc/wtmp.  If
+	  the file does	not exist, this	will not be apparent until the
+	  first	attempt	to reference the file is made.	Utmpname does
+	  not open the file.  It just closes the old file if it	is
+	  currently open and saves the new file	name.
+FILES
+	  /etc/utmp
+	  /etc/wtmp
+SEE ALSO
+	  ttyslot(3C), utmp(4).
+DIAGNOSTICS
+	  A NULL pointer is returned upon failure to read, whether for
+	  permissions or having	reached	the end	of file, or upon
+	  failure to write.
+     COMMENTS
+	  The most current entry is saved in a static structure.
+	  Multiple accesses require that it be copied before further
+	  accesses are made.  Each call	to either getutid or getutline
+	  sees the routine examine the static structure	before
+	  performing more I/O.	If the contents	of the static
+	  structure match what it is searching for, it looks no
+	  further.  For	this reason to use getutline to	search for
+	  multiple occurrences,	it would be necessary to zero out the
+	  static after each success, or	getutline would	just return
+	  the same pointer over	and over again.	 There is one
+	  exception to the rule	about removing the structure before
+	  further reads	are done.  The implicit	read done by pututline
+	  (if it finds that it is not already at the correct place in
+	  the file) will not hurt the contents of the static structure
+	  returned by the getutent, getutid or getutline routines, if
+	  the user has just modified those contents and	passed the
+	  pointer back to pututline.
+	  These	routines use buffered standard I/O for input, but
+	  pututline uses an unbuffered non-standard write to avoid
+	  race conditions between processes trying to modify the utmp
+	  and wtmp files.
+ 
+#index
+NAME
+	  index	- return location of FORTRAN substring
+SYNTAX
+	  character*N1 ch1
+	  character*N2 ch2
+	  integer i
+	  i = index (ch1, ch2)
+DESCRIPTION
+	  Index	returns	the location of	substring ch2 in string	ch1.
+	  The value returned is	the position at	which substring	ch2
+	  starts, or 0 is it is	not present in string ch1.
+				  
+ 
+#lock
+While re-reading Advanced Unix Programming by Marc J. Rochkind, I ran
+across some routines that I thought others might find useful.
+------------------------------------------------------------------------------
+The lock and unlock functions can be used like this:
+	    if (lock("database")) {
+		... manipulate database...
+		unlock("database");
+	    }
+	    else
+		...couldn't obtain lock...
+The name "database" is abstract, it could have been called anything.
+If two or more processes are concurrentlyu executing this code, the lock will
+prevent them from simultaneously executing the protected section(manipulate
+database). All processes would have to call the lock function for this to
+work though.
+As an enhancement you could write the pid and time on the file so other
+processes could see who has it and for how long.(If this is done the permis-
+sions should be set to octal 444 instead of 0).
+------------------------------------------------------------------------------
+Statutil.c is a program that allows you to do several different functions on
+files;
+    change modification time, owner, permissions
+    display type of file(dir, ordinary, block, character)
+	    device number(major, minor), number of links to file,
+	    I-node number, Size, group id, owner, last mod. time
+All done interactively.
+ 
+#lockf
+NAME
+	  lockf	- record locking on files
+SYNTAX
+	  # include <unistd.h>
+	  lockf	(fildes, function, size) long size; int	fildes,
+	  function;
+DESCRIPTION
+	  The lockf command will allow sections	of a file to be	locked
+	  (advisory write locks).  (Mandatory or enforcement mode
+	  record locks are not currently available.)  Locking calls
+	  from other processes which attempt to	lock the locked	file
+	  section will either return an	error value or be put to sleep
+	  until	the resource becomes unlocked.	All the	locks for a
+	  process are removed when the process terminates.  See
+	  fcntl(2) for more information	about record locking.
+	  Fildes is an open file descriptor.  The file descriptor must
+	  have O_WRONLY	or O_RDWR permission in	order to establish
+	  lock with this function call.
+	  Function is a	control	value which specifies the action to be
+	  taken.  The permissible values for function are defined in
+	  <unistd.h> as	follows:
+	  #define   F_ULOCK   0	  /* Unlock a previously locked	section	*/
+	  #define   F_LOCK    1	  /* Lock a section for	exclusive use */
+	  #define   F_TLOCK   2	  /* Test and lock a section for exclusive use */
+	  #define   F_TEST    3	  /* Test section for other processes locks */
+	  All other values of function are reserved for	future
+	  extensions and will result in	an error return	if not
+	  implemented.
+	  F_TEST is used to detect if a	lock by	another	process	is
+	  present on the specified section.  F_LOCK and	F_TLOCK	both
+	  lock a section of a file if the section is available.
+	  F_UNLOCK removes locks from a	section	of the file.
+	  Size is the number of	contiguous bytes to be locked or
+	  unlocked.  The resource to be	locked starts at the current
+	  offset in the	file and extends forward for a positive	size
+	  and backward for a negative size (the	preceding bytes	up to
+	  but not including the	current	offset).  If size is zero, the
+	  section from the current offset through the largest file
+	  offset is locked (i.e., from the current offset through the
+	  present or any future	end-of-file).  An area need not	be
+	  allocated to the file	in order to be locked, as such locks
+	  may exist past the end-of-file.
+				  
+	  The sections locked with F_LOCK or F_TLOCK may, in whole or
+	  in part, contain or be contained by a	previously locked
+	  section for the same process.	 When this occurs, or if
+	  adjacent sections occur, the sections	are combined into a
+	  single section.  If the request requires that	a new element
+	  be added to the table	of active locks	and this table is
+	  already full,	an error is returned, and the new section is
+	  not locked.
+	  F_LOCK and F_TLOCK requests differ only by the action	taken
+	  if the resource is not available.  F_LOCK will cause the
+	  calling process to sleep until the resource is available.
+	  F_TLOCK will cause the function to return a -1 and set errno
+	  to [EACCESS] error if	the section is already locked by
+	  another process.
+	  F_ULOCK requests may,	in whole or in part, release one or
+	  more locked sections controlled by the process.  When
+	  sections are not fully released, the remaining sections are
+	  still	locked by the process.	Releasing the center section
+	  of a locked section requires an additional element in	the
+	  table	of active locks.  If this table	is full, an [EDEADLK]
+	  error	is returned and	the requested section is not released.
+	  A potential for deadlock occurs if a process controlling a
+	  locked resource is put to sleep by accessing another
+	  process's locked resource.  Thus calls to lock or fcntl scan
+	  for a	deadlock prior to sleeping on a	locked resource.  An
+	  error	return is made if sleeping on the locked resource
+	  would	cause a	deadlock.
+	  Sleeping on a	resource is interrupted	with any signal.  The
+	  alarm(2) command may be used to provide a timeout facility
+	  in applications which	require	this facility.
+	  The lockf utility will fail if one or	more of	the following
+	  are true:
+	  [EBADF]
+	       Fildes is not a valid open descriptor.
+	  [EACCESS]
+	       Cmd is F_TLOCK or F_TEST	and the	section	is already
+	       locked by another process.
+	  [EDEADLK]
+	       Cmd is F_LOCK or	F_TLOCK	and a deadlock would occur.
+	       Also the	cmd is either of the above or F_ULOCK and the
+	       number of entries in the	lock table would exceed	the
+	       number allocated	on the system.
+SEE ALSO
+	  alarm(2), close(2), creat(2),	fcntl(2), intro(2), open(2),
+	  read(2), write(2).
+     RETURN VALUE
+	  Upon successful completion, a	value of 0 is returned.
+	  Otherwise, a value of	-1 is returned and errno is set	to
+	  indicate the error.
+     CAVEATS
+	  Unexpected results may occur in processes that do buffering
+	  in the user address space.  The process may later read/write
+	  data which is/was locked.  The standard I/O package is the
+	  most common source of	unexpected buffering.
+ 
+#logname
+NAME
+	  logname - return login name of user
+SYNTAX
+	  char *logname( )
+DESCRIPTION
+	  Logname returns a pointer to the null-terminated login name;
+	  it extracts the $LOGNAME variable from the user's
+	  environment.
+	  This routine is kept in /lib/libPW.a.
+FILES
+	  /etc/profile
+SEE ALSO
+	  profile(4), environ(5).
+	  env(1), login(1) in the UNIX System V	User Reference Manual.
+BUGS
+	  The return values point to static data whose content is
+	  overwritten by each call.
+	  This method of determining a login name is subject to
+	  forgery.
+				  
+ 
+#lrand
+SUBROUTINES
+    lrand(3)		- lehmer random number generator
+INVOCATION
+    long seed( lseed )
+      long lseed;
+    long lrand()
+EXPLANATION
+    Lrand(3) uses a prime modulus multiplicative linear
+    congruential generator (PMMLCG) to generate a pseudo-
+    random number in the range 1 to 2147483646 {LONG_MAX}-1.
+    The generator is much more random than rand(3), especially
+    in the low order bits. The formula used is:
+      seed = (16807 * seed) % 2147483647
+    Seed(3) sets the seed to an initial value, the default
+    is 1.
+RESULTS
+    Lrand(3) returns the next value of seed.
+    Seed(3) returns the previous value of seed.
+REFERENCES
+    rand(3)
+ 
+#malloc
+NAME
+	  malloc, free,	realloc, calloc	- main memory allocator
+SYNTAX
+	  char *malloc (size)
+	  unsigned size;
+	  void free (ptr)
+	  char *ptr;
+	  char *realloc	(ptr, size)
+	  char *ptr;
+	  unsigned size;
+	  char *calloc (nelem, elsize)
+	  unsigned nelem, elsize;
+DESCRIPTION
+	  Malloc and free provide a simple general-purpose memory
+	  allocation package.  Malloc returns a	pointer	to a block of
+	  at least size	bytes suitably aligned for any use.
+	  The argument to free is a pointer to a block previously
+	  allocated by malloc; after free is performed this space is
+	  made available for further allocation, but its contents are
+	  left undisturbed.
+	  Undefined results will occur if the space assigned by	malloc
+	  is overrun or	if some	random number is handed	to free.
+	  Malloc allocates the first big enough	contiguous reach of
+	  free space found in a	circular search	from the last block
+	  allocated or freed, coalescing adjacent free blocks as it
+	  searches.  It	calls sbrk [see	brk(2)]	to get more memory
+	  from the system when there is	no suitable space already
+	  free.
+	  Realloc changes the size of the block	pointed	to by ptr to
+	  size bytes and returns a pointer to the (possibly moved)
+	  block.  The contents will be unchanged up to the lesser of
+	  the new and old sizes.  If no	free block of size bytes is
+	  available in the storage arena, then realloc will ask	malloc
+	  to enlarge the arena by size bytes and will then move	the
+	  data to the new space.
+	  Realloc also works if	ptr points to a	block freed since the
+	  last call of malloc, realloc,	or calloc; thus	sequences of
+	  free,	malloc and realloc can exploit the search strategy of
+	  malloc to do storage compaction.
+	  Calloc allocates space for an	array of nelem elements	of
+	  size elsize.	The space is initialized to zeros.
+				  
+	  Each of the allocation routines returns a pointer to space
+	  suitably aligned (after possible pointer coercion) for
+	  storage of any type of object.
+SEE ALSO
+	  brk(2), malloc(3X).
+DIAGNOSTICS
+	  Malloc, realloc and calloc return a NULL pointer if there is
+	  no available memory or if the	arena has been detectably
+	  corrupted by storing outside the bounds of a block.  When
+	  this happens the block pointed to by ptr may be destroyed.
+     NOTE
+	  Search time increases	when many objects have been allocated;
+	  that is, if a	program	allocates but never frees, then	each
+	  successive allocation	takes longer.  For an alternate, more
+	  flexible implementation, see malloc(3X).
+NAME
+	  malloc, free,	realloc, calloc, mallopt, mallinfo - fast main
+	  memory allocator
+SYNTAX
+	  #include <malloc.h>
+	  char *malloc (size)
+	  unsigned size;
+	  void free (ptr)
+	  char *ptr;
+	  char *realloc	(ptr, size)
+	  char *ptr;
+	  unsigned size;
+	  char *calloc (nelem, elsize)
+	  unsigned nelem, elsize;
+	  int mallopt (cmd, value)
+	  int cmd, value;
+	  struct mallinfo mallinfo (max)
+	  int max;
+DESCRIPTION
+	  Malloc and free provide a simple general-purpose memory
+	  allocation package, which runs considerably faster than the
+	  malloc(3C) package.  It is found in the library ``malloc'',
+	  and is loaded	if the option ``-lmalloc'' is used with	cc(1)
+	  or ld(1).
+	  Malloc returns a pointer to a	block of at least size bytes
+	  suitably aligned for any use.
+	  The argument to free is a pointer to a block previously
+	  allocated by malloc; after free is performed this space is
+	  made available for further allocation, and its contents have
+	  been destroyed (but see mallopt below	for a way to change
+	  this behavior).
+	  Undefined results will occur if the space assigned by	malloc
+	  is overrun or	if some	random number is handed	to free.
+	  Realloc changes the size of the block	pointed	to by ptr to
+	  size bytes and returns a pointer to the (possibly moved)
+	  block.  The contents will be unchanged up to the lesser of
+	  the new and old sizes.
+	  Calloc allocates space for an	array of nelem elements	of
+	  size elsize.	The space is initialized to zeros.
+				  
+	  Mallopt provides for control over the	allocation algorithm.
+	  The available	values for cmd are:
+	  M_MXFAST Set maxfast to value.  The algorithm	allocates all
+		   blocks below	the size of maxfast in large groups
+		   and then doles them out very	quickly.  The default
+		   value for maxfast is	0.
+	  M_NLBLKS Set numlblks	to value.  The above mentioned ``large
+		   groups'' each contain numlblks blocks. Numlblks
+		   must	be greater than	0.  The	default	value for
+		   numlblks is 100.
+	  M_GRAIN  Set grain to	value.	The sizes of all blocks
+		   smaller than	maxfast	are considered to be rounded
+		   up to the nearest multiple of grain.	 Grain must be
+		   greater than	0.  The	default	value of grain is the
+		   smallest number of bytes which will allow alignment
+		   of any data type.  Value will be rounded up to a
+		   multiple of the default when	grain is set.
+	  M_KEEP   Preserve data in a freed block until	the next
+		   malloc, realloc, or calloc.	This option is
+		   provided only for compatibility with	the old
+		   version of malloc and is not	recommended.
+	  These	values are defined in the <malloc.h> header file.
+	  Mallopt may be called	repeatedly, but	may not	be called
+	  after	the first small	block is allocated.
+	  Mallinfo provides instrumentation describing space usage.
+	  It returns the structure:
+	  struct mallinfo  {
+		  int arena;	    /* total space in arena */
+		  int ordblks;	    /* number of ordinary blocks */
+		  int smblks;	    /* number of small blocks */
+		  int hblkhd;	    /* space in	holding	block headers */
+		  int hblks;	    /* number of holding blocks	*/
+		  int usmblks;	    /* space in	small blocks in	use */
+		  int fsmblks;	    /* space in	free small blocks */
+		  int uordblks;	    /* space in	ordinary blocks	in use */
+		  int fordblks;	    /* space in	free ordinary blocks */
+		  int keepcost;	    /* space penalty if	keep option */
+				    /* is used */
+	  }
+	  This structure is defined in the <malloc.h> header file.
+	  Each of the allocation routines returns a pointer to space
+	  suitably aligned (after possible pointer coercion) for
+	  storage of any type of object.
+SEE ALSO
+	  brk(2), malloc(3C).
+DIAGNOSTICS
+	  Malloc, realloc and calloc return a NULL pointer if there is
+	  not enough available memory.	When realloc returns NULL, the
+	  block	pointed	to by ptr is left intact.  If mallopt is
+	  called after any allocation or if cmd	or value are invalid,
+	  non-zero is returned.	 Otherwise, it returns zero.
+     WARNINGS
+	  This package usually uses more data space than malloc(3C).
+	  The code size	is also	bigger than malloc(3C).
+	  Note that unlike malloc(3C), this package does not preserve
+	  the contents of a block when it is freed, unless the M_KEEP
+	  option of mallopt is used.
+	  Undocumented features	of malloc(3C) have not been
+	  duplicated.
+ 
+#mktemp
+NAME
+	  mktemp - make	a unique file name
+SYNTAX
+	  char *mktemp (template)
+	  char *template;
+DESCRIPTION
+	  Mktemp replaces the contents of the string pointed to	by
+	  template by a	unique file name, and returns the address of
+	  template.  The string	in template should look	like a file
+	  name with six	trailing Xs; mktemp will replace the Xs	with a
+	  letter and the current process ID.  The letter will be
+	  chosen so that the resulting name does not duplicate an
+	  existing file.
+SEE ALSO
+	  getpid(2), tmpfile(3S), tmpnam(3S).
+BUGS
+	  It is	possible to run	out of letters.
+				  
+ 
+#perror
+NAME
+	  perror, errno, sys_errlist, sys_nerr - system	error messages
+SYNTAX
+	  void perror (s)
+	  char *s;
+	  extern int errno;
+	  extern char *sys_errlist[ ];
+	  extern int sys_nerr;
+DESCRIPTION
+	  Perror produces a message on the standard error output,
+	  describing the last error encountered	during a call to a
+	  system or library function.  The argument string s is
+	  printed first, then a	colon and a blank, then	the message
+	  and a	new-line.  To be of most use, the argument string
+	  should include the name of the program that incurred the
+	  error.  The error number is taken from the external variable
+	  errno, which is set when errors occur	but not	cleared	when
+	  non-erroneous	calls are made.
+	  To simplify variant formatting of messages, the array	of
+	  message strings sys_errlist is provided; errno can be	used
+	  as an	index in this table to get the message string without
+	  the new-line.	 Sys_nerr is the largest message number
+	  provided for in the table; it	should be checked because new
+	  error	codes may be added to the system before	they are added
+	  to the table.
+SEE ALSO
+	  intro(2).
+				  
+ 
+#popen
+NAME
+	  popen, pclose	- initiate pipe	to/from	a process
+SYNTAX
+	  #include <stdio.h>
+	  FILE *popen (command,	type)
+	  char *command, *type;
+	  int pclose (stream)
+	  FILE *stream;
+DESCRIPTION
+	  The arguments	to popen are pointers to null-terminated
+	  strings containing, respectively, a shell command line and
+	  an I/O mode, either r	for reading or w for writing.  Popen
+	  creates a pipe between the calling program and the command
+	  to be	executed.  The value returned is a stream pointer such
+	  that one can write to	the standard input of the command, if
+	  the I/O mode is w, by	writing	to the file stream; and	one
+	  can read from	the standard output of the command, if the I/O
+	  mode is r, by	reading	from the file stream.
+	  A stream opened by popen should be closed by pclose, which
+	  waits	for the	associated process to terminate	and returns
+	  the exit status of the command.
+	  Because open files are shared, a type	r command may be used
+	  as an	input filter and a type	w as an	output filter.
+SEE ALSO
+	  pipe(2), wait(2), fclose(3S),	fopen(3S), system(3S).
+DIAGNOSTICS
+	  Popen	returns	a NULL pointer if files	or processes cannot be
+	  created, or if the shell cannot be accessed.
+	  Pclose returns -1 if stream is not associated	with a
+	  ``popened'' command.
+BUGS
+	  If the original and ``popened'' processes concurrently read
+	  or write a common file, neither should use buffered I/O,
+	  because the buffering	gets all mixed up.  Problems with an
+	  output filter	may be forestalled by careful buffer flushing,
+	  e.g. with fflush; see	fclose(3S).
+				  
+ 
+#printf
+NAME
+	  printf, fprintf, sprintf - print formatted output
+SYNTAX
+	  #include <stdio.h>
+	  int printf (format [ , arg ] ...  )
+	  char *format;
+	  int fprintf (stream, format [	, arg ]	...  )
+	  FILE *stream;
+	  char *format;
+	  int sprintf (s, format [ , arg ] ...	)
+	  char *s, format;
+DESCRIPTION
+	  Printf places	output on the standard output stream stdout.
+	  Fprintf places output	on the named output stream.  Sprintf
+	  places ``output,'' followed by the null character (\0), in
+	  consecutive bytes starting at	*s; it is the user's
+	  responsibility to ensure that	enough storage is available.
+	  Each function	returns	the number of characters transmitted
+	  (not including the \0	in the case of sprintf), or a negative
+	  value	if an output error was encountered.
+	  Each of these	functions converts, formats, and prints	its
+	  args under control of	the format.  The format	is a character
+	  string that contains two types of objects:  plain
+	  characters, which are	simply copied to the output stream,
+	  and conversion specifications, each of which results in
+	  fetching of zero or more args.  The results are undefined if
+	  there	are insufficient args for the format.  If the format
+	  is exhausted while args remain, the excess args are simply
+	  ignored.
+	  Each conversion specification	is introduced by the character
+	  %.  After the	%, the following appear	in sequence:
+	       Zero or more flags, which modify	the meaning of the
+	       conversion specification.
+	       An optional decimal digit string	specifying a minimum
+	       field width.  If	the converted value has	fewer
+	       characters than the field width,	it will	be padded on
+	       the left	(or right, if the left-adjustment flag `-',
+	       described below,	has been given)	to the field width.
+	       If the field width for an s conversion is preceded by a
+	       0, the string is	right adjusted with zero-padding on
+	       the left.
+	       A precision that	gives the minimum number of digits to
+				  
+	       appear for the d, o, u, x, or X conversions, the	number
+	       of digits to appear after the decimal point for the e
+	       and f conversions, the maximum number of	significant
+	       digits for the g	conversion, or the maximum number of
+	       characters to be	printed	from a string in s conversion.
+	       The precision takes the form of a period	(.)  followed
+	       by a decimal digit string; a null digit string is
+	       treated as zero.
+	       An optional l (ell) specifying that a following d, o,
+	       u, x, or	X conversion character applies to a long
+	       integer arg.  A l before	any other conversion character
+	       is ignored.
+	       A character that	indicates the type of conversion to be
+	       applied.
+	  A field width	or precision may be indicated by an asterisk
+	  (*) instead of a digit string.  In this case,	an integer arg
+	  supplies the field width or precision.  The arg that is
+	  actually converted is	not fetched until the conversion
+	  letter is seen, so the args specifying field width or
+	  precision must appear	before the arg (if any)	to be
+	  converted.
+	  The flag characters and their	meanings are:
+	  -	    The	result of the conversion will be left-
+		    justified within the field.
+	  +	    The	result of a signed conversion will always
+		    begin with a sign (+ or -).
+	  blank	    If the first character of a	signed conversion is
+		    not	a sign,	a blank	will be	prefixed to the
+		    result.  This implies that if the blank and	+
+		    flags both appear, the blank flag will be ignored.
+	  #	    This flag specifies	that the value is to be
+		    converted to an ``alternate	form.''	 For c,	d, s,
+		    and	u conversions, the flag	has no effect.	For o
+		    conversion,	it increases the precision to force
+		    the	first digit of the result to be	a zero.	 For x
+		    or X conversion, a non-zero	result will have 0x or
+		    0X prefixed	to it.	For e, E, f, g,	and G
+		    conversions, the result will always	contain	a
+		    decimal point, even	if no digits follow the	point
+		    (normally, a decimal point appears in the result
+		    of these conversions only if a digit follows it).
+		    For	g and G	conversions, trailing zeroes will not
+		    be removed from the	result (which they normally
+		    are).
+	  The conversion characters and	their meanings are:
+	  d,o,u,x,x The	integer	arg is converted to signed decimal,
+		    unsigned octal, decimal, or	hexadecimal notation
+		    (x and X), respectively; the letters abcdef	are
+		    used for x conversion and the letters ABCDEF for X
+		    conversion.	 The precision specifies the minimum
+		    number of digits to	appear;	if the value being
+		    converted can be represented in fewer digits, it
+		    will be expanded with leading zeroes.  (For
+		    compatibility with older versions, padding with
+		    leading zeroes may alternatively be	specified by
+		    prepending a zero to the field width.  This	does
+		    not	imply an octal value for the field width.)
+		    The	default	precision is 1.	 The result of
+		    converting a zero value with a precision of	zero
+		    is a null string.
+	  f	    The	float or double	arg is converted to decimal
+		    notation in	the style ``[-]ddd.ddd,'' where	the
+		    number of digits after the decimal point is	equal
+		    to the precision specification.  If	the precision
+		    is missing,	six digits are output; if the
+		    precision is explicitly 0, no decimal point
+		    appears.
+	  e,E	    The	float or double	arg is converted in the	style
+		    ``[-]d.ddde_dd,'' where there is one digit before
+		    the	decimal	point and the number of	digits after
+		    it is equal	to the precision; when the precision
+		    is missing,	six digits are produced; if the
+		    precision is zero, no decimal point	appears.  The
+		    E format code will produce a number	with E instead
+		    of e introducing the exponent.  The	exponent
+		    always contains at least two digits.
+	  g,G	    The	float or double	arg is printed in style	f or e
+		    (or	in style E in the case of a G format code),
+		    with the precision specifying the number of
+		    significant	digits.	 The style used	depends	on the
+		    value converted:  style e will be used only	if the
+		    exponent resulting from the	conversion is less
+		    than -4 or greater than the	precision.  Trailing
+		    zeroes are removed from the	result;	a decimal
+		    point appears only if it is	followed by a digit.
+	  c	    The	character arg is printed.
+	  s	    The	arg is taken to	be a string (character
+		    pointer) and characters from the string are
+		    printed until a null character (\0)	is encountered
+		    or the number of characters	indicated by the
+		    precision specification is reached.	 If the
+		    precision is missing, it is	taken to be infinite,
+		    so all characters up to the	first null character
+		    are	printed.  A NULL value for arg will yield
+		    undefined results.
+	  %	    Print a %; no argument is converted.
+	  In no	case does a non-existent or small field	width cause
+	  truncation of	a field; if the	result of a conversion is
+	  wider	than the field width, the field	is simply expanded to
+	  contain the conversion result.  Characters generated by
+	  printf and fprintf are printed as if putc(3S)	had been
+	  called.
+     EXAMPLES
+	  To print a date and time in the form ``Sunday, July 3,
+	  10:02,'' where weekday and month are pointers	to null-
+	  terminated strings:
+	       printf("%s, %s %d, %d:%.2d", weekday, month, day, hour, min);
+	  To print pi to 5 decimal places:
+	       printf("pi = %.5f", 4 * atan(1.0));
+SEE ALSO
+	  ecvt(3C), putc(3S), scanf(3S), stdio(3S).
+ 
+#putc
+NAME
+	  putc,	putchar, fputc,	putw - put character or	word on	a
+	  stream
+SYNTAX
+	  #include <stdio.h>
+	  int putc (c, stream)
+	  int c;
+	  FILE *stream;
+	  int putchar (c)
+	  int c;
+	  int fputc (c,	stream)
+	  int c;
+	  FILE *stream;
+	  int putw (w, stream)
+	  int w;
+	  FILE *stream;
+DESCRIPTION
+	  Putc writes the character c onto the output stream (at the
+	  position where the file pointer, if defined, is pointing).
+	  Putchar(c) is	defined	as putc(c, stdout).  Putc and putchar
+	  are macros.
+	  Fputc	behaves	like putc, but is a function rather than a
+	  macro.  Fputc	runs more slowly than putc, but	it takes less
+	  space	per invocation and its name can	be passed as an
+	  argument to a	function.
+	  Putw writes the word (i.e., integer) w to the	output stream
+	  (at the position at which the	file pointer, if defined, is
+	  pointing).  The size of a word is the	size of	an integer and
+	  varies from machine to machine.  Putw	neither	assumes	nor
+	  causes special alignment in the file.
+	  Output streams, with the exception of	the standard error
+	  stream stderr, are by	default	buffered if the	output refers
+	  to a file and	line-buffered if the output refers to a
+	  terminal.  The standard error	output stream stderr is	by
+	  default unbuffered, but use of freopen [see fopen(3S)] will
+	  cause	it to become buffered or line-buffered.	 When an
+	  output stream	is unbuffered, information is queued for
+	  writing on the destination file or terminal as soon as
+	  written; when	it is buffered,	many characters	are saved up
+	  and written as a block.  When	it is line-buffered, each line
+	  of output is queued for writing on the destination terminal
+	  as soon as the line is completed (that is, as	soon as	a
+	  new-line character is	written	or terminal input is
+				  
+	  requested).  Setbuf(3S) or Setbuf(3S)	may be used to change
+	  the stream's buffering strategy.
+SEE ALSO
+	  fclose(3S), ferror(3S), fopen(3S), fread(3S),	printf(3S),
+	  puts(3S), setbuf(3S).
+DIAGNOSTICS
+	  On success, putc, fputc, and putchar each return the value
+	  they have written.  On failure, they return the constant
+	  EOF.	This will occur	if the file stream is not open for
+	  writing or if	the output file	cannot be grown.  Putw returns
+	  nonzero when an error	has occured, otherwise zero.
+BUGS
+	  Because it is	implemented as a macro,	putc treats
+	  incorrectly a	stream argument	with side effects.  In
+	  particular, putc(c, *f++); doesn't work sensibly.  Fputc
+	  should be used instead.
+	  Because of possible differences in word length and byte
+	  ordering, files written using	putw are machine-dependent,
+	  and may not be read using getw on a different	processor.
+ 
+#putenv
+NAME
+	  putenv - change or add value to environment
+SYNTAX
+	  int putenv (string)
+	  char *string;
+DESCRIPTION
+	  String points	to a string of the form	``name=value.''
+	  Putenv makes the value of the	environment variable name
+	  equal	to value by altering an	existing variable or creating
+	  a new	one.  In either	case, the string pointed to by string
+	  becomes part of the environment, so altering the string will
+	  change the environment.  The space used by string is no
+	  longer used once a new string-defining name is passed	to
+	  putenv.
+DIAGNOSTICS
+	  Putenv returns non-zero if it	was unable to obtain enough
+	  space	via malloc for an expanded environment,	otherwise
+	  zero.
+SEE ALSO
+	  exec(2), getenv(3C), malloc(3C), environ(5).
+     WARNINGS
+	  Putenv manipulates the environment pointed to	by environ,
+	  and can be used in conjunction with getenv.  However,	envp
+	  (the third argument to main) is not changed.
+	  This routine uses malloc(3C) to enlarge the environment.
+	  After	putenv is called, environmental	variables are not in
+	  alphabetical order.
+	  A potential error is to call putenv with an automatic
+	  variable as the argument, then exit the calling function
+	  while	string is still	part of	the environment.
+				  
+ 
+#puts
+NAME
+	  puts,	fputs -	put a string on	a stream
+SYNTAX
+	  #include <stdio.h>
+	  int puts (s)
+	  char *s;
+	  int fputs (s,	stream)
+	  char *s;
+	  FILE *stream;
+DESCRIPTION
+	  Puts writes the null-terminated string pointed to by s,
+	  followed by a	new-line character, to the standard output
+	  stream stdout.
+	  Fputs	writes the null-terminated string pointed to by	s to
+	  the named output stream.
+	  Neither function writes the terminating null character.
+DIAGNOSTICS
+	  Both routines	return EOF on error. This will happen if the
+	  routines try to write	on a file that has not been opened for
+	  writing.
+SEE ALSO
+	  ferror(3S), fopen(3S), fread(3S), printf(3S),	putc(3S).
+     NOTES
+	  Puts appends a new-line character while fputs	does not.
+				  
+ 
+#qsort
+NAME
+	  qsort	- quicker sort
+SYNTAX
+	  void qsort ((char *) base, nel, sizeof (*base), compar)
+	  unsigned nel;
+	  int (*compar)( );
+DESCRIPTION
+	  Qsort	is an implementation of	the quicker-sort algorithm.
+	  It sorts a table of data in place.
+	  Base points to the element at	the base of the	table.	Nel is
+	  the number of	elements in the	table.	Compar is the name of
+	  the comparison function, which is called with	two arguments
+	  that point to	the elements being compared.  As the function
+	  must return an integer less than, equal to, or greater than
+	  zero,	so must	the first argument to be considered be less
+	  than,	equal to, or greater than the second.
+     NOTES
+	  The pointer to the base of the table should be of type
+	  pointer-to-element, and cast to type pointer-to-character.
+	  The comparison function need not compare every byte, so
+	  arbitrary data may be	contained in the elements in addition
+	  to the values	being compared.
+	  The order in the output of two items which compare as	equal
+	  is unpredictable.
+SEE ALSO
+	  bsearch(3C), lsearch(3C), string(3C).
+	  sort(1) in the UNIX System V User Reference Manual.
+     WARNING
+	  The total size of the	table (nel x sizeof(*base)) must be
+	  less than 65536 in small and large model programs.
+				  
+ 
+#rand
+SUBROUTINES
+    rand(3)		- standard random number generator
+INVOCATION
+    srand( seed )
+      unsigned seed;
+    int rand()
+EXPLANATION
+    Rand(3) uses a full period, mixed linear congruential
+    generator to return a pseudo-random number in the
+    range 0 to 32767 {INT_MAX}. The formula used is:
+      seed = (1103515245 * seed + 12345) % 2147483648
+    Srand(3) sets the seed to an initial value, the default
+    is 1.
+RESULTS
+    Rand(3) returns 15 bits from the high order word of seed.
+REFERENCES
+    lrand(3)
+ 
+#regcmp
+NAME
+	  regcmp, regex	- compile and execute regular expression
+SYNTAX
+	  char *regcmp (string1	[, string2, ...], (char	*)0)
+	  char *string1, *string2, ...;
+	  char *regex (re, subject[, ret0, ...])
+	  char *re, *subject, *ret0, ...;
+	  extern char *__loc1;
+DESCRIPTION
+	  Regcmp compiles a regular expression and returns a pointer
+	  to the compiled form.	 Malloc(3C) is used to create space
+	  for the vector.  It is the user's responsibility to free
+	  unneeded space so allocated.	A NULL return from regcmp
+	  indicates an incorrect argument.  Regcmp(1) has been written
+	  to generally preclude	the need for this routine at execution
+	  time.
+	  Regex	executes a compiled pattern against the	subject
+	  string.  Additional arguments	are passed to receive values
+	  back.	 Regex returns NULL on failure or a pointer to the
+	  next unmatched character on success.	A global character
+	  pointer __loc1 points	to where the match began.  Regcmp and
+	  regex	were mostly borrowed from the editor, ed(1); however,
+	  the syntax and semantics have	been changed slightly.	The
+	  following are	the valid symbols and their associated
+	  meanings.
+	  []*.^	    These symbols retain their current meaning.
+	  $	    Matches the	end of the string; \n matches a	new-
+		    line.
+	  -	    Within brackets the	minus means through.  For
+		    example, [a-z] is equivalent to [abcd...xyz].  The
+		    - can appear as itself only	if used	as the first
+		    or last character.	For example, the character
+		    class expression []-] matches the characters
+		    ] and -.
+	  +	    A regular expression followed by + means one or
+		    more times.	 For example, [0-9]+ is	equivalent to
+		    [0-9][0-9]*.
+	  {m} {m,} {m,u}
+		    Integer values enclosed in {} indicate the number
+		    of times the preceding regular expression is to be
+		    applied.  The value	m is the minimum number	and u
+		    is a number, less than 256,	which is the maximum.
+				  
+		    If only m is present (e.g.,	{m}), it indicates the
+		    exact number of times the regular expression is to
+		    be applied.	 The value {m,}	is analogous to
+		    {m,infinity}.  The plus (+)	and star (*)
+		    operations are equivalent to {1,} and {0,}
+		    respectively.
+	  ( ...	)$n The	value of the enclosed regular expression is to
+		    be returned.  The value will be stored in the
+		    (n+1)th argument following the subject argument.
+		    At most ten	enclosed regular expressions are
+		    allowed.  Regex makes its assignments
+		    unconditionally.
+	  ( ...	)   Parentheses	are used for grouping.	An operator,
+		    e.g., *, +,	{}, can	work on	a single character or
+		    a regular expression enclosed in parentheses.  For
+		    example, (a*(cb+)*)$0.
+	  By necessity,	all the	above defined symbols are special.
+	  They must, therefore,	be escaped to be used as themselves.
+     EXAMPLES
+	  Example 1:
+	       char *cursor, *newcursor, *ptr;
+		    ...
+	       newcursor = regex((ptr =	regcmp("^\n", 0)), cursor);
+	       free(ptr);
+	  This example will match a leading new-line in	the subject
+	  string pointed at by cursor.
+	  Example 2:
+	       char ret0[9];
+	       char *newcursor,	*name;
+		    ...
+	       name = regcmp("([A-Za-z][A-za-z0-9_]{0,7})$0", '(char *)0');
+	       newcursor = regex(name, "123Testing321",	ret0);
+	  This example will match through the string ``Testing3'' and
+	  will return the address of the character after the last
+	  matched character (cursor+11).  The string ``Testing3'' will
+	  be copied to the character array ret0.
+	  Example 3:
+	       #include	"file.i"
+	       char *string, *newcursor;
+		    ...
+	       newcursor = regex(name, string);
+	  This example applies a precompiled regular expression	in
+	  file.i [see regcmp(1)] against string.
+	  This routine is kept in /lib/<module>/libPW.a, where module
+	  is either small or large.
+SEE ALSO
+	  malloc(3C).
+	  ed(1), regcmp(1) in the UNIX System V	User Reference Manual.
+BUGS
+	  The user program may run out of memory if regcmp is called
+	  iteratively without freeing the vectors no longer required.
+	  The following	user-supplied replacement for malloc(3C)
+	  reuses the same vector, saving time and space:
+	       /* user's program */
+		    ...
+	       char *
+	       malloc(n)
+	       unsigned	n;
+	       {
+		    static char	rebuf[512];
+		    return (n <= sizeof	rebuf) ? rebuf : NULL;
+	       }
+ 
+#rename
+.TH RENAME 3 "Standard Extension"
+.SH NAME
+rename \- change the name of a file
+.SH SYNOPSIS
+.ft B
+.nf
+rename(from, to)
+char *from, *to;
+.fi
+.ft R
+.SH DESCRIPTION
+.I Rename
+causes the link named
+.I from
+to be renamed as
+.IR to .
+If 
+.I to
+exists, then it is first removed.
+Both 
+.I from
+and
+.I to
+must be of the same type (i.e., both directories or both
+non-directories), and must reside on the same file system.
+.PP
+.I Rename
+guarantees that an instance of
+.I to
+will always exist, even if the system should crash in
+the middle of the operation.
+.SH CAVEAT
+The system can deadlock if a loop in the file system graph is present.
+This loop takes the form of an entry in directory \*(lqa\*(rq,
+say \*(lqa/foo\*(rq,
+being a hard link to directory \*(lqb\*(rq, and an entry in
+directory \*(lqb\*(rq, say \*(lqb/bar\*(rq, being a hard link
+to directory \*(lqa\*(rq.
+When such a loop exists and two separate processes attempt to
+perform \*(lqrename a/foo b/bar\*(rq and \*(lqrename b/bar a/foo\*(rq,
+respectively, 
+the system may deadlock attempting to lock
+both directories for modification.
+On systems with a symbolic link capability, hard links to directories should be
+replaced by symbolic links by the system administrator.
+.SH "RETURN VALUE"
+A 0 value is returned if the operation succeeds, otherwise
+.I rename
+returns \-1 and the global variable
+.I errno
+indicates the reason for the failure.
+.SH "ERRORS
+.I Rename
+will fail and nothing will change if any of the following are true:
+.TP 15
+[ENOTDIR]
+A component of either path prefix is not a directory.
+.TP 15
+[ENOENT]
+A component of either path prefix does not exist.
+.TP 15
+[EACCES]
+A component of either path prefix denies search permission.
+.TP 15
+[ENOENT]
+The file named by \fIfrom\fP does not exist.
+.TP 15
+[EXDEV]
+The link named by \fIto\fP and the file named by \fIfrom\fP
+are on different logical devices (file systems).  Note that this error
+code will not be returned if the implementation permits cross-device
+links.
+.TP 15
+[EACCES]
+The requested link requires writing in a directory with a mode
+that denies write permission.
+.TP 15
+[EROFS]
+The requested link requires writing in a directory on a read-only file
+system.
+.TP 15
+[EFAULT]
+.I Path
+points outside the process's allocated address space.
+.SH "SEE ALSO"
+open(2)
+ 
+#scanf
+NAME
+	  scanf, fscanf, sscanf	- convert formatted input
+SYNTAX
+	  #include <stdio.h>
+	  int scanf (format [ ,	pointer	] ...  )
+	  char *format;
+	  int fscanf (stream, format [ , pointer ] ...	)
+	  FILE *stream;
+	  char *format;
+	  int sscanf (s, format	[ , pointer ] ...  )
+	  char *s, *format;
+DESCRIPTION
+	  Scanf	reads from the standard	input stream stdin.  Fscanf
+	  reads	from the named input stream.  Sscanf reads from	the
+	  character string s.  Each function reads characters,
+	  interprets them according to a format, and stores the
+	  results in its arguments.  Each expects, as arguments, a
+	  control string format	described below, and a set of pointer
+	  arguments indicating where the converted input should	be
+	  stored.
+	  The control string usually contains conversion
+	  specifications, which	are used to direct interpretation of
+	  input	sequences.  The	control	string may contain:
+	  1. White-space characters (blanks, tabs, new-lines, or
+	     form-feeds) which,	except in two cases described below,
+	     cause input to be read up to the next non-white-space
+	     character.
+	  2. An	ordinary character (not	%), which must match the next
+	     character of the input stream.
+	  3. Conversion	specifications,	consisting of the character %,
+	     an	optional assignment suppressing	character *, an
+	     optional numerical	maximum	field width, an	optional l
+	     (ell) or h	indicating the size of the receiving variable,
+	     and a conversion code.
+	  A conversion specification directs the conversion of the
+	  next input field; the	result is placed in the	variable
+	  pointed to by	the corresponding argument, unless assignment
+	  suppression was indicated by *.  The suppression of
+	  assignment provides a	way of describing an input field which
+	  is to	be skipped.  An	input field is defined as a string of
+	  non-space characters;	it extends to the next inappropriate
+	  character or until the field width, if specified, is
+	  exhausted.  For all descriptors except ``['' and ``c'',
+	  white	space leading an input field is	ignored.
+				  
+	  The conversion code indicates	the interpretation of the
+	  input	field; the corresponding pointer argument must usually
+	  be of	a restricted type.  For	a suppressed field, no pointer
+	  argument is given.  The following conversion codes are
+	  legal:
+	  %    a single	% is expected in the input at this point; no
+	       assignment is done.
+	  d    a decimal integer is expected; the corresponding
+	       argument	should be an integer pointer.
+	  u    an unsigned decimal integer is expected;	the
+	       corresponding argument should be	an unsigned integer
+	       pointer.
+	  o    an octal	integer	is expected; the corresponding
+	       argument	should be an integer pointer.
+	  x    a hexadecimal integer is	expected; the corresponding
+	       argument	should be an integer pointer.
+	  e,f,g
+	       a floating point	number is expected; the	next field is
+	       converted accordingly and stored	through	the
+	       corresponding argument, which should be a pointer to a
+	       float.  The input format	for floating point numbers is
+	       an optionally signed string of digits, possibly
+	       containing a decimal point, followed by an optional
+	       exponent	field consisting of an E or an e, followed by
+	       an optional +, -, or space, followed by an integer.
+	  s    a character string is expected; the corresponding
+	       argument	should be a character pointer pointing to an
+	       array of	characters large enough	to accept the string
+	       and a terminating \0, which will	be added
+	       automatically.  The input field is terminated by	a
+	       white-space character.
+	  c    a character is expected;	the corresponding argument
+	       should be a character pointer.  The normal skip over
+	       white space is suppressed in this case; to read the
+	       next non-space character, use %1s.  If a	field width is
+	       given, the corresponding	argument should	refer to a
+	       character array;	the indicated number of	characters is
+	       read.
+	  [    indicates string	data and the normal skip over leading
+	       white space is suppressed.  The left bracket is
+	       followed	by a set of characters,	which we will call the
+	       scanset,	and a right bracket; the input field is	the
+	       maximal sequence	of input characters consisting
+	       entirely	of characters in the scanset.  The circumflex
+	       (^), when it appears as the first character in the
+	       scanset,	serves as a complement operator	and redefines
+	       the scanset as the set of all characters	not contained
+	       in the remainder	of the scanset string.	There are some
+	       conventions used	in the construction of the scanset.  A
+	       range of	characters may be represented by the construct
+	       first-last, thus	[0123456789] may be expressed [0-9].
+	       Using this convention, first must be lexically less
+	       than or equal to	last, or else the dash will stand for
+	       itself.	The dash will also stand for itself whenever
+	       it is the first or the last character in	the scanset.
+	       To include the right square bracket as an element of
+	       the scanset, it must appear as the first	character
+	       (possibly preceded by a circumflex) of the scanset, and
+	       in this case it will not	be syntactically interpreted
+	       as the closing bracket.	The corresponding argument
+	       must point to a character array large enough to hold
+	       the data	field and the terminating \0, which will be
+	       added automatically.  At	least one character must match
+	       for this	conversion to be considered successful.
+	  The conversion characters d, u, o, and x may be preceded by
+	  l or h to indicate that a pointer to long or to short	rather
+	  than to int is in the	argument list.	Similarly, the
+	  conversion characters	e, f, and g may	be preceded by l to
+	  indicate that	a pointer to double rather than	to float is in
+	  the argument list.  The l or h modifier is ignored for other
+	  conversion characters.
+	  Scanf	conversion terminates at EOF, at the end of the
+	  control string, or when an input character conflicts with
+	  the control string.  In the latter case, the offending
+	  character is left unread in the input	stream.
+	  Scanf	returns	the number of successfully matched and
+	  assigned input items;	this number can	be zero	in the event
+	  of an	early conflict between an input	character and the
+	  control string.  If the input	ends before the	first conflict
+	  or conversion, EOF is	returned.
+     EXAMPLES
+	  The call:
+	       int i, n; float x; char name[50];
+	       n = scanf("%d%f%s", &i, &x, name);
+	  with the input line:
+	       25 54.32E-1 thompson
+	  will assign to n the value 3,	to i the value 25, to x	the
+	  value	5.432, and name	will contain thompson\0.  Or:
+	       int i; float x; char name[50];
+	       (void) scanf("%2d%f%*d %[0-9]", &i, &x, name);
+	  with input:
+	       56789 0123 56a72
+	  will assign 56 to i, 789.0 to	x, skip	0123, and place	the
+	  string 56\0 in name.	The next call to getchar (see
+	  getc(3S)) will return	a.
+SEE ALSO
+	  getc(3S), printf(3S),	strtod(3C), strtol(3C).
+     NOTE
+	  Trailing white space (including a new-line) is left unread
+	  unless matched in the	control	string.
+DIAGNOSTICS
+	  These	functions return EOF on	end of input and a short count
+	  for missing or illegal data items.
+BUGS
+	  The success of literal matches and suppressed	assignments is
+	  not directly determinable.
+ 
+#setbuf
+NAME
+	  setbuf, setvbuf - assign buffering to	a stream
+SYNTAX
+	  #include <stdio.h>
+	  void setbuf (stream, buf)
+	  FILE *stream;
+	  char *buf;
+	  int setvbuf (stream, buf, type, size)
+	  FILE *stream;
+	  char *buf;
+	  int type, size;
+DESCRIPTION
+	  Setbuf may be	used after a stream has	been opened but	before
+	  it is	read or	written.  It causes the	array pointed to by
+	  buf to be used instead of an automatically allocated buffer.
+	  If buf is the	NULL pointer input/output will be completely
+	  unbuffered.
+	  A constant BUFSIZ, defined in	the <stdio.h> header file,
+	  tells	how big	an array is needed:
+	       char buf[BUFSIZ];
+	  Setvbuf may be used after a stream has been opened but
+	  before it is read or written.	 Type determines how stream
+	  will be buffered.  Legal values for type (defined in
+	  stdio.h) are:
+	  _IOFBF  causes input/output to be fully buffered.
+	  _IOLBF  causes output	to be line buffered; the buffer	will
+		  be flushed when a newline is written,	the buffer is
+		  full,	or input is requested.
+	  _IONBF  causes input/output to be completely unbuffered.
+	  If buf is not	the NULL pointer, the array it points to will
+	  be used for buffering, instead of an automatically allocated
+	  buffer.  Size	specifies the size of the buffer to be used.
+	  The constant BUFSIZ in <stdio.h> is suggested	as a good
+	  buffer size.	If input/output	is unbuffered, buf and size
+	  are ignored.
+	  By default, output to	a terminal is line buffered and	all
+	  other	input/output is	fully buffered.
+SEE ALSO
+	  fopen(3S), getc(3S), malloc(3C), putc(3S), stdio(3S).
+				  
+DIAGNOSTICS
+	  If an	illegal	value for type or size is provided, setvbuf
+	  returns a non-zero value. Otherwise, the value returned will
+	  be zero.
+     NOTE
+	  A common source of error is allocating buffer	space as an
+	  ``automatic''	variable in a code block, and then failing to
+	  close	the stream in the same block.
+ 
+#setjmp
+NAME
+	  setjmp, longjmp - non-local goto
+SYNTAX
+	  #include <setjmp.h>
+	  int setjmp (env)
+	  jmp_buf env;
+	  void longjmp (env, val)
+	  jmp_buf env;
+	  int val;
+DESCRIPTION
+	  These	functions are useful for dealing with errors and
+	  interrupts encountered in a low-level	subroutine of a
+	  program.
+	  Setjmp saves its stack environment in	env (whose type,
+	  jmp_buf, is defined in the <setjmp.h>	header file) for later
+	  use by longjmp.  It returns the value	0.
+	  Longjmp restores the environment saved by the	last call of
+	  setjmp with the corresponding	env argument.  After longjmp
+	  is completed,	program	execution continues as if the
+	  corresponding	call of	setjmp (which must not itself have
+	  returned in the interim) had just returned the value val.
+	  Longjmp cannot cause setjmp to return	the value 0.  If
+	  longjmp is invoked with a second argument of 0, setjmp will
+	  return 1.  All accessible data had values as of the time
+	  longjmp was called.
+SEE ALSO
+	  signal(2).
+     WARNING
+	  If longjmp is	called even though env was never primed	by a
+	  call to setjmp, or when the last such	call was in a function
+	  which	has since returned, absolute chaos is guaranteed.
+				  
+ 
+#signal
+NAME
+	  signal - specify FORTRAN action on receipt of	a system
+	  signal
+SYNTAX
+	  integer i
+	  external integer intfnc
+	  call signal(i, intfnc)
+DESCRIPTION
+	  Signal allows	a process to specify a function	to be invoked
+	  upon receipt of a specific signal. The first argument
+	  specifies which fault	or exception; the second argument the
+	  specific function to be invoked.
+SEE ALSO
+	  kill(2), signal(2).
+				  
+ 
+#sleep
+NAME
+	  sleep	- suspend execution for	interval
+SYNTAX
+	  unsigned sleep (seconds)
+	  unsigned seconds;
+DESCRIPTION
+	  The current process is suspended from	execution for the
+	  number of seconds specified by the argument.	The actual
+	  suspension time may be less than that	requested for two
+	  reasons: (1) Because scheduled wakeups occur at fixed	1-
+	  second intervals, (on	the second, according to an internal
+	  clock) and (2) because any caught signal will	terminate the
+	  sleep	following execution of that signal's catching routine.
+	  Also,	the suspension time may	be longer than requested by an
+	  arbitrary amount due to the scheduling of other activity in
+	  the system.  The value returned by sleep will	be the
+	  ``unslept'' amount (the requested time minus the time
+	  actually slept) in case the caller had an alarm set to go
+	  off earlier than the end of the requested sleep time,	or
+	  premature arousal due	to another caught signal.
+	  The routine is implemented by	setting	an alarm signal	and
+	  pausing until	it (or some other signal) occurs.  The
+	  previous state of the	alarm signal is	saved and restored.
+	  The calling program may have set up an alarm signal before
+	  calling sleep.  If the sleep time exceeds the	time till such
+	  alarm	signal,	the process sleeps only	until the alarm	signal
+	  would	have occurred.	The caller's alarm catch routine is
+	  executed just	before the sleep routine returns.  But if the
+	  sleep	time is	less than the time till	such alarm, the	prior
+	  alarm	time is	reset to go off	at the same time it would have
+	  without the intervening sleep.
+SEE ALSO
+	  alarm(2), pause(2), signal(2).
+				  
+ 
+#stdio
+NAME
+	  stdio	- standard buffered input/output package
+SYNTAX
+	  #include <stdio.h>
+	  FILE *stdin, *stdout,	*stderr;
+DESCRIPTION
+	  The functions	described in the entries of sub-class 3S of
+	  this manual constitute an efficient, user-level I/O
+	  buffering scheme.  The in-line macros	getc(3S) and putc(3S)
+	  handle characters quickly.  The macros getchar and putchar,
+	  and the higher-level routines	fgetc, fgets, fprintf, fputc,
+	  fputs, fread,	fscanf,	fwrite,	gets, getw, printf, puts,
+	  putw,	and scanf all use or act as if they use	getc and putc;
+	  they can be freely intermixed.
+	  A file with associated buffering is called a stream and is
+	  declared to be a pointer to a	defined	type FILE.  Fopen(3S)
+	  creates certain descriptive data for a stream	and returns a
+	  pointer to designate the stream in all further transactions.
+	  Normally, there are three open streams with constant
+	  pointers declared in the <stdio.h> header file and
+	  associated with the standard open files:
+	       stdin	 standard input	file
+	       stdout	 standard output file
+	       stderr	 standard error	file
+	  A constant NULL (0) designates a nonexistent pointer.
+	  An integer-constant EOF (-1) is returned upon	end-of-file or
+	  error	by most	integer	functions that deal with streams (see
+	  the individual descriptions for details).
+	  An integer constant BUFSIZ specifies the size	of the buffers
+	  used by the particular implementation.
+	  Any program that uses	this package must include the header
+	  file of pertinent macro definitions, as follows:
+	       #include	<stdio.h>
+	  The functions	and constants mentioned	in the entries of
+	  sub-class 3S of this manual are declared in that header file
+	  and need no further declaration.  The	constants and the
+	  following ``functions'' are implemented as macros
+	  (redeclaration of these names	is perilous):  getc, getchar,
+	  putc,	putchar, ferror, feof, clearerr, and fileno.
+SEE ALSO
+				  
+	  open(2), close(2), lseek(2), pipe(2),	read(2), write(2),
+	  ctermid(3S), cuserid(3S), fclose(3S),	ferror(3S), fopen(3S),
+	  fread(3S), fseek(3S),	getc(3S), gets(3S), popen(3S),
+	  printf(3S), putc(3S),	puts(3S), scanf(3S), setbuf(3S),
+	  system(3S), tmpfile(3S), tmpnam(3S), ungetc(3S).
+DIAGNOSTICS
+	  Invalid stream pointers will usually cause grave disorder,
+	  possibly including program termination.  Individual function
+	  descriptions describe	the possible error conditions.
+ 
+#strcmp
+NAME
+	  lge, lgt, lle, llt - string comparison intrinsic functions
+SYNTAX
+	  character*N	 a1, a2
+	  logical   l
+	  l = lge (a1,a2)
+	  l = lgt (a1,a2)
+	  l = lle (a1,a2)
+	  l = llt (a1,a2)
+DESCRIPTION
+	  These	functions return .TRUE.	if the inequality holds	and
+	  .FALSE. otherwise.
+				  
+ 
+#toascii
+NAME
+    toascii - convert to ASCII
+
+SYNTAX
+    #include <ctype.h>
+
+    int toascii( c )
+      int c;
+
+DESCRIPTION
+    Toascii(3) maps an int into a value from 0 to 127.
+    This is necessary for some functions, such as
+    isupper(3).
+
+RESULTS
+    Lower seven bits of <c>.
+
+SEE ALSO
+    ctype(3), tolower(3), toupper(3)
+
+#tolower
+NAME
+    tolower(3)		- convert to lower case
+
+SYNTAX
+    #include <ctype.h>
+
+    int tolower( c )
+      int c;
+
+    int _tolower( c )
+      int c;
+
+DESCRIPTION
+    These routines convert upper case ASCII characters
+    into lower case characters. Tolower(3) may be called
+    with any ASCII value from 0 to 127, if <c> is not an
+    upper case character then it is returned unchanged.
+
+    _tolower(3) is a macro which can only be used if <c>
+    is an upper case character.
+
+RESULTS
+    Argument converted to lower case.
+
+SEE ALSO
+    ctype(3), toascii(3), toupper(3)
+
+#toupper
+NAME
+    toupper(3)		- convert to upper case
+
+SYNTAX
+    #include <ctype.h>
+
+    int toupper( c )
+      int c;
+
+    int _toupper( c )
+      int c;
+
+DESCRIPTION
+    These routines convert lower case ASCII characters
+    into upper case characters. Toupper(3) may be called
+    with any ASCII value from 0 to 127, if <c> is not a
+    lower case character then it is returned unchanged.
+
+    _toupper(3) is a macro which can only be used if <c>
+    is a lower case character.
+
+RESULTS
+    Argument converted to upper case.
+
+SEE ALSO
+    ctype(3), toascii(3), tolower(3)

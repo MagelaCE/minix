@@ -1,8 +1,8 @@
 /* tr - translate characters		Author: Michiel Huisjes */
 /* Usage: tr [-cds] [string1 [string2]]
- * 	c: take complement of string1
- * 	d: delete input characters coded string1
- * 	s: squeeze multiple output characters of string2 into one character
+ *	c: take complement of string1
+ *	d: delete input characters coded string1
+ *	s: squeeze multiple output characters of string2 into one character
  */
 
 #define BUFFER_SIZE	1024
@@ -31,25 +31,18 @@ char *argv[];
   short i;
 
   if (argc > 1 && argv[index][0] == '-') {
-	for (ptr = &argv[index][1]; *ptr; ptr++) {
+	for (ptr = (unsigned char *) &argv[index][1]; *ptr; ptr++) {
 		switch (*ptr) {
-		case 'c' :
-			com_fl = TRUE;
-			break;
-		case 'd' :
-			del_fl = TRUE;
-			break;
-		case 's' :
-			sq_fl = TRUE;
-			break;
-		default :
-			write(2, "Usage: tr [-cds] [string1 [string2]].\n", 38);
+		    case 'c':	com_fl = TRUE;	break;
+		    case 'd':	del_fl = TRUE;	break;
+		    case 's':	sq_fl = TRUE;	break;
+		    default:
+			write(2,"Usage: tr [-cds] [string1 [string2]].\n", 38);
 			exit(1);
 		}
 	}
 	index++;
   }
-  
   for (i = 0; i <= ASCII; i++) {
 	vector[i] = i;
 	invec[i] = outvec[i] = FALSE;
@@ -57,16 +50,11 @@ char *argv[];
 
   if (argv[index] != NIL_PTR) {
 	expand(argv[index++], input);
-	if (com_fl)
-		complement(input);
-	if (argv[index] != NIL_PTR)
-		expand(argv[index], output);
-	if (argv[index] != NIL_PTR)
-		map(input, output);
-	for (ptr = input; *ptr; ptr++)
-		invec[*ptr] = TRUE;
-	for (ptr = output; *ptr; ptr++)
-		outvec[*ptr] = TRUE;
+	if (com_fl) complement(input);
+	if (argv[index] != NIL_PTR) expand(argv[index], output);
+	if (argv[index] != NIL_PTR) map(input, output);
+	for (ptr = input; *ptr; ptr++) invec[*ptr] = TRUE;
+	for (ptr = output; *ptr; ptr++) outvec[*ptr] = TRUE;
   }
   convert();
 }
@@ -77,7 +65,7 @@ convert()
   short c, coded;
   short last = -1;
 
-  for (; ;) {
+  for (;;) {
 	if (in_index == read_chars) {
 		if ((read_chars = read(0, input, BUFFER_SIZE)) <= 0) {
 			if (write(1, output, out_index) != out_index)
@@ -88,10 +76,8 @@ convert()
 	}
 	c = input[in_index++];
 	coded = vector[c];
-	if (del_fl && invec[c])
-		continue;
-	if (sq_fl && last == coded && outvec[coded])
-		continue;
+	if (del_fl && invec[c]) continue;
+	if (sq_fl && last == coded && outvec[coded]) continue;
 	output[out_index++] = last = coded;
 	if (out_index == BUFFER_SIZE) {
 		if (write(1, output, out_index) != out_index) {
@@ -135,25 +121,20 @@ register unsigned char *buffer;
 				i++;
 			} while (i < 4 && *arg >= '0' && *arg <= '7');
 			*buffer++ = ac;
-		}
-		else if (*arg != '\0')
-			*buffer++ = *arg;
-	}
-	else if (*arg == '[') {
+		} else if (*arg != '\0')
+			*buffer++ = *arg++;
+	} else if (*arg == '[') {
 		arg++;
 		i = *arg++;
 		if (*arg++ != '-') {
 			*buffer++ = '[';
-			*buffer++ = i;
-			*buffer++ = '-';
+			arg -= 2;
 			continue;
 		}
 		ac = *arg++;
-		while (i <= ac)
-			*buffer++ = i++;
-		arg++;			/* Skip ']' */
-	}
-	else
+		while (i <= ac) *buffer++ = i++;
+		arg++;		/* Skip ']' */
+	} else
 		*buffer++ = *arg++;
   }
 }
@@ -168,10 +149,8 @@ unsigned char *buffer;
   index = 0;
   for (i = 1; i <= ASCII; i++) {
 	for (ptr = buffer; *ptr; ptr++)
-		if (*ptr == i)
-			break;
-	if (*ptr == '\0')
-		conv[index++] = i & ASCII;
+		if (*ptr == i) break;
+	if (*ptr == '\0') conv[index++] = i & ASCII;
   }
   conv[index] = '\0';
   strcpy(buffer, conv);

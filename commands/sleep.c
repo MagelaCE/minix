@@ -13,7 +13,6 @@ char *argv[];
 	std_err("Usage: sleep time\n");
 	exit(1);
   }
-
   while (c = *(argv[1])++) {
 	if (c < '0' || c > '9') {
 		std_err("sleep: bad arg\n");
@@ -26,4 +25,3 @@ char *argv[];
   sleep(seconds);
   exit(0);
 }
-

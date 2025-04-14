@@ -1231,7 +1231,7 @@ int	num;
 
 	if (system(cmdln) != 0) {
 		emsg("Filter command failed");
-		remove(ITMP);
+		remove1(ITMP);
 		return;
 	}
 
@@ -1242,8 +1242,8 @@ int	num;
 
 	delline(nlines, TRUE);
 
-	remove(itmp);
-	remove(otmp);
+	remove1(itmp);
+	remove1(otmp);
 
 	/* construct Redo buff */
 	if (num != 0)

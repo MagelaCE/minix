@@ -2,41 +2,36 @@ boot
 20842 6955
 d--777 2 1
    bin	d--755 2 1
-	cat	---755 2 1 /usr/bin/cat
-	cp	---755 2 1 /bin/cp
-	chmem	---755 2 1 /usr/bin/chmem
-	chmod	---755 2 1 /usr/bin/chmod
-	chown	---755 2 1 /usr/bin/chown
-	date	---755 2 1 /usr/bin/date
-	dosread	---755 2 1 /usr/bin/dosread
-	echo	---755 2 1 /usr/bin/echo
-	getlf	---755 2 1 /bin/getlf
-	kill	---755 2 1 /usr/bin/kill
-	ln	---755 2 1 /usr/bin/ln
-	login	---755 2 1 /usr/bin/login
-	ls	---755 2 1 /usr/bin/ls
-	mkdir	-u-755 0 1 /usr/bin/mkdir
-	mkfs	---755 2 1 /usr/bin/mkfs
-	mknod	---755 2 1 /usr/bin/mknod
-	mined	---755 2 1 /usr/bin/mined
-	more	---755 2 1 /usr/bin/more
-	mv	---755 2 1 /usr/bin/mv
-	passwd	-u-755 0 1 /usr/bin/passwd
-	pwd	---755 2 1 /usr/bin/pwd
-	rm	---755 2 1 /usr/bin/rm
-	rmdir	-u-755 0 1 /usr/bin/rmdir
-	sh	---755 2 1 /bin/sh
-	sync	---755 2 1 /bin/sync
+	cat		---755 2 1 /bin/cat
+	chmod		---755 2 1 /bin/chmod
+	chown		---755 2 1 /bin/chown
+	cp		---755 2 1 /bin/cp
+	date		---755 2 1 /bin/date
+	echo		---755 2 1 /bin/echo
+	getlf		---755 2 1 /bin/getlf
+	kill		---755 2 1 /bin/kill
+	ln		---755 2 1 /bin/ln
+	login		---755 2 1 /bin/login
+	ls		---755 2 1 /bin/ls
+	mined		---755 2 1 /bin/mined
+	mkdir		-u-755 0 1 /bin/mkdir
+	mkfs		---755 2 1 /bin/mkfs
+	mknod		---755 2 1 /bin/mknod
+	more		---755 2 1 /bin/more
+	mv		---755 2 1 /bin/mv
+	passwd		-u-755 0 1 /bin/passwd
+	pwd		---755 2 1 /bin/pwd
+	readclock	---755 2 1 /bin/readclock
+	rm		---755 2 1 /bin/rm
+	rmdir		-u-755 0 1 /bin/rmdir
+	sh		---755 2 1 /bin/sh
+	sync		---755 2 1 /bin/sync
    $
    dev	d--755 2 1
-	ram	b--640 2 1 1 0 640
-	mem	b--640 2 1 1 1 640
-	kmem	b--640 2 1 1 2 640
-	null	b--666 2 1 1 3 0
-	fd0	b--666 2 1 2 0 360
-	fd1	b--666 2 1 2 1 360
 	at0	b--666 2 1 2 0 1200
 	at1	b--666 2 1 2 1 1200
+	fd0	b--666 2 1 2 0 360
+	fd1	b--666 2 1 2 1 360
 	hd0	b--600 2 1 3 0 0
 	hd1	b--600 2 1 3 1 0
 	hd2	b--600 2 1 3 2 0
@@ -44,18 +39,26 @@ d--777 2 1
 	hd4	b--600 2 1 3 4 0
 	hd5	b--600 2 1 3 5 0
 	hd6	b--600 2 1 3 6 0
-	tty0	c--666 2 1 4 0
-	tty	c--666 2 1 5 0
+	kmem	b--640 2 1 1 2 0
 	lp	c--222 2 1 6 0
+	mem	b--640 2 1 1 1 0
+	null	b--666 2 1 1 3 0
+	port	c--666 2 1 1 4 0	
+	ram	b--640 2 1 1 0 0
+	tty	c--666 2 1 5 0
+	tty0	c--666 2 1 4 0
    $
    etc	d--755 2 1
+	group	---644 2 1 /etc/group
+	message	---644 2 1 /etc/message
 	mount	-u-755 0 1 /etc/mount
+	passwd	---644 2 1 /etc/passwd
+	rc	---644 2 1 /etc/rc
+	termcap	---644 2 1 /etc/termcap
+	ttys	---644 2 1 /etc/ttys
+	ttytype	---644 2 1 /etc/ttytype
 	umount	-u-755 0 1 /etc/umount
 	update	---755 2 1 /etc/update
-	passwd	---644 2 1 passwd
-	rc	---644 2 1 rc
-	message	---644 2 1 message
-	ttys	---644 2 1 ttys
    $
    lib	d--755 2 1
    $
@@ -64,82 +67,227 @@ d--777 2 1
    user	d--755 2 1
    $
    usr	d--755 2 1
-	magela d--755 8 3
-		.profile	---644 8 3 profile
+	adm	d--755 2 1
+		wtmp		---666 8 3 /usr/adm/wtmp
 	$
 	bin	d--755 2 1
+		animals		---755 2 1 /usr/bin/animals
 		ar		---755 2 1 /usr/bin/ar
+		ascii		---755 2 1 /usr/bin/ascii
 		asld		---755 2 1 /usr/bin/asld
+		ast		---755 2 1 /usr/bin/ast
+		at		-u-755 2 1 /usr/bin/at
+		atrun		---755 2 1 /usr/bin/atrun
+		backup		---755 2 1 /usr/bin/backup
+		badblocks	---755 2 1 /usr/bin/badblocks
+		banner		---755 2 1 /usr/bin/banner
 		basename 	---755 2 1 /usr/bin/basename
+		bawk 		---755 2 1 /usr/bin/bawk
+		btoa 		---755 2 1 /usr/bin/btoa
+		cal		---755 2 1 /usr/bin/cal
 		cc		---755 2 1 /usr/bin/cc
+		cdiff		---755 2 1 /usr/bin/cdiff
+		cgrep		---755 2 1 /usr/bin/cgrep
+		chgrp		---755 2 1 /usr/bin/chgrp
+		chmem		---755 2 1 /usr/bin/chmem
+		ci		---755 2 1 /usr/bin/ci
+		cleanit		---755 2 1 /usr/bin/cleanit
 		clr		---755 2 1 /usr/bin/clr
 		cmp		---755 2 1 /usr/bin/cmp
+		co		---755 2 1 /usr/bin/co
 		comm		---755 2 1 /usr/bin/comm
+		compress	---755 2 1 /usr/bin/compress
 		cpdir		---755 2 1 /usr/bin/cpdir
+		crc		---755 2 1 /usr/bin/crc
+		cron		---755 2 1 /usr/bin/cron
+		cut		---755 2 1 /usr/bin/cut
 		dd		---755 2 1 /usr/bin/dd
 		df		-u-755 0 1 /usr/bin/df
+		dhrystone	---755 2 1 /usr/bin/dhrystone
 		diff		---755 2 1 /usr/bin/diff
+		diskcheck	---755 2 1 /usr/bin/diskcheck
+		dosread		---755 2 1 /usr/bin/dosread
 		du		---755 2 1 /usr/bin/du
+		ed		---755 2 1 /usr/bin/ed
+		elle		---755 2 1 /usr/bin/elle
+		ellec		---755 2 1 /usr/bin/ellec
+		expand		---755 2 1 /usr/bin/expand
 		expr		---755 2 1 /usr/bin/expr
+		factor		---755 2 1 /usr/bin/factor
+		fdisk		---755 2 1 /usr/bin/fdisk
+		fgrep		---755 2 1 /usr/bin/fgrep
+		file		---755 2 1 /usr/bin/file
 		find		---755 2 1 /usr/bin/find
-		fix		---755 2 1 /usr/bin/fix	
+		fix		---755 2 1 /usr/bin/fix
+		fold		---755 2 1 /usr/bin/fold
+		fortune		---755 2 1 /usr/bin/fortune
+		fsck		---755 2 1 /usr/bin/fsck	
+		gather		---755 2 1 /usr/bin/gather
 		grep		---755 2 1 /usr/bin/grep
 		gres		---755 2 1 /usr/bin/gres
 		head		---755 2 1 /usr/bin/head
+		id		---755 2 1 /usr/bin/id
+		ifdef		---755 2 1 /usr/bin/ifdef
+		inodes		---755 2 1 /usr/bin/inodes
+		last		---755 2 1 /usr/bin/last
+		leave		---755 2 1 /usr/bin/leave
 		libpack		---755 2 1 /usr/bin/libpack
 		libupack 	---755 2 1 /usr/bin/libupack
+		look		---755 2 1 /usr/bin/look
+		lorder		---755 2 1 /usr/bin/lorder
 		lpr		---755 2 1 /usr/bin/lpr
+		m4		---755 2 1 /usr/bin/m4
+		mail		---755 2 1 /usr/bin/mail
 		make		---755 2 1 /usr/bin/make
+		man		-u-755 2 1 /usr/bin/man
+		mref		---755 2 1 /usr/bin/mref
+		nm		---755 2 1 /usr/bin/nm
+		nroff		---755 2 1 /usr/bin/nroff
 		od		---755 2 1 /usr/bin/od
+		paste		---755 2 1 /usr/bin/paste
 		pr		---755 2 1 /usr/bin/pr
+		prep		---755 2 1 /usr/bin/prep
+		pretty		---755 2 1 /usr/bin/pretty
+		printenv	---755 2 1 /usr/bin/printenv
+		printroot	---755 2 1 /usr/bin/printroot
+		readall		---755 2 1 /usr/bin/readall
 		readfs		---755 2 1 /usr/bin/readfs
+		recover		---755 2 1 /usr/bin/recover
 		rev		---755 2 1 /usr/bin/rev
 		roff		---755 2 1 /usr/bin/roff
+		sed		---755 2 1 /usr/bin/sed
 		shar		---755 2 1 /usr/bin/shar
 		size		---755 2 1 /usr/bin/size
 		sleep		---755 2 1 /usr/bin/sleep
 		sort		---755 2 1 /usr/bin/sort
+		spell		---755 2 1 /usr/bin/spell
 		split		---755 2 1 /usr/bin/split
+		strings		---755 2 1 /usr/bin/strings
+		strip		---755 2 1 /usr/bin/strip
 		stty		---755 2 1 /usr/bin/stty
 		su		-u-755 0 1 /usr/bin/su
 		sum		---755 2 1 /usr/bin/sum
 		tail		---755 2 1 /usr/bin/tail
 		tar		---755 2 1 /usr/bin/tar
 		tee		---755 2 1 /usr/bin/tee
+		term		---755 2 1 /usr/bin/term
+		termcap		---755 2 1 /usr/bin/termcap
 		test		---755 2 1 /usr/bin/test
 		time		---755 2 1 /usr/bin/time
 		touch		---755 2 1 /usr/bin/touch
 		tr		---755 2 1 /usr/bin/tr
+		traverse	---755 2 1 /usr/bin/traverse
+		treecmp		---755 2 1 /usr/bin/treecmp
 		true		---755 2 1 /usr/bin/true
+		tset		---755 2 1 /usr/bin/tset
+		tsort		---755 2 1 /usr/bin/tsort
+		ttt		---755 2 1 /usr/bin/ttt
+		tty		---755 2 1 /usr/bin/tty
+		unexpand	---755 2 1 /usr/bin/unexpand
 		uniq		---755 2 1 /usr/bin/uniq
-		uudecode	---755 2 1 /usr/bin/uudecode
-		uuencode	---755 2 1 /usr/bin/uuencode
+		users		---755 2 1 /usr/bin/users
+		uud		---755 2 1 /usr/bin/uud
+		uue		---755 2 1 /usr/bin/uue
+		vol		---755 2 1 /usr/bin/vol
 		wc		---755 2 1 /usr/bin/wc
+		whatsnew	---755 2 1 /usr/bin/whatsnew
+		which		---755 2 1 /usr/bin/which
+		who		---755 2 1 /usr/bin/who
+		whoami		---755 2 1 /usr/bin/whoami
+		width		---755 2 1 /usr/bin/width
+		write		---755 2 1 /usr/bin/write
 	$
 	include	d--755 2 1
-		blocksize.h	---644 2 1 ../include/blocksize.h
-		ctype.h		---644 2 1 ../include/ctype.h
-		errno.h		---644 2 1 ../include/errno.h
-		grp.h		---644 2 1 ../include/grp.h
-		lib.h		---644 2 1 ../include/lib.h
-		pwd.h		---644 2 1 ../include/pwd.h
-		regexp.h	---644 2 1 ../include/regexp.h
-		setjmp.h	---644 2 1 ../include/setjmp.h
-		sgtty.h		---644 2 1 ../include/sgtty.h
-		signal.h	---644 2 1 ../include/signal.h
-		stat.h		---644 2 1 ../include/stat.h
-		stdio.h		---644 2 1 ../include/stdio.h
+		a.out.h		---644 2 1 /usr/include/a.out.h
+		amoeba.h	---644 2 1 /usr/include/amoeba.h
+		amparam.h	---644 2 1 /usr/include/amparam.h
+		ansi.h		---644 2 1 /usr/include/ansi.h
+		ar.h		---644 2 1 /usr/include/ar.h
+		assert.h	---644 2 1 /usr/include/assert.h
+		blocksize.h	---644 2 1 /usr/include/blocksize.h
+		ctype.h		---644 2 1 /usr/include/ctype.h
+		curses.h	---644 2 1 /usr/include/curses.h
+		dirent.h	---644 2 1 /usr/include/dirent.h
+		errno.h		---644 2 1 /usr/include/errno.h
+		fcntl.h		---644 2 1 /usr/include/fcntl.h
+		float.h		---644 2 1 /usr/include/float.h
+		grp.h		---644 2 1 /usr/include/grp.h
+		host_os.h	---644 2 1 /usr/include/host_os.h
+		lib.h		---644 2 1 /usr/include/lib.h
+		limits.h	---644 2 1 /usr/include/limits.h
+		locale.h	---644 2 1 /usr/include/locale.h
+		math.h		---644 2 1 /usr/include/math.h
+		pwd.h		---644 2 1 /usr/include/pwd.h
+		regexp.h	---644 2 1 /usr/include/regexp.h
+		setjmp.h	---644 2 1 /usr/include/setjmp.h
+		sgtty.h		---644 2 1 /usr/include/sgtty.h
+		signal.h	---644 2 1 /usr/include/signal.h
+		stdarg.h	---644 2 1 /usr/include/stdarg.h
+		stddef.h	---644 2 1 /usr/include/stddef.h
+		stdio.h		---644 2 1 /usr/include/stdio.h
+		stdlib.h	---644 2 1 /usr/include/stdlib.h
+		string.h	---644 2 1 /usr/include/string.h
+		tar.h		---644 2 1 /usr/include/tar.h
+		termcap.h	---644 2 1 /usr/include/termcap.h
+		termios.h	---644 2 1 /usr/include/termios.h
+		time.h		---644 2 1 /usr/include/time.h
+		unistd.h	---644 2 1 /usr/include/unistd.h
+		utime.h		---644 2 1 /usr/include/utime.h
+		utmp.h		---644 2 1 /usr/include/utmp.h
+		minix	d--755 2 1
+			boot.h		---644 2 1 /usr/include/minix/boot.h
+			callnr.h	---644 2 1 /usr/include/minix/callnr.h
+			com.h		---644 2 1 /usr/include/minix/com.h
+			config.h	---644 2 1 /usr/include/minix/config.h
+			partition.h	---644 2 1 /usr/include/minix/partition.h
+			type.h		---644 2 1 /usr/include/minix/type.h
+		$
+		sys	d--755 2 1
+			dir.h		---644 2 1 /usr/include/sys/dir.h
+			stat.h		---644 2 1 /usr/include/sys/stat.h
+			times.h		---644 2 1 /usr/include/sys/times.h
+			types.h		---644 2 1 /usr/include/sys/types.h
+			utsname.h	---644 2 1 /usr/include/sys/utsname.h
+			wait.h		---644 2 1 /usr/include/sys/wait.h
+		$
 	$
 	lib	d--755 2 1
-		cem	---755 2 1 /usr/lib/cem
-		cg	---755 2 1 /usr/lib/cg
-		cpp	---755 2 1 /usr/lib/cpp
-		opt	---755 2 1 /usr/lib/opt
-		crtso.s	---755 2 1 /usr/lib/crtso.s
-		end.s	---755 2 1 /usr/lib/end.s
-		head.s	---755 2 1 /usr/lib/head.s
-		libc.a	---755 2 1 /usr/lib/libc.a
+		cem		---755 2 1 /usr/lib/cem
+		cg		---755 2 1 /usr/lib/cg
+		cpp		---755 2 1 /usr/lib/cpp
+		crontab		---755 2 1 /usr/lib/crontab
+		crtso.s		---644 2 1 /usr/lib/crtso.s
+		end.s		---644 2 1 /usr/lib/end.s
+		fortune.dat	---644 2 1 /usr/lib/fortune.dat
+		fpp		---755 2 1 /usr/lib/fpp
+		head.s		---644 2 1 /usr/lib/head.s
+		libc.a		---644 2 1 /usr/lib/libc.a
+		libfp.a		---644 2 1 /usr/lib/libfp.a
+		more.help	---644 2 1 /usr/lib/more.help
+		opt		---755 2 1 /usr/lib/opt
+		tmac	d--755 2 1
+			tmac.an		---644 2 1 /usr/lib/tmac/tmac.an
+		$
 	$
+	magela d--755 8 3
+		.ellepro.b1	---644 8 3 /usr/magela/.ellepro.b1
+		.profile	---644 8 3 /usr/magela/.profile
+	$
+	man	d--755 2 1
+		READ_ME		---644 2 1 /usr/man/READ_ME
+		man1		---644 2 1 /usr/man/man1
+		man2		---644 2 1 /usr/man/man2
+		man3		---644 2 1 /usr/man/man3
+		man6		---644 2 1 /usr/man/man6
+   	$
+	spool	d--755 2 1
+		at	d--755 2 1
+			past	d--755 2 1
+   			$
+   		$
+   	$
+	src	d--777 2 1
+   	$
 	tmp	d--777 2 1
    	$
    $

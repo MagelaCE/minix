@@ -185,24 +185,24 @@ beep()
 }
 
 /*
- * remove(file) - remove a file
+ * remove1(file) - remove a file
  */
 void
-remove(file)
+remove1(file)
 char *file;
 {
 	Fdelete(file);
 }
 
 /*
- * rename(of, nf) - rename existing file 'of' to 'nf'
+ * rename1(of, nf) - rename existing file 'of' to 'nf'
  */
 void
-rename(of, nf)
+rename1(of, nf)
 char	*of, *nf;
 {
 	Fdelete(nf);		/* if 'nf' exists, remove it */
-	Frename(0, of, nf);
+	Frename1(0, of, nf);
 }
 
 void

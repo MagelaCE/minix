@@ -9,17 +9,12 @@
  *   panic:       something awful has occurred;  MINIX cannot continue
  */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../h/com.h"
-#include "../h/error.h"
-#include "../h/boot.h"
-#include "const.h"
-#include "type.h"
+#include "fs.h"
+#include <minix/com.h>
+#include <minix/boot.h>
 #include "buf.h"
 #include "file.h"
 #include "fproc.h"
-#include "glo.h"
 #include "inode.h"
 #include "param.h"
 #include "super.h"
@@ -30,13 +25,12 @@ PRIVATE message clock_mess;
 /*===========================================================================*
  *				clock_time				     *
  *===========================================================================*/
-PUBLIC real_time clock_time()
+PUBLIC time_t clock_time()
 {
 /* This routine returns the time in seconds since 1.1.1970. */
 
   register int k;
   register struct super_block *sp;
-  extern struct super_block *get_super();
 
   clock_mess.m_type = GET_TIME;
   if ( (k = sendrec(CLOCK, &clock_mess)) != OK) panic("clock_time err", k);
@@ -48,7 +42,7 @@ PUBLIC real_time clock_time()
 	if (sp->s_rd_only == FALSE) sp->s_dirt = DIRTY;
   }
 
-  return (real_time) clock_mess.NEW_TIME;
+  return (time_t) clock_mess.NEW_TIME;
 }
 
 
@@ -76,7 +70,7 @@ register int n;			/* string length */
 /*===========================================================================*
  *				copy					     *
  *===========================================================================*/
-PUBLIC copy(dest, source, bytes)
+PUBLIC void copy(dest, source, bytes)
 char *dest;			/* destination pointer */
 char *source;			/* source pointer */
 int bytes;			/* how much data to move */
@@ -135,8 +129,8 @@ int flag;			/* M3 means path may be in message */
   }
 
   /* String is not contained in the message.  Go get it from user space. */
-  if (len > MAX_PATH) {
-	err_code = E_LONG_STRING;
+  if (len > PATH_MAX) {
+	err_code = ELONGSTRING;
 	return(ERROR);
   }
   vpath = (vir_bytes) path;
@@ -159,7 +153,7 @@ PUBLIC int no_sys()
 /*===========================================================================*
  *				panic					     *
  *===========================================================================*/
-PUBLIC panic(format, num)
+PUBLIC void panic(format, num)
 char *format;			/* format string */
 int num;			/* number to go with format string */
 {
@@ -173,6 +167,6 @@ int num;			/* number to go with format string */
   printf("File system panic: %s ", format);
   if (num != NO_NUM) printf("%d",num); 
   printf("\n");
-  do_sync();			/* flush everything to the disk */
+  (void) do_sync();			/* flush everything to the disk */
   sys_abort();
 }

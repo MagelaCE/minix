@@ -1,19 +1,22 @@
-#include "signal.h"
-#include "errno.h"
+/* test 5 */
+
+#include <signal.h>
+#include <errno.h>
+
 extern int errno;
 int errct;
 
 
 int func1(), func10(), func8(), funcalrm(), func11();
 int childsigs, parsigs, alarms;
-  int zero[1024];
+int zero[1024];
 
 main()
 {
   int i;
 
   printf("Test  5 ");
-  for (i = 0; i<1; i++) {
+  for (i = 0; i < 1; i++) {
 	test50();
 	test51();
 	test53();
@@ -24,7 +27,7 @@ main()
   if (errct == 0)
 	printf("ok\n");
   else
-	printf("%d errors\n",errct);
+	printf("%d errors\n", errct);
   exit(0);
 }
 
@@ -42,12 +45,13 @@ test50()
   int parpid, childpid, flag, *zp;
 
   flag = 0;
-  for (zp = &zero[0]; zp < &zero[1024]; zp++) if (*zp != 0) flag = 1;
+  for (zp = &zero[0]; zp < &zero[1024]; zp++)
+	if (*zp != 0) flag = 1;
   if (flag) e(0);		/* check if bss is cleared to 0 */
   if (signal(1, func1) < 0) e(1);
   if (signal(10, func10) < 0) e(2);
   parpid = getpid();
-  if (childpid=fork())  {
+  if (childpid = fork()) {
 	if (childpid < 0) ex();
 	parent(childpid);
   } else {
@@ -64,11 +68,11 @@ int childpid;
 
   for (i = 0; i < 3; i++) {
 	if (kill(childpid, 1) < 0) e(6);
-	while(parsigs == 0) ;
+	while (parsigs == 0);
 	parsigs--;
   }
   if (wait(&i) < 0) e(7);
-  if (i != 256*6) e(8);
+  if (i != 256 * 6) e(8);
 }
 
 child(parpid)
@@ -78,7 +82,7 @@ int parpid;
   int i;
 
   for (i = 0; i < 3; i++) {
-	while(childsigs == 0) ;
+	while (childsigs == 0);
 	childsigs--;
 	if (kill(parpid, 10) < 0) e(9);
   }
@@ -102,11 +106,11 @@ test51()
 {
   int cpid, n, pid;
 
-  if ( (pid=fork()) ) {
+  if ((pid = fork())) {
 	if (pid < 0) ex();
-	if ( (pid = fork() )) {
+	if ((pid = fork())) {
 		if (pid < 0) ex();
-		if (cpid=fork()) {
+		if (cpid = fork()) {
 			if (cpid < 0) ex();
 			if (kill(cpid, 9) < 0) e(12);
 			if (wait(&n) < 0) e(13);
@@ -114,7 +118,7 @@ test51()
 			if (wait(&n) < 0) e(15);
 		} else {
 			pause();
-			while(1);
+			while (1);
 		}
 	} else {
 		exit(0);
@@ -145,19 +149,22 @@ test52()
 	pause();
 }
 
-int sigmap[5]= {9, 10, 11};
+int sigmap[5] = {9, 10, 11};
 test53()
 {
   int n, i, pid, wpid;
 
   /* Test exit status codes for processes killed by signals. */
   for (i = 0; i < 2; i++) {
-	if (pid=fork()) {
+	if (pid = fork()) {
 		if (pid < 0) ex();
 		sleep(5);	/* wait for child to pause */
-		if (kill(pid, sigmap[i]) < 0) {e(20); exit(1);}
-		if ((wpid=wait(&n)) < 0) e(21);
-		if ((n&077) != sigmap[i]) e(22);
+		if (kill(pid, sigmap[i]) < 0) {
+			e(20);
+			exit(1);
+		}
+		if ((wpid = wait(&n)) < 0) e(21);
+		if ((n & 077) != sigmap[i]) e(22);
 		if (pid != wpid) e(23);
 	} else {
 		pause();
@@ -177,7 +184,7 @@ test54()
 	signal(SIGALRM, funcalrm);
 	alarm(1);
 	pause();
-	if (alarms != i+1) e(24);
+	if (alarms != i + 1) e(24);
   }
 }
 
@@ -191,7 +198,7 @@ test55()
   int n, j, i;
 
   if (signal(8, func8) < 0) e(25);
-  if (n=fork()) {
+  if (n = fork()) {
 	/* Parent must delay to give child a chance to pause. */
 	if (n < 0) ex();
 	sleep(1);
@@ -204,19 +211,22 @@ test55()
 	exit(0);
   }
 }
+
 func8()
 {
 }
+
 test56()
 {
   int i, j, k, n;
 
+  if (getuid() != 0) return;
   n = fork();
   if (n < 0) ex();
   if (n) {
 	wait(&i);
 	i = (i >> 8) & 0377;
-	if ( i != (n&0377)) e(30);
+	if (i != (n & 0377)) e(30);
   } else {
 	i = getgid();
 	j = getegid();
@@ -230,7 +240,7 @@ test56()
 	if (setuid(k) < 0) e(34);
 	if (getuid() != k) e(35);
 	if (geteuid() != k) e(36);
-	i = getpid() & 0377 ;
+	i = getpid() & 0377;
 	if (wait(&j) != -1) e(37);
 	exit(i);
   }
@@ -249,11 +259,11 @@ test57()
   signal(11, func11);
   signal(11, SIG_IGN);
   n = getpid();
-  kill (n, 11);
+  kill(n, 11);
   signal(11, SIG_DFL);
 }
 
-funcalrm() 
+funcalrm()
 {
   alarms++;
 }
@@ -268,7 +278,7 @@ test58()
 
   if (signal(8, func8) < 0) e(38);
   pipe(fd);
-  if (n=fork()) {
+  if (n = fork()) {
 	/* Parent must delay to give child a chance to pause. */
 	if (n < 0) ex();
 	sleep(3);
@@ -289,4 +299,3 @@ ex()
   printf("Test 5.  fork failed.  Errno=%d\n", errno);
   exit(1);
 }
-

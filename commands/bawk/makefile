@@ -13,7 +13,7 @@ OBJ     = bawk.s bawkact.s bawksym.s bawkpat.s bawkdo.s
 bawk:       $(OBJ)
 	    @echo Start linking BAWK
 	    @cc -i -o bawk $(OBJ)
-	    @echo BAWK done.
+	    @echo BAWK done.
 
 bawk.s:     bawk.h bawk.c
 

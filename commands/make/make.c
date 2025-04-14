@@ -154,7 +154,7 @@ struct line *		lp;
 	}
 }
 
-
+void
 docmds(np)
 struct name *		np;
 {
@@ -424,7 +424,7 @@ int			level;
 	return 0;
 }
 
-
+void
 make1(np, lp, qdp)
 register struct depend *	qdp;
 struct line *			lp;

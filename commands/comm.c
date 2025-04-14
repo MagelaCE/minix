@@ -11,50 +11,49 @@
  *	that this comment is always included without alteration.
  */
 
+#include <sys/types.h>
+#include <fcntl.h>
+
 #define BUFSIZ (512)
 #define LINMAX (600)
 
 struct file {
-  char *name;		/* the file's name */
+  char *name;			/* the file's name */
   int fd;			/* the file descripter */
-  char buf[BUFSIZ];	/* buffer storage */
-  char *next;		/* the next character to read */
-  char *endp;		/* the first invalid character */
-  int seeneof;		/* an end of file has been seen */
+  char buf[BUFSIZ];		/* buffer storage */
+  char *next;			/* the next character to read */
+  char *endp;			/* the first invalid character */
+  int seeneof;			/* an end of file has been seen */
 } files[2];
 
 char lines[2][LINMAX];
 
-int colflgs[3] = {1,2,3};	/* number of tabs + 1: 0 => no column */
+int colflgs[3] = {1, 2, 3};	/* number of tabs + 1: 0 => no column */
 
 static char *umsg = "Usage: comm [-[123]] file1 file2\n";
 
-main(argc,argv)
+main(argc, argv)
 int argc;
 char *argv[];
 {
   int cnt;
   if (argc > 1 && argv[1][0] == '-' && argv[1][1] != '\0') {
 	char *ap;
-	for(ap = &argv[1][1]; *ap; ap++)
-		switch(*ap) {
-		case '1':
-		case '2':
-		case '3':
+	for (ap = &argv[1][1]; *ap; ap++) switch (*ap) {
+		    case '1':
+		    case '2':
+		    case '3':
 			cnt = *ap - '1';
-			if (colflgs[cnt] == 0)
-				break;
+			if (colflgs[cnt] == 0) break;
 			colflgs[cnt] = 0;
-			for(cnt++; cnt < 3; cnt++)
-				colflgs[cnt]--;
+			for (cnt++; cnt < 3; cnt++) colflgs[cnt]--;
 			break;
-		default:
-			usage();
+		    default:	usage();
 		}
 	argc--;
 	argv++;
   }
-  if (argc != 3)	usage();
+  if (argc != 3) usage();
   eopen(argv[1], &files[0]);
   eopen(argv[2], &files[1]);
   comm();
@@ -68,8 +67,8 @@ usage()
   exit(1);
 }
 
-error(s,f)
-char *s,*f;
+error(s, f)
+char *s, *f;
 {
   std_err("comm: ");
   std_err(s);
@@ -78,17 +77,17 @@ char *s,*f;
   exit(1);
 }
 
-int eopen(fn,file)
+int eopen(fn, file)
 char *fn;
 struct file *file;
 {
   file->name = fn;
   file->next = file->endp = &file->buf[0];
   file->seeneof = 0;
-  if (fn[0] == '-' && fn[1] == '\0') 
+  if (fn[0] == '-' && fn[1] == '\0')
 	file->fd = 0;
-  else if ((file->fd = open(fn, 0)) < 0)
-	error("can't open ",fn);
+  else if ((file->fd = open(fn, O_RDONLY)) < 0)
+	error("can't open ", fn);
 }
 
 
@@ -99,17 +98,17 @@ struct file *file;
  * were obtained because we are at end of file.
  */
   int n;
-  
-  if (file->seeneof) return (1);
+
+  if (file->seeneof) return(1);
   if ((n = read(file->fd, &file->buf[0], BUFSIZ)) < 0)
-	error("read error on ",file->name);
+	error("read error on ", file->name);
   if (n == 0) {
 	file->seeneof++;
 	return 1;
   }
   file->next = &file->buf[0];
   file->endp = &file->buf[n];
-  return (0);
+  return(0);
 }
 
 
@@ -126,9 +125,9 @@ int fno;
   if (file->next == file->endp && getbuf(file)) return(0);
   while ((*buf++ = *file->next++) != '\n')
 	if (file->next == file->endp && getbuf(file)) {
-			*buf++ = '\n';
-			*buf = '\0';
-			return(1);
+		*buf++ = '\n';
+		*buf = '\0';
+		return(1);
 	}
   *buf = '\0';
   return(1);
@@ -143,52 +142,50 @@ comm()
 	return;
   }
   if (!readline(1)) {
-	putcol(0,lines[0]);
+	putcol(0, lines[0]);
 	cpycol(0);
 	return;
   }
-  for(;;) {
-	if ((res = strcmp(lines[0],lines[1])) != 0) {
-		res = res>0;
-		putcol(res,lines[res]);
+  for (;;) {
+	if ((res = strcmp(lines[0], lines[1])) != 0) {
+		res = res > 0;
+		putcol(res, lines[res]);
 		if (!readline(res)) {
-			putcol(!res,lines[!res]);
+			putcol(!res, lines[!res]);
 			cpycol(!res);
 			return;
 		}
 	} else {
-		putcol(2,lines[0]);	/* files[1]lin == f2lin */
+		putcol(2, lines[0]);	/* files[1]lin == f2lin */
 		if (!readline(0)) {
 			cpycol(1);
 			return;
 		}
 		if (!readline(1)) {
-			putcol(0,lines[0]);
+			putcol(0, lines[0]);
 			cpycol(0);
 			return;
 		}
 	}
   }
-  /*NOTREACHED*/
+
+  /* NOTREACHED */
 }
 
-putcol(col,buf)
+putcol(col, buf)
 int col;
 char *buf;
 {
   int cnt;
 
   if (colflgs[col] == 0) return;
-  for(cnt = 0; cnt < colflgs[col]-1; cnt++)
-	prints("\t");
+  for (cnt = 0; cnt < colflgs[col] - 1; cnt++) prints("\t");
   prints("%s", buf);
 }
 
 cpycol(col)
 int col;
 {
-  if (colflgs[col])
-	while(readline(col))
-		putcol(col,lines[col]);
+  if (colflgs[col]) while (readline(col))
+		putcol(col, lines[col]);
 }
-

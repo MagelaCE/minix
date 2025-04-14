@@ -1,6 +1,8 @@
 /* lpr - line printer front end		Author: Andy Tanenbaum */
 
 #include <errno.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 #define BLOCK 1024
 
@@ -18,16 +20,15 @@ char *argv[];
   int i, fd;
 
   close(1);
-  if (open("/dev/lp", 1) < 0)  {
+  if (open("/dev/lp", O_WRONLY) < 0) {
 	std_err("lpr: can't open /dev/lp\n");
 	exit(1);
   }
-
   if (argc == 1) {
 	copy(0);		/* standard input only */
   } else {
 	for (i = 1; i < argc; i++) {
-		if ( (fd = open(argv[i],0)) < 0) {
+		if ((fd = open(argv[i], O_RDONLY)) < 0) {
 			std_err("lpr: can't open ");
 			std_err(argv[1]);
 			std_err("\n");
@@ -54,7 +55,10 @@ int fd;
   while (1) {
 	if (cur_in == in_count) {
 		in_count = read(fd, in_buf, BLOCK);
-		if (in_count == 0) { flush(); return; }
+		if (in_count == 0) {
+			flush();
+			return;
+		}
 		cur_in = 0;
 	}
 	c = in_buf[cur_in++];
@@ -65,7 +69,8 @@ int fd;
 		do {
 			putc(' ');
 		} while (column & 07);
-	} else putc(c);
+	} else
+		putc(c);
   }
 }
 
@@ -77,7 +82,7 @@ char c;
 	column = 0;
   else
 	column++;
-  if (out_count == BLOCK)  {
+  if (out_count == BLOCK) {
 	flush();
   }
 }

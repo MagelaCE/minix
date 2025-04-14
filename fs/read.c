@@ -11,16 +11,12 @@
  *   read_ahead: manage the block read ahead business
  */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../h/com.h"
-#include "../h/error.h"
-#include "const.h"
-#include "type.h"
+#include "fs.h"
+#include <fcntl.h>
+#include <minix/com.h>
 #include "buf.h"
 #include "file.h"
 #include "fproc.h"
-#include "glo.h"
 #include "inode.h"
 #include "param.h"
 #include "super.h"
@@ -28,7 +24,8 @@
 #define FD_MASK          077	/* max file descriptor is 63 */
 
 PRIVATE message umess;		/* message for asking SYSTASK for user copy */
-PUBLIC int rdwt_err;		/* set to EIO if disk error occurs */
+
+FORWARD int rw_chunk();
 
 /*===========================================================================*
  *				do_read					     *
@@ -37,7 +34,6 @@ PUBLIC int do_read()
 {
   return(read_write(READING));
 }
-
 
 
 /*===========================================================================*
@@ -50,14 +46,12 @@ int rw_flag;			/* READING or WRITING */
 
   register struct inode *rip;
   register struct filp *f;
-  register file_pos bytes_left, f_size;
+  register off_t bytes_left, f_size;
   register unsigned off, cum_io;
-  file_pos position;
-  int r, chunk, mode_word, usr, seg, block_spec, char_spec;
+  register int oflags;
+  off_t position;
+  int r, chunk, mode_word, usr, seg, block_spec, char_spec, regular;
   struct filp *wf;
-  extern struct super_block *get_super();
-  extern struct filp *find_filp(), *get_filp();
-  extern real_time clock_time();
 
   /* MM loads segments by putting funny things in upper 10 bits of 'fd'. */
   if (who == MM_PROC_NR && (fd & (~BYTE)) ) {
@@ -70,21 +64,25 @@ int rw_flag;			/* READING or WRITING */
   }
 
   /* If the file descriptor is valid, get the inode, size and mode. */
-#ifdef i8088
+#if (CHIP == INTEL)
   if (who != MM_PROC_NR)	/* only MM > 32K */
 #endif
+
   if (nbytes < 0) return(EINVAL);
   if ( (f = get_filp(fd)) == NIL_FILP) return(err_code);
   if ( ((f->filp_mode) & (rw_flag == READING ? R_BIT : W_BIT)) == 0)
 	return(EBADF);
   if (nbytes == 0) return(0);	/* so char special files need not check for 0*/
   position = f->filp_pos;
-  if (position < (file_pos) 0) return(EINVAL);
+  if (position > (off_t) MAX_FILE_POS) return(EINVAL);
+  oflags = f->filp_flags;
   rip = f->filp_ino;
   f_size = rip->i_size;
   r = OK;
   cum_io = 0;
   mode_word = rip->i_mode & I_TYPE;
+  regular = mode_word == I_REGULAR || mode_word == I_NAMED_PIPE;
+
   char_spec = (mode_word == I_CHAR_SPECIAL ? 1 : 0);
   block_spec = (mode_word == I_BLOCK_SPECIAL ? 1 : 0);
   if (block_spec && f_size == 0) f_size = MAX_P_LONG;
@@ -92,8 +90,8 @@ int rw_flag;			/* READING or WRITING */
 
   /* Check for character special files. */
   if (char_spec) {
-	if ((r = dev_io(rw_flag, (dev_nr) rip->i_zone[0], (long) position,
-						nbytes, who, buffer)) >= 0) {
+	if ((r = dev_io(rw_flag, oflags & O_NONBLOCK, (dev_t) rip->i_zone[0],
+				 position, nbytes, who, buffer)) >= 0) {
 		cum_io = r;
 		position += r;
 		r = OK;
@@ -104,6 +102,9 @@ int rw_flag;			/* READING or WRITING */
 		if (position > get_super(rip->i_dev)->s_max_size - nbytes )
 			return(EFBIG);
 
+		/* check for O_APPEND flag */
+		if (oflags & O_APPEND) position = f_size;
+
 		/* Clear the zone containing present EOF if hole about
 		 * to be created.  This is necessary because all unwritten
 		 * blocks prior to the EOF must read as zeros.
@@ -113,8 +114,9 @@ int rw_flag;			/* READING or WRITING */
 
 	/* Pipes are a little different.  Check. */
 	if (rip->i_pipe &&
-	    (r = pipe_check(rip, rw_flag, nbytes, position)) <= 0)
+	    (r = pipe_check(rip, rw_flag, oflags, nbytes, position)) <= 0)
 		return r;
+
 	/* Split the transfer into chunks that don't span two blocks. */
 	while (nbytes != 0) {
 		off = position % BLOCK_SIZE;	/* offset within a block */
@@ -122,14 +124,14 @@ int rw_flag;			/* READING or WRITING */
 		if (chunk < 0) chunk = BLOCK_SIZE - off;
 
 		if (rw_flag == READING || (block_spec && rw_flag == WRITING)) {
-			if ((bytes_left = f_size - position) <= 0)
-				break;
-			else
-				if (chunk > bytes_left) chunk = bytes_left;
+			bytes_left = f_size - position;
+			if (position >= f_size) break;	/* we are beyond EOF */
+			if (chunk > bytes_left) chunk = bytes_left;
 		}
 
 		/* Read or write 'chunk' bytes. */
-		r=rw_chunk(rip, position, off, chunk, rw_flag, buffer, seg,usr);
+		r = rw_chunk(rip, position, off, chunk, nbytes, rw_flag,
+							     buffer, seg, usr);
 		if (r != OK) break;	/* EOF reached */
 		if (rdwt_err < 0) break;
 
@@ -143,7 +145,7 @@ int rw_flag;			/* READING or WRITING */
 
   /* On write, update file size and access time. */
   if (rw_flag == WRITING) {
-	if (char_spec == 0 && block_spec == 0) {
+	if (regular || mode_word == I_DIRECTORY) {
 		if (position > f_size) rip->i_size = position;
 		rip->i_modtime = clock_time();
 		rip->i_dirt = DIRTY;
@@ -160,27 +162,27 @@ int rw_flag;			/* READING or WRITING */
 
   /* Check to see if read-ahead is called for, and if so, set it up. */
   if (rw_flag == READING && rip->i_seek == NO_SEEK && position % BLOCK_SIZE== 0
-		&& (mode_word == I_REGULAR || mode_word == I_DIRECTORY)) {
+		&& (regular || mode_word == I_DIRECTORY)) {
 	rdahed_inode = rip;
 	rdahedpos = position;
   }
-  if (mode_word == I_REGULAR) rip->i_seek = NO_SEEK;
+  if (regular) rip->i_seek = NO_SEEK;
 
   if (rdwt_err != OK) r = rdwt_err;	/* check for disk error */
-  if (rdwt_err == EOF) r = cum_io;
+  if (rdwt_err == END_OF_FILE) r = cum_io;
   return(r == OK ? cum_io : r);
 }
-
 
 
 /*===========================================================================*
  *				rw_chunk				     *
  *===========================================================================*/
-PRIVATE int rw_chunk(rip, position, off, chunk, rw_flag, buff, seg, usr)
+PRIVATE int rw_chunk(rip, position, off, chunk, left, rw_flag, buff, seg, usr)
 register struct inode *rip;	/* pointer to inode for file to be rd/wr */
-file_pos position;		/* position within file to read or write */
+off_t position;			/* position within file to read or write */
 unsigned off;			/* off within the current block */
 int chunk;			/* number of bytes to read or write */
+unsigned left;			/* max number of bytes wanted after position */
 int rw_flag;			/* READING or WRITING */
 char *buff;			/* virtual address of the user buffer */
 int seg;			/* T or D segment in user space */
@@ -192,14 +194,12 @@ int usr;			/* which user process */
   register int r;
   int dir, n, block_spec;
   block_nr b;
-  dev_nr dev;
-  extern struct buf *get_block(), *new_block();
-  extern block_nr read_map();
+  dev_t dev;
 
   block_spec = (rip->i_mode & I_TYPE) == I_BLOCK_SPECIAL;
   if (block_spec) {
 	b = position/BLOCK_SIZE;
-	dev = (dev_nr) rip->i_zone[0];
+	dev = (dev_t) rip->i_zone[0];
   } else {
 	b = read_map(rip, position);
 	dev = rip->i_dev;
@@ -214,14 +214,16 @@ int usr;			/* which user process */
 		/* Writing to a nonexistent block. Create and enter in inode. */
 		if ((bp = new_block(rip, position)) == NIL_BUF)return(err_code);
 	}
+  } else if (rw_flag == READING) {
+	/* Read and read ahead if convenient. */
+	bp = rahead(rip, b, position, left);
   } else {
 	/* Normally an existing block to be partially overwritten is first read
 	 * in.  However, a full block need not be read in.  If it is already in
 	 * the cache, acquire it, otherwise just acquire a free buffer.
 	 */
-	n = (rw_flag == WRITING && chunk == BLOCK_SIZE ? NO_READ : NORMAL);
-	if(rw_flag == WRITING && !block_spec && 
-		off == 0 && position >= rip->i_size) n=NO_READ;
+	n = (chunk == BLOCK_SIZE ? NO_READ : NORMAL);
+	if (!block_spec && off == 0 && position >= rip->i_size) n = NO_READ;
 	bp = get_block(dev, b, n);
   }
 
@@ -238,13 +240,12 @@ int usr;			/* which user process */
 }
 
 
-
 /*===========================================================================*
  *				read_map				     *
  *===========================================================================*/
 PUBLIC block_nr read_map(rip, position)
 register struct inode *rip;	/* ptr to inode to map from */
-file_pos position;		/* position in file whose blk wanted */
+off_t position;			/* position in file whose blk wanted */
 {
 /* Given an inode and a position within the corresponding file, locate the
  * block (not zone) number in which that position is to be found and return it.
@@ -255,7 +256,6 @@ file_pos position;		/* position in file whose blk wanted */
   register block_nr b;
   register long excess, zone, block_pos;
   register int scale, boff;
-  extern struct buf *get_block();
 
   scale = scale_factor(rip);	/* for block-zone conversion */
   block_pos = position/BLOCK_SIZE;	/* relative blk # in file */
@@ -296,6 +296,7 @@ file_pos position;		/* position in file whose blk wanted */
   b = ((block_nr) z << scale) + boff;
   return(b);
 }
+
 
 /*===========================================================================*
  *				rw_user					     *
@@ -340,18 +341,99 @@ int direction;			/* TO_USER or FROM_USER */
 /*===========================================================================*
  *				read_ahead				     *
  *===========================================================================*/
-PUBLIC read_ahead()
+PUBLIC void read_ahead()
 {
 /* Read a block into the cache before it is needed. */
 
   register struct inode *rip;
   struct buf *bp;
   block_nr b;
-  extern struct buf *get_block();
 
   rip = rdahed_inode;		/* pointer to inode to read ahead from */
   rdahed_inode = NIL_INODE;	/* turn off read ahead */
   if ( (b = read_map(rip, rdahedpos)) == NO_BLOCK) return;	/* at EOF */
-  bp = get_block(rip->i_dev, b, NORMAL);
+  bp = rahead(rip, b, rdahedpos, BLOCK_SIZE);
   put_block(bp, PARTIAL_DATA_BLOCK);
+}
+
+
+/*===========================================================================*
+ *				rahead					     *
+ *===========================================================================*/
+PUBLIC struct buf *rahead(rip, baseblock, position, bytes_ahead)
+register struct inode *rip;	/* pointer to inode for file to be read */
+block_nr baseblock;		/* block at current position */
+off_t position;			/* position within file */
+unsigned bytes_ahead;		/* bytes beyond position for immediate use */
+{
+/* Fetch a block from the cache or the device.  If a physical read is
+ * required, prefetch as many more blocks as convenient into the cache.
+ * This usually covers bytes_ahead plus any more blocks on the last "track".
+ * The device driver may decide it knows better about the track geometry
+ * and stop reading at any track boundary (or after an error).
+ * Rw_scattered() puts an optional flag on all reads to allow this.
+ */
+
+#define BLOCKS_PER_TRACK 15	/* kludge, it depends on the device */
+				/* wrong value works but is sub-optimal */
+  block_nr block;
+  unsigned blocks_ahead;
+  register struct buf *bp;
+  int block_spec;
+  dev_t dev;
+  off_t filesize;
+  unsigned fragment;
+  int optional;
+  unsigned maxtrack;
+  static struct buf *readq[NR_BUFS];	/* static so it isn't on stack */
+  int readqsize;
+  unsigned track;
+
+  block_spec = (rip->i_mode & I_TYPE) == I_BLOCK_SPECIAL;
+  if (block_spec)
+	dev = (dev_t) rip->i_zone[0];
+  else
+	dev = rip->i_dev;
+  bp = get_block(dev, baseblock, PREFETCH);
+  if (bp->b_dev != NO_DEV) return(bp);
+
+  filesize = rip->i_size;
+  if (block_spec && filesize == 0) filesize = MAX_P_LONG;
+  fragment = (unsigned) (position % BLOCK_SIZE);
+  position = position - fragment + BLOCK_SIZE;
+  blocks_ahead = (bytes_ahead + fragment) / BLOCK_SIZE;
+  maxtrack = bp->b_blocknr / BLOCKS_PER_TRACK;
+  optional = FALSE;
+  readq[0] = bp;		/* first buffer must be read */
+  readqsize = 1;
+  while (TRUE) {
+	if (position >= filesize || bufs_in_use >= NR_BUFS) break;
+  	if (blocks_ahead > 1)
+		--blocks_ahead;
+	else {
+		if (optional) break;
+		blocks_ahead = BLOCKS_PER_TRACK + 5;
+		optional = TRUE;	/* try for more blocks on last track */
+  	}
+	if (block_spec)
+		block = position / BLOCK_SIZE;
+	else
+		block = read_map(rip, position);
+	position += BLOCK_SIZE;
+	track = block / BLOCKS_PER_TRACK;
+	if (optional) {
+		if (track != maxtrack) continue;
+	} else {
+		if (track > maxtrack) maxtrack = track;
+	}
+	if (block != NO_BLOCK) {
+		bp = get_block(dev, block, PREFETCH);
+		if (bp->b_dev == NO_DEV)
+			readq[readqsize++] = bp;
+		else
+			put_block(bp, FULL_DATA_BLOCK);
+	}
+  }
+  rw_scattered(dev, readq, readqsize, READING);
+  return(get_block(dev, baseblock, NORMAL));
 }

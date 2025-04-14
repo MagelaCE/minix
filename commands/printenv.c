@@ -1,10 +1,10 @@
 /* printenv - print the current environment	Author: Richard Todd */
 
-main ()
+main()
 {
   extern char **environ;
   char **sptr;
-  for (sptr = environ ; *sptr ; ++sptr) {
-	prints("%s\n",*sptr);
+  for (sptr = environ; *sptr; ++sptr) {
+	prints("%s\n", *sptr);
   }
 }

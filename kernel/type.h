@@ -1,58 +1,78 @@
 struct tasktab {
-	int	(*initial_pc)();
-	int	stksize;
-	char	name[8];
+  void (*initial_pc)();
+  int stksize;
+  char name[8];
 };
 
-#ifdef i8088
+#if (CHIP == INTEL)
 
-/* The u.._t types and their derivatives are used (only) when the precise
- * size must be specified for alignment of machine-dependent structures.
- * The offset_t type is the promotion of the smallest unsigned type large
- * enough to hold all machine offsets.  The phys_bytes type is not right
- * since it is signed, so will break on future 386 systems which have real
- * or virtual memory in the top half of the address space. Also, signed
- * remainders and divisions by powers of 2 cannot be done as efficiently.
+/* The u.._t types and their derivatives are used when the precise size
+ * must be specified for some reason, e.g., to match descriptor table
+ * layouts.
  */
-typedef unsigned long offset_t;	/* machine offset */
 typedef unsigned char u8_t;	/* unsigned 8 bits */
 typedef unsigned short u16_t;	/* unsigned 16 bits */
 typedef unsigned long u32_t;	/* unsigned 32 bits */
+
+/* The register type is usually the natural 'unsigned', but not during 386
+ * initialization, when it has to be unsigned long!
+ */
+#if INTEL_32BITS
+typedef u32_t reg_t;		/* machine register */
+#else
+typedef u16_t reg_t;
+#endif
 
 /* The stack frame layout is determined by the software, but for efficiency
  * it is laid out so the assembly code to use it is as simple as possible.
  * 80286 protected mode and all real modes use the same frame, built with
  * 16-bit registers.  Real mode lacks an automatic stack switch, so little
- * is lost by using the 286 frame for it.
+ * is lost by using the 286 frame for it.  The 386 frame differs only in
+ * having 32-bit registers and more segment registers.  The same names are
+ * used for the larger registers to avoid differences in the code.
  */
-union stackframe_u {
-  struct {
-	u16_t es;
-	u16_t ds;
-	u16_t di;		/* di through cx are not accessed in C */
-	u16_t si;		/* order is to match pusha/popa */
-	u16_t bp;
-	u16_t st;		/* hole for another copy of sp */
-	u16_t bx;
-	u16_t dx;
-	u16_t cx;
-	u16_t retreg;		/* ax */
-	u16_t retadr;		/* return address for assembly code save() */
-	u16_t pc;		/* interrupt pushes rest of frame */
-	u16_t cs;
-	u16_t psw;
-	u16_t sp;
-	u16_t ss;
-  } r16;
+struct stackframe_s {
+#if INTEL_32BITS
+  u16_t gs;
+  u16_t fs;
+#endif
+  u16_t es;
+  u16_t ds;
+  reg_t di;			/* di through cx are not accessed in C */
+  reg_t si;			/* order is to match pusha/popa */
+  reg_t bp;
+  reg_t st;			/* hole for another copy of sp */
+  reg_t bx;
+  reg_t dx;
+  reg_t cx;
+  reg_t retreg;			/* ax */
+  reg_t retadr;			/* return address for assembly code save() */
+  reg_t pc;			/* interrupt pushes rest of frame */
+  reg_t cs;
+  reg_t psw;
+  reg_t sp;
+  reg_t ss;
 };
 
-#ifdef i80286
-struct segdesc_s {		/* segment descriptor */
+struct segdesc_s {		/* segment descriptor for protected mode */
   u16_t limit_low;
   u16_t base_low;
   u8_t base_middle;
   u8_t access;			/* |P|DL|1|X|E|R|A| */
+#if INTEL_32BITS
+  u8_t granularity;		/* |G|X|0|A|LIMT| */
+  u8_t base_high;
+#else
   u16_t reserved;
+#endif
 };
-#endif /* i80286 */
-#endif /* i8088 */
+
+struct farptr_s {		/* far pointer for debugger hooks */
+  reg_t offset;
+  u16_t selector;
+#if INTEL_32BITS
+  u16_t pad;
+#endif
+};
+
+#endif /* (CHIP == INTEL) */

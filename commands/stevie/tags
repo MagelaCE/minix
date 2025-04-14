@@ -142,8 +142,8 @@ regrepeat	regexp.c	/^regrepeat(p)$/
 regsub	regsub.c	/^regsub(prog, source, dest)$/
 regtail	regexp.c	/^regtail(p, val)$/
 regtry	regexp.c	/^regtry(prog, string)$/
-remove	minix.c	/^remove(file)$/
-rename	minix.c	/^rename(of, nf)$/
+remove	minix.c	/^remove1(file)$/
+rename	minix.c	/^rename1(of, nf)$/
 renum	fileio.c	/^renum()$/
 repsearch	search.c	/^repsearch(flag)$/
 reset_tty	minix.c	/^reset_tty()$/

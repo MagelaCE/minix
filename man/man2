@@ -1,0 +1,488 @@
+#INTRO
+Name:	intro	- introduction to system calls and error numbers
+
+Syntax:
+
+Description:
+	This introduction lists the system call errors.
+ 	 1  EPERM  Not	owner
+	 2  ENOENT  No	such file or directory
+	 3  ESRCH  No such process
+	 4  EINTR  Interrupted	system call
+	 5  EIO  I/O error
+	 6  ENXIO  No such device or address
+	 7  E2BIG  Arg	list too long
+	 8  ENOEXEC  Exec format error
+	 9  EBADF  Bad	file number
+ 	10  ECHILD  No child processes
+	11  EAGAIN  No more processes
+	12  ENOMEM  Not enough space
+	13  EACCES  Permission denied
+	14  EFAULT  Bad address
+	15  ENOTBLK  Block device required
+	16  EBUSY  Device or resource	busy
+	17  EEXIST  File exists
+	18  EXDEV  Cross-device link
+	19  ENODEV  No such device
+	20  ENOTDIR  Not a directory
+	21  EISDIR  Is a directory
+	22  EINVAL  Invalid argument
+	23  ENFILE  File table overflow
+	24  EMFILE  Too many open files
+	25  ENOTTY  Not a character device
+	26  ETXTBSY  Text file busy
+	27  EFBIG  File too large
+	28  ENOSPC  No space left on device
+	29  ESPIPE  Illegal seek
+	30  EROFS  Read-only file system
+	31  EMLINK  Too many links
+	32  EPIPE  Broken pipe
+	33  EDOM  Math argument
+	34  ERANGE  Result too large
+	35  ENOMSG  No message of desired type
+	36  EIDRM  Identifier	Removed
+Bugs:
+	This description could be slightly longer.
+
+#access
+Name:	access - determine accessibility of a	file
+
+Syntax:	int access (char *path, int amode)
+
+Description:
+	Path points to a path	name naming a file. 
+
+See Also:
+	chmod(2), stat(2).
+Bugs:
+	This description could be slightly longer.
+
+#alarm
+Name:	alarm	- set a	process	alarm clock
+
+Syntax:	unsigned alarm (unsigned sec)
+
+Description:
+	Alarm	sets the alarm clock of the calling process.
+See Also:
+	pause(2), signal(2).
+Bugs:
+	This description could be slightly longer.
+
+#brk
+Name:	brk, sbrk - change data segment space	allocation
+
+Syntax:	int brk (char *enddes)
+	char *sbrk(int incr)
+
+Description:
+	Brk and sbrk are used	to change dynamically the amount of
+	space	allocated for the calling process's data segment(s).
+Bugs:
+	This description could be slightly longer.
+
+#chdir
+Name:	chdir	- change working directory
+
+Syntax:	int chdir (char *path)
+
+Description:
+	Change to the named directory.
+Bugs:
+	This description could be slightly longer.
+
+#chmod
+Name:	chmod	- change mode of file
+
+Syntax:	int chmod (char *path, int mode)
+
+Description:
+	Change the mode of a file.
+Bugs:
+	This description could be slightly longer.
+
+#chown
+Name:	chown	- change owner and group of a file
+
+Syntax:	int chown (char *path, int owner, int group)
+
+Description:
+	Change owner and group of a file.
+
+See Also:
+	chmod(2).
+	chown(1) in the UNIX System V	User Reference Manual.
+Bugs:
+	This description could be slightly longer.
+
+#chroot
+Name:	chroot - change root directory
+
+Syntax:	int chroot (char *path)
+
+Description:
+	Change the root directory.
+
+See Also:
+	chdir(2).
+Bugs:
+	This description could be slightly longer.
+
+#close
+Name:	close	- close	a file descriptor
+
+Syntax:	int close (int fildes)
+	int fildes;
+
+Description:
+	Close the file.
+Bugs:
+	This description could be slightly longer.
+
+#creat
+Name:	creat	- create a new file or rewrite an existing one
+
+Syntax:	int creat (char *path, int mode)
+
+Description:
+	Create a new file.
+
+See Also:
+	chmod(2), close(2), dup(2), fcntl(2),	lseek(2), open(2),
+	read(2), umask(2), write(2).
+Bugs:
+	This description could be slightly longer.
+
+#dup
+Name:	dup -	duplicate an open file descriptor
+
+Syntax:	int dup (int fildes)
+
+Description:
+	Duplicate a file descriptot
+
+See Also:
+	creat(2), close(2), exec(2), fcntl(2), open(2), pipe(2).
+Bugs:
+	This description could be slightly longer.
+
+#exec
+Name:	execl, execv,	execle,	execve,	execlp,	execvp - execute a file
+
+Syntax:	int execl (path, arg0, arg1, ..., argn, (char	*)0)
+	char *path, *arg0, *arg1, ..., *argn;
+	int execv (path, argv)
+	char *path, *argv[ ];
+	int execle (path, arg0, arg1,	..., argn, (char *)0, envp)
+	char *path, *arg0, *arg1, ..., *argn,	*envp[ ];
+	int execve (path, argv, envp)
+	char *path, *argv[ ],	*envp[ ];
+	int execlp (file, arg0, arg1,	..., argn, (char *)0)
+	char *file, *arg0, *arg1, ..., *argn;
+	int execvp (file, argv)
+	char *file, *argv[ ];
+
+Description:
+	Exec a file.
+
+See Also:
+	alarm(2), exit(2), fork(2), nice(2), ptrace(2), semop(2),
+	signal(2), times(2), ulimit(2), umask(2), a.out(4),
+	environ(5).
+	sh(1)	in the MINIX User Reference Manual.
+Bugs:
+	This description could be slightly longer.
+
+#exit
+Name:	exit,	_exit -	terminate process
+
+Syntax:	void exit (int status)
+
+Description:
+	Exit terminates the calling process.
+
+See Also:
+	intro(2), signal(2), wait(2).
+Bugs:
+	This description could be slightly longer.
+
+#fcntl
+Name:	fcntl	- file control
+
+Syntax:   int fcntl (int fildes, int cmd, int arg)
+
+Description:
+	Fcntl	provides for control over open files.  
+
+See Also:
+	close(2), exec(2), open(2), fcntl(5).
+Bugs:
+	This description could be slightly longer.
+
+#fork
+Name:	fork - create	a new process
+
+Syntax:	int fork ()
+
+Description:
+	Fork causes creation of a new	process.
+
+See Also:
+	exec(2), signal(2), times(2), ulimit(2), umask(2), wait(2).
+Bugs:
+	This description could be slightly longer.
+
+#getpid
+Name:	getpid - get process id
+
+Syntax:	int getpid ()
+
+Description:
+	Getpid returns the process ID	of the calling process.
+
+See Also:
+	exec(2), fork(2), intro(2), setpgrp(2), signal(2).
+Bugs:
+	This description could be slightly longer.
+
+#getuid
+Name:	getuid - get uid
+
+Syntax:	unsigned short getuid	()
+
+Description:
+	Getuid returns the real user ID of the calling process.
+
+See Also:
+	intro(2), setuid(2).
+Bugs:
+	This description could be slightly longer.
+
+#ioctl
+Name:	ioctl	- control device
+
+Syntax:	ioctl	(int fildes, int request, (thingie) arg)
+
+Description:
+	Ioctl	is weird.
+Bugs:
+	This description could be slightly longer.
+
+#kill
+Name:	kill - send a	signal to a process or a group of processes
+
+Syntax:	int kill (int pid, int sig)
+
+Description:
+	Kill sendes a signal to a process or a	group of processes.
+
+See Also:
+	getpid(2), setpgrp(2), signal(2).
+	kill(1) in the UNIX System V User Reference Manual.
+Bugs:
+	This description could be slightly longer.
+
+#link
+Name:	link - link to a file
+
+Syntax:	int link (char *path1, char *path2)
+
+Description:
+	Path1	points to a path name naming an	existing file.
+
+See Also:
+	unlink(2).
+Bugs:
+	This description could be slightly longer.
+
+#lseek
+Name:	lseek	- move read/write file pointer
+
+Syntax:	long lseek (int fildes, long offset, int whence)
+
+Description:
+	Set file position.
+
+See Also:
+	creat(2), dup(2), fcntl(2), open(2).
+Bugs:
+	This description could be slightly longer.
+
+#mknod
+Name:	mknod	- make a directory, or a special or ordinary file
+
+Syntax:	int mknod (char *path, int mode, int dev)
+
+Description:
+	Create a special file.
+
+See Also:
+	chmod(2), exec(2), umask(2), fs(4).
+	mkdir(1) in the UNIX System V	User Reference Manual.
+Bugs:
+	This description could be slightly longer.
+
+#mount
+Name:	mount	- mount	a file system
+
+Syntax:	int mount (char *spec, char *dir, int rwflag)
+
+Description:
+	Mount a file system.
+
+See Also:
+	umount(2), fs(4).
+Bugs:
+	This description could be slightly longer.
+
+#open
+Name:	open - open for reading or writing
+
+Syntax:   int open (char *path, int oflag [int mode ] )
+
+Description:
+	Open a file.
+
+See Also:
+	chmod(2), close(2), creat(2),	dup(2),	fcntl(2), lseek(2),
+	read(2), umask(2), write(2).
+Bugs:
+	This description could be slightly longer.
+
+#pause
+Name:	pause	- suspend process until	signal
+
+Syntax:	pause	()
+
+Description:
+	Pause	suspendes the calling process until it receives a signal.
+
+See Also:
+	alarm(2), kill(2), signal(2),	wait(2).
+Bugs:
+	This description could be slightly longer.
+
+#pipe
+Name:	pipe - create	an interprocess	channel
+
+Syntax:	int pipe (int fildes[2])
+
+Description:
+	Pipe creates an I/O mechanism	called a pipe.
+
+See Also:
+	read(2), write(2).
+Bugs:
+	This description could be slightly longer.
+
+#read
+Name:	read - read from file
+
+Syntax:	int read (int fildes, char *buf, int nbyte)
+
+Description:
+	Read a file.
+
+See Also:
+	creat(2), dup(2), fcntl(2), ioctl(2),	open(2), pipe(2).
+Bugs:
+	This description could be slightly longer.
+
+#setpgrp
+Name:	setpgrp - set	process	group ID
+
+Syntax:	int setpgrp ()
+
+Description:
+	Setpgrp sets the process group ID.
+
+See Also:
+	exec(2), fork(2), getpid(2), intro(2), kill(2), signal(2).
+Bugs:
+	This description could be slightly longer.
+
+#setuid
+Name:	setuid, setgid - set user and	group IDs
+
+Syntax:	int setuid (int uid)
+
+Description:
+	Setuid (setgid) is used to set the user and group IDs.
+
+See Also:
+	getuid(2), intro(2).
+Bugs:
+	This description could be slightly longer.
+
+#signal
+Name:	signal - specify what	to do upon receipt of a	signal
+
+Syntax:   int (*signal (int sig, void *func))()
+
+Description:
+	Tell the system how signals are to be handled.
+
+See Also:
+	kill(2), pause(2), ptrace(2),	wait(2), setjmp(3C).
+	kill(1) in the UNIX System V User Reference Manual.
+Bugs:
+	This description could be slightly longer.
+
+#stat
+Name:	stat,	fstat -	get file status
+
+Syntax:   int stat (*path, struct stat buf)
+
+Description:
+	Get information about a file.
+
+See Also:
+	chmod(2), chown(2), creat(2),	link(2), mknod(2), pipe(2),
+	read(2), time(2), unlink(2), utime(2), write(2).
+Bugs:
+	This description could be slightly longer.
+
+#stime
+Name:	stime	- set time
+
+Syntax:	int stime (long *tp)
+
+Description:
+	Stime	sets the system's idea of the time and date.
+
+See Also:
+	time(2).
+Bugs:
+	This description could be slightly longer.
+
+#sync
+Name:	sync - update	super-block
+
+Syntax:	void sync ()
+
+Description:
+	Purge the buffer cache.
+Bugs:
+	This description could be slightly longer.
+
+#time
+Name:	time - get time
+
+Syntax:	long time ((long *) tloc)
+
+Description:
+	Time returns the value of time in secondes since 1/1/1970.
+
+See Also:
+	stime(2).
+Bugs:
+	This description could be slightly longer.
+
+
+#times
+Name:	times	- get process and child	process	times
+
+Syntax:   long times (struct *tms buffer)
+
+Description:
+	Get accounting information.

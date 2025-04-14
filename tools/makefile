@@ -1,14 +1,11 @@
 l=/usr/lib
-CFLAGS = -F -T.
+CFLAGS = -F -D_POSIX_SOURCE -D_MINIX
 
-all:
-	make init
-	make bootblok
-	make build
+all:	init bootblok build fsck
 
 init:	$l/libc.a init.s $l/head.s
 	asld -o init  $l/head.s init.s $l/libc.a  $l/end.s
-	@echo init done.
+	@echo init done.
 
 # bootblok.s is the source of the MINIX boot block.  The bootblock is the
 # first 512 bytes on the image file and on the boot diskette.  When bootblok.s
@@ -19,23 +16,23 @@ init:	$l/libc.a init.s $l/head.s
 # c0b8 8e07 33d8 b8f6 2fe0 c08e ff33 00b9
 # The exact procedure for going from bootblok.s to the binary file stripped of
 # its header is somewhat operating system dependent.  Some assemblers make
-# an object (.s) file; others make an a.out file directly. If your boot 
+# an object (.s) file; others make an a.sut file directly. If your boot 
 # diskette does not start out by printing 'Booting MINIX 1.0' the problem is
 # probably that you have not made a good boot block.
 bootblok:	bootblok.s
 	@asld  bootblok.s 
 	@dd if=a.out of=bootblok bs=16w skip=1 count=16 2>/dev/null
 	@rm a.out
-	@echo bootblok done.
+	@echo bootblok done.
 
 build:	build.s
 	cc -o build build.s
-	@echo build done.
+	@echo build done.
 
 fsck:	fsck.s fsck1.s
 	@echo "Start linking fsck. "
 	asld -o fsck fsck1.s fsck.s $l/libc.a $l/end.s
-	@echo fsck done.
+	@echo fsck done.
 fsck.s: fsck.c
 	cc -c -Di8088 -DSTANDALONE -F fsck.c
 

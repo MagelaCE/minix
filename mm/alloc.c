@@ -16,9 +16,7 @@
  *   mem_left:	returns the sum of the sizes of all current holes
  */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "const.h"
+#include "mm.h"
 
 #define NR_HOLES         128	/* max # entries in hole table */
 #define NIL_HOLE (struct hole *) 0
@@ -33,7 +31,8 @@ PRIVATE struct hole {
 PRIVATE struct hole *hole_head;	/* pointer to first hole */
 PRIVATE struct hole *free_slots;	/* ptr to list of unused table slots */
 
-extern phys_clicks get_mem();
+FORWARD void del_slot();
+FORWARD void merge();
 
 /*===========================================================================*
  *				alloc_mem				     *
@@ -77,7 +76,7 @@ phys_clicks clicks;		/* amount of memory requested */
 /*===========================================================================*
  *				free_mem				     *
  *===========================================================================*/
-PUBLIC free_mem(base, clicks)
+PUBLIC void free_mem(base, clicks)
 phys_clicks base;		/* base address of block to free */
 phys_clicks clicks;		/* number of clicks to free */
 {
@@ -123,7 +122,7 @@ phys_clicks clicks;		/* number of clicks to free */
 /*===========================================================================*
  *				del_slot				     *
  *===========================================================================*/
-PRIVATE del_slot(prev_ptr, hp)
+PRIVATE void del_slot(prev_ptr, hp)
 register struct hole *prev_ptr;	/* pointer to hole entry just ahead of 'hp' */
 register struct hole *hp;	/* pointer to hole entry to be removed */
 {
@@ -146,7 +145,7 @@ register struct hole *hp;	/* pointer to hole entry to be removed */
 /*===========================================================================*
  *				merge					     *
  *===========================================================================*/
-PRIVATE merge(hp)
+PRIVATE void merge(hp)
 register struct hole *hp;	/* ptr to hole to merge with its successors */
 {
 /* Check for contiguous holes and merge any found.  Contiguous holes can occur
@@ -202,7 +201,7 @@ PUBLIC phys_clicks max_hole()
 /*===========================================================================*
  *				mem_init				     *
  *===========================================================================*/
-PUBLIC mem_init()
+PUBLIC void mem_init()
 {
 /* Initialize hole lists.  There are two lists: 'hole_head' points to a linked
  * list of all the holes (unused memory) in the system; 'free_slots' points to

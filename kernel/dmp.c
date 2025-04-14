@@ -1,26 +1,21 @@
 /* This file contains some dumping routines for debugging. */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../h/callnr.h"
-#include "../h/com.h"
-#include "../h/error.h"
-#include "const.h"
-#include "type.h"
-#include "glo.h"
+#include "kernel.h"
+#include <minix/callnr.h>
+#include <minix/com.h>
 #include "proc.h"
 
 #define NSIZE 20
 phys_bytes aout[NR_PROCS];	/* pointers to the program names */
 char nbuff[NSIZE+1];
-int vargv;
+char *vargv;
 
-extern struct tasktab tasktab[];
+FORWARD void prname();
 
 /*===========================================================================*
  *				DEBUG routines here			     * 
  *===========================================================================*/
-PUBLIC p_dmp()
+PUBLIC void p_dmp()
 {
 /* Proc table dump */
 
@@ -29,7 +24,6 @@ PUBLIC p_dmp()
   phys_clicks base, size;
   phys_bytes dst;
   int index;
-  extern phys_bytes umap();
 
   printf(
   "\r\nproc  --pid -pc- -sp flag -user- --sys-- -base- -size-  recv- command\r\n");
@@ -43,8 +37,8 @@ PUBLIC p_dmp()
 	prname(proc_number(rp));
 	printf("%5u %4lx %4lx %2x %7U %7U %5uK %5uK  ",
 		rp->p_pid,
-		(unsigned long) rp->p_reg.r16.pc,
-		(unsigned long) rp->p_reg.r16.sp,
+		(unsigned long) rp->p_reg.pc,
+		(unsigned long) rp->p_reg.sp,
 		rp->p_flags,
 		rp->user_time, rp->sys_time,
 		click_to_round_k(base), click_to_round_k(size));
@@ -71,7 +65,7 @@ PUBLIC p_dmp()
 
 
 
-PUBLIC map_dmp()
+PUBLIC void map_dmp()
 {
   register struct proc *rp;
   phys_clicks base, size;
@@ -91,7 +85,7 @@ PUBLIC map_dmp()
 }
 
 
-PRIVATE prname(i)
+PRIVATE void prname(i)
 int i;
 {
   if (i == ANY)
@@ -102,7 +96,7 @@ int i;
 	printf("%4d  ", i);
 }
 
-PUBLIC set_name(proc_nr, ptr)
+PUBLIC void set_name(proc_nr, ptr)
 int proc_nr;
 char *ptr;
 {
@@ -111,7 +105,6 @@ char *ptr;
  * purposes.
  */
 
-  extern phys_bytes umap();
   phys_bytes src, dst;
 
   if (ptr == (char *) 0) {
@@ -119,10 +112,11 @@ char *ptr;
 	return;
   }
 
-  src = umap(proc_addr(proc_nr), D, (vir_bytes)(ptr + 2), 2);
+  src = umap(proc_addr(proc_nr), D, (vir_bytes)(ptr + sizeof vargv),
+	     sizeof vargv);
   if (src == 0) return;
-  dst = umap(proc_addr(SYSTASK), D, (vir_bytes)&vargv, 2);
-  phys_copy(src, dst, 2L);
+  dst = umap(cproc_addr(SYSTASK), D, (vir_bytes)&vargv, sizeof vargv);
+  phys_copy(src, dst, (phys_bytes) sizeof vargv);
 
   aout[proc_nr] = umap(proc_addr(proc_nr), D, (vir_bytes)vargv, NSIZE);
 }

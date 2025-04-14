@@ -777,4 +777,3 @@ printf(s)	/* yyparse calls it */
 char *s;
 {
 }
-

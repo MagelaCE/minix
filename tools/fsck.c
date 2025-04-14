@@ -1,10 +1,13 @@
 /* fsck - file system checker		Author: Robbert van Renesse */
 
+#include <sys/types.h>
+#include <limits.h>
+#include <minix/config.h>
 #include <minix/const.h>
-#include <minix/type.h>
-#include <fs/const.h>
-#include <fs/type.h>
 
+#include <minix/type.h>
+#include "../fs/const.h"
+#include "../fs/type.h"
 
 #ifndef STANDALONE
 #include <stdio.h>
@@ -43,8 +46,10 @@
 #define BITMASK		((1 << BITSHIFT) - 1)
 #define PARB 6
 
+
+
 #ifdef STANDALONE
-#  include "../h/boot.h"
+#include <minix/boot.h>
 struct bparam_s boot_parameters =
   { DROOTDEV, DRAMIMAGEDEV, DRAMSIZE, DSCANCODE, DPROCESSOR };
 char *ramimname = "/dev/fd0";
@@ -73,15 +78,19 @@ int floptrk = 9;		/* MUST be initialized to put it in data seg */
 int zone_ct = 360;
 int inode_ct = 95;
 
+/* DEBUG FIXME.  This and other things repeat stuff from fs, not necessarily
+ * identically.  This is part of a structure in fs/super.h, and old versions
+ * had the wrong type for s_magic.
+ */
 struct dsb {
-	inode_nr s_ninodes;		/* # inodes on the minor device */
+	ino_t s_ninodes;		/* # inodes on the minor device */
 	zone_nr s_nzones;		/* total dev size, incl. bit maps etc */
 	unsigned short s_imap_blocks;	/* # of blocks used by inode bit map */
 	unsigned short s_zmap_blocks;	/* # of blocks used by zone bit map */
 	zone_nr s_firstdatazone;	/* number of first data zone */
 	short s_log_zone_size;		/* log2 of blocks/zone */
-	file_pos s_maxsize;		/* maximum file size on this device */
-	int s_magic;			/* magic number for super blocks */
+	off_t s_maxsize;		/* maximum file size on this device */
+	short s_magic;			/* magic number for super blocks */
 } sb;
 
 #define STICKY_BIT	01000		/* not defined anywhere else */
@@ -130,7 +139,7 @@ char *rwbuf;			/* one block buffer cache */
 char  rwbuf1[BLOCK_SIZE];	/* in case of a DMA-overrun under DOS .. */
 char  rwbuf2[BLOCK_SIZE];	/* .. an other buffer can be used */
 char nullbuf[BLOCK_SIZE];	/* null buffer */
-links *count;			/* inode count */
+nlink_t *count;			/* inode count */
 dir_struct nulldir;		/* empty directory entry */
 block_nr thisblk;		/* block that is now in the buffer */
 int changed;			/* has the diskette been written to? */
@@ -160,7 +169,7 @@ int dev;			/* file descriptor of the device */
 
 /* counters for each type of inode/zone */
 int nfreeinode, nregular, ndirectory, nblkspec, ncharspec, nbadinode;
-int nfreezone, ztype[NLEVEL];
+int npipe, nfreezone, ztype[NLEVEL];
 
 int repair, automatic, listing, listsuper, makefs;	/* flags */
 int firstlist;			/* has the listing header been printed? */
@@ -321,7 +330,7 @@ union types argp;
 
 /* Print the arguments according to fmt.
  */
-printf(fmt, args)
+void printf(fmt, args)
 char *fmt;
 {
 	doprnt(fmt, &args);
@@ -336,7 +345,7 @@ initvars(){
 #ifdef STANDALONE
 	  brk = &end;
 #endif
-	nregular = ndirectory = nblkspec = ncharspec = nbadinode = 0;
+	nregular = ndirectory = nblkspec = ncharspec = nbadinode = npipe = 0;
 	for (level = 0; level < NLEVEL; level++)
 		ztype[level] = 0;
 	changed = 0;
@@ -498,7 +507,7 @@ unsigned nelem, elsize;
 printname(s)
 char *s;
 {
-	register n = NAME_SIZE;
+	register n = NAME_MAX;
 
 	do {
 		if (*s == 0)
@@ -882,7 +891,7 @@ getsuper(){
  */
 chksuper(){
 	register n;
-	register file_pos maxsize;
+	register off_t maxsize;
 
 	n = (sb.s_ninodes + (1 << BITMAPSHIFT)) >> BITMAPSHIFT;
 	if (sb.s_magic != SUPER_MAGIC) fatal("bad magic number in super block");
@@ -931,7 +940,7 @@ lsi(clist)
 char **clist;
 {
 	register bit_nr bit;
-	register inode_nr ino;
+	register ino_t ino;
 	d_inode inode, *ip = &inode;
 	char buf[80];
 	long atol();
@@ -1140,8 +1149,8 @@ char *type;
 /* See if the inodes that aren't allocated are cleared.
  */
 chkilist(){
-	register inode_nr ino = 1;
-	mask_bits mode;
+	register ino_t ino = 1;
+	mode_t mode;
 
 	if (makefs)
 		return;
@@ -1164,14 +1173,14 @@ chkilist(){
 /* Allocate an array to maintain the inode reference counts in.
  */
 getcount(){
-	count = (links *) alloc(sb.s_ninodes + 1, sizeof(links));
+	count = (nlink_t *) alloc(sb.s_ninodes + 1, sizeof(nlink_t));
 }
 
 
 /* The reference count for inode `ino' is wrong.  Ask if it should be adjusted.
  */
 counterror(ino)
-inode_nr ino;
+ino_t ino;
 {
 	d_inode inode;
 
@@ -1202,7 +1211,7 @@ inode_nr ino;
  * should be zero.
  */
 chkcount(){
-	register inode_nr ino;
+	register ino_t ino;
 
 	for (ino = 1; ino <= sb.s_ninodes; ino++)
 		if (count[ino] != 0)
@@ -1225,7 +1234,7 @@ freecount(){
 /* Print the inode permission bits given by mode and shift.
  */
 printperm(mode, shift, special, overlay)
-mask_bits mode;
+mode_t mode;
 {
 	printf(mode >> shift & R_BIT ? "r" : "-");
 	printf(mode >> shift & W_BIT ? "w" : "-");
@@ -1238,7 +1247,7 @@ mask_bits mode;
 /* List the given inode.
  */
 list(ino, ip)
-inode_nr ino;
+ino_t ino;
 d_inode *ip;
 {
 	if (firstlist) {
@@ -1251,6 +1260,7 @@ d_inode *ip;
 	case I_DIRECTORY:	printf("d"); break;
 	case I_CHAR_SPECIAL:	printf("c"); break;
 	case I_BLOCK_SPECIAL:	printf("b"); break;
+	case I_NAMED_PIPE:	printf("p"); break;
 	default:		printf("?");
 	}
 	printperm(ip->i_mode, 6, I_SET_UID_BIT, 's');
@@ -1260,8 +1270,8 @@ d_inode *ip;
 	switch (ip->i_mode & I_TYPE) {
 	case I_CHAR_SPECIAL:
 	case I_BLOCK_SPECIAL:
-		printf("  %2x,%2x ", (dev_nr) ip->i_zone[0] >> MAJOR & 0xFF,
-				     (dev_nr) ip->i_zone[0] >> MINOR & 0xFF);
+		printf("  %2x,%2x ", (dev_t) ip->i_zone[0] >> MAJOR & 0xFF,
+				     (dev_t) ip->i_zone[0] >> MINOR & 0xFF);
 		break;
 	default:
 		printf("%7D ", ip->i_size);
@@ -1293,8 +1303,8 @@ dir_struct *dp;
 /* See if the `.' or `..' entry is as expected.
  */
 chkdots(ino, pos, dp, exp)
-inode_nr ino, exp;
-file_pos pos;
+ino_t ino, exp;
+off_t pos;
 dir_struct *dp;
 {
 	if (dp->d_inum != exp) {
@@ -1326,10 +1336,10 @@ dir_struct *dp;
 /* Check the name in a directory entry.
  */
 chkname(ino, dp)
-inode_nr ino;
+ino_t ino;
 dir_struct *dp;
 {
-	register n = NAME_SIZE + 1;
+	register n = NAME_MAX + 1;
 	register char *p = dp->d_name;
 
 	if (*p == 0) {
@@ -1358,8 +1368,8 @@ dir_struct *dp;
  * recursively to check the file or directory pointed to by the entry.
  */
 chkentry(ino, pos, dp)
-inode_nr ino;
-file_pos pos;
+ino_t ino;
+off_t pos;
 dir_struct *dp;
 {
   char *cp1, *cp2;
@@ -1380,7 +1390,7 @@ dir_struct *dp;
 		}
 		return(1);
 	}
-	if ((unsigned) count[dp->d_inum] == MAX_LINKS) {
+	if ((unsigned) count[dp->d_inum] == LINK_MAX) {
 		printf("too many links to ino %u\n", dp->d_inum);
 		printf("discovered at entry '");
 		printname(dp->d_name);
@@ -1416,9 +1426,9 @@ dir_struct *dp;
  * The zone is split up into chunks to not allocate too much stack.
  */
 chkdirzone(ino, ip, pos, zno)
-inode_nr ino;
+ino_t ino;
 d_inode *ip;
-file_pos pos;
+off_t pos;
 zone_nr zno;
 {
 	dir_struct dirblk[CDIRECT];
@@ -1458,7 +1468,7 @@ zone_nr zno;
 errzone(mess, zno, level, pos)
 char *mess;
 zone_nr zno;
-file_pos pos;
+off_t pos;
 {
 	printf("%s zone in ", mess);
 	printpath(1, 0);
@@ -1476,9 +1486,9 @@ file_pos pos;
  * in the zone bitmap.
  */
 markzone(ino, zno, level, pos)
-inode_nr ino;
+ino_t ino;
 zone_nr zno;
-file_pos pos;
+off_t pos;
 {
 	register bit_nr bit = (bit_nr) zno - FIRST + 1;
 
@@ -1503,9 +1513,9 @@ file_pos pos;
  * The zone is split up into chunks to not allocate too much stack.
  */
 chkindzone(ino, ip, pos, zno, level)
-inode_nr ino;
+ino_t ino;
 d_inode *ip;
-file_pos *pos;
+off_t *pos;
 zone_nr zno;
 {
 	zone_nr indirect[CINDIR];
@@ -1524,8 +1534,8 @@ zone_nr zno;
 /* Return the size of a gap in the file, represented by a null zone number
  * at some level of indirection.
  */
-file_pos jump(level){
-	file_pos power = ZONE_SIZE;
+off_t jump(level){
+	off_t power = ZONE_SIZE;
 
 	if (level != 0)
 		do
@@ -1538,9 +1548,9 @@ file_pos jump(level){
  * or an indirect zone.
  */
 zonechk(ino, ip, pos, zno, level)
-inode_nr ino;
+ino_t ino;
 d_inode *ip;
-file_pos *pos;
+off_t *pos;
 zone_nr zno;
 {
 	if (level == 0) {
@@ -1557,9 +1567,9 @@ zone_nr zno;
 /* Check a list of zones given by `zlist'.
  */
 chkzones(ino, ip, pos, zlist, len, level)
-inode_nr ino;
+ino_t ino;
 d_inode *ip;
-file_pos *pos;
+off_t *pos;
 zone_nr *zlist;
 {
 	register ok = 1, i;
@@ -1579,11 +1589,11 @@ zone_nr *zlist;
 /* Check a file or a directory.
  */
 chkfile(ino, ip)
-inode_nr ino;
+ino_t ino;
 d_inode *ip;
 {
 	register ok, i, level;
-	file_pos pos = 0;
+	off_t pos = 0;
 
 	ok = chkzones(ino, ip, &pos, &ip->i_zone[0], NR_DZONE_NUM, 0);
 	for (i = NR_DZONE_NUM, level = 1; i < NR_ZONE_NUMS; i++, level++)
@@ -1595,7 +1605,7 @@ d_inode *ip;
 /* Check a directory by checking the contents.  Check if . and .. are present.
  */
 chkdirectory(ino, ip)
-inode_nr ino;
+ino_t ino;
 d_inode *ip;
 {
 	register ok;
@@ -1623,7 +1633,7 @@ d_inode *ip;
  * the contents.
  */
 chkmode(ino, ip)
-inode_nr ino;
+ino_t ino;
 d_inode *ip;
 {
 	switch (ip->i_mode & I_TYPE) {
@@ -1640,6 +1650,9 @@ d_inode *ip;
 	case I_CHAR_SPECIAL:
 		ncharspec++;
 		return(1);
+	case I_NAMED_PIPE:
+		npipe++;
+		return(1);
 	default:
 		nbadinode++;
 		printf("bad mode of ");
@@ -1652,7 +1665,7 @@ d_inode *ip;
 /* Check an inode.
  */
 chkinode(ino, ip)
-inode_nr ino;
+ino_t ino;
 d_inode *ip;
 {
 	if (ino == ROOT_INODE && (ip->i_mode & I_TYPE) != I_DIRECTORY) {
@@ -1667,11 +1680,11 @@ d_inode *ip;
 	}
 	nfreeinode--;
 	setbit(imap, (bit_nr) ino);
-	if ((unsigned) ip->i_nlinks > MAX_LINKS) {
+	if ((unsigned) ip->i_nlinks > LINK_MAX) {
 		printf("link count too big in ");
 		printpath(1, 0);
 		printf("cnt = %u)\n", (unsigned) ip->i_nlinks);
-		count[ino] -= MAX_LINKS;
+		count[ino] -= LINK_MAX;
 		setbit(spec_imap, (bit_nr) ino);
 	}
 	else
@@ -1685,7 +1698,7 @@ descendtree(dp)
 dir_struct *dp;
 {
 	d_inode inode;
-	register inode_nr ino = dp->d_inum;
+	register ino_t ino = dp->d_inum;
 	register visited;
 	struct stack stk;
 	char *cp1, *cp2;
@@ -1750,6 +1763,7 @@ printtotal(){
 	if (nbadinode != 0)
 		pr("%6u    Bad inode%s\n",	  nbadinode,	 "",   "s");
 	pr("%6u    Free inode%s\n",		  nfreeinode,	 "",   "s");
+	pr("%6u    Named pipe%s\n",               npipe,	 "",   "s");
 /* Don't print some fields. 
 	printf("\n");
 	pr("%6u    Data zone%s\n",		  ztype[0],	 "",   "s");

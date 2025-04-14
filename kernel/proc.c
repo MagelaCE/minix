@@ -6,31 +6,32 @@
  *
  * It also has several minor entry points:
  *
- *   lockready:	put a process on one of the ready queues so it can be run
- *   lockunready:	remove a process from the ready queues
- *   locksched:	a process has run too long; schedule another one
- *   lockmini_send:	send a message (used by interrupt signals, etc.)
- *   lockpick_proc:	pick a process to run (used by system initialization)
- *   proc_init:	initialize the process table
- *   unhold:	repeat all held-up interrupts
+ *   lock_ready:      put a process on one of the ready queues so it can be run
+ *   lock_unready:    remove a process from the ready queues
+ *   lock_sched:      a process has run too long; schedule another one
+ *   lock_mini_send:  send a message (used by interrupt signals, etc.)
+ *   lock_pick_proc:  pick a process to run (used by system initialization)
+ *   unhold:          repeat all held-up interrupts
  */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../h/callnr.h"
-#include "../h/com.h"
-#include "../h/error.h"
-#include "const.h"
-#include "type.h"
-#include "glo.h"
+#include "kernel.h"
+#include <minix/callnr.h>
+#include <minix/com.h>
 #include "proc.h"
 
 PRIVATE unsigned char switching;	/* nonzero to inhibit interrupt() */
 
+FORWARD int mini_send();
+FORWARD int mini_rec();
+FORWARD void pick_proc();
+FORWARD void ready();
+FORWARD void sched();
+FORWARD void unready();
+
 /*===========================================================================*
  *				interrupt				     * 
  *===========================================================================*/
-PUBLIC interrupt(task)
+PUBLIC void interrupt(task)
 int task;			/* number of task to be started */
 {
 /* An interrupt has occurred.  Schedule the task that handles it. */
@@ -86,20 +87,16 @@ int task;			/* number of task to be started */
   rp->p_flags &= ~RECEIVING;
   rp->p_int_blocked = FALSE;
 
-   /* Duplicate relevant part of ready() in-line. */
+   /* Make rp ready and run it unless a task is already running.  This is
+    * ready(rp) in-line for speed.
+    */
   if (rdy_head[TASK_Q] != NIL_PROC)
 	rdy_tail[TASK_Q]->p_nextready = rp;
   else
+	proc_ptr =
 	rdy_head[TASK_Q] = rp;
   rdy_tail[TASK_Q] = rp;
   rp->p_nextready = NIL_PROC;
-  
-  /* If a non-task is running and a task is ready, run the task.
-   * Duplicate relevant part of pick_proc() in-line.  One assignment!
-   * Bill_ptr stays unchanged.
-   */
-  if (!istaskp(proc_ptr) && (rp = rdy_head[TASK_Q]) != NIL_PROC)
-	proc_ptr = rp;
 }
 
 
@@ -121,8 +118,7 @@ message *m_ptr;			/* pointer to message */
   int n;
 
   /* Check for bad system call parameters. */
-  if (!isoksrc_dest(src_dest))
-	return(E_BAD_SRC);
+  if (!isoksrc_dest(src_dest)) return(E_BAD_SRC);
   rp = proc_ptr;
   if (function != BOTH && isuserp(rp))
 	return(E_NO_PERM);	/* users only do BOTH */
@@ -141,6 +137,7 @@ message *m_ptr;			/* pointer to message */
   return(mini_rec(rp, src_dest, m_ptr));
 }
 
+
 /*===========================================================================*
  *				mini_send				     * 
  *===========================================================================*/
@@ -148,7 +145,6 @@ PRIVATE int mini_send(caller_ptr, dest, m_ptr)
 register struct proc *caller_ptr;	/* who is trying to send a message? */
 int dest;			/* to whom is message being sent? */
 message *m_ptr;			/* pointer to message buffer */
-
 {
 /* Send a message from 'caller_ptr' to 'dest'. If 'dest' is blocked waiting
  * for this message, copy the message to it and unblock 'dest'. If 'dest' is
@@ -160,8 +156,7 @@ message *m_ptr;			/* pointer to message buffer */
   vir_clicks vlo, vhi;		/* virtual clicks containing message to send */
 
   /* User processes are only allowed to send to FS and MM.  Check for this. */
-  if (isuserp(caller_ptr) && !isservn(dest))
-	return(E_BAD_DEST);
+  if (isuserp(caller_ptr) && !isservn(dest)) return(E_BAD_DEST);
   dest_ptr = proc_addr(dest);	/* pointer to destination's proc entry */
   if (dest_ptr->p_flags & P_SLOT_FREE) return(E_BAD_DEST);	/* dead dest */
 
@@ -177,8 +172,7 @@ message *m_ptr;			/* pointer to message buffer */
   if (dest_ptr->p_flags & SENDING) {
 	next_ptr = caller_ptr->p_callerq;
 	while (next_ptr != NIL_PROC) {
-		if (next_ptr == dest_ptr)
-			return(E_LOCKED);
+		if (next_ptr == dest_ptr) return(ELOCKED);
 		next_ptr = next_ptr->p_sendlink;
 	}
   }
@@ -229,13 +223,12 @@ message *m_ptr;			/* pointer to message buffer */
 
   register struct proc *sender_ptr;
   register struct proc *previous_ptr;
-  int dest;
 
   /* Check to see if a message from desired source is already available. */
   if (!(caller_ptr->p_flags & SENDING)) {
 	/* Check caller queue. */
     for (sender_ptr = caller_ptr->p_callerq; sender_ptr != NIL_PROC;
-	  previous_ptr = sender_ptr, sender_ptr = sender_ptr->p_sendlink) {
+	 previous_ptr = sender_ptr, sender_ptr = sender_ptr->p_sendlink) {
 	if (src == ANY || src == proc_number(sender_ptr)) {
 		/* An acceptable message has been found. */
 		cp_mess(proc_number(sender_ptr),
@@ -278,36 +271,39 @@ message *m_ptr;			/* pointer to message buffer */
 /*===========================================================================*
  *				pick_proc				     * 
  *===========================================================================*/
-PRIVATE pick_proc()
+PRIVATE void pick_proc()
 {
-/* Decide who to run now. */
+/* Decide who to run now.  A new process is selected by setting 'proc_ptr'.
+ * When a fresh user (or idle) process is selected, record it in 'bill_ptr',
+ * so the clock task can tell who to bill for system time.
+ */
 
-  register struct proc *rp;	/* which queue to use */
+  register struct proc *rp;	/* process to run */
 
-  if ( (rp = rdy_head[TASK_Q]) == NIL_PROC &&
-       (rp = rdy_head[SERVER_Q]) == NIL_PROC &&
-       (rp = rdy_head[USER_Q]) == NIL_PROC) {
-	/* Run the idle task. */
-	bill_ptr = proc_ptr = cproc_addr(IDLE);
+  if ( (rp = rdy_head[TASK_Q]) != NIL_PROC) {
+	proc_ptr = rp;
 	return;
   }
-
-  /* The new process is selected just by pointing proc_ptr at it.
-   * When a clock tick occurs while a non-user is running, the clock task has
-   * to decide which process to bill for system time.
-   * It uses the last user (or idle) process, which is recorded in 'bill_ptr'.
-   * This is slightly inaccurate because the last user gets billed for all
-   * interrupt activity.
-   */
-  proc_ptr = rp;
-  if (isuserp(rp))
+  if ( (rp = rdy_head[SERVER_Q]) != NIL_PROC) {
+	proc_ptr = rp;
+	return;
+  }
+  if ( (rp = rdy_head[USER_Q]) != NIL_PROC) {
+	proc_ptr = rp;
 	bill_ptr = rp;
+	return;
+  }
+  /* No one is ready.  Run the idle task.  The idle task might be made an
+   * always-ready user task to avoid this special case.
+   */
+  bill_ptr = proc_ptr = cproc_addr(IDLE);
 }
+
 
 /*===========================================================================*
  *				ready					     * 
  *===========================================================================*/
-PRIVATE ready(rp)
+PRIVATE void ready(rp)
 register struct proc *rp;	/* this process is now runnable */
 {
 /* Add 'rp' to the end of one of the queues of runnable processes. Three
@@ -322,6 +318,7 @@ register struct proc *rp;	/* this process is now runnable */
 		/* Add to tail of nonempty queue. */
 		rdy_tail[TASK_Q]->p_nextready = rp;
 	else
+		proc_ptr =		/* run fresh task next */
 		rdy_head[TASK_Q] = rp;	/* add to empty queue */
 	rdy_tail[TASK_Q] = rp;
 	rp->p_nextready = NIL_PROC;	/* new entry has no successor */
@@ -348,47 +345,39 @@ register struct proc *rp;	/* this process is now runnable */
 /*===========================================================================*
  *				unready					     * 
  *===========================================================================*/
-PRIVATE unready(rp)
+PRIVATE void unready(rp)
 register struct proc *rp;	/* this process is no longer runnable */
 {
 /* A process has blocked. */
 
   register struct proc *xp;
-  register struct proc **qhead;  /* TASK_Q, SERVER_Q, or USER_Q rdy_head */
-  register struct proc **qtail;
+  register struct proc **qtail;  /* TASK_Q, SERVER_Q, or USER_Q rdy_tail */
 
   if (istaskp(rp)) {
-	if ( (xp = rdy_head[TASK_Q]) == NIL_PROC)
-		return;
+	if ( (xp = rdy_head[TASK_Q]) == NIL_PROC) return;
 	if (xp == rp) {
 		/* Remove head of queue */
 		rdy_head[TASK_Q] = xp->p_nextready;
-		if (rp == proc_ptr)
-			pick_proc();
+		if (rp == proc_ptr) pick_proc();
 		return;
 	}
-	qhead = &rdy_head[TASK_Q];
 	qtail = &rdy_tail[TASK_Q];
   }
   else if (!isuserp(rp)) {
-	if ( (xp = rdy_head[SERVER_Q]) == NIL_PROC)
-		return;
+	if ( (xp = rdy_head[SERVER_Q]) == NIL_PROC) return;
 	if (xp == rp) {
 		rdy_head[SERVER_Q] = xp->p_nextready;
 		pick_proc();
 		return;
 	}
-	qhead = &rdy_head[SERVER_Q];
 	qtail = &rdy_tail[SERVER_Q];
   } else {
-	if ( (xp = rdy_head[USER_Q]) == NIL_PROC)
-		return;
+	if ( (xp = rdy_head[USER_Q]) == NIL_PROC) return;
 	if (xp == rp) {
 		rdy_head[USER_Q] = xp->p_nextready;
 		pick_proc();
 		return;
 	}
-	qhead = &rdy_head[USER_Q];
 	qtail = &rdy_tail[USER_Q];
   }
 
@@ -396,11 +385,9 @@ register struct proc *rp;	/* this process is no longer runnable */
    * not running by being sent a signal that kills it.
    */
   while (xp->p_nextready != rp)
-	if ( (xp = xp->p_nextready) == NIL_PROC)
-		return;
+	if ( (xp = xp->p_nextready) == NIL_PROC) return;
   xp->p_nextready = xp->p_nextready->p_nextready;
-  while (xp->p_nextready != NIL_PROC)
-	xp = xp->p_nextready;
+  while (xp->p_nextready != NIL_PROC) xp = xp->p_nextready;
   *qtail = xp;
 }
 
@@ -408,15 +395,14 @@ register struct proc *rp;	/* this process is no longer runnable */
 /*===========================================================================*
  *				sched					     * 
  *===========================================================================*/
-PRIVATE sched()
+PRIVATE void sched()
 {
 /* The current process has run too long.  If another low priority (user)
  * process is runnable, put the current process on the end of the user queue,
  * possibly promoting another user to head of the queue.
  */
 
-  if (rdy_head[USER_Q] == NIL_PROC)
- 	return;
+  if (rdy_head[USER_Q] == NIL_PROC) return;
 
   /* One or more user processes queued. */
   rdy_tail[USER_Q]->p_nextready = rdy_head[USER_Q];
@@ -428,48 +414,31 @@ PRIVATE sched()
 
 
 /*==========================================================================*
- *				proc_init				    *
+ *				lock_mini_send				    *
  *==========================================================================*/
-PUBLIC proc_init()
+PUBLIC int lock_mini_send(caller_ptr, dest, m_ptr)
+struct proc *caller_ptr;	/* who is trying to send a message? */
+int dest;			/* to whom is message being sent? */
+message *m_ptr;			/* pointer to message buffer */
 {
-/* Clear process table.
- * Set up mappings for proc_addr() and proc_number() macros.
- */
+/* Safe gateway to mini_send() for tasks. */
 
-  register struct proc *rp;
-  int proc_nr;
-
-  for (rp = BEG_PROC_ADDR, proc_nr = -NR_TASKS; rp < END_PROC_ADDR;
-       ++rp, ++proc_nr) {
-	rp->p_flags = P_SLOT_FREE;
-	rp->p_nr = proc_nr;	/* proc number from ptr */
-	(pproc_addr + NR_TASKS)[proc_nr] = rp;	/* proc ptr from number */
-  }
-}
-
-
-/*==========================================================================*
- *				lockmini_send				    *
- *==========================================================================*/
-PUBLIC int lockmini_send(caller_ptr, dest, m_ptr)
-struct proc *caller_ptr;
-int dest;
-message *m_ptr;
-{
-  int mini_result;
+  int result;
 
   switching = TRUE;
-  mini_result = mini_send(caller_ptr, dest, m_ptr);
+  result = mini_send(caller_ptr, dest, m_ptr);
   switching = FALSE;
-  return(mini_result);
+  return(result);
 }
 
 
 /*==========================================================================*
- *				lockpick_proc				    *
+ *				lock_pick_proc				    *
  *==========================================================================*/
-PUBLIC lockpick_proc()
+PUBLIC void lock_pick_proc()
 {
+/* Safe gateway to pick_proc() for tasks. */
+
   switching = TRUE;
   pick_proc();
   switching = FALSE;
@@ -477,11 +446,13 @@ PUBLIC lockpick_proc()
 
 
 /*==========================================================================*
- *				lockready				    *
+ *				lock_ready				    *
  *==========================================================================*/
-PUBLIC lockready(rp)
-struct proc *rp;
+PUBLIC void lock_ready(rp)
+struct proc *rp;		/* this process is now runnable */
 {
+/* Safe gateway to ready() for tasks. */
+
   switching = TRUE;
   ready(rp);
   switching = FALSE;
@@ -489,10 +460,12 @@ struct proc *rp;
 
 
 /*==========================================================================*
- *				locksched				    *
+ *				lock_sched				    *
  *==========================================================================*/
-PUBLIC locksched()
+PUBLIC void lock_sched()
 {
+/* Safe gateway to lock_sched() for tasks. */
+
   switching = TRUE;
   sched();
   switching = FALSE;
@@ -500,11 +473,13 @@ PUBLIC locksched()
 
 
 /*==========================================================================*
- *				lockunready				    *
+ *				lock_unready				    *
  *==========================================================================*/
-PUBLIC lockunready(rp)
-struct proc *rp;
+PUBLIC void lock_unready(rp)
+struct proc *rp;		/* this process is no longer runnable */
 {
+/* Safe gateway to ready() for tasks. */
+
   switching = TRUE;
   unready(rp);
   switching = FALSE;
@@ -514,7 +489,7 @@ struct proc *rp;
 /*==========================================================================*
  *				unhold					    *
  *==========================================================================*/
-PUBLIC unhold()
+PUBLIC void unhold()
 {
 /* Flush any held-up interrupts.  k_reenter must be 0.  held_head must not
  * be NIL_PROC.  Interrupts must be disabled.  They will be enabled but will
@@ -523,16 +498,14 @@ PUBLIC unhold()
 
   register struct proc *rp;	/* current head of held queue */
 
-  if (switching)
-	return;
+  if (switching) return;
   rp = held_head;
   do {
-	if ( (held_head = rp->p_nextheld) == NIL_PROC)
-		held_tail = NIL_PROC;
+	if ( (held_head = rp->p_nextheld) == NIL_PROC) held_tail = NIL_PROC;
 	rp->p_int_held = FALSE;
 	unlock();		/* reduce latency; held queue may change! */
 	interrupt(proc_number(rp));
-	lock();			/* protect the held queue */
+	lock();			/* protect the held queue again */
   }
   while ( (rp = held_head) != NIL_PROC);
 }

@@ -12,16 +12,11 @@
  *   dup_inode:	  indicate that someone else is using an inode table entry
  */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../h/error.h"
-#include "../h/boot.h"
-#include "const.h"
-#include "type.h"
+#include "fs.h"
+#include <minix/boot.h>
 #include "buf.h"
 #include "file.h"
 #include "fproc.h"
-#include "glo.h"
 #include "inode.h"
 #include "super.h"
 
@@ -29,8 +24,8 @@
  *				get_inode				     *
  *===========================================================================*/
 PUBLIC struct inode *get_inode(dev, numb)
-dev_nr dev;			/* device on which inode resides */
-inode_nr numb;			/* inode number */
+dev_t dev;			/* device on which inode resides */
+ino_t numb;			/* inode number */
 {
 /* Find a slot in the inode table, load the specified inode into it, and
  * return a pointer to the slot.  If 'dev' == NO_DEV, just return a free slot.
@@ -70,7 +65,7 @@ inode_nr numb;			/* inode number */
 /*===========================================================================*
  *				put_inode				     *
  *===========================================================================*/
-PUBLIC put_inode(rip)
+PUBLIC void put_inode(rip)
 register struct inode *rip;	/* pointer to inode to be released */
 {
 /* The caller is no longer using this inode.  If no one else is using it either
@@ -84,9 +79,10 @@ register struct inode *rip;	/* pointer to inode to be released */
 		/* i_nlinks == 0 means free the inode. */
 		truncate(rip);	/* return all the disk blocks */
 		rip->i_mode = I_NOT_ALLOC;	/* clear I_TYPE field */
-		rip->i_pipe = NO_PIPE;
 		free_inode(rip->i_dev, rip->i_num);
 	}
+	else if (rip->i_pipe == I_PIPE) truncate(rip);
+	rip->i_pipe = NO_PIPE;  /* should always be cleared */
 
 	if (rip->i_dirt == DIRTY) rw_inode(rip, WRITING);
   }
@@ -96,19 +92,16 @@ register struct inode *rip;	/* pointer to inode to be released */
  *				alloc_inode				     *
  *===========================================================================*/
 PUBLIC struct inode *alloc_inode(dev, bits)
-dev_nr dev;			/* device on which to allocate the inode */
-mask_bits bits;			/* mode of the inode */
+dev_t dev;			/* device on which to allocate the inode */
+mode_t bits;			/* mode of the inode */
 {
 /* Allocate a free inode on 'dev', and return a pointer to it. */
 
   register struct inode *rip;
   register struct super_block *sp;
   int major, minor;
-  inode_nr numb;
+  ino_t numb;
   bit_nr b;
-  extern bit_nr alloc_bit();
-  extern struct inode *get_inode();
-  extern struct super_block *get_super();
 
   /* Acquire an inode from the bit map. */
   sp = get_super(dev);		/* get pointer to super_block */
@@ -121,7 +114,7 @@ mask_bits bits;			/* mode of the inode */
 		sp->s_dev == ROOT_DEV ? "root " : "", major, minor);
 	return(NIL_INODE);
   }
-  numb = (inode_nr) b;
+  numb = (ino_t) b;
 
   /* Try to acquire a slot in the inode table. */
   if ( (rip = get_inode(NO_DEV, numb)) == NIL_INODE) {
@@ -130,7 +123,7 @@ mask_bits bits;			/* mode of the inode */
   } else {
 	/* An inode slot is available. Put the inode just allocated into it. */
 	rip->i_mode = bits;
-	rip->i_nlinks = (links) 0;
+	rip->i_nlinks = (nlink_t) 0;
 	rip->i_uid = fp->fp_effuid;
 	rip->i_gid = fp->fp_effgid;
 	rip->i_dev = dev;	/* was provisionally set to NO_DEV */
@@ -149,7 +142,7 @@ mask_bits bits;			/* mode of the inode */
 /*===========================================================================*
  *				wipe_inode				     *
  *===========================================================================*/
-PUBLIC wipe_inode(rip)
+PUBLIC void wipe_inode(rip)
 register struct inode *rip;	/* The inode to be erased. */
 {
 /* Erase some fields in the inode.  This function is called from alloc_inode()
@@ -158,7 +151,6 @@ register struct inode *rip;	/* The inode to be erased. */
  */
 
   register int i;
-  extern real_time clock_time();
 
   rip->i_size = 0;
   rip->i_modtime = clock_time();
@@ -171,14 +163,13 @@ register struct inode *rip;	/* The inode to be erased. */
 /*===========================================================================*
  *				free_inode				     *
  *===========================================================================*/
-PUBLIC free_inode(dev, numb)
-dev_nr dev;			/* on which device is the inode */
-inode_nr numb;			/* number of inode to be freed */
+PUBLIC void free_inode(dev, numb)
+dev_t dev;			/* on which device is the inode */
+ino_t numb;			/* number of inode to be freed */
 {
 /* Return an inode to the pool of unallocated inodes. */
 
   register struct super_block *sp;
-  extern struct super_block *get_super();
 
   /* Locate the appropriate super_block. */
   sp = get_super(dev);
@@ -189,7 +180,7 @@ inode_nr numb;			/* number of inode to be freed */
 /*===========================================================================*
  *				rw_inode				     *
  *===========================================================================*/
-PUBLIC rw_inode(rip, rw_flag)
+PUBLIC void rw_inode(rip, rw_flag)
 register struct inode *rip;	/* pointer to inode to be read/written */
 int rw_flag;			/* READING or WRITING */
 {
@@ -199,8 +190,6 @@ int rw_flag;			/* READING or WRITING */
   register d_inode *dip;
   register struct super_block *sp;
   block_nr b;
-  extern struct buf *get_block();
-  extern struct super_block *get_super();
 
   /* Get the block where the inode resides. */
   sp = get_super(rip->i_dev);
@@ -225,7 +214,7 @@ int rw_flag;			/* READING or WRITING */
 /*===========================================================================*
  *				dup_inode				     *
  *===========================================================================*/
-PUBLIC dup_inode(ip)
+PUBLIC void dup_inode(ip)
 struct inode *ip;		/* The inode to be duplicated. */
 {
 /* This routine is a simplified form of get_inode() for the case where
