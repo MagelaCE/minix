@@ -1,6 +1,7 @@
 /*
  * Bawk C actions compiler
  */
+#include <ctype.h>
 #include <stdio.h>
 #include "bawk.h"
 
@@ -157,8 +158,8 @@ dopattern:
                         else if ( i = isfunction( buf ) )
                         {
                                 *actptr++ = T_FUNCTION;
-                                storeint( actptr, i );
-                                actptr += sizeof( i );
+                                *(int *)actptr = i;
+                                actptr += sizeof( int )/sizeof( char );
                         }
                         else
                         {
@@ -166,10 +167,10 @@ dopattern:
                                  * It's a symbol name.
                                  */
                                 *actptr++ = T_VARIABLE;
-                                if ( !(cp = findvar( buf )) )
-                                        cp = addvar( buf );
-                                storeptr( actptr, cp );
-                                actptr += sizeof( cp );
+                                if ( !(cp = (char *) findvar( buf )) )
+                                        cp = (char *) addvar( buf );
+                                *(char **)actptr = cp;
+                                actptr += sizeof( char * )/sizeof( char );
                         }
                 }
 
@@ -188,11 +189,11 @@ dopattern:
                          */
                         *actptr++ = T_CONSTANT;
                         str_compile( buf, '\'' );
-                        storeint( actptr, *buf );
-                        actptr += sizeof( i );
+                        *(int *)actptr = *buf;
+                        actptr += sizeof( int )/sizeof( char );
                 }
 
-                else if ( num( c ) )
+                else if ( isdigit( c ) )
                 {
                         /*
                          * It's a numeric constant
@@ -201,10 +202,10 @@ dopattern:
                         cp = buf;
                         do
                                 *cp++ = c;
-                        while ( (c=getcharacter()) != -1 && num(c) );
+                        while ( (c=getcharacter()) != -1 && isdigit( c ) );
                         ungetcharacter( c );
                         *cp = 0;
-                        storeint( actptr, atoi( buf ) );
+                        *(int *)actptr = atoi( buf );
                         actptr += sizeof( i );
                 }
 
@@ -388,30 +389,6 @@ err:
         error( buf, 4 );
 }
 
-storeint( ip, i )
-int *ip, i;
-{
-        return *ip = i;
-}
-
-storeptr( pp, p )
-char **pp, *p;
-{
-        return *pp = p;
-}
-
-fetchint( ip )
-int *ip;
-{
-        return *ip;
-}
-
-char *
-fetchptr( pp )
-char **pp;
-{
-        return *pp;
-}
 
 getoken()
 {
@@ -426,13 +403,13 @@ getoken()
                 Actptr += strlen( Actptr ) + 1;
                 break;
         case T_VARIABLE:
-                Value.dptr = fetchptr( Actptr );
-                Actptr += sizeof( cp );
+                Value.dptr = *(char **)Actptr;
+                Actptr += sizeof( char * )/sizeof( char );
                 break;
         case T_FUNCTION:
         case T_CONSTANT:
-                Value.ival = fetchint( Actptr );
-                Actptr += sizeof( i );
+                Value.ival = *(int *)Actptr;
+                Actptr += sizeof( int )/sizeof( char );
                 break;
         case T_EOF:
                 --Actptr;

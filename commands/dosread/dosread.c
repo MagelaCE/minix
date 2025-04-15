@@ -11,11 +11,6 @@
  *	  a: Set ASCII bit.
  */
 
-#ifdef debug			/* usually avoid stdio, what a nuisance */
-#include <stdio.h>
-#undef EOF			/* one-off stdio redefines it different */
-#endif
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -175,7 +170,7 @@ determine()
   heads = c2u2(boot.cheads);
   hiddensec = c2u2(boot.chiddensec);
 
-  /* Calculate everything before checking for debugging print */
+  /* Calculate everything. */
   total_clusters = totsec / (boot.secpclus == 0 ? 1 : boot.secpclus);
   cluster_size = bytepers * boot.secpclus;
   fat_size = secpfat * bytepers;
@@ -184,24 +179,6 @@ determine()
   root_entries = dirents;
   sub_entries = boot.secpclus * bytepers / 32;
   if (total_clusters > 4096) fat_16 = 1;
-
-#ifdef debug
-  /* This used to help find foolish sign extensions and op precedences.
-   * It remains useful for looking at nonstandard formats. */
-  fprintf(stderr, "OEM = %8.8s\n", boot.name);
-  fprintf(stderr, "Bytes/sector = %u\n", bytepers);
-  fprintf(stderr, "Sectors/cluster = %u\n", boot.secpclus);
-  fprintf(stderr, "Number of Reserved Clusters = %u\n", reservsec);
-  fprintf(stderr, "Number of FAT's = %u\n", boot.fats);
-  fprintf(stderr, "Number of root-directory entries = %u\n", dirents);
-  fprintf(stderr, "Total sectors in logical volume = %u\n", totsec);
-  fprintf(stderr, "Media descriptor = 0x%02x\n", boot.media);
-  fprintf(stderr, "Number of sectors/FAT = %u\n", secpfat);
-  fprintf(stderr, "Sectors/track = %u\n", secptrack);
-  fprintf(stderr, "Number of heads = %u\n", heads);
-  fprintf(stderr, "Number of hidden sectors = %u\n", hiddensec);
-  fprintf(stderr, "Bootblock magic number = 0x%04x\n", boot_magic);
-#endif
 
   /* Safety checking */
   if (boot_magic != 0xAA55) {
@@ -872,7 +849,7 @@ register unsigned short cluster;
   register DIRECTORY *sub_dir;
   extern char *sbrk();
 
-  if ((sub_dir = (DIRECTORY *) sbrk(cluster_size)) < 0) {
+  if ((sub_dir = (DIRECTORY *) sbrk(cluster_size)) == (DIRECTORY *) -1) {
 	print_string(TRUE, "Cannot set break!\n");
 	leave(1);
   }
@@ -1013,10 +990,10 @@ register unsigned bytes;
 	leave(1);
   }
   if (op == READ)
-	r = read(disk, address, bytes);
+	r = read(disk, (char *) address, bytes);
   else {
 	disk_written = 1;
-	r = write(disk, address, bytes);
+	r = write(disk, (char *) address, bytes);
   }
 
   if (r != bytes) bad();
@@ -1039,6 +1016,6 @@ int c;
 	disk_io(READ, buf_addr = seek & (~0x3ffL), buf_buf, 1025);
   }
   seek &= 0x3ffL;
-  *b++ = buf_buf[seek++];
-  if (c == 2) *b = buf_buf[seek];
+  *b++ = buf_buf[(int) seek++];
+  if (c == 2) *b = buf_buf[(int) seek];
 }

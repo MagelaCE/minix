@@ -1,11 +1,12 @@
 # Shell script used to test MINIX.
 
-echo Starting shell test 1.  There should be no output until it is done.
+echo -n "Shell test  1 "
 rm -rf testdir
 mkdir testdir
 cd testdir
 
 f=../test0.c
+if test -r $f; then : ; else echo sh1 cannot read $f; exit 1; fi
 
 #Initial setup
 echo "abcdefghijklmnopqrstuvwxyz" >alpha
@@ -171,7 +172,6 @@ y
 z
 END
 if cmp -s w w1; then : ; else echo Error on ls test 1; fi
-exit 0
 rm *
 cd ..
 rmdir FOO
@@ -246,7 +246,6 @@ sort <x >x1
 if cmp -s y x1; then : ; else echo Error on sort test 2; fi
 sort -r <x1 >x2
 if cmp -s x2 z; then : ; else echo Error on sort test 3; fi
-exit 0
 sort +1 -n <x |head -1 >y
 echo "bibelot 3" >z
 if cmp -s y z; then : ; else echo Error on sort test 4; fi
@@ -271,10 +270,19 @@ d e
 e f
 f k
 END
+cat >answer <<END
+a
+b
+c
+d
+e
+f
+k
+p
+z
+END
 tsort <x >y
-echo "" >>y
-echo "a b c d e f k p z " >z
-if cmp -s y z; then : ; else echo Error on tsort test 1; fi
+if cmp -s y answer; then : ; else echo Error on tsort test 1; fi
 
 #Test uue/uud
 cp $f x
@@ -290,3 +298,8 @@ rm x x.Z
 uud x.uue
 compress -cd x.Z >x
 if cmp -s x $f; then : ; else echo Error on uue/uud test 3; fi
+
+cd ..
+rm -rf testdir
+
+echo ok

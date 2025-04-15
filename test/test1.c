@@ -1,19 +1,22 @@
 /* test 1 */
 
 #include <signal.h>
+#include <stdio.h>
+
+#define SIGNUM 10
+#define MAX_ERROR 4
 
 int glov, gct;
 extern int errno;
 int errct;
-#define SIGNUM 10
-
-
+int subtest = 1;
 
 main()
 {
   int i;
 
   printf("Test  1 ");
+  fflush(stdout);		/* have to flush for child's benefit */
 
   for (i = 0; i < 15; i++) {
 	test10();
@@ -110,7 +113,13 @@ int k;
 e(n)
 int n;
 {
-  printf("\nError %d  errno=%d  ", n, errno);
+  int err_num = errno;		/* save errno in case printf clobbers it */
+
+  printf("Subtest %d,  error %d  errno=%d  ", subtest, n, errno);
+  errno = err_num;		/* restore errno, just in case */
   perror("");
-  errct++;
+  if (errct++ > MAX_ERROR) {
+	printf("Too many errors; test aborted\n");
+	exit(1);
+  }
 }

@@ -4,10 +4,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdio.h>
+
+#define MAX_ERROR 4
 
 extern int errno;
 int errct;
-int testnr;
+int subtest;
 extern off_t lseek();
 
 
@@ -18,6 +21,7 @@ main()
   char let;
 
   printf("Test  0 ");
+  fflush(stdout);
   for (i = 0; i < 4; i++) {
 	test00();
 	test01();
@@ -45,7 +49,7 @@ test00()
   struct stat s;
 
 
-  testnr = 1;
+  subtest = 1;
   if ((n = creat("foop", 0777)) != 3) {
 	printf("Creating a file returned file descriptor %d instead of 3\n", n);
 	e(1);
@@ -168,14 +172,14 @@ static clraa()
 
 test01()
 {
-/* Test link, unlink, stat, fstat, dup, umask, mknod.
+/* Test link, unlink, stat, fstat, dup, umask.
  */
 
   int i, j, n, n1, flag;
   char a[255], b[255];
   struct stat s, s1;
 
-  testnr = 2;
+  subtest = 2;
   for (i = 0; i < 2; i++) {
 	umask(0);
 
@@ -244,7 +248,13 @@ test01()
 e(n)
 int n;
 {
-  printf("Subtest %d,  error %d  errno=%d  ", testnr, n, errno);
+  int err_num = errno;		/* save errno in case printf clobbers it */
+
+  printf("Subtest %d,  error %d  errno=%d  ", subtest, n, errno);
+  errno = err_num;		/* restore errno, just in case */
   perror("");
-  errct++;
+  if (errct++ > MAX_ERROR) {
+	printf("Too many errors; test aborted\n");
+	exit(1);
+  }
 }

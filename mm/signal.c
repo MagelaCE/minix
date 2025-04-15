@@ -186,7 +186,7 @@ uid_t send_uid;			/* identity of process sending the signal */
 
 #if AM_KERNEL
 	/* see if an amoeba transaction should be signalled */
-	Tfs = am_check_sig(rmp - mproc, 0);
+	Tfs = am_check_sig((int)(rmp - mproc), 0);
 #endif
 
 	/* Send the signal or kill the process, possibly with core dump. */

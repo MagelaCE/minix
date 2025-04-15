@@ -7,8 +7,8 @@
 /* External interfaces */
 #include <ctype.h>
 #include <errno.h>
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 
 /* Constants */
 #define MAXLINE	256			/* maximum input line length */
@@ -269,4 +269,3 @@ register char *ip;
 
   return MAKETWOBYTES(0, *ip);
 }
-

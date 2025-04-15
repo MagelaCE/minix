@@ -2,7 +2,7 @@
  * which  have a variety of parameters and flags.  They are described here.  
  * The formats of the calls to each of these are:
  *
- *	open(path, oflag [mode])	open a file
+ *	open(path, oflag [,mode])	open a file
  *	fcntl(fd, cmd,[ arg])		get or set file attributes
  * 
  */
@@ -61,7 +61,7 @@ struct flock {
 #include <ansi.h>
 #endif
 
-_PROTOTYPE( int creat, (const char *__path, mode_t __mode)     		);
+_PROTOTYPE( int creat, (const char *__path, int __mode)       		);
 _PROTOTYPE( int fcntl, (int __filedes, int __cmd, ...)  		);
 _PROTOTYPE( int open,  (const char *__path, int __oflag, ...) 		);
 

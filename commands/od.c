@@ -2,8 +2,8 @@
 
 #include <sys/types.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <unistd.h>
+#include <stdio.h>
 
 
 int bflag, cflag, dflag, oflag, xflag, hflag, linenr, width, state, ever;
@@ -123,7 +123,7 @@ int k;
 dumpfile()
 {
   int k;
-  int *words;
+  short *words;
 
   while ((k = getwords(&words))) {	/* 'k' is # bytes read */
 	if (k == 16 && same(words, prevwds) && ever == 1) {
@@ -154,7 +154,8 @@ dumpfile()
 
 
 wdump(words, k, radix)
-int words[8], k, radix;
+short *words;
+int k, radix;
 {
   int i;
 
@@ -207,7 +208,7 @@ char c;
 
 
 int getwords(words)
-int **words;
+short **words;
 {
   int count;
 
@@ -216,7 +217,7 @@ int **words;
 	next = 0;
   }
   if (next >= bytespresent) return(0);
-  *words = (int *) &buf[next];
+  *words = (short *) &buf[next];
   if (next + 16 <= bytespresent)
 	count = 16;
   else
@@ -227,7 +228,8 @@ int **words;
 }
 
 int same(w1, w2)
-int *w1, *w2;
+short *w1;
+int *w2;
 {
   int i;
   i = 8;

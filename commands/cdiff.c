@@ -7,10 +7,10 @@
 
 #define PATCHLEVEL 2
 
-#include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <ctype.h>
+#include <stdio.h>
 
 char buff[512];
 

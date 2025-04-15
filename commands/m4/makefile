@@ -7,5 +7,8 @@ CFLAGS = -DEXTENDED
 OBJS =  main.s eval.s serv.s look.s misc.s expr.s
 INCL =  mdef.h extr.h patchlevel.h
 m4: $(OBJS) $(INCL)
-	@cc -s -o m4 $(OBJS)
+	@cc -o m4 $(OBJS)
 
+
+clean:	
+	@rm -f *.bak *.s m4

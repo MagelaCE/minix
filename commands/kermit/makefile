@@ -66,9 +66,7 @@ ckuscr.s: ckuscr.c ckcker.h ckcdeb.h
 
 #Clean up intermediate and object files
 clean:
-	-rm -f ckcmai.s ckucmd.s ckuusr.s ckuus2.s ckuus3.s ckcpro.s \
-	ckcfns.s ckcfn2.s ckucon.s ckutio.s ckufio.s ckudia.s ckuscr.s \
-	ckwart.s ckcpro.c
+	@rm -f *.s *.bak wermit
 
 #Run Lint on this mess for the BSD version.
 lint:

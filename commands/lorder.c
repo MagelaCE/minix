@@ -23,10 +23,10 @@
  *		progname = argv[0] - should be first. 5/25/88 - mbeck
  */
 
-#include <stdio.h>
 #include <ctype.h>
 #include <signal.h>
 #include <ar.h>
+#include <stdio.h>
 
 #define MAXLINE		256
 

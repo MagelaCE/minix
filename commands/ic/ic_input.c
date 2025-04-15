@@ -21,10 +21,6 @@
 static struct sgttyb saved_mode;
 static struct tchars saved_chars;
 
-#define tolower(c)	((c) - 'A' + 'a')
-
-
-
 
 
 

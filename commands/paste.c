@@ -51,15 +51,11 @@
  */
 
 #include <errno.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <stdio.h>
 
 extern int errno;
 
-#define MINIX			/* as opposed to C86, or AZTEC in my case */
- /* Just in case I want to compile under DOS sometime */
-
-#undef toupper
 
 /* I'd love to use enums, but not everyone has them.  Portability, y'know. */
 #define NODELIM		1
@@ -79,7 +75,7 @@ extern int errno;
 #define	CLOSED		((FILE *)-1)
 #define ENDLIST		((FILE *)-2)
 
-char *cmdnam, toupper();
+char *cmdnam, ToUpper();
 
 
 short int dflag, sflag;
@@ -104,7 +100,7 @@ char **argv;
 	/* First, parse input options */
 
 	while (argv[0][0] == '-' && argv[0][1] != '\0') {
-		switch (toupper(argv[0][1])) {
+		switch (ToUpper(argv[0][1])) {
 		    case 'D':
 			/* Delimiter character(s) */
 			strcpy(delims, &argv[0][2]);
@@ -133,7 +129,6 @@ char **argv;
   else
 	doserial(argc, argv);	/* Serial paste */
 
-  _cleanup();
   exit(0);
 }
 
@@ -279,7 +274,7 @@ char **fnamptr;
 
 			/* Now dump the buffer */
 			fputs(iobuff, stdout);
-			_cleanup();
+			fflush(stdout);
 		}
 	}
   }
@@ -318,7 +313,7 @@ char **fnamptr;
 	if ((charold = getc(fileptr)) == EOF) {
 		/* Empty file! */
 		putc(NL, stdout);
-		_cleanup();
+		fflush(stdout);
 		continue;	/* Go on to the next file */
 	}
 
@@ -340,9 +335,8 @@ char **fnamptr;
 	/* Ok, hit EOF.  Process that last character */
 
 	putc((char) charold, stdout);
-	_cleanup();
-
 	if ((char) charold != NL) putc(NL, stdout);
+	fflush(stdout);
   }
 }
 
@@ -366,7 +360,7 @@ char *strptr;
 	else {
 		strptr++;	/* Get past escape character */
 
-		switch (toupper(*strptr)) {
+		switch (ToUpper(*strptr)) {
 		    case '0':	*strout++ = DEL;	break;
 
 		    case 'T':	*strout++ = TAB;	break;
@@ -410,11 +404,10 @@ char *estring;
 	fprintf(stderr, "%s : too many files\n", cmdnam);
 	break;
   }
-  _cleanup();
   exit(1);
 }
 
-char toupper(c)			/* This is non-standard, but it works */
+char ToUpper(c)			/* This is non-standard, but it works */
 char c;
 {
   char x;

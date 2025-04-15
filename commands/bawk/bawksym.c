@@ -2,19 +2,21 @@
  * Bawk C actions builtin functions, variable declaration, and
  * stack management routines.
  */
+#include <ctype.h>
 #include <stdio.h>
 #include "bawk.h"
 
 #define MAXARGS         10      /* max # of arguments to a builtin func */
-#define F_PRINTF        1
-#define F_GETLINE       2
-#define F_STRLEN        3
-#define F_STRCPY        4
-#define F_STRCMP        5
-#define F_TOUPPER       6
-#define F_TOLOWER       7
-#define F_MATCH         8
-#define F_NEXTFILE      9
+#define F_PRINT         1
+#define F_PRINTF        2
+#define F_GETLINE       3
+#define F_STRLEN        4
+#define F_STRCPY        5
+#define F_STRCMP        6
+#define F_TOUPPER       7
+#define F_TOLOWER       8
+#define F_MATCH         9
+#define F_NEXTFILE      10
 
 isfunction( s )
 char *s;
@@ -24,6 +26,8 @@ char *s;
          * and return its (non-zero) token number.
          * Return zero if "s" is not a function.
          */
+        if ( !strcmp(s, "print") )
+                return F_PRINT;
         if ( !strcmp( s, "printf" ) )
                 return F_PRINTF;
         if ( !strcmp( s, "getline" ) )
@@ -84,8 +88,9 @@ char *s;
 
 function( funcnum )
 {
-        int argc, args[ MAXARGS ];
+        int argc, j;
         char lpar;
+        DATUM args[ MAXARGS ];
 
         argc = 0;
         if ( Token==T_LPAREN )
@@ -97,15 +102,18 @@ function( funcnum )
                 lpar = 0;
         /*
          * If there are any arguments, evaluate them and copy their values
-         * to a local array.
+         * to a local array.  Clear the array first.
          */
+
+        for (j = 0; j < MAXARGS; j++) args[j].ival = 0;
+
         if ( Token!=T_RPAREN && Token!=T_EOF )
         {
                 for ( ;; )
                 {
                         expression();
                         if ( argc<MAXARGS )
-                                args[ argc++ ] = popint();
+                                args[ argc++ ].ival = popint();
                         else
                                 popint();
                         if ( Token==T_COMMA )
@@ -121,6 +129,11 @@ function( funcnum )
 
         switch ( funcnum )
         {
+        case F_PRINT:   /* quick and simple string printing */
+                pushint(pprint(args[0].ival, args[1].ival, args[2].ival,
+                     args[3].ival, args[4].ival, args[5].ival, args[6].ival,
+ 		         args[7].ival, args[8].ival, args[9].ival));
+                break;
         case F_PRINTF:  /* just like the real printf() function */
                 pushint( printf( args[0], args[1], args[2], args[3], args[4],
                          args[5], args[6], args[7], args[8], args[9] ) );
@@ -137,22 +150,22 @@ function( funcnum )
                 Fieldcount = parse( Linebuf, Fields, Fieldsep );
                 break;
         case F_STRLEN:  /* calculate length of string argument */
-                pushint( strlen( args[0] ) );
+                pushint( strlen( args[0].dptr ) );
                 break;
         case F_STRCPY:  /* copy second string argument to first string */
-                pushint( strcpy( args[0], args[1] ) );
+                pushint((int) strcpy( args[0].dptr, args[1].dptr ) );
                 break;
         case F_STRCMP:  /* compare two strings */
-                pushint( strcmp( args[0], args[1] ) );
+                pushint( strcmp( args[0].dptr, args[1].dptr ) );
                 break;
         case F_TOUPPER: /* convert the character argument to upper case */
-                pushint( toupper( args[0] ) );
+                pushint( toupper( args[0].ival ) );
                 break;
         case F_TOLOWER: /* convert the character argument to lower case */
-                pushint( tolower( args[0] ) );
+                pushint( tolower( args[0].ival ) );
                 break;
         case F_MATCH:   /* match a string argument to a regular expression */
-                pushint( match( args[0], args[1] ) );
+                pushint( match( args[0].dptr, args[1].dptr ) );
                 break;
         case F_NEXTFILE:/* close current input file and process next file */
                 pushint( endfile() );
@@ -272,7 +285,7 @@ decl( type )
                  * "Value" variable) is a pointer to the variable's symbol
                  * table entry.
                  */
-                pvar = Value.dptr;
+                pvar = (VARIABLE *)Value.dptr;
                 getoken();
                 class = 0;
                 /*
@@ -417,7 +430,7 @@ popint()
                         /*
                          * otherwise, it's an unsigned int
                          */
-                        intvalue = *Stackptr->value.ptrptr;
+                        intvalue = *(int *)Stackptr->value.dptr;
                 }
                 pop();
                 return intvalue;
@@ -430,3 +443,25 @@ popint()
                 return pop();
         }
 }
+
+
+pprint(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9)
+char *s0, *s1, *s2, *s3, *s4, *s5, *s6, *s7, *s8, *s9;
+{
+    if (s0 != NULL) printf(" %s", s0);
+    if (s1 != NULL) printf(" %s", s1);
+    if (s2 != NULL) printf(" %s", s2);
+    if (s3 != NULL) printf(" %s", s3);
+    if (s4 != NULL) printf(" %s", s4);
+    if (s5 != NULL) printf(" %s", s5);
+    if (s6 != NULL) printf(" %s", s6);
+    if (s7 != NULL) printf(" %s", s7);
+    if (s8 != NULL) printf(" %s", s8);
+    if (s9 != NULL) printf(" %s", s9);
+ 
+    printf("\n");  /* AWK's default behaviour */
+ 
+    return 0;
+}
+
+

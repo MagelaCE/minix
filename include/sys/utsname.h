@@ -3,14 +3,19 @@
 #ifndef _UTSNAME_H
 #define _UTSNAME_H
 
-struct utsname {
-  char *sysname;
-  char *nodename;
-  char *release;
-  char *version;
-  char *machine;
-} utsname;
+#define _UTSLEN  9
+#define _SNLEN  15
 
+struct utsname {
+  char sysname[_UTSLEN];
+  char nodename[_UTSLEN];
+  char release[_UTSLEN];
+  char version[_UTSLEN];
+  char machine[_UTSLEN];
+  char idnumber[_SNLEN];
+};
+
+extern struct utsname utsname;
 
 /* Function Prototypes. */
 #ifndef _ANSI_H

@@ -34,7 +34,10 @@ struct tchars {
 #define CBREAK	     0000002	/* enable cbreak mode */
 #define COOKED       0000000	/* neither CBREAK nor RAW */
 
+#define DCD	     010000	/* Data Carrier Detect */
+
 /* Line speeds */
+#define B0		   0	/* code for line-hangup */
 #define B110		   1
 #define B300		   3
 #define B1200		  12

@@ -12,8 +12,8 @@
  */
 
 #include <lib.h>
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 
 #ifndef L_ctermid
 #define L_ctermid  9

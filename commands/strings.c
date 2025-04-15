@@ -32,8 +32,8 @@ not everybody has a.out.h yet. Future revisions probably ought to, though.
 
 
 
-#include <stdio.h>
 #include <ctype.h>
+#include <stdio.h>
 
 /* Minix (8086 version) dependant definitions */
 #define SMALLMAGIC	0x04100301L	/* small model a.out magic number */

@@ -1,5 +1,6 @@
 #include <lib.h>
 #include <stdarg.h>
+
 /* three compile time options:
  *	NO_LONGD	%d and %ld/%D are equal
  *	NO_FLOAT	abort on %e, %f and %g

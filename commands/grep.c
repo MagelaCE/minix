@@ -1,161 +1,263 @@
-/* grep - search for a pattern 		Author: Martin C. Atkins */
+/* grep - search a file for a pattern	Author: Norbert Schlenker */
 
-/*
- *	Search files for a regular expression
+/* Norbert Schlenker (nfs@princeton.edu)  1990-02-08
+ * Released into the public domain.
  *
- *<-xtx-*>cc -o grep grep.c -lregexp
+ * Grep searches files for lines containing a pattern, as specified by
+ * a regular expression, and prints those lines.  It is invoked by:
+ *	grep [flags] [pattern] [file ...]
+ *
+ * Flags:
+ *	-e pattern	useful when pattern begins with '-'
+ *	-l		prints just file names, no lines (quietly overrides -n)
+ *	-n		printed lines are preceded by relative line numbers
+ *	-s		prints errors only (quietly overrides -l and -n)
+ *	-v		prints lines which don't contain the pattern
+ *
+ * Semantic note:
+ * 	If both -l and -v are specified, grep prints the names of those
+ *	files which do not contain the pattern *anywhere*.
+ *
+ * Exit:
+ *	Grep sets an exit status which can be tested by the caller.
+ *	Note that these settings are not necessarily compatible with
+ *	any other version of grep, especially when -v is specified.
+ *	Possible status values are:
+ *	  0	if any matches are found
+ *	  1	if no matches are found
+ *	  2	if syntax errors are detected or any file cannot be opened
  */
 
-/*
- *	This program was written by:
- *		Martin C. Atkins,
- *		University of York,
- *		Heslington,
- *		York. Y01 5DD
- *		England
- *	and is released into the public domain, on the condition
- *	that this comment is always included without alteration.
- *
- *	The program was modified by Andy Tanenbaum.
- */
 
-#include <regexp.h>
+/* External interfaces */
+#include <regexp.h>		/* Thanks to Henry Spencer */
+#include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 
-#define MAXLINE (1024)
-int status = 1;
-char *progname;
-int pmflag = 1;			/* print lines which match */
-int pnmflag = 0;		/* print lines which don't match */
-int nflag = 0;			/* number the lines printed */
-int args;
-extern char *index();
-char *itoa();
+extern int getopt();		/* Thanks to Henry Spencer */
+extern char *optarg;
+extern int optind;
 
-main(argc, argv)
+
+/* Internal constants */
+#define MATCH		0	/* exit code: some match somewhere */
+#define NO_MATCH	1	/* exit code: no match on any line */
+#define FAILURE		2	/* exit code: syntax error or bad file name */
+
+
+/* Macros */
+#define SET_FLAG(c)	(flags[(c)-'a'] = 1)
+#define FLAG(c)		(flags[(c)-'a'] != 0)
+
+
+/* Private storage */
+static char *program;		/* program name */
+static char flags[26];		/* invocation flags */
+static regexp *expression;	/* compiled search pattern */
+
+
+/* Internal interfaces */
+static int match();
+static char *get_line();
+static void error_exit();
+
+
+int main(argc, argv)
 int argc;
 char *argv[];
 {
-  regexp *exp;
-  char **argp = &argv[1];
+  int opt;			/* option letter from getopt() */
+  char *pattern;		/* search pattern */
+  int exit_status = NO_MATCH;	/* exit status for our caller */
+  int file_status;		/* status of search in one file */
+  FILE *input;			/* input file (if not stdin) */
 
-  if (!isatty(1)) setbuf(stdout);
-  args = argc;
-  progname = argv[0];
-  while (*argp != 0 && argp[0][0] == '-') {
-	args--;			/* flags don't count */
-	switch (argp[0][1]) {
-	    case 'v':
-		pmflag = 0;
-		pnmflag = 1;
-		break;
-	    case 'n':	nflag++;	break;
-	    case 's':	pmflag = pnmflag = 0;	break;
-	    case 'e':
-		argp++;
-		goto out;
-	    default:	usage();
-	}
-	argp++;
+  program = argv[0];
+  memset(flags, 0, sizeof(flags));
+  pattern = (char *) NULL;
+
+/* Process any command line flags. */
+  while ((opt = getopt(argc, argv, "e:lnsv")) != EOF) {
+	if (opt == '?')
+		exit_status = FAILURE;
+	else
+	if (opt == 'e')
+		pattern = optarg;
+	else
+		SET_FLAG(opt);
   }
-out:
-  if (*argp == 0) usage();
 
-  if ((exp = regcomp(*argp++)) == NULL) {
-	std_err("grep: regcomp failed\n");
-	exit(2);
+/* Detect a few problems. */
+  if ((exit_status == FAILURE) || (optind == argc && pattern == (char *) NULL))
+	error_exit("Usage: %s [-clnsv] [-e] expression [file ...]\n");
+
+/* Ensure we have a usable pattern. */
+  if (pattern == (char *) NULL)
+	pattern = argv[optind++];
+  if ((expression = regcomp(pattern)) == (regexp *) NULL)
+	error_exit("%s: bad regular expression\n");
+
+/* Process the files appropriately. */
+  if (optind == argc) {		/* no file names - find pattern in stdin */
+	exit_status = match(stdin, (char *) NULL, "<stdin>");
   }
-  if (*argp == 0)
-	match((char *) 0, exp);
-  else
-	while (*argp) {
-		int infd;
-
-		if (strcmp(*argp, "-") == 0)
-			match("-", exp);
-		else {
-			fclose(stdin);
-			if (fopen(*argp, "r") == NULL) {
-				std_err("Can't open ");
-				std_err(*argp);
-				std_err("\n");
-				status = 2;
-			} else {
-				match(*argp, exp);
-				close(infd);
-			}
+  else 
+  if (optind + 1 == argc) {	/* one file name - find pattern in it */
+	if (strcmp(argv[optind], "-") == 0) {
+		exit_status = match(stdin, (char *) NULL, "-");
+	} else {
+		if ((input = fopen(argv[optind], "r")) == (FILE *) NULL) {
+			fprintf(stderr, "%s: couldn't open %s\n",
+							program, argv[optind]);
+			exit_status = FAILURE;
 		}
-		argp++;
+		exit_status = match(input, (char *) NULL, argv[optind]);
 	}
-  exit(status);
+  }
+  else
+  while (optind < argc) {	/* lots of file names - find pattern in all */
+	if (strcmp(argv[optind], "-") == 0) {
+		file_status = match(stdin, "-", "-");
+	} else {
+		if ((input = fopen(argv[optind], "r")) == (FILE *) NULL) {
+			fprintf(stderr, "%s: couldn't open %s\n",
+							program, argv[optind]);
+			exit_status = FAILURE;
+		} else {
+			file_status = match(input, argv[optind], argv[optind]);
+			fclose(input);
+		}
+	}
+	if (exit_status != FAILURE)
+		exit_status &= file_status;
+	++optind;
+  }
+  exit(exit_status);
 }
 
-/* This routine actually matches the file. */
-match(name, exp)
-char *name;
-regexp *exp;
+
+/* match - matches the lines of a file with the regular expression.
+ * To improve performance when either -s or -l is specified, this
+ * function handles those cases specially.
+ */
+
+static int match(input, label, filename)
+FILE *input;
+char *label;
+char *filename;
 {
-  char buf[MAXLINE];
-  int lineno = 0;
+  char *line;			/* pointer to input line */
+  long int lineno = 0;		/* line number */
+  int status = NO_MATCH;	/* summary of what was found in this file */
 
-  int bol = 1, next_bol;
+  if (FLAG('s') || FLAG('l')) {
+	while ((line = get_line(input)) != (char *) NULL)
+		if (regexec(expression, line, 1)) {
+			status = MATCH;
+			break;
+		}
+	if (FLAG('l'))
+		if ((!FLAG('v') && status == MATCH) ||
+		    ( FLAG('v') && status == NO_MATCH))
+			puts(filename);
+	return status;
+  }
 
-  while (getline(buf, MAXLINE) != NULL) {
-	char *cr = index(buf, '\n');
-	lineno++;
-	next_bol = (int) cr;
-	if (cr == 0) {
-		std_err("Line too long in ");
-		std_err(name == 0 ? "stdin" : name);
-	} else
-		*cr = '\0';
-	if (regexec(exp, buf, bol)) {
-		if (pmflag) pline(name, lineno, buf);
-		if (status != 2) status = 0;
-	} else if (pnmflag)
-		pline(name, lineno, buf);
-	bol = next_bol;
+  while ((line = get_line(input)) != (char *) NULL) {
+	++lineno;
+	if (regexec(expression, line, 1)) {
+		status = MATCH;
+		if (!FLAG('v')) {
+			if (label != (char *) NULL)
+				printf("%s:", label);
+			if (FLAG('n'))
+				printf("%ld:", lineno);
+			puts(line);
+		}
+	} else {
+		if (FLAG('v')) {
+			if (label != (char *) NULL)
+				printf("%s:", label);
+			if (FLAG('n'))
+				printf("%ld:", lineno);
+			puts(line);
+		}
+	}
+  }
+  return status;
+}
+
+
+/* get_line - fetch a line from the input file
+ * This function reads a line from the input file into a dynamically
+ * allocated buffer.  If the line is too long for the current buffer,
+ * attempts will be made to increase its size to accomodate the line.
+ * The trailing newline is stripped before returning to the caller.
+ */
+
+#define FIRST_BUFFER 256		/* first buffer size */
+
+static char *buf = (char *) NULL;	/* input buffer */
+static size_t buf_size = 0;		/* input buffer size */
+
+static char *get_line(input)
+FILE *input;
+{
+  int n;
+  register char *bp;
+  register int c;
+  char *new_buf;
+  size_t new_size;
+
+  if (buf_size == 0) {
+	if ((buf = (char *) malloc(FIRST_BUFFER)) == (char *) NULL)
+		error_exit("%s: not enough memory\n");
+	buf_size = FIRST_BUFFER;
+  }
+
+  bp = buf;
+  n = buf_size;
+  while (1) {
+	while (--n > 0 && (c = getc(input)) != EOF) {
+		if (c == '\n') {
+			*bp = '\0';
+			return buf;
+		}
+		*bp++ = c;
+	}
+	if (c == EOF)
+		return (ferror(input) || bp == buf) ? (char *) NULL : buf;
+	new_size = buf_size << 1;
+	if ((new_buf = (char *) realloc(buf, new_size)) == (char *) NULL) {
+		fprintf(stderr, "%s: line too long - truncated\n", program);
+		while ((c = getc(input)) != EOF && c != '\n') ;
+		*bp = '\0';
+		return buf;
+	} else {
+		bp = new_buf + (buf_size - 1);
+		n = buf_size + 1;
+		buf = new_buf;
+		buf_size = new_size;
+	}
   }
 }
+
+
+/* Regular expression code calls this routine to print errors. */
+
 void regerror(s)
 char *s;
 {
-  std_err("grep: ");
-  std_err(s);
-  std_err("\n");
-  exit(2);
-
-}
-
-pline(name, lineno, buf)
-char *name;
-int lineno;
-char buf[];
-{
-  if (name && args > 3) prints("%s:", name);
-  if (nflag) prints("%s:", itoa(lineno));
-  prints("%s\n", buf);
+  fprintf(stderr, "regexp: %s\n", s);
 }
 
 
-usage()
-{
-  std_err("Usage: grep [-v] [-n] [-s] [-e expr] expression [file ...]\n");
-  exit(2);
-}
+/* Common exit point for outrageous errors. */
 
-getline(buf, size)
-char *buf;
-int size;
+static void error_exit(msg)
+char *msg;
 {
-  char *initbuf = buf;
-  int c;
-
-  while (1) {
-	c = getc(stdin);
-	*buf++ = c;
-	if (c < 0) return(NULL);
-	if (buf - initbuf == size - 1) return (buf - initbuf);
-	if (c == '\n') return (buf - initbuf);
-  }
+  fprintf(stderr, msg, program);
+  exit(FAILURE);
 }

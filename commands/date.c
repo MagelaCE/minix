@@ -2,29 +2,26 @@
 
 #include <sys/types.h>
 #include <stddef.h>
-#undef NULL			/* temporary hack */
-#include <stdio.h>
 #include <time.h>
+#include <stdio.h>
 
 #define	MIN	60L		/* # seconds in a minute */
 #define	HOUR	(60 * MIN)	/* # seconds in an hour */
 #define	DAY	(24 * HOUR)	/* # seconds in a day */
 #define	YEAR	(365 * DAY)	/* # seconds in a year */
 
-char *ctime();
-
 main(argc, argv)
 int argc;
 char **argv;
 {
   int qflag;
-  long t, time();
+  long t;
   char time_buf[15];
 
   if (argc > 2) usage();
   if (argc == 2) {
 	if (*argv[1] == '-' && (argv[1][1] | 0x60) == 'q') {
-		freopen(stdin, "/dev/tty0", "r");
+		freopen("/dev/tty0", "r", stdin);
 		printf("\nPlease enter date: MMDDYYhhmmss. Then hit RETURN.\n");
 		gets(time_buf);
 		set_time(time_buf);
@@ -41,16 +38,16 @@ set_time(t)
 char *t;
 {
   char *tp;
-  long ct, time();
+  long ct;
   int len;
   static int days_per_month[] = {
 		      31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
   };
-  struct tm *p, *localtime();
+  struct tm *p;
 
   time(&ct);
   p = localtime(&ct);
-  p->tm_year -= 1970;
+  p->tm_year -= 70;
   p->tm_mon++;
   len = strlen(t);
   if (len != 12 && len != 10 && len != 6 && len != 4) usage();

@@ -9,20 +9,24 @@
 /****************************************************************/
 
 
+#include <minix/config.h>
 #include <sys/types.h>
 #include <ar.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
 #include <stdio.h>
 
 #include <minix/type.h>
-#include <fs/const.h>
-#include <fs/type.h>
+#include "../../fs/const.h"
+#include "../../fs/type.h"
 
 #include "de.h"
 
+#define major(x) ( (x>>8) & 0377)
+#define minor(x) (x & 0377)
 
 /****************************************************************/
 /*   		Code for handling termcap			*/
@@ -572,7 +576,7 @@ void Draw_Info( s )
       printf( "file size %lu", inode->i_size );
 
       Goto( INFO_COLUMN, INFO_LINE + 4 );
-      printf( "%s", ctime( &inode->i_modtime ) );
+      printf( "%s", ctime( &inode->i_mtime ) );
 
       Goto( INFO_COLUMN, INFO_LINE + 6 );
       printf( "links %d, group %s", inode->i_nlinks, grp ? grp->gr_name : "" );
@@ -1039,8 +1043,8 @@ void Print_Ascii( c )
 /****************************************************************/
 
 
-void Warning( message, arg1, arg2 )
-  char *message;
+void Warning( text, arg1, arg2 )
+  char *text;
   char *arg1;
   char *arg2;
 
@@ -1050,7 +1054,7 @@ void Warning( message, arg1, arg2 )
   Goto( WARNING_COLUMN, WARNING_LINE );
 
   printf( "%s Warning: ", Treverse );
-  printf( message, arg1, arg2 );
+  printf( text, arg1, arg2 );
   printf( " %s", Tnormal );
 
   sleep( 2 );

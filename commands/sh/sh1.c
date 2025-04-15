@@ -17,7 +17,8 @@ char	*flag = flags-'a';
 char	*elinep = line+sizeof(line)-5;
 char	*null	= "";
 int	heedint =1;
-struct	env	e ={line, iostack, iostack-1, NULL, FDBASE, NULL};
+struct	env	e ={line, iostack, iostack-1,
+		    (xint *)NULL, FDBASE, (struct env *)NULL};
 
 extern	char	**environ;	/* environment pointer */
 
@@ -629,7 +630,7 @@ int cf;
 		if (*cp == 0 || !letnum(*cp))
 			return(0);
 	vp = lookup(s);
-	nameval(vp, ++cp, cf == COPYV? NULL: s);
+	nameval(vp, ++cp, cf == COPYV? (char *)NULL: s);
 	if (cf != COPYV)
 		vp->status &= ~GETCELL;
 	return(1);
@@ -748,7 +749,7 @@ register int sub;
 	found = not;
 	do {
 		if (*p == '\0')
-			return(NULL);
+			return((char *)NULL);
 		c = *p & CMASK;
 		if (p[1] == '-' && p[2] != ']') {
 			d = p[2] & CMASK;
@@ -758,7 +759,7 @@ register int sub;
 		if (c == sub || c <= sub && sub <= d)
 			found = !not;
 	} while (*++p != ']');
-	return(found? p+1: NULL);
+	return(found? p+1: (char *)NULL);
 }
 
 /* -------- area.c -------- */
@@ -833,7 +834,7 @@ unsigned nbytes;
 	i = nregio >= GROWBY ? nregio : GROWBY;
 	p = (struct region *)sbrk(i * REGSIZE);
 	if ((int)p == -1)
-		return(NULL);
+		return((char *)NULL);
 	p--;
 	if (p != areatop)
 		abort();	/* allocated areas are contiguous */

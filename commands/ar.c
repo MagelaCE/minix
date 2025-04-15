@@ -44,10 +44,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <signal.h>
-#include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <ar.h>
+#include <stdio.h>
 
 struct i_ar_hdr {		/* local version, maybe different padding */
   char ar_name[14];

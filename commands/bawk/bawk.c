@@ -2,6 +2,8 @@
  * Bawk main program
  */
 #define MAIN 1
+
+#include <ctype.h>
 #include <stdio.h>
 #include "bawk.h"
 

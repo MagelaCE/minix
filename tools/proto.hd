@@ -102,7 +102,7 @@ d--777 2 1
 		cron		---755 2 1 /usr/bin/cron
 		cut		---755 2 1 /usr/bin/cut
 		dd		---755 2 1 /usr/bin/dd
-		df		-u-755 0 1 /usr/bin/df
+		df		-u-755 2 1 /usr/bin/df
 		dhrystone	---755 2 1 /usr/bin/dhrystone
 		diff		---755 2 1 /usr/bin/diff
 		diskcheck	---755 2 1 /usr/bin/diskcheck

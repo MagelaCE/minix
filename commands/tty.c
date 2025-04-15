@@ -1,10 +1,10 @@
 /* tty.c - Return tty name		Author: Freeman P. Pascal IV */
 
+#include <sys/types.h>
+#include <unistd.h>
 #include <stdio.h>
 
-char *ttyname();
-
-main(argc, argv)
+int main(argc, argv)
 int argc;
 char *argv[];
 {
@@ -14,6 +14,6 @@ char *argv[];
   if ((argc == 2) && (!strcmp(argv[1], "-s")))
 	 /* Do nothing - shhh! we're in silent mode */ ;
   else
-	printf("%s\n", ((tty_name) ? tty_name : "not a tty"));
-  exit((tty_name) ? 0 : 1);
+	puts((tty_name != (char *) NULL) ? tty_name : "Not a tty");
+  exit(tty_name != (char *) NULL);
 }

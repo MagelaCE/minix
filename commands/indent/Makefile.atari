@@ -1,0 +1,11 @@
+# makefile for the 'indent' command
+
+CFLAGS = -O
+
+OBJS = indent.o io.o lexi.o parse.o comment.o args.o
+
+indent: ${OBJS}
+	$(CC) -o indent ${OBJS}
+
+$(OBJS): globs.h codes.h
+

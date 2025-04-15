@@ -50,6 +50,29 @@
 #endif
 #endif
 #include	<dirent.h>
+
+
+/*==========================================================================*/
+/* This was in the original sys/dirent.h. The local definitions don't work. */
+
+#ifdef BSD_SYSV				/* (e.g., when compiling getdents.c) */
+extern struct dirent	__dirent;	/* (not actually used) */
+/* The following is portable, although rather silly. */
+#define	DIRENTBASESIZ		(__dirent.d_name - (char *)&__dirent.d_ino)
+
+#else
+/* The following nonportable ugliness could have been avoided by defining
+   DIRENTSIZ and DIRENTBASESIZ to also have (struct dirent *) arguments.
+   There shouldn't be any problem if you avoid using the DIRENTSIZ() macro. */
+
+#define	DIRENTBASESIZ		(((struct dirent *)0)->d_name \
+				- (char *)&((struct dirent *)0)->d_ino)
+#endif
+
+#define	DIRENTSIZ( namlen )	((DIRENTBASESIZ + sizeof(long) + (namlen)) \
+				/ sizeof(long) * sizeof(long))
+/*==========================================================================*/
+
 #include	<sys/stat.h>
 #ifdef UNK
 #ifndef UFS

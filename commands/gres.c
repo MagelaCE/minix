@@ -17,8 +17,9 @@
  *	that this comment is always included without alteration.
  */
 
-#include <stdio.h>
 #include <regexp.h>
+#include <string.h>
+#include <stdio.h>
 
 #define MAXLINE (1024)
 
@@ -26,8 +27,6 @@ int status = 1;
 char *usagemsg = "Usage: gres [-g] search replace [file ...]\n";
 char *progname;
 int gflag = 0;			/* != 0 => only do first substitution on line */
-extern char *index();
-FILE *fopen();
 
 main(argc, argv)
 int argc;
@@ -50,7 +49,7 @@ char *argv[];
 	std_err("gres: null match string is silly\n");
 	exit(2);
   }
-  if ((exp = regcomp(*argp++)) == NULL) {
+  if ((exp = regcomp(*argp++)) == (regexp *) NULL) {
 	std_err("gres: regcomp failed\n");
 	exit(2);
   }
@@ -64,7 +63,7 @@ char *argv[];
 		if (strcmp(*argp, "-") == 0)
 			process(stdin, exp, repstr);
 		else {
-			if ((inf = fopen(*argp, "r")) == NULL) {
+			if ((inf = fopen(*argp, "r")) == (FILE *) NULL) {
 				std_err("gres: Can't open ");
 				std_err(*argp);
 				std_err("\n");
@@ -87,8 +86,8 @@ char *repstr;
 {
   char ibuf[MAXLINE];
 
-  while (fgets(ibuf, MAXLINE, inf) != NULL) {
-	char *cr = index(ibuf, '\n');
+  while (fgets(ibuf, MAXLINE, inf) != (char *) NULL) {
+	char *cr = strchr(ibuf, '\n');
 	if (cr == 0)
 		std_err("gres: Line broken\n");
 	else
@@ -97,7 +96,7 @@ char *repstr;
 		pline(exp, ibuf, repstr);
 		if (status != 2) status = 0;
 	} else
-		printf("%s\n", ibuf);
+		puts(ibuf);
   }
 }
 
@@ -156,7 +155,7 @@ char *repstr;
 	if (*ibuf == '\0') break;
 	if (ibuf == exp->startp[0]) putchar(*ibuf++);
   } while (!gflag && regexec(exp, ibuf, 0));
-  printf("%s\n", ibuf);
+  puts(ibuf);
 }
 
 /* Print one subsitution. */

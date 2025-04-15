@@ -50,7 +50,7 @@ PUBLIC int do_trace()
 	}
 	child->mp_flags &= ~STOPPED;
   }	
-  if (sys_trace(request, child - mproc, (long)taddr, (long *)&data) != OK)
+  if (sys_trace(request, (int)(child - mproc), (long)taddr, (long *)&data) != OK)
 	return -errno;
   mm_out.m2_l2 = data;
   return OK;
@@ -65,7 +65,7 @@ int sig_nr;
 {
   register struct mproc *rpmp = mproc + rmp->mp_parent;
 
-  if (sys_trace(-1, rmp - mproc, 0L, (long *)0) != OK) return;
+  if (sys_trace(-1, (int)(rmp - mproc), 0L, (long *)0) != OK) return;
   rmp->mp_flags |= STOPPED;
   if (rpmp->mp_flags & WAITING) {
 	rpmp->mp_flags &= ~WAITING;	/* parent is no longer waiting */

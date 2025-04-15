@@ -1,7 +1,7 @@
 #include <lib.h>
 #include <signal.h>
 
-void (*vectab[_NSIG]) ();	/* array of functions to catch signals */
+extern void (*vectab[_NSIG]) ();	/* array of funcs to catch signals */
 
 /* The definition of signal really should be
  *  PUBLIC void (*signal(signr, func))()

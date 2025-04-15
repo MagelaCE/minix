@@ -8,7 +8,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#define P_READ 1
+#define P_WRITE 2
+
 PRIVATE int portfd = -1;
+PRIVATE int mode_opened = 0;
 
 int port_in(port, valuep)
 unsigned port;
@@ -16,7 +20,17 @@ unsigned *valuep;
 {
   unsigned char chvalue;
 
-  if (portfd < 0) portfd = open("/dev/port", O_RDONLY);
+  if ( !( mode_opened & P_READ )) {
+     if ( mode_opened & P_WRITE ) {
+        close(portfd);
+        portfd = open("/dev/port", O_RDWR);
+      }
+      else {
+        portfd = open("/dev/port", O_RDONLY);
+      }
+      mode_opened |= P_READ ;
+    }
+
   if (portfd < 0 ||
       lseek(portfd, (long) port, 0) < 0 ||
       read(portfd, (char *) &chvalue, (size_t) 1) != 1)
@@ -31,7 +45,17 @@ unsigned value;
   unsigned char chvalue;
 
   chvalue = value;
-  if (portfd < 0) portfd = open("/dev/port", O_WRONLY);
+  if ( !( mode_opened & P_WRITE )) {
+     if ( mode_opened & P_READ ) {
+        close(portfd);
+        portfd = open("/dev/port", O_RDWR);
+      }
+      else {
+        portfd = open("/dev/port", O_WRONLY);
+      }
+      mode_opened |= P_WRITE ;
+    }
+
   if (portfd < 0 || lseek(portfd, (long) port, 0) < 0 ||
       write(portfd, (char *) &chvalue, (size_t) 1) != 1)
 	return(-1);

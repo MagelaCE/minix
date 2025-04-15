@@ -9,19 +9,21 @@
 /****************************************************************/
 
 
+#include <minix/config.h>
 #include <sys/types.h>
 #include <sys/dir.h>
+#include <sys/stat.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <signal.h>
-#include <sys/stat.h>
-#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include <minix/type.h>
-#include <fs/const.h>
-#include <fs/type.h>
+#include "../../fs/const.h"
+#include "../../fs/type.h"
 
 #include "de.h"
 
@@ -312,6 +314,39 @@ void main( argc, argv )
 
 
 
+/****************************************************************/
+/*								*/
+/*	Get_Base( base )					*/
+/*								*/
+/*		Get a new base value.				*/
+/*		Returns REDRAW or ERROR.			*/
+/*								*/
+/****************************************************************/
+
+
+
+int Get_Base( base )
+  int *base;
+  {
+	switch ( Get_Char() )
+	  {
+	  case 'h' :	*base = 16;
+			break;
+
+	  case 'd' :	*base = 10;
+			break;
+
+	  case 'o' :	*base = 8;
+			break;
+
+	  case 'b' :	*base = 2;
+			break;
+
+	  default  :	return( ERROR );
+	  }
+
+		return( REDRAW );
+  }
 
 
 
@@ -618,24 +653,7 @@ int Process( s, c )
 
 		Draw_Prompt( "Output base?" );
 
-		switch ( Get_Char() )
-		  {
-		  case 'h' :	s->output_base = 16;
-				break;
-
-		  case 'd' :	s->output_base = 10;
-				break;
-
-		  case 'o' :	s->output_base = 8;
-				break;
-
-		  case 'b' :	s->output_base = 2;
-				break;
-
-		  default  :	return( ERROR );
-		  }
-
-		return( REDRAW );
+		return( Get_Base( &s->output_base ) );
 
 
     case 'p' :				/*  Previous address	*/
@@ -694,7 +712,6 @@ int Process( s, c )
 		  default :	Error( "Internal fault (mode)" );
 		  }
 		}
-
 
     case 's' :				/*  Store word		*/
 
@@ -813,7 +830,7 @@ int Process( s, c )
 		    ++to;
 		  }
 
-		if ( fwrite( buf, 1, to - buf, s->file_f ) != to - buf )
+		if ( fwrite( buf, 1, (int)(to - buf), s->file_f ) != to - buf )
 		  Warning( "Problem writing out buffer" );
 
 		s->file_written = 1;
@@ -1171,11 +1188,11 @@ int Str_Int( str, result )
 
 
 int In_Use( bit, map )
-  int bit;
-  char *map;
+  unsigned int bit;
+  int *map;
 
   {
-  return( map[bit >> 3] & (1 << (bit & 07)) );
+  return( map[bit >> 4] & (1 << (bit & 0xF)) );
   }
 
 
@@ -1326,8 +1343,8 @@ void Sigint()
 /****************************************************************/
 
 
-void Error( message, arg1, arg2 )
-  char *message;
+void Error( text, arg1, arg2 )
+  char *text;
   char *arg1;
   char *arg2;
 
@@ -1335,7 +1352,7 @@ void Error( message, arg1, arg2 )
   Reset_Term();
 
   fprintf( stderr, "\nde: " );
-  fprintf( stderr, message, arg1, arg2 );
+  fprintf( stderr, text, arg1, arg2 );
   fprintf( stderr, "\n" );
 
   exit( 1 );

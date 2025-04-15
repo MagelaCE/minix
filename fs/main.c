@@ -200,24 +200,15 @@ PRIVATE void buf_pool()
   buf[0].b_prev = NIL_BUF;
   buf[NR_BUFS - 1].b_next = NIL_BUF;
 
-  /* Delete any buffers that span a 64K boundary. */
+  /* Delete any buffers that span a 64K boundary, by marking them as used. */
 #if (CHIP == INTEL)
   for (bp = &buf[0]; bp < &buf[NR_BUFS]; bp++) {
 	org = get_physbase();	/* phys addr where FS is */
 	low_off = (vir_bytes) bp->b_data;
 	high_off = low_off + BLOCK_SIZE - 1;
 	if (((org + low_off) & M64K) != ((org + high_off) & M64K)) {
-		if (bp == &buf[0]) {
-			front = &buf[1];
-			buf[1].b_prev = NIL_BUF;
-		} else if (bp == &buf[NR_BUFS - 1]) {
-			rear = &buf[NR_BUFS - 2];
-			buf[NR_BUFS - 2].b_next = NIL_BUF;
-		} else {
-			/* Delete a buffer in the middle. */
-			bp->b_prev->b_next = bp + 1;
-			bp->b_next->b_prev = bp - 1;
-		}
+		++bp->b_count;	/* it was 0, by static initialization */
+		++bufs_in_use;
 	}
   }
 #endif
@@ -272,13 +263,13 @@ PRIVATE void load_ram()
 
   root_device = BOOT_DEV;	/* try floppy disk first */
   bp = get_block(root_device, SUPER_BLOCK, NORMAL);  /* get RAM super block */
-  copy(super_block, bp->b_data, sizeof(struct super_block));
+  copy(super_block, bp->b_data, SUPER_SIZE);
   sp = &super_block[0];
   if (sp->s_magic != SUPER_MAGIC) {
 	put_block(bp, FULL_DATA_BLOCK);
 	root_device = RAM_IMAGE;
 	bp = get_block(root_device, SUPER_BLOCK, NORMAL);  /* get RAM super block */
-	copy(super_block, bp->b_data, sizeof(struct super_block));
+	copy(super_block, bp->b_data, SUPER_SIZE);
 	sp = &super_block[0];
 	if (sp->s_magic != SUPER_MAGIC)
 		panic("Invalid root file system", NO_NUM);

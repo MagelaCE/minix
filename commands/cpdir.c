@@ -15,10 +15,10 @@
   Please report bugs and suggestions to erikb@cs.vu.nl
 */
 
-#include <stdio.h>
 #include <sys/types.h>
-#include <fcntl.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
 
 #define MKDIR1 "/bin/mkdir"
 #define MKDIR2 "/usr/bin/mkdir"
@@ -96,7 +96,7 @@ char *s, *d;
       ||
       (st.st_mode & S_IFMT) != S_IFDIR
 	) {
-	mkdir(d);
+	make_dir(d);
 	if (sflag) similar(sp, d);
   }
   if (first) {
@@ -143,7 +143,7 @@ char *s, *d;
   if (n) fatal("error in reading directory %s", spath);
 }
 
-mkdir(s)
+make_dir(s)
 char *s;
 {
   int pid, status;
@@ -220,7 +220,7 @@ char *s, *d;
 	       sp->st_rdev >> 8, sp->st_rdev & 0177);
 	printf(" Mode = %o.\n", sp->st_mode);
   }
-  if (mknod(d, sp->st_mode, sp->st_rdev) < 0) {
+  if (mknod(d, sp->st_mode, sp->st_rdev, 0) < 0) {
 	perror("mknod");
 	nonfatal("Cannot create special file %s.\n", d);
   }

@@ -1,6 +1,7 @@
 /*
  * Bawk regular expression compiler/interpreter
  */
+#include <ctype.h>
 #include <stdio.h>
 #include "bawk.h"
 

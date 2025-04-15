@@ -8,10 +8,11 @@
 /*	   pa1343@sdcc15.ucsd.edu					*/
 /*-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
-#include <stdio.h>
 #include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
+#include <stdio.h>
+
 main()
 {
   struct passwd *pwd;
@@ -25,21 +26,27 @@ main()
   euid = geteuid();
   egid = getegid();
 
-  if ((pwd = getpwuid(uid)) == 0)
+  if ((pwd = getpwuid(uid)) == (struct passwd *) NULL)
 	printf("%s%d%s", "uid=", uid, " ");
   else
 	printf("%s%d%s%s%s", "uid=", uid, "(", pwd->pw_name, ") ");
-  if ((grp = getgrgid(gid)) == 0)
+
+  if ((grp = getgrgid(gid)) == (struct group *) NULL)
 	printf("%s%d%s", "gid=", gid, " ");
   else
 	printf("%s%d%s%s%s", "gid=", gid, "(", grp->gr_name, ") ");
-  if (((pwd = getpwuid(euid)) != 0) && (uid != euid))
-	printf("%s%d%s%s%s", "euid=", euid, "(", pwd->pw_name, ") ");
-  else if (uid != euid)
-	printf("%s%d%s", "euid=", euid, " ");
-  if (((grp = getgrgid(egid)) != 0) && (gid != egid))
-	printf("%s%d%s%s%s", "egid=", egid, "(", grp->gr_name, ") ");
-  else if (gid != egid)
-	printf("%s%d%s", "egid=", egid, " ");
+
+  if (uid != euid)
+	if ((pwd = getpwuid(euid)) != (struct passwd *) NULL)
+		printf("%s%d%s%s%s", "euid=", euid, "(", pwd->pw_name, ") ");
+	else
+		printf("%s%d%s", "euid=", euid, " ");
+
+  if (gid != egid)
+	if ((grp = getgrgid(egid)) != (struct group *) NULL)
+		printf("%s%d%s%s%s", "egid=", egid, "(", grp->gr_name, ") ");
+	else
+		printf("%s%d%s", "egid=", egid, " ");
+
   printf("\n");
 }

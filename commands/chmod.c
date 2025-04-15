@@ -14,7 +14,6 @@
                          (c=='u')||(c=='g')||(c=='o'))
 
 /* The bits associated with user, group, other */
-
 #define U_MSK   (0700 | S_ISUID)
 #define G_MSK   (0070 | S_ISGID)
 #define O_MSK    0007
@@ -34,15 +33,12 @@ char **argv;
 
   pname = *(argv++);
   if (argc < 3) usage();
-
   arg = *argv;			/* save pointer to mode arg */
 
   /* Check for octal mode */
-
   if (isabsolute = ((*arg >= '0') && (*arg <= '7'))) newmode = absolute();
 
   /* Apply the mode to all files listed */
-
   for (i = 2; i < argc; i++) {
 	argv++;
 	if (stat(*argv, &st)) {	/* get current file mode */
@@ -51,7 +47,6 @@ char **argv;
 	}
 
 	/* Calculate new mode for this file */
-
 	if (!isabsolute) newmode = symbolic(st.st_mode);
 
 	if (chmod(*argv, newmode)) {	/* change the mode */
@@ -63,9 +58,7 @@ char **argv;
 }
 
 
-/* Absolute
- *
- * Interprets an octal mode.
+/* Absolute interprets an octal mode.
  * The file modes will be set to this value.
  */
 bitset absolute()
@@ -77,11 +70,9 @@ bitset absolute()
   s = arg;
 
   /* Convert octal string to integer */
-
   while ((*s >= '0') && (*s <= '7')) m = m * 8 + (*(s++) - '0');
 
   /* If something else is there, choke */
-
   if (*s) badmode(s);
 
   return m;
@@ -145,7 +136,6 @@ bitset mode;
 
 
 	/* Process each given operator */
-
 	while (isop(*s)) {
 		op = *(s++);
 		other = partial = haspcopy = 0;
@@ -203,7 +193,6 @@ bitset mode;
 		}
 
 		/* Apply the op using the affected bits and masks */
-
 		if (u)
 			mode = applyop(mode, op, (other | (partial << 6)), emask, U_MSK);
 		if (g)

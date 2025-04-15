@@ -23,8 +23,8 @@ FORWARD char *get_name();
 PUBLIC struct inode *eat_path(path)
 char *path;			/* the path name to be parsed */
 {
-/* Parse the path 'path' and put its inode in the inode table.  If not
- * possible, return NIL_INODE as function value and an error code in 'err_code'.
+/* Parse the path 'path' and put its inode in the inode table. If not possible,
+ * return NIL_INODE as function value and an error code in 'err_code'.
  */
 
   register struct inode *ldip, *rip;
@@ -66,7 +66,8 @@ char string[NAME_MAX];		/* the final component is returned here */
   /* Is the path absolute or relative?  Initialize 'rip' accordingly. */
   rip = (*path == '/' ? fp->fp_rootdir : fp->fp_workdir);
 
-  if ( rip->i_nlinks == 0 ) {
+  /* If dir has been removed or path is empty, return ENOENT. */
+  if (rip->i_nlinks == 0 || *path == '\0') {
 	err_code = ENOENT;
 	return(NIL_INODE);
   }
@@ -130,7 +131,7 @@ char string[NAME_MAX];		/* component extracted from 'old_name' */
   while (np < &string[NAME_MAX]) *np++ = '\0';
 
   if (rnp >= &old_name[PATH_MAX]) {
-	err_code = ELONGSTRING;
+	err_code = ENAMETOOLONG;
 	return((char *) 0);
   }
   return(rnp);
@@ -195,7 +196,7 @@ char string[NAME_MAX];		/* component name to look for */
    * mounted file system.  The super_block provides the linkage between the
    * inode mounted on and the root directory of the mounted file system.
    */
-  while (rip->i_mount == I_MOUNT) {
+  while (rip && rip->i_mount == I_MOUNT) {
 	/* The inode is indeed mounted on. */
 	for (sp = &super_block[0]; sp < &super_block[NR_SUPERS]; sp++) {
 		if (sp->s_imount == rip) {
@@ -222,31 +223,33 @@ ino_t *numb;			/* pointer to inode number */
 int flag;			/* LOOK_UP, ENTER, or DELETE */
 {
 /* This function searches the directory whose inode is pointed to by 'ldip':
- * if (flag == LOOK_UP) search for 'string' and return inode # in 'numb';
  * if (flag == ENTER)  enter 'string' in the directory with inode # '*numb';
  * if (flag == DELETE) delete 'string' from the directory;
+ * if (flag == LOOK_UP) search for 'string' and return inode # in 'numb';
+ *  	If 'string' is "", return success on any entry except . and ..
  */
 
   register dir_struct *dp;
   register struct buf *bp;
   register struct inode *rip;
-  register int r;
+  int r, e_hit, t, match, huntany;
   mode_t bits;
   off_t pos;
   unsigned new_slots, old_slots;
   block_nr b;
-  int e_hit, t;
 
   /* If 'ldir_ptr' is not a pointer to a searchable dir inode, error. */
   if ( (ldir_ptr->i_mode & I_TYPE) != I_DIRECTORY) return(ENOTDIR);
   bits = (flag == LOOK_UP ? X_BIT : W_BIT|X_BIT);
-  if ( (r = forbidden(ldir_ptr, bits, 0)) != OK)
-	return(r);
+  if ( (r = forbidden(ldir_ptr, bits, 0)) != OK) return(r);
 
   /* Step through the directory one block at a time. */
   old_slots = ldir_ptr->i_size/DIR_ENTRY_SIZE;
   new_slots = 0;
   e_hit = FALSE;
+  match = 0;			/* set when a string match occurs */
+  huntany = (*string == '\0' ? 1 : 0);	/* set iff looking up "" */
+
   for (pos = 0; pos < ldir_ptr->i_size; pos += BLOCK_SIZE) {
 	b = read_map(ldir_ptr, pos);	/* get block number */
 
@@ -259,26 +262,37 @@ int flag;			/* LOOK_UP, ENTER, or DELETE */
 			if (flag == ENTER) e_hit = TRUE;
 			break;
 		}
-		if (flag != ENTER && dp->d_inum != 0
-				&& cmp_string(dp->d_name, string, NAME_MAX)) {
+
+		/* Match occurs if string found; "" matches all exc . and .. */
+		if (flag != ENTER && dp->d_inum != 0) {
+			if (huntany) {
+				/* If this test succeeds, dir is not empty. */
+				if (strcmp(dp->d_name, "." ) != 0 &&
+				    strcmp(dp->d_name, "..") != 0) match = 1;
+			} else {
+				if (strncmp(dp->d_name, string, NAME_MAX) == 0)
+					match = 1;
+			}
+		}
+
+		if (match) {
 			/* LOOK_UP or DELETE found what it wanted. */
 			r = OK;
 			if (flag == DELETE) {
+				/* Save d_inum for recovery. */
 				rip = get_inode(ldir_ptr->i_dev, dp->d_inum);
-				if ((r = forbidden(rip, W_BIT, 0)) == OK) {
-					/* Save d_inum for recovery. */
-					t = NAME_MAX - sizeof(ino_t);
-					*((ino_t *) &dp->d_name[t])=dp->d_inum;
-					dp->d_inum = 0;	/* erase entry */
-					bp->b_dirt = DIRTY;
-					ldir_ptr->i_modtime = clock_time();
-				}
+				t = NAME_MAX - sizeof(ino_t);
+				*((ino_t *) &dp->d_name[t])=dp->d_inum;
+				dp->d_inum = 0;	/* erase entry */
+				bp->b_dirt = DIRTY;
+				ldir_ptr->i_update = MTIME;
 				put_inode(rip);
 			} else
 				*numb = dp->d_inum;	/* 'flag' is LOOK_UP */
 			put_block(bp, DIRECTORY_BLOCK);
 			return(r);
 		}
+
 
 		/* Check for free slot for the benefit of ENTER. */
 		if (flag == ENTER && dp->d_inum == 0) {
@@ -299,7 +313,7 @@ int flag;			/* LOOK_UP, ENTER, or DELETE */
    * extend directory.
    */
   if (e_hit == FALSE) { /* directory is full and no room left in last block */
-	new_slots ++;		/* increase directory size by 1 entry */
+	new_slots++;		/* increase directory size by 1 entry */
 	if (new_slots == 0) return(EFBIG); /* dir size limited by slot count */
 	if ( (bp = new_block(ldir_ptr, ldir_ptr->i_size)) == NIL_BUF)
 		return(err_code);
@@ -311,7 +325,7 @@ int flag;			/* LOOK_UP, ENTER, or DELETE */
   dp->d_inum = *numb;
   bp->b_dirt = DIRTY;
   put_block(bp, DIRECTORY_BLOCK);
-  ldir_ptr->i_modtime = clock_time();
+  ldir_ptr->i_update = MTIME;	/* mark mtime for update later */
   ldir_ptr->i_dirt = DIRTY;
   if (new_slots > old_slots)
 	ldir_ptr->i_size = (off_t) new_slots * DIR_ENTRY_SIZE;

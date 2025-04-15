@@ -35,9 +35,6 @@ install:	$(TARGET)
 #		cp $(MS_MACRO) $(TMACDIR)\$(MS_MACRO)
 #		cp $(ME_MACRO) $(TMACDIR)\$(ME_MACRO)
 
-clean:
-		rm $(OBJS)
-
 clobber:
 		rm $(OBJS)
 		rm $(TARGET)
@@ -56,3 +53,6 @@ strings.o:	strings.c nroff.h
 escape.o:	escape.c nroff.h
 low.o:		low.c nroff.h
 
+
+clean:	
+	@rm -f *.bak *.s nroff

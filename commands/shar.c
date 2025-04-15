@@ -2,8 +2,8 @@
 
 #include <sys/types.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <blocksize.h>
+#include <stdio.h>
 
 #define IO_SIZE		(10 * BLOCK_SIZE)
 

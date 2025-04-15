@@ -35,29 +35,9 @@ char *dirname;
 	stderr3("mkdir: can't access ", parent, "\n");
 	exit(1);
   }
-  if (mknod(dirname, 040777, 0)) {
+  if (mkdir(dirname, 0777)) {
 	stderr3("mkdir: can't create ", dirname, "\n");
 	error++;
-	return;
-  }
-  chown(dirname, getuid(), getgid());
-  strcpy(dots, dirname);
-  strcat(dots, "/.");
-  if (link(dirname, dots)) {
-	stderr3("mkdir: can't link ", dots, " to ");
-	stderr3(dirname, "\n", "");
-	error++;
-	unlink(dirname);
-	return;
-  }
-  strcat(dots, ".");
-  if (link(parent, dots)) {
-	stderr3("mkdir: can't link ", dots, " to ");
-	stderr3(parent, "\n", "");
-	error++;
-	dots[strlen(dots)] = '\0';
-	unlink(dots);
-	unlink(dirname);
 	return;
   }
 }

@@ -17,11 +17,11 @@
  */
 
 
-#include <stdio.h>
 #include <sys/types.h>
-#include <fcntl.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <blocksize.h>
+#include <stdio.h>
 
 char *prog;			/* program name */
 char *optstr = "asl:";		/* -a and -s arguments */

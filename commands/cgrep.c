@@ -40,13 +40,13 @@ dro	890109  Minor mods to compile under Minix
 #endif OS_CPM
 
 #ifdef OS_UNIX
-#include <stdio.h>
-#include <ctype.h>
-
-#include <limits.h>		/* should have this                - dro */
 #include <sys/types.h>
 #include <sys/dir.h>		/* Either here or in sys directory - dro */
+#include <ctype.h>
+#include <limits.h>		/* should have this                - dro */
 #include <regexp.h>		/* should have this                - dro */
+#include <stdlib.h>
+#include <stdio.h>
 #endif OS_UNIX
 
 
@@ -190,7 +190,7 @@ char **argv;			/* Argument values */
 	exit(1);
   }
   if (nf == 0)			/* No files processed ? */
-	dosrch(NULL);		/* Do standard input */
+	dosrch((char *)NULL);		/* Do standard input */
 }
 
  /* Dosrch (ifnm) Perform the search 
@@ -333,7 +333,7 @@ char *line;			/* Line to match */
 #endif	REGEX
 
 #ifdef	REGCMP
-  rtncode = (regexec(Re, line) != NULL);
+  rtncode = (regexec(Re, line, TRUE) != NULL);
 #endif	REGCMP
 
 #ifdef	NOREGEX			/* Have to do menial comparison.. */
@@ -366,6 +366,7 @@ char *line;			/* Line to match */
 
 
 void regerror(s)
+char *s;
 {
   printf("%s\n", s);
   exit(1);

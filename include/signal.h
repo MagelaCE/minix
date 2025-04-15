@@ -6,7 +6,7 @@
 #ifndef _SIGNAL_H
 #define _SIGNAL_H
 
-#define _NSIG             15	/* number of signals used */
+#define _NSIG             16	/* number of signals used */
 
 #define SIGHUP	           1	/* hangup */
 #define SIGINT             2	/* interrupt (DEL) */
@@ -24,7 +24,6 @@
 #define SIGPIPE           13	/* write on a pipe with no one to read it */
 #define SIGALRM           14	/* alarm clock */
 #define SIGTERM           15	/* software termination signal from kill */
-
 #define SIGSTKFLT         16	/* used by kernel to indicate stack fault */
 
 #define SIGEMT             7	/* obsolete */

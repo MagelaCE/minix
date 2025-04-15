@@ -44,10 +44,10 @@
  *	mref -l -d *.h *.c	# no listing or symbols, just cross ref map
  */
 
-#include <stdio.h>
-#include <ctype.h>
 #include <sys/types.h>
+#include <ctype.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 #define LINE_SIZE     512
 #define PHYS_PAGE      66	/* physical page length */
@@ -118,25 +118,27 @@ char *xref_text[] = {
 
 char *list_text[] = {
   ".po .5i\n",
+  ".lg 0\n",
   ".nf\n",
   ".ec `\n",
-  ".vs 12.01p\n",
-  "`f(CW\n",
+  ".ps 10\n",
+  ".vs 12p\n",
+  "`f(lb\n",
   ".nr T `w'0'\n",
   ".ta 8u*`nTu 16u*`nTu 24u*`nTu 32u*`nTu 40u*`nTu 48u*`nTu 56u*`nTu 64u*`nTu 72u*`nTu 80u*`nTu\n",
   ".de Op \n",
   ".bp ``$1\n",
-  ".sp 1.25i\n",
+  ".sp 0.5i\n",
   ".tl '``fR``s10MINIX SOURCE CODE``s0'``s11File: ``$2``s0``fP'``fB``s12``n%%``s0``fP'\n",
   ".sp 1\n",
-  "``f(CW\n",
+  "``f(lb\n",
   "..\n",
   ".de Ep \n",
   ".bp ``$1\n",
-  ".sp 1.25i\n",
+  ".sp 0.5i\n",
   ".tl '``fB``s12``n%%``s0``fP``fR'``s11File: ``$2'``s0``s10MINIX SOURCE CODE``s0``fP'\n",
   ".sp 1\n",
-  "``f(CW\n",
+  "``f(lb\n",
   "..\n",
   (char *) 0
 };
@@ -1020,8 +1022,8 @@ sort_xref()
 	close(1);
 	if (open(TMP_FILE, O_RDONLY) < 0) exit(1);
 	if (creat(SORTED_FILE, 0644) < 0) exit(2);
-	execl("/bin/sort", "sort", 0);
-	execl("/usr/bin/sort", "sort", 0);
+	execl("/bin/sort", "sort", (char *) 0);
+	execl("/usr/bin/sort", "sort", (char *) 0);
 	exit(3);
   }
 }

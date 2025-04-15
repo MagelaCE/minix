@@ -1,126 +1,96 @@
-/* who - tell who is currently logged in	Author: Andy Tanenbaum
- * Modified:
- *	allow usage: who [filename]  to print entire file's contents
- *	fix bug with 8-character login names	(nick@nswitgould.oz)
- */
+/* who - see who is logged in			Author: Terrence W. Holm */
 
-/* Who reads the file /usr/adm/wtmp and prints a list of who is curently
- * logged in.  The format of this file is a sequence of 20-character records,
- * as defined by struct wtmprec below.  There is an implicit assumption that
- * all terminal names are of the form ttyn, where n is a single decimal digit.
+/*
+ *		The user log-in name, terminal port and log-in time
+ *		are displayed for all current users, or restricted
+ *		to the specified <USER>, <DEVICE> or the current user.
+ *
+ * Usage:	who
+ *		who <USER>
+ *		who <DEVICE>
+ *		who am i
+ *
+ * Version:	1.5	01/09/90
+ *
+ * Author:	Terrence W. Holm	June 1988
+ *		revised for UTMP use	Feb 1989
+ *
+ *		Fred van Kempen, October 1989
+ *		Fred van Kempen, December 1989
+ *		Fred van Kempen, January 1990
  */
 
 #include <sys/types.h>
 #include <fcntl.h>
+#include <time.h>
+#include <utmp.h>
 #include <stdio.h>
 
-#define SLOTS   10
-#define WTMPSIZE 8
-#define DIGIT    3
+static char *Version = "@(#) WHO 1.5 (01/09/90)";
 
-char *fn, *wtmpfile = "/usr/adm/wtmp";
-int fromfile = 0;
-char name[WTMPSIZE + 1], line[WTMPSIZE + 1];
+extern char *ttyname();
 
-struct wtmprec {
-  char wt_line[WTMPSIZE];	/* tty name */
-  char wt_name[WTMPSIZE];	/* user id */
-  long wt_time;			/* time */
-} wtmp;
+void usage(void)
+{
+  fprintf(stderr, "Usage: who [USER | DEVICE | am i]\n");
+  exit(-1);
+}
 
-struct wtmprec user[SLOTS];
-extern char *ctime();
 
 main(argc, argv)
 int argc;
 char *argv[];
 {
-  int fd;
+  struct utmp entry;
+  struct tm *tm;
+  char *fmt = "%02.2d:%02.2d:%02.2d";
+  char logstr[16], actstr[16];
+  char *arg, *sp;
+  long login, active;
+  int fd, size, found;
 
-#ifdef noperprintf
-  noperprintf(stdout);		/* yuk */
-#endif
-  name[WTMPSIZE] = line[WTMPSIZE] = 0;
-
-  if (argc == 2) {
-	fromfile = 1;
-	fn = argv[1];
+  switch (argc) {
+	case 1:	
+		arg = NULL;	break;
+	case 2:	
+		arg = argv[1];	break;
+	case 3:
+		if (!strcmp(argv[1], "am") && (!strcmp(argv[2], "i") ||
+				       !strcmp(argv[2], "I")))
+			arg = ttyname(0) + 5;
+		else
+			usage();
+		break;
+	default:
+		usage();
   }
-  fd = open(fromfile ? fn : wtmpfile, O_RDONLY);
-  if (fd < 0) {
-	printf("The file %s cannot be opened.\n", fromfile ? fn : wtmpfile);
-	if (!fromfile)
-		printf("To enable login accounting (required by who),");
-	if (!fromfile) printf("create an empty file with this name.\n");
-	exit(1);
+
+  size = sizeof(struct utmp);
+  found = 0;
+  if ((fd = open(UTMP, O_RDONLY)) < 0) {
+	fprintf(stderr, "%s: user-accouting is not active.\n", argv[0]);
+	exit(0);
   }
-  if (fromfile)
-	readprint(fd);
-  else {
-	readwtmp(fd);
-	printwtmp();
-  }
-}
-
-
-readwtmp(fd)
-int fd;
-{
-/* Read the /usr/adm/wtmp file and build up a log of current users. */
-
-  int i, ttynr;
-
-  while (read(fd, &wtmp, sizeof(wtmp)) == sizeof(wtmp)) {
-	if (strcmp(wtmp.wt_line, "~") == 0) {
-		/* This line means that the system was rebooted. */
-		for (i = 0; i < SLOTS; i++) user[i].wt_line[0] = 0;
-		continue;
+  while (read(fd, &entry, size) == size) {
+	if (entry.ut_type == USER_PROCESS) {
+		if (found == 0) {
+			found++;
+			printf("USER     LINE       TIME     ACTIVE   PID\n");
+		}
+		login = entry.ut_time;
+		tm = localtime(&login);
+		sprintf(logstr, fmt, tm->tm_hour, tm->tm_min, tm->tm_sec);
+		time(&active);
+		active -= login;
+		tm = localtime(&active);
+		sprintf(actstr, fmt, tm->tm_hour, tm->tm_min, tm->tm_sec);
+		printf("%-8.8s %-8.8s %-8.8s  %-8.8s  %d\n",
+		       entry.ut_name, entry.ut_line, logstr,
+		       actstr, entry.ut_pid);
 	}
-	ttynr = wtmp.wt_line[DIGIT] - '0';
-	if (ttynr < 0 || ttynr >= SLOTS) continue;
-	if (wtmp.wt_name[0] == 0) {
-		user[ttynr].wt_line[0] = 0;
-		continue;
-	}
-	user[ttynr] = wtmp;
   }
-}
+  close(fd);
+  if (found == 0) printf("No active users.\n");
 
-printwtmp()
-{
-  struct wtmprec *w;
-  char *p;
-
-  for (w = &user[0]; w < &user[SLOTS]; w++) {
-	if (w->wt_line[0] == 0) continue;
-	padnprint(w);
-  }
-}
-
-readprint(fd)
-int fd;
-{
-  /* Read the who-format file and print all entries. */
-
-  while (read(fd, &wtmp, sizeof(wtmp)) == sizeof(wtmp)) {
-	padnprint(&wtmp);
-  }
-}
-
-padnprint(w)
-struct wtmprec *w;
-{
-  char *p;
-  int i;
-
-  p = w->wt_name;
-  for (i = 0; i < 8 && *p;) name[i++] = *(p++);
-  while (i < 8) name[i++] = ' ';
-  p = w->wt_line;
-  for (i = 0; i < 8 && *p;) line[i++] = *(p++);
-  while (i < 8) line[i++] = ' ';
-  printf("%s %s ", name, line);
-  p = ctime(&w->wt_time);
-  *(p + 16) = 0;
-  printf("%s\n", p);
+  exit(0);
 }

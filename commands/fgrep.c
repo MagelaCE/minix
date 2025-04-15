@@ -1,8 +1,8 @@
 /* fgrep - fast grep			Author: Jan Christiaan van Winkel */
 
-#include <stdio.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 int argc;
 char **argv;

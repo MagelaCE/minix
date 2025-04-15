@@ -70,8 +70,8 @@ EXAMPLES
 
 #include <sys/types.h>
 #include <ctype.h>
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 
 #define MAXPERLINE      78
 #define BUFSIZE         100

@@ -15,8 +15,9 @@
 
 /* #include <sys/ioctl.h>	- the ioctl calls seem to stop input */
 #include <sgtty.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
+
 struct sgttyb old_tty, new_tty;
 
 extern char *tgetstr();		/* termcap getstring capability */

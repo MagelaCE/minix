@@ -27,8 +27,9 @@ ed:	$(OBJS)
   cc -T. -i -o ed $(OBJS)
 */
 
-#include <stdio.h>
 #include <signal.h>
+#include <stdio.h>
+
 /****************************/
 
 /*	tools.h	*/
@@ -142,6 +143,7 @@ extern char *stoupper();
 extern int pr_tok();
 extern int pr_line();
 extern BITMAP *makebitmap();
+void set_buf();
 
 /* Macros */
 #define max(a,b)	((a>b)?a:b)
@@ -1063,7 +1065,7 @@ char **argv;
 {
   int stat, i, doflush;
 
-  setbuf();
+  set_buf();
   doflush = isatty(1);
 
   if (argc > 1 && argv[1][0] == '-' && argv[1][1] == 0) {
@@ -1109,12 +1111,10 @@ char **argv;
 			}
 		}
 	if (stat == EOF) {
-		_cleanup();
 		exit(0);
 	}
 	if (stat == FATAL) {
 		fputs("FATAL ERROR\n", stderr);
-		_cleanup();
 		exit(1);
 	}
 	printf("?\n");
@@ -2049,7 +2049,7 @@ clrbuf()
   del(1, lastln);
 }
 
-void setbuf()
+void set_buf()
 {
   relink(&line0, &line0, &line0, &line0);
   curln = lastln = 0;

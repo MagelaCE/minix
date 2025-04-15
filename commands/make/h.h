@@ -19,9 +19,6 @@
  *
  *************************************************************************/
 
-#include <stdio.h>
-#include <ctype.h>
-
 #ifdef unix
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -60,6 +57,9 @@ struct DOSTIME {short time,date; };     /* time structure of TOS */
 #endif TURBO
 
 #endif tos
+
+#include <ctype.h>
+#include <stdio.h>
 
 #ifdef eon
 #define MNOENT ER_NOTF

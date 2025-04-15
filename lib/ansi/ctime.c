@@ -1,20 +1,16 @@
 #include <lib.h>
-#include <stdio.h>
-#include <sys/types.h>
 #include <time.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define toint(X)	(X - '0')
+#define toint(X)  (X - '0')
 
-PRIVATE char             timebuf[26];
+PRIVATE char      timebuf[26];
 
-PRIVATE char             *day[] =
-                        {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-PRIVATE char             *month[] =
-                        {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+PRIVATE char      *day[]   = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+PRIVATE char      *month[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 void tzset();
 
 char *asctime(time)

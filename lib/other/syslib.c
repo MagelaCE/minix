@@ -5,7 +5,7 @@
 		Messages to systask (special calls)
 ----------------------------------------------------------------------------*/
 
-#ifdef ATARI_ST
+#if (CHIP == M68000)
 PUBLIC void sys_xit(parent, proc, basep, sizep)
 phys_clicks *basep, *sizep;
 #else
@@ -17,7 +17,7 @@ int proc;			/* which proc has exited */
 /* A proc has exited.  Tell the kernel. */
 
   callm1(SYSTASK, SYS_XIT, parent, proc, 0, NIL_PTR, NIL_PTR, NIL_PTR);
-#ifdef ATARI_ST
+#if (CHIP == M68000)
   *basep = (phys_clicks) M.m1_i1;
   *sizep = (phys_clicks) M.m1_i2;
 #endif
@@ -50,7 +50,7 @@ void (*sighandler) ();		/* pointer to signal handler in user space */
 }
 
 
-#ifdef ATARI_ST
+#if (CHIP == M68000)
 PUBLIC void sys_fork(parent, child, pid, shadow)
 #ifdef ALCYON_C_BUG_FIXED
 phys_clicks shadow;		/* memory allocated for shadow */
@@ -66,7 +66,7 @@ int pid;			/* process id assigned by MM */
 {
 /* A proc has forked.  Tell the kernel. */
 
-#ifdef ATARI_ST
+#if (CHIP == M68000)
   callm1(SYSTASK, SYS_FORK, parent, child, pid, (char *) shadow, NIL_PTR, NIL_PTR);
 #else
   callm1(SYSTASK, SYS_FORK, parent, child, pid, NIL_PTR, NIL_PTR, NIL_PTR);
@@ -126,7 +126,7 @@ PUBLIC void sys_abort()
   callm1(SYSTASK, SYS_ABORT, 0, 0, 0, NIL_PTR, NIL_PTR, NIL_PTR);
 }
 
-#ifdef ATARI_ST
+#if (CHIP == M68000)
 PUBLIC void sys_fresh(proc, ptr, dc, basep, sizep)
 int proc;			/* proc whose map is to be changed */
 char *ptr;			/* pointer to new map */

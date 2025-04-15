@@ -1,7 +1,7 @@
 /* prep - prepare file for statistics 	Author: Andy Tanenbaum */
 
-#include <stdio.h>
 #include <ctype.h>
+#include <stdio.h>
 
 #define TROFF_CHAR	'.'	/* troff commands begin with this char */
 #define EOL		'\n'	/* end of line char */

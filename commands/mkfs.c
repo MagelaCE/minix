@@ -16,26 +16,20 @@
 
 #include <sys/types.h>
 #include <limits.h>
-
 #include <minix/config.h>
-#include <sys/types.h>
-#include <limits.h>
 #include <minix/const.h>
 #include <minix/type.h>
 #include "../fs/const.h"
+
 #undef EXTERN
 #define EXTERN			/* get rid of EXTERN by making it null */
 #include "../fs/type.h"
 #include "../fs/super.h"
 
-#ifdef DOS
-#include "/lib/c86/stdio.h"
-#else
-#include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#endif
+#include <stdio.h>
 
 
 #ifndef DOS
@@ -53,7 +47,7 @@
 #define BIN                  2
 #define BINGRP               2
 #define BIT_MAP_SHIFT       13
-#define N_BLOCKS         32752	/* must be multiple of 8 */
+#define N_BLOCKS       0x10000L	/* must be multiple of 8 */
 
 #ifdef DOS
 #  maybedefine O_RDONLY	     4	/* O_RDONLY | BINARY_BIT */
@@ -61,7 +55,10 @@
 #endif
 
 
-int next_zone, next_inode, zone_size, zone_shift = 0, zoff, nrblocks, inode_offset, nrinodes, lct = 1, disk, fd, print = 0, file = 0, override = 0, simple = 0, dflag;
+int next_zone, next_inode, zone_size, zone_shift = 0, zoff;
+unsigned nrblocks;
+int inode_offset, nrinodes, lct = 1, disk, fd, print = 0, file = 0;
+int override = 0, simple = 0, dflag;
 int donttest;			/* skip test if it fits on medium */
 
 long current_time, bin_time;
@@ -82,7 +79,8 @@ main(argc, argv)
 int argc;
 char *argv[];
 {
-  int i, blocks, zones, inodes, mode, usrid, grpid, badusage = 0;
+  int i, mode, usrid, grpid, badusage = 0;
+  unsigned blocks, zones, inodes;
   char *token[MAX_TOKENS], line[LINE_LEN];
   FILE *fopen();
   long time(), ls;
@@ -91,7 +89,7 @@ char *argv[];
 
   /* Get two times, the current time and the mod time of the binary of
    * mkfs itself.  When the -d flag is used, the later time is put into
-   * the i_modtimes of all the files.  This feature is useful when
+   * the i_mtimes of all the files.  This feature is useful when
    * producing a set of file systems, and one wants all the times to be
    * identical. First you set the time of the mkfs binary to what you
    * want, then go. */
@@ -189,19 +187,19 @@ char *argv[];
 	ls = lseek(fd, ((long) blocks - 1L) * BLOCK_SIZE, SEEK_SET);
 	testb[0] = 0x3245;
 	testb[1] = 0x11FF;
-	if (write(fd, testb, BLOCK_SIZE) != BLOCK_SIZE)
+	if (write(fd, (char *) testb, BLOCK_SIZE) != BLOCK_SIZE)
 		pexit("File system is too big for minor device");
 	sync();			/* flush write, so if error next read fails */
 	lseek(fd, ((long) blocks - 1L) * BLOCK_SIZE, SEEK_SET);
 	testb[0] = 0;
 	testb[1] = 0;
-	i = read(fd, testb, BLOCK_SIZE);
+	i = read(fd, (char *) testb, BLOCK_SIZE);
 	if (i != BLOCK_SIZE || testb[0] != 0x3245 || testb[1] != 0x11FF)
 		pexit("File system is too big for minor device");
 	lseek(fd, ((long) blocks - 1L) * BLOCK_SIZE, SEEK_SET);
 	testb[0] = 0;
 	testb[1] = 0;
-	if (write(fd, testb, BLOCK_SIZE) != BLOCK_SIZE)
+	if (write(fd, (char *) testb, BLOCK_SIZE) != BLOCK_SIZE)
 		pexit("File system is too big for minor device");
 	lseek(fd, 0L, SEEK_SET);
   }
@@ -210,7 +208,25 @@ char *argv[];
   /* Make the file-system */
 
   cache_init();
+#if (MACHINE == ATARI)
+  {
+    char block0[BLOCK_SIZE];
+    get_block(0, block0);	
+    /* need to read twice; first time gets an empty block */
+    get_block(0, block0);
+    /* zero parts of the boot block so the disk won't be recognized as
+       a tos disk any more. */
+    block0[0] = block0[1] = 0;	/* branch code to boot code    */
+    strncpy(&block0[2], "MINIX ", 6);
+    block0[16] = 0;		/* number of FATS              */
+    block0[17] = block0[18] = 0;/* number of dir entries       */
+    block0[22] = block0[23] = 0;/* sectors/FAT                 */
+    bzero(&block0[30], 480);	/* boot code                   */
+    put_block(0, block0);	
+  }
+#else
   put_block(0, zero);		/* Write a null boot block. */
+#endif
 
   zone_shift = 0;		/* for future use */
   zones = blocks >> zone_shift;
@@ -236,22 +252,21 @@ char *argv[];
  *===============================================================*/
 
 super(zones, inodes)
-int zones, inodes;
+unsigned zones, inodes;
 {
 
-  unsigned int i, inodeblks, initblks, initzones, nrzones, bs;
-  unsigned int map_size, bit_map_len, b_needed, b_allocated, residual;
+  unsigned int i, inodeblks, initblks, initzones, nrzones;
+  unsigned int bit_map_len, b_needed, b_allocated, residual;
   long zo;
   struct super_block *sup;
   char buf[BLOCK_SIZE], *cp;
 
   sup = (struct super_block *) buf;
 
-  bs = 1 << BIT_MAP_SHIFT;
   sup->s_ninodes = inodes;
   sup->s_nzones = zones;
-  sup->s_imap_blocks = (inodes + bs) / bs;
-  sup->s_zmap_blocks = (zones + bs - 1) / bs;
+  sup->s_imap_blocks = bitmapsize(1 + inodes);
+  sup->s_zmap_blocks = bitmapsize(zones);
   inode_offset = sup->s_imap_blocks + sup->s_zmap_blocks + 2;
   inodeblks = (inodes + INODES_PER_BLOCK - 1) / INODES_PER_BLOCK;
   initblks = inode_offset + inodeblks;
@@ -292,28 +307,57 @@ int zones, inodes;
    * one ignores the maxim:  First make it work, then make it optimal.
    * For both maps, 0 = available, 1 = in use. */
 
-  /* Mark bits beyond end of inodes as allocated.  (Fails if >8192 inodes). */
-  map_size = 1 << BIT_MAP_SHIFT;
+  /* Mark bits beyond end of inodes as allocated. */
   bit_map_len = nrinodes + 1;	/* # bits needed in map */
   residual = bit_map_len % (8 * BLOCK_SIZE);
   if (residual == 0) residual = 8 * BLOCK_SIZE;
-  b_needed = (bit_map_len + map_size - 1) >> BIT_MAP_SHIFT;
+  b_needed = bitmapsize(bit_map_len);
   zone_map += b_needed - 1;	/* if imap > 1, adjust start of zone map */
   insert_bit(INODE_MAP + b_needed - 1, residual, 8 * BLOCK_SIZE - residual);
 
   bit_map_len = nrzones - initzones + 1;	/* # bits needed in map */
   residual = bit_map_len % (8 * BLOCK_SIZE);
   if (residual == 0) residual = 8 * BLOCK_SIZE;
-  b_needed = (bit_map_len + map_size - 1) >> BIT_MAP_SHIFT;
-  b_allocated = (nrzones + map_size - 1) >> BIT_MAP_SHIFT;
+  b_needed = bitmapsize(bit_map_len);
+  b_allocated = bitmapsize(nrzones);
   insert_bit(zone_map + b_needed - 1, residual, 8 * BLOCK_SIZE - residual);
   if (b_needed != b_allocated) {
-	insert_bit(zone_map + b_allocated - 1, 0, map_size);
+	insert_bit(zone_map + b_allocated - 1, 0, 8 * BLOCK_SIZE);
   }
   insert_bit(zone_map, 0, 1);	/* bit zero must always be allocated */
   insert_bit(INODE_MAP, 0, 1);	/* inode zero not used but must be
 				 * allocated */
 
+}
+
+
+
+
+/* The next routine is copied from fsck.c.  Modify some names for consistency.
+ * This sharing should be done better.
+ */
+#define BITMAPSHIFT BIT_MAP_SHIFT
+#define bit_nr unsigned
+
+/* Convert from bit count to a block count. The usual expression
+ *
+ *	(nr_bits + (1 << BITMAPSHIFT) - 1) >> BITMAPSHIFT
+ *
+ * doesn't work because of overflow.
+ *
+ * Other overflow bugs, such as the expression for N_ILIST overflowing when
+ * s_inodes is just over INODES_PER_BLOCK less than the maximum+1, are not
+ * fixed yet, because that number of inodes is silly.
+ */
+int bitmapsize(nr_bits)
+bit_nr nr_bits;
+{
+	int nr_blocks;
+
+	nr_blocks = nr_bits >> BITMAPSHIFT;
+	if ((nr_blocks << BITMAPSHIFT) < nr_bits)
+		++nr_blocks;
+	return(nr_blocks);
 }
 
 
@@ -508,7 +552,7 @@ long bytes, cur_time;
   get_block(b, inode);
   p = &inode[off];
   p->i_size += bytes;
-  p->i_modtime = cur_time;
+  p->i_mtime = cur_time;
   for (i = 0; i < NR_DZONE_NUM; i++)
 	if (p->i_zone[i] == 0) {
 		p->i_zone[i] = z;

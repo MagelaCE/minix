@@ -10,3 +10,7 @@ rz: rz.c rbsb.c zm.c zmodem.h
 sz: sz.c rbsb.c zm.c zmodem.h
 	cc $(CFLAGS) -o sz sz.c
 	chmem =10000 sz
+
+
+clean:	
+	@rm -f *.bak *.s rz sz

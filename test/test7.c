@@ -1,8 +1,10 @@
 /* test 7 */
 
 #include <signal.h>
+#define MAX_ERROR 4
+
 extern int errno;
-int testnr;
+int subtest;
 int errct;
 
 int zilch[5000];
@@ -37,12 +39,13 @@ test70()
 
 
 
-
-
 e(n)
 int n;
 {
-  printf("Subtest %d,  error %d  errno=%d  ", testnr, n, errno);
+  printf("Subtest %d,  error %d  errno=%d  ", subtest, n, errno);
   perror("");
-  errct++;
+  if (errct++ > MAX_ERROR) {
+	printf("Too many errors; test aborted\n");
+	exit(1);
+  }
 }

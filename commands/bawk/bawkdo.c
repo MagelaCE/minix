@@ -331,7 +331,7 @@ primary()
                  * indirection before changing it to an LVALUE.
                  */
                 if ( Stackptr->lvalue )
-                        Stackptr->value.ptrptr = *Stackptr->value.ptrptr;
+                        Stackptr->value.dptr = *Stackptr->value.ptrptr;
                 Stackptr->lvalue = 1;
                 --Stackptr->class;
                 break;
@@ -372,16 +372,15 @@ primary()
                 pushint( Recordcount );
                 getoken();
                 break;
-        case T_FS:
-                Fieldsep[1] = 0;
+        case T_FS:                         /* multiple separators allowed */
                 data.dptr = Fieldsep;
-                push( 0, LVALUE, BYTE, &data );
+                push( 1, ACTUAL, BYTE, &data ); /* string input, not char */
                 getoken();
                 break;
         case T_RS:
-                Recordsep[1] = 0;
+                Recordsep[1] = 0;      /* multiple separators not allowed */
                 data.dptr = Recordsep;
-                push( 0, LVALUE, BYTE, &data );
+                push( 1, ACTUAL, BYTE, &data ); /* string input, not char */
                 getoken();
                 break;
         case T_FILENAME:
@@ -430,7 +429,7 @@ primary()
                 function( index );
                 break;
         case T_VARIABLE:
-                pvar = Value.dptr;
+                pvar = (VARIABLE *)Value.dptr;
                 getoken();
                 /*
                  * it's a plain variable. The way a variable is
@@ -442,7 +441,7 @@ primary()
                  */
                 if ( pvar->vclass && !pvar->vlen )
                         /* it's a pointer */
-                        data.dptr = &pvar->vptr;
+                        data.ptrptr = &pvar->vptr;
                 else
                         /* an array or simple variable */
                         data.dptr = pvar->vptr;
@@ -528,8 +527,8 @@ postincdec()
         /*
          * Post increment/decrement
          */
-        char **pp;
-        int incr;
+        char *p;
+        int i, incr;
 
         incr = Token==T_INCR ? 1 : -1;
         getoken();
@@ -547,9 +546,9 @@ postincdec()
                          *   char *cp;
                          *   cp++ = value;
                          */
-                        pp = *Stackptr->value.ptrptr;
+                        p = *Stackptr->value.ptrptr;
                         *Stackptr->value.ptrptr += incr * Stackptr->size;
-                        Stackptr->value.ptrptr = pp;
+                        Stackptr->value.dptr = p;
                 }
                 else
                 {
@@ -561,11 +560,11 @@ postincdec()
                          * Same reasoning as above.
                          */
                         if ( Stackptr->size == BYTE )
-                                pp = *Stackptr->value.dptr;
+                                i = *Stackptr->value.dptr;
                         else
-                                pp = *Stackptr->value.ptrptr;
+                                i = *(( int * ) Stackptr->value.dptr);
                         *Stackptr->value.ptrptr += incr;
-                        Stackptr->value.ival = pp;
+                        Stackptr->value.ival = i;
                 }
                 Stackptr->lvalue = 0;
         }

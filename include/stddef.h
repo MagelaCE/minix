@@ -3,9 +3,7 @@
 #ifndef _STDDEF_H
 #define _STDDEF_H
 
-#ifndef NULL
-#define NULL   ((void *) 0)
-#endif
+#define NULL	((void *) 0)
 
 /* The final exam will not cover the material present on the next two lines. */
 #define offsetof(T,m)	((size_t) (((char *) &(((T *) 256)->m)) - \

@@ -1,7 +1,7 @@
 /* wc - count lines, words and characters	Author: David Messer */
 
 #include <stdio.h>
-#define isspace(c) (c == ' ' || c == '\t' || c == '\n' || c == '\f' || c == '\r')
+#define isspace(c) (c==' ' || c=='\t' || c=='\n' || c=='\f' || c=='\r')
 
 /*
  *
@@ -77,10 +77,10 @@ char *argv[];
 
   /* Check to see if input comes from std input. */
   if (k >= argc) {
-	count();
-	if (lflag) printf(" %6D", lcount);
-	if (wflag) printf(" %6D", wcount);
-	if (cflag) printf(" %6D", ccount);
+	count(stdin);
+	if (lflag) printf(" %6ld", lcount);
+	if (wflag) printf(" %6ld", wcount);
+	if (cflag) printf(" %6ld", ccount);
 	printf(" \n");
 	fflush(stdout);
 	exit(0);
@@ -88,8 +88,8 @@ char *argv[];
 
   /* There is an explicit list of files.  Loop on files. */
   while (k < argc) {
-	fclose(stdin);
-	if (fopen(argv[k], "r") == NULL) {
+	FILE *f;
+	if ((f = fopen(argv[k], "r")) == NULL) {
 		std_err("wc: cannot open ");
 		std_err(argv[k]);
 		std_err("\n");
@@ -97,26 +97,27 @@ char *argv[];
 		continue;
 	} else {
 		/* Next file has been opened as std input. */
-		count();
-		if (lflag) printf(" %6D", lcount);
-		if (wflag) printf(" %6D", wcount);
-		if (cflag) printf(" %6D", ccount);
+		count(f);
+		if (lflag) printf(" %6ld", lcount);
+		if (wflag) printf(" %6ld", wcount);
+		if (cflag) printf(" %6ld", ccount);
 		printf(" %s\n", argv[k]);
 	}
 	k++;
   }
 
   if (tflag) {
-	if (lflag) printf(" %6D", ltotal);
-	if (wflag) printf(" %6D", wtotal);
-	if (cflag) printf(" %6D", ctotal);
+	if (lflag) printf(" %6ld", ltotal);
+	if (wflag) printf(" %6ld", wtotal);
+	if (cflag) printf(" %6ld", ctotal);
 	printf(" total\n");
   }
   fflush(stdout);
   exit(0);
 }
 
-count()
+count(f)
+FILE *f;
 {
   register int c;
   register int word = 0;
@@ -125,7 +126,7 @@ count()
   wcount = 0;
   ccount = 0L;
 
-  while ((c = getc(stdin)) >= 0) {
+  while ((c = getc(f)) >= 0) {
 	ccount++;
 
 	if (isspace(c)) {

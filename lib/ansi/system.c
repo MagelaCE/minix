@@ -1,16 +1,15 @@
-#include <lib.h>
 /*  system.c
  *
  *  Changed to return() on fork failure, added signal()
  *  calls.          Terrence W. Holm      Oct. 1988
  */
 
-#include <sys/types.h>
-#include <stdio.h>
+#include <lib.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <stdio.h>
 
 int system(cmd)
 _CONST char *cmd;

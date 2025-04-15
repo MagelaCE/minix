@@ -9,15 +9,17 @@
 /****************************************************************/
 
 
+#include <minix/config.h>
 #include <sys/types.h>
-#include <stdio.h>
 #include <unistd.h>
+#include <limits.h>
+#include <stdio.h>
 
 #include <minix/const.h>
 #include <minix/type.h>
-#include <fs/const.h>
-#include <fs/type.h>
-#include <fs/super.h>
+#include "../../fs/const.h"
+#include "../../fs/type.h"
+#include "../../fs/super.h"
 
 #include "de.h"
 
@@ -118,7 +120,7 @@ void Read_Super_Block( s )
   s->inodes = super->s_ninodes;
   s->zones  = super->s_nzones;
 
-  s->inode_maps   = (s->inodes + MAP_BITS_PER_BLOCK) / MAP_BITS_PER_BLOCK;
+  s->inode_maps   = (s->inodes + MAP_BITS_PER_BLOCK - 1) / MAP_BITS_PER_BLOCK;
   s->zone_maps    = (s->zones + MAP_BITS_PER_BLOCK - 1) / MAP_BITS_PER_BLOCK;
 	/*  Note: zone_maps may be too large, but we must calculate  */
 	/*  it this way, because this is the way mkfs(1) does it.    */

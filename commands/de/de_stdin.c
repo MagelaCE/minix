@@ -14,7 +14,7 @@
 #include <signal.h>
 #include <stdio.h>
 
-#include <fs/const.h>
+#include "../../fs/const.h"
 
 #include "de.h"
 

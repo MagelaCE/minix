@@ -43,8 +43,11 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <limits.h>
-#include <stdio.h>
 #include <dirent.h>
+#include <pwd.h>
+#include <grp.h>
+#include <time.h>
+#include <stdio.h>
 
 extern int errno;
 
@@ -204,7 +207,7 @@ char *argv[];
  * point to the next free entry.
  */
 #ifndef NFILE
-#define NFILE		256
+#define NFILE		512
 #endif
 
 struct lsfile {
@@ -287,6 +290,7 @@ struct lsfile *entry;
 
   if ((dirp = opendir(pathname(entry))) == NULL) {
 	fprintf(stderr, "ls: can't open directory %s\n", pathname(entry));
+	perror("ls");
 	return;
   }
   while ((dp = readdir(dirp)) != NULL) {
@@ -397,7 +401,8 @@ char *groupname( 	/* int gid */ );
 /*@ */
 void listall()
 {
-  listfiles(0, filep - files, flags_d);
+  if (!flags_f) sortfiles(0, (int)(filep - files));
+  listfiles(0, (int)(filep - files), flags_d);
 }
 
 /*@ The |listfiles()| function is, effectively, the "heart" of \fIls\fP.
@@ -430,6 +435,8 @@ int include_dirs;
   }
   ostringp = stringp;
 
+  sortfiles(baseindex, lastindex - baseindex); /* sort file names in arg, too*/
+
   for (i = baseindex; i < lastindex; ++i) {
 	if (!(flags_f && baseindex == 0) && (include_dirs
 	     || (sortindex[i]->f_stat.st_mode & S_IFMT) != S_IFDIR))
@@ -461,8 +468,8 @@ int include_dirs;
 		ostringp = stringp;
 
 		add_dir(sortindex[i]);
-		if (!flags_f) sortfiles(ofilep - files, filep - ofilep);
-		listfiles(ofilep - files, filep - files, 1);
+		if (!flags_f) sortfiles((int)(ofilep - files), (int)(filep - ofilep));
+		listfiles((int)(ofilep - files), (int)(filep - files), 1);
 
 		filep = ofilep;
 		stringp = ostringp;
@@ -632,6 +639,7 @@ int nfiles;
   int (*compare) ();
   int comp_atime(), comp_ctime(), comp_mtime(), comp_name();
 
+  if (nfiles < 2) return;
   if (flags_t) {
 	if (flags_u)
 		compare = comp_atime;
@@ -705,9 +713,6 @@ struct lsfile **two;
  * id's to names for the long-format listing. The last id translated
  * is cached.
  */
-#include <pwd.h>
-#include <grp.h>
-
 char *owner(uid)
 int uid;
 {
@@ -747,7 +752,6 @@ int gid;
  * time of day if the time is recent. If it is not, the year is printed
  * instead.
  */
-#include <time.h>
 
 #define LONGAGO	((365L * 86400L) / 2L)	/* about six months */
 

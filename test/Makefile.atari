@@ -1,0 +1,8 @@
+CFLAGS= -D_MINIX -D_POSIX_SOURCE
+
+$f:	$f.o
+	@cc -o $f $f.o
+	@chmem =8192 $f >/dev/null
+
+clean:	
+	@rm -f *.o *.bak

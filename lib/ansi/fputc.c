@@ -1,7 +1,6 @@
 #include <lib.h>
-#include <stdio.h>
-#include <sys/types.h>
 #include <unistd.h>
+#include <stdio.h>
 
 extern void (*__cleanup) ();
 extern void _cleanup();

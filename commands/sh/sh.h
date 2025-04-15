@@ -3,7 +3,7 @@
  * shell
  */
 
-#define	NULL	0
+#define NULL    0
 #define	LINELIM	1000
 #define	NPUSH	8	/* limit to input nesting */
 
@@ -152,8 +152,8 @@ extern	char	*flag;
 extern	char	*null;	/* null value for variable */
 extern	int	intr;	/* interrupt pending */
 
-Extern	char	*trap[_NSIG];
-Extern	char	ourtrap[_NSIG];
+Extern	char	*trap[_NSIG+1];
+Extern	char	ourtrap[_NSIG+1];
 Extern	int	trapset;	/* trap pending */
 
 extern	int	heedint;	/* heed interrupt signals */

@@ -195,8 +195,8 @@ typedef  struct  de_state		/*  State of disk ed.	*/
 
   /*  Information from map blocks  */
 
-  char inode_map[ I_MAP_SLOTS * K ];
-  char zone_map[ ZMAP_SLOTS * K ];
+  int inode_map[ I_MAP_SLOTS * K/2 ];	/* need int so use K/2  */
+  int zone_map[ ZMAP_SLOTS * K/2 ];
 
   /*  Information for current block  */
 

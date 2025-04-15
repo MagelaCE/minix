@@ -4,10 +4,10 @@
  */
 
 #include <lib.h>
-#include <stdio.h>
 #include <pwd.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdio.h>
 
 #ifndef  L_cuserid
 #define  L_cuserid   9

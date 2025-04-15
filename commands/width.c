@@ -62,7 +62,7 @@ char *argv[];
   } else {
 	usage(argv[0]);
   }
-  fclose(out);
+  if (out != NULL) fclose(out);
   exit(0);
 }
 

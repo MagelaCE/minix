@@ -1,222 +1,259 @@
-/*  write(1) - write to a logged-in user	Author: Nick Andrew */
+/* write - write to a logged in user	Authors: N. Andrew and F. van Kempen */
 
-/*  Author: Nick Andrew  (nick@nswitgould.oz)  - Public Domain
- *  Minix version: 1.4a, 30 March 1989
+/*
+ * Usage:	write [-c] [-v] user [tty]
+ *  			-c Read & write one character at a time (cbreak mode)
+ *			-v Verbose
  *
- *  Usage:  write  [flags] user [tty]
- *  flags:	-c	Read & write one character at a time (cbreak mode)
- *		-v	Verbose
+ * Version:	1.5	01/09/90
  *
- * NOTES:
- *	Write requires 1.4a (or higher) libraries, for getopt(), strchr().
+ * NOTES:	Write requires 1.4a (or higher) libraries,
+ *		for getopt(), strchr().
  *
- * BUGS:
- *	Shell escape is not supported when in cbreak mode.
- *	Verbose mode is ineffectual.
+ * Authors:	Nick Andrew  (nick@nswitgould.oz)  - Public Domain
+ *		Fred van Kempen (minixug!waltje@kyber.uucp)
  */
 
 #include <sys/types.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <pwd.h>
 #include <sgtty.h>
 #include <signal.h>
+#include <string.h>
+#include <time.h>
+#include <utmp.h>
+#include <unistd.h>
+#include <stdio.h>
 
-extern long time();
-extern char *ttyname();
-extern struct passwd *getpwnam();
-extern char *getenv();
-extern char *ctime();
-extern int optind;
 
-long now;
+static char *Version = "@(#) WRITE 1.5 (01/09/90)";
 
-int otty, i, wtmpfd;
+int otty;			/* file desc of callee's terminal */
+short int cbreak = 0;		/* are we in CBREAK (-c) mode? */
+short int verbose = 0;		/* are we in VERBOSE (-v) mode? */
+short int writing = 0;		/* is there a connection? */
+char *user = NULL;		/* callee's user name */
+char *tty = NULL;		/* callee's terminal if given */
+char *ourtty = NULL;		/* our terminal name */
+struct sgttyb ttyold, ttynew;	/* our tty controlling structs */
 
-char *user = NULL, *tty = NULL, wtmptty[8], optstring[] = "cv";
-char *ourtty, othertty[16], line[80], ourname[9];
-char *wtmpfile = "/usr/adm/wtmp";
+extern int getopt(), optind;	/* from getopt(3) */
 
-int c, cbreak = 0, verbose = 0, writing = 0;
 
-struct passwd *userptr;
-struct sgttyb ttyold, ttynew;
-
-struct wtmprec {
-  char wt_line[8];
-  char wt_name[8];
-  long wt_time;
-} wtmp;
-
-#define show(var,true,false) \
-  fprintf(stderr,"var:\t%s\n", var ? true : false)
-
-main(argc, argv)
-int argc;
-char *argv[];
+char *finduser()
 {
-  setbuf(stdout, NULL);
+/* Search the UTMP database for the user we want. */
 
-  /* Parse options */
-  while ((c = getopt(argc, argv, optstring)) != EOF) switch (c) {
-	    case 'c':	cbreak = 1;	break;
-	    case 'v':	verbose = 1;	break;
-	    default:	usage();
-	}
+  static char utmptty[16];
+  struct utmp utmp;
+  struct passwd *userptr;
+  char ourname[9];
+  int utmpfd;
 
-  /* Parse user and tty arguments */
-  if (optind < argc) {
-	user = argv[optind++];
-	if (strlen(user) > 8)
-		err("username must be 1 to 8 characters long\n");
-	if (optind < argc) {
-		tty = argv[optind++];
-		if (optind < argc) usage();
-	}
-  } else {
-	usage();
-  }
+  ourtty = ttyname(0);
+  if (ourtty == NULL) ourtty = "/dev/console";
 
-  finduser();			/* find which tty to write onto */
-  settty();			/* setup our terminal */
-  sayhello();			/* print the initial message */
-  writetty();			/* the write loop */
-
-  stty(0, &ttyold);
-  exit(0);
-}
-
-usage()
-{
-  fprintf(stderr, "usage: write [flags] user [tty]\n");
-  fprintf(stderr, "flags: -c == cbreak mode, -v == verbose\n");
-  exit(255);
-}
-
-
-finduser()
-{
-/* Search the accumulated who file for the user we want */
-  ourtty = ttyname();
-  if (ourtty == NULL) ourtty = "/dev/tty0";
-
-  if (user == NULL) exit(1);
+  if (user == NULL) exit(-1);
   if ((userptr = getpwnam(user)) == NULL) {
 	fprintf(stderr, "No such user: %s\n", user);
-	exit(1);
+	return(NULL);
   }
-  fprintf(stderr, "Trying to write to %s\n", userptr->pw_gecos);
+  if (verbose) fprintf(stderr, "Trying to write to %s\n",
+		userptr->pw_gecos);
 
-  if ((wtmpfd = open(wtmpfile, O_RDONLY)) < 0)
-	err("Cannot open wtmp file\n");
+  if ((utmpfd = open(UTMP, O_RDONLY)) < 0) {
+	fprintf(stderr, "Cannot open utmp file\n");
+	return((char *) NULL);
+  }
+  utmptty[0] = '\0';
 
-  wtmptty[0] = '\0';
-  while (read(wtmpfd, &wtmp, sizeof(wtmp)) == sizeof(wtmp)) {
+  /* We want to find if 'user' is logged on, and return in utmptty[]
+   * 'user' `s terminal, and if 'user' is logged onto the tty the
+   * caller specified, return that tty name. */
+  while (read(utmpfd, &utmp, sizeof(utmp)) == sizeof(utmp)) {
+	/* is this the user we are looking for? */
+	if (strcmp(utmp.ut_name, user)) continue;
 
-	/* We want to find if steve is logged on, and return in
-	 * wtmptty[] steve's terminal, and if steve is logged onto
-	 * the tty the user specified, return that tty name */
-
-	/* Reboot, nobody's logged on */
-	if (!strcmp(wtmp.wt_line, "~")) {
-		wtmptty[0] = '\0';
-		continue;
+	/* is he on the terminal we want to write to? */
+	if (tty == NULL || strcmp(utmptty, tty)) {
+		strcpy(utmptty, utmp.ut_line);
+		break;
 	}
-
-	/* We found a tty that steve used, but this is a logoff */
-	if (!strcmp(wtmp.wt_line, wtmptty) && wtmp.wt_name[0] == 0) {
-		wtmptty[0] = '\0';
-		continue;
-	}
-
-	/* Is this steve logging on? */
-	if (strcmp(wtmp.wt_name, user)) continue;
-
-	/* Is he on the terminal we want to write to? */
-	if (tty == NULL || strcmp(wtmptty, tty))	/* not yet apparently */
-		strcpy(wtmptty, wtmp.wt_line);	/* on somewhere */
   }
 
-  if (wtmptty[0] == 0) {
+  if (utmptty[0] == '\0') {
 	fprintf(stderr, "%s is not logged on\n", user);
-	exit(1);
+	return( (char *) NULL);
   }
-  if ((tty != NULL) && strcmp(wtmptty, tty)) {
-	fprintf(stderr, "%s is logged onto %s not %s\n",
-		user, wtmptty, tty);
-	exit(1);
+  if (strcmp(utmptty, tty) && tty != NULL) {
+	fprintf(stderr, "%s is logged onto %s, not %s\n", user, utmptty, tty);
+	return( (char *) NULL);
   }
-  fprintf(stderr, "Writing to %s on %s\n", user, wtmptty);
+  close(utmpfd);
+
+  if (verbose) fprintf(stderr, "Writing to %s on %s\n", user, utmptty);
+  return(utmptty);
 }
 
-err(s)
-char *s;
-{
-  fputs(s, stderr);
-  exit(255);
-}
 
-intr()
+void intr()
 {
-/* The interrupt key has been hit. exit cleanly */
+/* The interrupt key has been hit. exit cleanly. */
+
   signal(SIGINT, SIG_IGN);
   fprintf(stderr, "\nInterrupt. Exiting write\n");
-  stty(0, &ttyold);
+  ioctl(0, TIOCSETP, &ttyold);
   if (writing) write(otty, "\nEOT\n", 5);
   exit(0);
 }
 
 
-settty()
+void settty(utty)
+char *utty;			/* name of terminal found in utmp */
 {
-/* Open other person's terminal and setup our own terminal */
-  sprintf(othertty, "/dev/%s", wtmptty);
-  if ((otty = open(othertty, O_WRONLY)) < 0) {
-	fprintf(stderr, "Cannot open %s to write to %s\n", wtmptty, user);
+/* Open other person's terminal and setup our own terminal. */
+
+  char buff[48];
+
+  sprintf(buff, "/dev/%s", utty);
+  if ((otty = open(buff, O_WRONLY)) < 0) {
+	fprintf(stderr, "Cannot open %s to write to %s\n", utty, user);
 	fprintf(stderr, "It may have write permission turned off\n");
-	exit(1);
+	exit(-1);
   }
-  gtty(0, &ttyold);
-  ttynew = ttyold;
+  ioctl(0, TIOCGETP, &ttyold);
+  ioctl(0, TIOCGETP, &ttynew);
   ttynew.sg_flags |= CBREAK;
   signal(SIGINT, intr);
-  if (cbreak) stty(0, &ttynew);
-}
-
-sayhello()
-{
-  now = time((long *) 0);
-  printf("Message from %s on %s at %s\n",
-         getenv("USER"), ourtty, ctime(&now));
+  if (cbreak) ioctl(0, TIOCSETP, &ttynew);
 }
 
 
-writetty()
+void sayhello()
 {
-/* The write loop */
-  int n;
+  struct passwd *pw;
+  char buff[128];
+  long now;
+  char *sp;
+
+  time(&now);
+
+  pw = getpwuid(getuid());
+  if (pw == NULL) {
+	fprintf(stderr, "unknown user\n");
+	exit(-1);
+  }
+  if ((sp = strrchr(ourtty, '/')) != NULL)
+	++sp;
+  else
+	sp = ourtty;
+
+  sprintf(buff, "\nMessage from %s (%s) %-24.24s...\n",
+	pw->pw_name, sp, ctime(&now));
+
+  write(otty, buff, strlen(buff));
+  printf("\007\007");
+  fflush(stdout);
+}
+
+
+void escape(cmd)
+char *cmd;
+{
+/* Shell escape. */
+
+  register char *x;
+
+  write(1, "!\n", 2);
+  for (x = cmd; *x; ++x)
+	if (*x == '\n') *x = '\0';
+
+  system(cmd);
+  write(1, "!\n", 2);
+}
+
+
+void writetty()
+{
+/* The write loop. */
+
+  char line[80];
+  int n, cb_esc;
 
   writing = 1;
+  cb_esc = 0;
+
   while ((n = read(0, line, 79)) > 0) {
-	if (line[0] == '!' && !cbreak)
-		escape();
-	else
-		write(otty, line, n);
+	if (line[0] == '\004') break;	/* EOT */
+
+	if (cbreak && line[0] == '\n') cb_esc = 1;
+
+	if (line[0] == '!') {
+		if (cbreak && cb_esc) {
+			cb_esc = 0;
+			ioctl(0, TIOCSETP, &ttyold);
+			read(0, line, 79);
+			escape(line);
+			ioctl(0, TIOCSETP, &ttynew);
+		} else if (cbreak)
+			write(otty, line, n);
+		else
+			escape(&line[1]);
+		continue;
+	}
+	write(otty, line, n);
   }
   write(1, "\nEOT\n", 5);
   write(otty, "\nEOT\n", 5);
 }
 
 
-escape()
+void usage()
 {
-/* Shell escape */
+  fprintf(stderr, "usage: write [-c] [-v] user [tty]\n");
+  fprintf(stderr, "\t-c : cbreak mode\n\t-v : verbose\n");
+  exit(-1);
+}
 
-  char *x;
 
-  write(1, "!\n", 2);
-  for (x = line; *x; ++x)
-	if (*x == '\n') *x = 0;
-  system(&line[1]);
-  write(1, "!\n", 2);
+main(argc, argv)
+int argc;
+char *argv[];
+{
+  register int c;
+  char *sp;
+
+  setbuf(stdout, (char *) NULL);
+
+  /* Parse options. */
+  while ((c = getopt(argc, argv, "cv")) != EOF) switch (c) {
+	        case 'c':	cbreak = 1;	break;
+	        case 'v':	verbose = 1;	break;
+	    default:
+		usage();
+	}
+
+  /* Parse user and tty arguments */
+  if (optind < argc) {
+	user = argv[optind++];
+
+	/* WTMP usernames are 1-8 chars */
+	if (strlen(user) > 8) *(user + 8) = '\0';
+
+	if (optind < argc) {
+		tty = argv[optind++];
+		if (optind < argc) usage();
+	}
+  } else
+	usage();
+
+  sp = finduser();		/* find which tty to write onto */
+  if (sp != NULL) {		/* did we find one? */
+	settty(sp);		/* setup our terminal */
+	sayhello();		/* print the initial message */
+	writetty();		/* the write loop */
+	ioctl(0, TIOCSETP, &ttyold);
+	exit(0);
+  }
+  exit(-1);
 }

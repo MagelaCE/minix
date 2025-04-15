@@ -154,6 +154,7 @@ char  *from;
 				*q++ = *rp;
 		else if (!*rp) {
 			*p++ = '$';
+			to->pos++;
 			break;
 		}
 		else

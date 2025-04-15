@@ -1,11 +1,10 @@
 /* which - search paths for executable */
 
-#define DELIMETER ':'
+#define DELIMITER ':'
 
+#include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
-
-char *getenv();
-char *index();
 
 int main(ac, av)
 char **av;
@@ -34,13 +33,13 @@ char **av;
 	cp = path;
 
 	while (1) {
-		cp = index(path, DELIMETER);
+		cp = strchr(path, DELIMITER);
 		if (cp == NULL)
 			quit++;
 		else
 			*cp = '\0';
 
-		if (strcmp(path, "") == (char *) NULL && quit == 0) {
+		if (strcmp(path, "") == 0 && quit == 0) {
 			sprintf(buf, "%s./%s", path, *av);
 		} else
 			sprintf(buf, "%s/%s", path, *av);

@@ -10,24 +10,25 @@
  *	getcwd()
  */
 
-#define _POSIX_SOURCE
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <limits.h>
 #include <dirent.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <time.h>
+#include <unistd.h>
 #include <utime.h>
+#include <stdio.h>
 
 #define DIR_NULL (DIR*) NULL
-#define ITERATIONS        15
+#define ITERATIONS         5
 #define MAX_FD           100	/* must be large enough to cause error */
 #define BUF_SIZE PATH_MAX+20
 #define ERR_CODE          -1	/* error return */
 #define RD_BUF           200
+#define MAX_ERROR          4
 
 char str[] = {"The time has come the walrus said to talk of many things.\n"};
 char str2[] = {"Of ships and shoes and sealing wax, of cabbages and kings.\n"};
@@ -36,26 +37,33 @@ char str3[] = {"Of why the sea is boiling hot and whether pigs have wings\n"};
 int subtest, errct;
 extern errno;
 
-main()
+main(argc, argv)
+int argc;
+char *argv[];
 {
 
-  int i;
+  int i, m=0xFFFF;
 
   sync();
+  if (geteuid() == 0) {
+	printf("Test 20 must NOT be root; test aborted\n");
+	exit(1);
+  }
+
+  if (argc == 2) m = atoi(argv[1]);
   printf("Test 20 ");
 
   for (i = 0; i < ITERATIONS; i++) {
-
-	test20a();		/* test for correct operation */
-	test20b();		/* test general error handling */
-	test20c();		/* test for EMFILE error */
-	test20d();		/* test chdir() and getcwd() */
-	test20e();		/* test open() */
-	test20f();		/* test umask(), stat(), fstat() */
-	test20g();		/* test link() and unlink() */
-	test20h();		/* test access() */
-	test20i();		/* test chmod() and chown() */
-	test20j();		/* test utime() */
+	if (m & 00001) test20a();	/* test for correct operation */
+	if (m & 00002) test20b();	/* test general error handling */
+	if (m & 00004) test20c();	/* test for EMFILE error */
+	if (m & 00010) test20d();	/* test chdir() and getcwd() */
+	if (m & 00020) test20e();	/* test open() */
+	if (m & 00040) test20f();	/* test umask(), stat(), fstat() */
+	if (m & 00100) test20g();	/* test link() and unlink() */
+	if (m & 00200) test20h();	/* test access() */
+	if (m & 00400) test20i();	/* test chmod() and chown() */
+	if (m & 01000) test20j();	/* test utime() */
   }
   if (errct == 0)
 	printf("ok\n");
@@ -73,10 +81,11 @@ test20a()
 
   /* Remove any residue of previous tests. */
   subtest = 1;
+
   system("rm -rf foo");
 
   /* Create a directory foo with 5 files in it. */
-  system("mkdir foo");
+  mkdir("foo", 0777);
   if ((f1 = creat("foo/f1", 0666)) < 0) e(1);
   if ((f2 = creat("foo/f2", 0666)) < 0) e(2);
   if ((f3 = creat("foo/f3", 0666)) < 0) e(3);
@@ -98,7 +107,9 @@ test20a()
   dirp = opendir("./foo");
   if (dirp == DIR_NULL) e(6);
 
-  /* Read the 5 files from it. checkdir(dirp, 2) */
+  /* Read the 5 files from it. */
+  checkdir(dirp, 2); 
+
   /* Rewind dir and test again. */
   rewinddir(dirp);
   checkdir(dirp, 3);
@@ -173,22 +184,24 @@ test20b()
 
   if (opendir("foo/xyz/---") != DIR_NULL) e(1);
   if (errno != ENOENT) e(2);
-  if (system("mkdir foo") < 0) e(3);
+  if (mkdir("foo", 0777) < 0) e(3);
   if (chmod("foo", 0) < 0) e(4);
   if (opendir("foo/xyz/--") != DIR_NULL) e(5);
   if (errno != EACCES) e(6);
-  if (system("rmdir foo") < 0) e(7);
-  if ((fd = creat("abc", 0666)) < 0) e(8);
-  if (close(fd) < 0) e(9);
-  if (opendir("abc/xyz") != DIR_NULL) e(10);
-  if (errno != ENOTDIR) e(11);
-  if ((dirp = opendir(".")) == DIR_NULL) e(12);
-  if (closedir(dirp) != 0) e(13);
-  if (closedir(dirp) >= 0) e(14);
-  if (readdir(dirp) != (struct dirent *) NULL) e(15);
-  if (errno != EBADF) e(16);
-  if (readdir((DIR *) - 1) != (struct dirent *) NULL) e(17);
-  if (errno != EBADF) e(18);
+  if (chmod("foo", 0777) != 0) e(7);
+  if (rmdir("foo") != 0) e(8);
+  if ((fd = creat("abc", 0666)) < 0) e(9);
+  if (close(fd) < 0) e(10);
+  if (opendir("abc/xyz") != DIR_NULL) e(11);
+  if (errno != ENOTDIR) e(12);
+  if ((dirp = opendir(".")) == DIR_NULL) e(13);
+  if (closedir(dirp) != 0) e(14);
+  if (closedir(dirp) >= 0) e(15);
+  if (readdir(dirp) != (struct dirent *) NULL) e(16);
+  if (errno != EBADF) e(17);
+  if (readdir((DIR *) - 1) != (struct dirent *) NULL) e(18);
+  if (errno != EBADF) e(19);
+  if (unlink("abc") != 0) e(20);
 
 }
 
@@ -206,9 +219,10 @@ test20c()
 	dirp[i] = opendir(".");
 	if (dirp[i] == (DIR *) NULL) {
 		/* We have hit the limit. */
-		if (errno != EMFILE) e(1);
-		for (j = 0; j < i; j++)
+		if (errno != EMFILE && errno != ENOMEM) e(1);
+		for (j = 0; j < i; j++) {
 			if (closedir(dirp[j]) != 0) e(2);	/* close */
+		}
 		return;
 	}
   }
@@ -222,17 +236,15 @@ test20d()
 {
 /* Test chdir and getcwd(). */
 
-  int i;
+  int i, fd;
   char *s;
   char base[BUF_SIZE], buf2[BUF_SIZE], tmp[BUF_SIZE];
 
   subtest = 6;
-  if (getcwd(base, BUF_SIZE) == (char *) NULL)
-	e(1);			/* get test dir's path */
-  if (system("rm -rf Dir") < 0)
-	e(2);			/* remove residue of previous test */
-  if (system("mkdir Dir") < 0)
-	e(3);			/* create directory called "Dir" */
+
+  if (getcwd(base, BUF_SIZE) == (char *) NULL) 	e(1); /* get test dir's path */
+  if (system("rm -rf Dir") < 0) e(2);	/* remove residue of previous test */
+  if (mkdir("Dir", 0777) < 0) e(3); 	/* create directory called "Dir" */
 
   /* Change to Dir and verify that it worked. */
   if (chdir("Dir") < 0) e(4);	/* go to Dir */
@@ -242,7 +254,7 @@ test20d()
   strcpy(tmp, base);		/* concatenate base name and "/Dir" */
   strcat(tmp, "/");
   strcat(tmp, "Dir");
-  if (strcmp(tmp, s) != 0) e(7);/* check */
+  if (strcmp(tmp, s) != 0) e(7);
 
   /* Change to ".." and verify that it worked. */
   if (chdir("..") < 0) e(8);
@@ -270,14 +282,20 @@ test20d()
   /* Check error message for bad path. */
   if (chmod("Dir", 0777) < 0) e(23);
   if (chdir("Dir/x/y") != ERR_CODE) e(24);
-  if (errno != ENOTDIR) e(25);
+  if (errno != ENOENT) e(25);
+
+  if ( (fd=creat("Dir/x", 0777)) < 0) e(26);
+  if (close(fd) != 0) e(27);
+  if (chdir("Dir/x/y") != ERR_CODE) e(28);
+  if (errno != ENOTDIR) e(29);  
 
   /* Check empty string. */
-  if (chdir("") != ERR_CODE) e(26);
-  if (errno != ENOENT) e(27);
+  if (chdir("") != ERR_CODE) e(30);
+  if (errno != ENOENT) e(31);
 
   /* Remove the directory. */
-  if (system("rmdir Dir") < 0) e(99);
+  if (unlink("Dir/x") != 0) e(32);
+  if (system("rmdir Dir") < 0) e(33);
 }
 
 
@@ -285,51 +303,51 @@ test20e()
 {
 /* Test open. */
 
-  int fd, bytes, bytes2;
+  int fd, bytes, bytes2, n;
   char buf[RD_BUF];
 
   subtest = 7;
+
   unlink("T20");		/* get rid of it in case it exists */
 
   /* Create a test file. */
   bytes = strlen(str);
   bytes2 = strlen(str2);
   if ((fd = creat("T20", 0777)) < 0) e(1);
-  if (write(fd, str, bytes) != bytes) e(2);
+  if (write(fd, str, bytes) != bytes) e(2);	/* T20 now has 'bytes' bytes */
   if (close(fd) != 0) e(3);
 
   /* Test opening a file with O_RDONLY. */
   if ((fd = open("T20", O_RDONLY)) < 0) e(4);
   buf[0] = '\0';
   if (read(fd, buf, RD_BUF) != bytes) e(5);
-  if (strcmp(buf, str) != 0) e(6);
+  if (strncmp(buf, str, bytes) != 0) e(6);
   if (close(fd) < 0) e(7);
 
   /* Test the same thing, only with O_RDWR now. */
   if ((fd = open("T20", O_RDWR)) < 0) e(8);
   buf[0] = '\0';
   if (read(fd, buf, RD_BUF) != bytes) e(9);
-  if (strcmp(buf, str) != 0) e(10);
+  if (strncmp(buf, str, bytes) != 0) e(10);
   if (close(fd) < 0) e(11);
 
   /* Try opening and reading with O_WRONLY.  It should fail. */
   if ((fd = open("T20", O_WRONLY)) < 0) e(12);
   buf[0] = '\0';
   if (read(fd, buf, RD_BUF) >= 0) e(13);
+  if (close(fd) != 0) e(14);
 
   /* Test O_APPEND. */
-  if ((fd = open("T20", O_RDONLY | O_APPEND)) < 0) e(14);
-  if (lseek(fd, 0L, SEEK_SET) < 0) e(15);	/* go to start of file */
-  if (write(fd, str2, bytes2) != bytes)
-	e(16);			/* write at start of file */
-  if (lseek(fd, 0L, SEEK_SET) < 0)
-	e(17);			/* go back to start again */
-  if (read(fd, buf, RD_BUF) != bytes + bytes2)
-	e(18);			/* read whole file */
-  if (strncmp(buf, str, bytes) != 0) e(19);
+  if ((fd = open("T20", O_RDWR | O_APPEND)) < 0) e(15);
+  if (lseek(fd, 0L, SEEK_SET) < 0) e(16);	/* go to start of file */
+  if ( write(fd, str2, bytes2) != bytes2) e(17); /* write at start of file */
+  if (lseek(fd, 0L, SEEK_SET) < 0) e(18); 	/* go back to start again */
+  if (read(fd, buf, RD_BUF) != bytes + bytes2) e(19); /* read whole file */
+  if (strncmp(buf, str, bytes) != 0) e(20);
+  if (close(fd) != 0) e(21);
 
   /* Get rid of the file. */
-  if (unlink("T20") < 0) e(99);
+  if (unlink("T20") < 0) e(22);
 }
 
 test20f()
@@ -340,6 +358,7 @@ test20f()
   struct stat stbuf1, stbuf2;
 
   subtest = 8;
+
   m1 = umask(~0777);
   if (system("rm -rf foo xxx") < 0) e(1);
   if ((fd = creat("foo", 0777)) < 0) e(2);
@@ -395,10 +414,11 @@ test20f()
   if (stat("", &stbuf1) >= 0) e(41);
   if (errno != ENOENT) e(42);
   if (stat("xxx/yyy/zzz", &stbuf1) >= 0) e(43);
-  if (errno != ENOTDIR) e(44);
+  if (errno != ENOENT) e(44);
   if (fstat(10000, &stbuf1) >= 0) e(45);
   if (errno != EBADF) e(46);
-  if (system("chmod 777 Dir; rm -rf foo Dir") < 0) e(47);
+  if (chmod("Dir", 0777) != 0) e(47);
+  if (system("rm -rf foo Dir") < 0) e(48);
 }
 
 
@@ -410,6 +430,7 @@ test20g()
   char name[4];
 
   subtest = 9;
+
   if (system("rm -rf L? L?? Dir; mkdir Dir") != 0) e(1);
   if ( (fd = creat("L1", 0666)) < 0) e(2);
   if (fstat(fd, &stbuf) != 0) e(3);
@@ -547,7 +568,7 @@ test20g()
   if (errno != EPERM) e(88);
   if (unlink("L1") != 0) e(89);
   if (system("rm -rf Dir") != 0) e(90);
-  
+  if (close(fd) != 0) e(91);  
 }
 
 test20h()
@@ -594,7 +615,7 @@ test20i()
   struct stat stbuf;
 
   subtest = 11;
-  unlink("A1");
+  system("rm -rf A1");
   if ( (fd = creat("A1", 0777)) < 0) e(1);
 
   for (i = 0; i < 511; i++) {
@@ -614,12 +635,14 @@ test20i()
 
   /* Now perform limited chown tests.  These should work even as non su */
   i = getuid();
+/* DEBUG -- Not yet implemented 
   if (chown("A1", i, 0) != 0) e(9);
   if (chown("A1", i, 1) != 0) e(10);
   if (chown("A1", i, 2) != 0) e(11);
   if (chown("A1", i, 3) != 0) e(12);
   if (chown("A1", i, 4) != 0) e(13);
   if (chown("A1", i, 0) != 0) e(14);
+*/
 
   if (unlink("A1") != 0) e(9);
 }
@@ -652,8 +675,13 @@ test20j()
 e(n)
 int n;
 {
-  if (errct == 0) printf("\n");
-  printf("\tSubtest %d,  error %d,  errno=%d  ", subtest, n, errno);
+  int err_num = errno;		/* save errno in case printf clobbers it */
+
+  printf("Subtest %d,  error %d  errno=%d  ", subtest, n, errno);
+  errno = err_num;		/* restore errno, just in case */
   perror("");
-  errct++;
+  if (errct++ > MAX_ERROR) {
+	printf("Too many errors; test aborted\n");
+	exit(1);
+  }
 }

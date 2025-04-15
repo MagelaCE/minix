@@ -2,6 +2,10 @@
 #include <signal.h>
 #include <errno.h>
 #include <setjmp.h>
+#include <stddef.h>
+#include <time.h>
+#include <sys/times.h>
+#undef NULL
 #include "sh.h"
 
 /* -------- exec.c -------- */
@@ -14,7 +18,7 @@
 static	char	*signame[] = {
 	"Signal 0",
 	"Hangup",
-	NULL,	/* interrupt */
+	(char *)NULL,	/* interrupt */
 	"Quit",
 	"Illegal instruction",
 	"Trace/BPT trap",
@@ -25,7 +29,7 @@ static	char	*signame[] = {
 	"Bus error",
 	"Memory fault",
 	"Bad system call",
-	NULL,	/* broken pipe */
+	(char *)NULL,	/* broken pipe */
 	"Alarm clock",
 	"Terminated",
 };
@@ -420,7 +424,7 @@ char *w;
 	register char **wp, *cp;
 
 	if (t == NULL)
-		return(NULL);
+		return((struct op **)NULL);
 	if (t->type == TLIST) {
 		if ((tp = find1case(t->left, w)) != NULL)
 			return(tp);
@@ -430,7 +434,7 @@ char *w;
 	for (wp = t1->words; *wp;)
 		if ((cp = evalstr(*wp++, DOSUB)) && gmatch(w, cp))
 			return(&t1->left);
-	return(NULL);
+	return((struct op **)NULL);
 }
 
 static struct op *
@@ -440,7 +444,7 @@ char *w;
 {
 	register struct op **tp;
 
-	return((tp = find1case(t, w)) != NULL? *tp: NULL);
+	return((tp = find1case(t, w)) != NULL? *tp: (struct op *)NULL);
 }
 
 /*
@@ -508,9 +512,10 @@ int canintr;
 		if (talking) {
 			if (canintr)
 				intr = 0;
-		}
-		else
+		} else {
+			if (exstat == 0) exstat = rv;
 			onintr();
+		}
 	return(rv);
 }
 
@@ -806,7 +811,7 @@ register struct op *t;
 	register int  resetsig;
 
 	if (t->words[1] == NULL) {
-		for (i=0; i<_NSIG; i++)
+		for (i=0; i<=_NSIG; i++)
 			if (trap[i]) {
 				prn(i);
 				prs(": ");
@@ -845,7 +850,7 @@ char *s;
 {
 	register int n;
 
-	if ((n = getn(s)) < 0 || n >= _NSIG) {
+	if ((n = getn(s)) < 0 || n > _NSIG) {
 		err("trap: bad signal number");
 		n = 0;
 	}
@@ -1024,9 +1029,6 @@ register char *s;
 	}
 }
 
-#include <stddef.h>
-#include <time.h>
-#include <sys/times.h>
 
 #define	SECS	60L
 #define	MINS	3600L

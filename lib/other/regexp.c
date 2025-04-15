@@ -1,5 +1,3 @@
-#include <minix/const.h>
-#include <ansi.h>
 /* regcomp and regexec -- regsub and regerror are elsewhere
  *
  *	Copyright (c) 1986 by University of Toronto.
@@ -27,10 +25,11 @@
  *	Andy Tanenbaum also made some changes.
  */
 
-#include <stdio.h>
-#include <regexp.h>
+#include <minix/const.h>
 #include <stdlib.h>
 #include <string.h>
+#include <regexp.h>
+#include <stdio.h>
 
 /* The first byte of the regexp internal "program" is actually this magic
  * number; the start node begins in the second byte.

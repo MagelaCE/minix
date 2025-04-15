@@ -225,6 +225,8 @@ PUBLIC int do_exit()
   /* Release root and working directories. */
   put_inode(fp->fp_rootdir);
   put_inode(fp->fp_workdir);
+  fp->fp_rootdir = NIL_INODE;
+  fp->fp_workdir = NIL_INODE;
 
   return(OK);
 }

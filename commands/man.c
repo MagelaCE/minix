@@ -13,12 +13,13 @@
  * <ar-name>	is a digit, when no digit is used, chapter 1 searched.
  */
 
-#include <stdio.h>
 #include <sys/types.h>
-#include <fcntl.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
+#include <termcap.h>
+#include <stdio.h>
 
 #ifndef INDEX_H
 #define INDEX_H
@@ -699,7 +700,7 @@ static void get_termcap()
 {				/* initialize all needed termcap entries,
 			 * assumes all entries are available. */
   static char entries[100];
-  char *term_buf[1024];
+  char term_buf[1024];
   char *loc = entries;
   static int init_done = 0;
 

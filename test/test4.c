@@ -3,24 +3,27 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdio.h>
 
 int pid0, pid1, pid2, pid3, s;
 int i, fd;
 int nextb;
-char *tmpfile = "test4.temp";
+char *tempfile = "test4.temp";
 char buf[1024];
 
 main()
 {
   int k;
 
-  creat(tmpfile, 0777);
+  creat(tempfile, 0777);
   printf("Test  4 ");
+  fflush(stdout);		/* have to flush for child's benefit */
+
   for (k = 0; k < 20; k++) {
 	subr();
   }
   printf("ok\n");
-  unlink(tmpfile);
+  unlink(tempfile);
 }
 
 
@@ -47,7 +50,7 @@ subr()
 				wait(&s);
 				wait(&s);
 			} else {
-				fd = open(tmpfile, O_RDONLY);
+				fd = open(tempfile, O_RDONLY);
 				lseek(fd, 20480L * nextb, 0);
 				for (i = 0; i < 10; i++) read(fd, buf, 1024);
 				nextb++;

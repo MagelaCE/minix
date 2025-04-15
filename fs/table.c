@@ -6,11 +6,11 @@
 
 #include "fs.h"
 #include <sys/stat.h>
-#include "dev.h"
 
 #include <minix/callnr.h>
 #include <minix/com.h>
 #include "buf.h"
+#include "dev.h"
 #include "file.h"
 #include "fproc.h"
 #include "inode.h"
@@ -57,9 +57,9 @@ PUBLIC int (*call_vector[NCALLS])() = {
 	no_sys,		/* 35 = (ftime)	*/
 	do_sync,	/* 36 = sync	*/
 	no_sys,		/* 37 = kill	*/
-	no_sys,		/* 38 = unused	*/
-	no_sys,		/* 39 = unused	*/
-	no_sys,		/* 40 = unused	*/
+	do_rename,	/* 38 = rename	*/
+	do_mkdir,	/* 39 = mkdir	*/
+	do_unlink,	/* 40 = rmdir	*/
 	do_dup,		/* 41 = dup	*/
 	do_pipe,	/* 42 = pipe	*/
 	do_tims,	/* 43 = times	*/

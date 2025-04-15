@@ -1,19 +1,18 @@
 /* time - time a command	Authors: Andy Tanenbaum & Michiel Huisjes */
 
-#include <minix/config.h>
-#include <minix/const.h>
 #include <sys/types.h>
 #include <sys/times.h>
 #include <limits.h>
 #include <time.h>
 #include <signal.h>
 
+#define HZ CLOCKS_PER_SEC
 
 char **args;
 char *name;
 
 int digit_seen;
-char a[12] = {"        . \n"};
+char a[] = "        .  \n";
 
 main(argc, argv)
 int argc;
@@ -63,17 +62,17 @@ char *mess;
 register long t;
 {
 /* Print the time 't' in hours: minutes: seconds.  't' is in ticks. */
-  int hours, minutes, seconds, tenths, i;
+  int hours, minutes, seconds, hundredths, i;
 
   digit_seen = 0;
   for (i = 0; i < 8; i++) a[i] = ' ';
   hours = (int) (t / (3600L * (long) HZ));
-  t -= (long) hours *3600L * (long) HZ;
+  t -= (long) hours * 3600L * (long) HZ;
   minutes = (int) (t / (60L * (long) HZ));
-  t -= (long) minutes *60L * (long) HZ;
+  t -= (long) minutes * 60L * (long) HZ;
   seconds = (int) (t / (long) HZ);
-  t -= (long) seconds *(long) HZ;
-  tenths = (int) (t / ((long) HZ / 10L));
+  t -= (long) seconds * (long) HZ;
+  hundredths = (int) (t * 100L / (long) HZ);
 
   std_err(mess);
 
@@ -89,7 +88,8 @@ register long t;
 	twin(seconds, &a[6]);
   else
 	a[7] = '0';
-  a[9] = tenths + '0';
+  a[9] = hundredths / 10 + '0';
+  a[10] = hundredths % 10 + '0';
   std_err(a);
 }
 
@@ -106,34 +106,11 @@ char *p;
   if (n > 0) digit_seen = 1;
 }
 
-char *newargs[ARG_MAX >> 2] = {"/bin/sh"};	/* 256 args */
-
 execute()
 {
-  register int i;
-
-  try("");			/* try local directory */
-  try("/bin/");
-  try("/usr/bin/");
-
-  for (i = 0; newargs[i + 1] = args[i]; i++);
-  execv("/bin/sh", newargs);
-  std_err("Cannot execute /bin/sh\n");
-
+  execvp(name, args);
+  std_err("Cannot execute ");
+  std_err(name);
+  std_err("\n");
   exit(-1);
-}
-
-char pathname[200];
-try(path)
-char *path;
-{
-  register char *p1, *p2;
-
-  p1 = path;
-  p2 = pathname;
-  while (*p1 != 0) *p2++ = *p1++;
-  p1 = name;
-  while (*p1 != 0) *p2++ = *p1++;
-  *p2 = 0;
-  execv(pathname, args);
 }

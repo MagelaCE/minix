@@ -4,20 +4,22 @@
  * It can be used, for example, when a project consists of a large number
  * of files and directories.  When a new release (i.e., a new tree) has been
  * prepared, the old and new tree can be compared to give a list of what has
- * changed.  The algorithm used is that the first tree is recursively
+ * changed.  The algorithm used is that the second tree is recursively
  * descended and for each file or directory found, the corresponding one in
  * the other tree checked.  The two arguments are not completely symmetric
- * because the first tree is descended, not the second one, but reversing
+ * because the second tree is descended, not the first one, but reversing
  * the arguments will still detect all the differences, only they will be
  * printed in a different order.  The program needs lots of stack space
  * because routines with local arrays are called recursively. The call is
- *    treecmp [-v] dir1 dir2
+ *    treecmp [-cv] old_dir new_dir
  * The -v flag (verbose) prints the directory names as they are processed.
+ * The -c flag (changes) just prints the names of changed and new files.
  */
 
 #include <sys/types.h>
-#include <fcntl.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
 
 #define BUFSIZE 4096		/* size of file buffers */
 #define MAXPATH 128		/* longest acceptable path */
@@ -33,7 +35,8 @@ struct stat stat1, stat2;	/* stat buffers */
 char buf1[BUFSIZE];		/* used for comparing bufs */
 char buf2[BUFSIZE];		/* used for comparing bufs */
 
-int verbose;			/* set if mode is verbose */
+int changes;			/* set on -c flag */
+int verbose;			/* set on -v flag */
 
 main(argc, argv)
 int argc;
@@ -44,10 +47,15 @@ char *argv[];
   if (argc < 3 || argc > 4) usage();
   p = argv[1];
   if (argc == 4) {
-	if (*p == '-' && *(p + 1) == 'v')
-		verbose++;
-	else
-		usage();
+	if (*p != '-') usage;
+	p++;
+	if (*p == '\0') usage();
+	while (*p) {
+		if (*p == 'c') changes++;
+		if (*p == 'v') verbose++;
+		if (*p != 'c' && *p != 'v') usage();
+		p++;
+	}
   }
   if (argc == 3)
 	compare(argv[1], argv[2]);
@@ -57,8 +65,8 @@ char *argv[];
   exit(0);
 }
 
-compare(f1, f2)
-char *f1, *f2;
+compare(old, new)
+char *old, *new;
 {
 /* This is the main comparision routine.  It gets two path names as arguments
  * and stats them both.  Depending on the results, it calls other routines
@@ -67,12 +75,20 @@ char *f1, *f2;
 
   int type1, type2;
 
-  if (stat(f1, &stat1) < 0) {
-	printf("Cannot stat %s\n", f1);
+  if (stat(new, &stat1) < 0) {
+	/* The new file does not exist. */
+	if (changes == 0)
+		fprintf(stderr, "Cannot stat %s\n", new);
+	else
+		printf("%s\n", new);
 	return;
   }
-  if (stat(f2, &stat2) < 0) {
-	printf("Missing file: %s\n", f2);
+  if (stat(old, &stat2) < 0) {
+	/* The old file does not exist. */
+	if (changes == 0) 
+		fprintf(stderr, "Missing file: %s\n", old);
+	else
+		printf("%s\n", old);
 	return;
   }
 
@@ -80,22 +96,23 @@ char *f1, *f2;
   type1 = stat1.st_mode & S_IFMT;
   type2 = stat2.st_mode & S_IFMT;
   if (type1 != type2) {
-	printf("Type diff: %s and %s\n", f1, f2);
+	fprintf(stderr, "Type diff: %s and %s\n", new, old);
 	return;
   }
 
   /* The types are the same. */
   switch (type1) {
-      case S_IFREG:	regular(f1, f2);	break;
-      case S_IFDIR:	directory(f1, f2);	break;
-      case S_IFCHR:	case S_IFBLK:		break;
-      default:		printf("Unknown file type %o\n", type1);
+      case S_IFREG:	regular(old, new);	break;
+      case S_IFDIR:	directory(old, new);	break;
+      case S_IFCHR:	break;
+      case S_IFBLK:	break;
+      default:		fprintf(stderr, "Unknown file type %o\n", type1);
   }
   return;
 }
 
-regular(f1, f2)
-char *f1, *f2;
+regular(old, new)
+char *old, *new;
 {
 /* Compare to regular files.  If they are different, complain. */
 
@@ -105,19 +122,22 @@ char *f1, *f2;
   char *p1, *p2;
 
   if (stat1.st_size != stat2.st_size) {
-	printf("Size diff: %s and %s\n", f1, f2);
+	if (changes == 0)
+		printf("Size diff: %s and %s\n", new, old);
+	else
+		printf("%s\n", new);
 	return;
   }
 
   /* The sizes are the same.  We actually have to read the files now. */
-  fd1 = open(f1, O_RDONLY);
+  fd1 = open(new, O_RDONLY);
   if (fd1 < 0) {
-	printf("Cannot open %s for reading\n", f1);
+	fprintf(stderr, "Cannot open %s for reading\n", new);
 	return;
   }
-  fd2 = open(f2, O_RDONLY);
+  fd2 = open(old, O_RDONLY);
   if (fd2 < 0) {
-	printf("Cannot open %s for reading\n", f2);
+	fprintf(stderr, "Cannot open %s for reading\n", old);
 	return;
   }
   count = stat1.st_size;
@@ -126,7 +146,10 @@ char *f1, *f2;
 	n1 = read(fd1, buf1, bytes);
 	n2 = read(fd2, buf2, bytes);
 	if (n1 != n2) {
-		printf("Length diff: %s and %s\n", f1, f2);
+		if (changes == 0)
+			printf("Length diff: %s and %s\n", new, old);
+		else
+			printf("%s\n", new);
 		close(fd1);
 		close(fd2);
 		return;
@@ -138,7 +161,10 @@ char *f1, *f2;
 	p2 = buf2;
 	while (i--) {
 		if (*p1++ != *p2++) {
-			printf("File diff: %s and %s\n", f1, f2);
+			if (changes == 0)
+				printf("File diff: %s and %s\n", new, old);
+			else
+				printf("%s\n", new);
 			close(fd1);
 			close(fd2);
 			return;
@@ -150,8 +176,8 @@ char *f1, *f2;
   close(fd2);
 }
 
-directory(f1, f2)
-char *f1, *f2;
+directory(old, new)
+char *old, *new;
 {
 /* Recursively compare two directories by reading them and comparing their
  * contents.  The order of the entries need not be the same.
@@ -168,22 +194,22 @@ char *f1, *f2;
   dir1bytes = (unsigned) stat1.st_size;
   dir1buf = malloc(dir1bytes);
   if (dir1buf == 0) {
-	printf("Cannot process directory %s: out of memory\n", f1);
+	fprintf(stderr, "Cannot process directory %s: out of memory\n", new);
 	return;
   }
   dir2bytes = (unsigned) stat2.st_size;
   dir2buf = malloc(dir2bytes);
   if (dir2buf == 0) {
-	printf("Cannot process directory %s: out of memory\n", f2);
+	fprintf(stderr, "Cannot process directory %s: out of memory\n", old);
 	free(dir1buf);
 	return;
   }
 
   /* Read in the directories. */
-  fd1 = open(f1, O_RDONLY);
+  fd1 = open(new, O_RDONLY);
   if (fd1 > 0) n1 = read(fd1, dir1buf, dir1bytes);
   if (fd1 < 0 || n1 != dir1bytes) {
-	printf("Cannot read directory %s\n", f1);
+	fprintf(stderr, "Cannot read directory %s\n", new);
 	free(dir1buf);
 	free(dir2buf);
 	if (fd1 > 0) close(fd1);
@@ -191,10 +217,10 @@ char *f1, *f2;
   }
   close(fd1);
 
-  fd2 = open(f2, O_RDONLY);
+  fd2 = open(old, O_RDONLY);
   if (fd2 > 0) n2 = read(fd2, dir2buf, dir2bytes);
   if (fd2 < 0 || n2 != dir2bytes) {
-	printf("Cannot read directory %s\n", f2);
+	fprintf(stderr, "Cannot read directory %s\n", old);
 	free(dir1buf);
 	free(dir2buf);
 	close(fd1);
@@ -218,7 +244,7 @@ char *f1, *f2;
 	dp2++;
   }
 
-  if (verbose) printf("Directory %s: %d entries\n", f1, used1);
+  if (verbose) printf("Directory %s: %d entries\n", new, used1);
 
   /* Check to see if any entries in dir2 are missing from dir1. */
   dp1 = (struct dirstruct *) dir1buf;
@@ -229,7 +255,7 @@ char *f1, *f2;
 		dp2++;
 		continue;
 	}
-	check(dp2->fname, dp1, ent1, f1);
+	check(dp2->fname, dp1, ent1, new);
 	dp2++;
   }
 
@@ -241,22 +267,22 @@ char *f1, *f2;
 		dp1++;
 		continue;
 	}
-	if (strlen(f1) + DIRENTLEN >= MAXPATH) {
-		printf("Path too long: %s\n", f1);
+	if (strlen(new) + DIRENTLEN >= MAXPATH) {
+		fprintf(stderr, "Path too long: %s\n", new);
 		free(dir1buf);
 		free(dir2buf);
 		return;
 	}
-	if (strlen(f2) + DIRENTLEN >= MAXPATH) {
-		printf("Path too long: %s\n", f2);
+	if (strlen(old) + DIRENTLEN >= MAXPATH) {
+		fprintf(stderr, "Path too long: %s\n", old);
 		free(dir1buf);
 		free(dir2buf);
 		return;
 	}
-	strcpy(name1buf, f1);
+	strcpy(name1buf, old);
 	strcat(name1buf, "/");
 	strncat(name1buf, dp1->fname, DIRENTLEN);
-	strcpy(name2buf, f2);
+	strcpy(name2buf, new);
 	strcat(name2buf, "/");
 	strncat(name2buf, dp1->fname, DIRENTLEN);
 
@@ -269,11 +295,11 @@ char *f1, *f2;
   free(dir2buf);
 }
 
-check(s, dp1, ent1, f1)
+check(s, dp1, ent1, new)
 char *s;
 struct dirstruct *dp1;
 int ent1;
-char *f1;
+char *new;
 {
 /* See if the file name 's' is present in the directory 'dirbuf'. */
   int i;
@@ -282,11 +308,12 @@ char *f1;
 	if (strncmp(dp1->fname, s, DIRENTLEN) == 0) return;
 	dp1++;
   }
-  printf("Missing file: %s/%s\n", f1, s);
+  if (changes == 0) printf("Missing file: %s/%s\n", new, s);
+	
 }
 
 usage()
 {
-  printf("Usage: treecmp [-v] dir1 dir2\n");
-  exit(0);
+  printf("Usage: treecmp [-cv] old_dir new_dir\n");
+  exit(1);
 }

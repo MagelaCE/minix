@@ -52,13 +52,13 @@
  *	(add you favorite bug here (or two (or three (or ...))))
 */
 
-#include <stdio.h>		/* need NULL */
 #include <sys/types.h>
-#include <fcntl.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <grp.h>
 #include <tar.h>
+#include <stdio.h>		/* need NULL */
 
 #define	POSIX_COMP		/* POSIX compatible */
 #define DIRECT_3		/* use directory(3) routines */
@@ -344,7 +344,7 @@ register char *file;
 			     header.member.m_link, file);
 	return;
       case '5':			/* directory */
-	if (mkdir(file) == 0) {
+	if (make_dir(file) == 0) {
 		do_chown(file);
 		verb_print("created directory", file);
 	}			/* no else: mkdir will print a message if it
@@ -358,7 +358,7 @@ register char *file;
 		dmajor = (int) convert(header.dbuf.devmajor, INT_TYPE);
 		dminor = (int) convert(header.dbuf.devminor, INT_TYPE);
 		mode = (header.dbuf.typeflag == '3' ? S_IFCHR : S_IFBLK);
-		if (mknod(file, mode, (dmajor << 8 | dminor)) == 0) {
+		if (mknod(file, mode, (dmajor << 8 | dminor), 0) == 0) {
 			if (verbose_flag) string_print(NIL_PTR,
 					     "made %s special file major %s minor %s\n",
 				      (header.dbuf.typeflag == '3' ?
@@ -468,7 +468,7 @@ int type;
   return ac;
 }
 
-mkdir(dir_name)
+make_dir(dir_name)
 char *dir_name;
 {
   register int pid, w;

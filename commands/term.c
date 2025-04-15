@@ -27,6 +27,7 @@
  */
 
 #include <sys/types.h>
+#include <minix/config.h>
 #include <fcntl.h>
 #include <sgtty.h>
 #include <signal.h>
@@ -60,7 +61,11 @@ struct sgttyb sgcommfd;		/* saved terminal parameters for commfd */
 struct sgttyb sgstdin;		/* saved terminal parameters for stdin */
 int writepid;			/* pid of child writing commfd */
 
+#if (MACHINE == ATARI)
+char endseq[] = "Ou";	/* sequence to leave simulator */
+#else
 char endseq[] = "\033[G";	/* sequence to leave simulator */
+#endif
  /* Keypad '5', and must arrive in 1 piece */
 struct param_s {
   char *pattern;

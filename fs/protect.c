@@ -129,7 +129,7 @@ int real_uid;			/* set iff real uid to be tested */
 {
 /* Given a pointer to an inode, 'rip', and the access desired, determine
  * if the access is allowed, and if not why not.  The routine looks up the
- * caller's uid_t in the 'fproc' table.  If the access is allowed, OK is returned
+ * caller's uid in the 'fproc' table.  If access is allowed, OK is returned
  * if it is forbidden, EACCES is returned.
  */
 

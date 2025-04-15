@@ -26,8 +26,8 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <stdio.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include <minix/config.h>
 #include <minix/const.h>
@@ -36,6 +36,7 @@
 #include "../fs/type.h"
 #include "../fs/buf.h"
 #include "../fs/super.h"
+
 
 #undef printf			/* Definition used only in the kernel */
 
@@ -136,7 +137,7 @@ char *special_file, *directory;
 	fprintf(stderr, "cannot seek to superblock\n");
 	return;
   }
-  if (read(special, &sb, sizeof(struct super_block))
+  if (read(special, (char *) &sb, sizeof(struct super_block))
       != sizeof(struct super_block)) {
 	fprintf(stderr, "cannot read superblock\n");
 	return;
@@ -487,7 +488,7 @@ d_inode *ip;
 
   chown(name, ip->i_uid, ip->i_gid);	/* Fails if not superuser */
   chmod(name, (ip->i_mode & ALL_MODES));
-  ttime[0] = ttime[1] = ip->i_modtime;
+  ttime[0] = ttime[1] = ip->i_mtime;
   utime(name, ttime);
 }
 
@@ -558,8 +559,8 @@ char *directory;
   int pid, status;
 
   if ((pid = fork()) == 0) {
-	execl("/bin/mkdir", "mkdir", directory, 0);
-	execl("/usr/bin/mkdir", "mkdir", directory, 0);
+	execl("/bin/mkdir", "mkdir", directory, (char *) 0);
+	execl("/usr/bin/mkdir", "mkdir", directory, (char *) 0);
 	exit(1);
   } else if (pid < 0)
 	return(-1);

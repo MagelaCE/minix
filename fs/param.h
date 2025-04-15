@@ -37,7 +37,7 @@
 #define sig	      m.m1_i2
 #define slot1	      m.m1_i1
 #define tp	      m.m2_l1
-#define update_time   m.m2_l2
+#define updated_time  m.m2_l2
 #define utime_file    m.m2_p1
 #define utime_length  m.m2_i1
 #define whence	      m.m2_i2

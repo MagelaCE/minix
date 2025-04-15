@@ -9,10 +9,10 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <pwd.h>
 #include <grp.h>
+#include <stdio.h>
 
 #ifndef TRUE
 #define TRUE  1
@@ -61,7 +61,7 @@ char *argv[];
 	fprintf(stderr, "%s: unknown user\n", name);
 	exit(1);
   }
-  if (!owner && (grp == (struct grp *) 0)) {
+  if (!owner && (grp == (struct group *) 0)) {
 	fprintf(stderr, "%s: unknown group\n", name);
 	exit(1);
   }

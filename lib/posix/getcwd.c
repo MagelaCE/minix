@@ -25,7 +25,7 @@ int size;
   struct stat current, parent, dir_entry;
   struct direct d;
 
-  if (buffer == (char *)NULL || size == 0) {
+  if (buffer == (char *)NULL || size <= 0) {
 	errno = EINVAL;
 	return((char *)NULL);
   }
@@ -59,6 +59,7 @@ int size;
 			strncat(temp_name, d.d_name, NAME_MAX);
 			if (stat(temp_name, &dir_entry) == -1) {
 				close(fd);
+				go_back(path);
 				return((char *)NULL);
 			}
 			if (current.st_dev == dir_entry.st_dev &&
@@ -68,9 +69,13 @@ int size;
 	}
 
 	close(fd);
-	if (!found) return((char *)NULL);
+	if (!found) {
+		go_back(path);
+		return((char *)NULL);
+	}
 	if (strlen(path) + NAME_MAX + 1 > PATH_MAX) {
 		errno = ERANGE;
+		go_back(path);
 		return((char *)NULL);
 	}
 	strcat(path, "/");
@@ -82,6 +87,7 @@ int size;
   /* Copy the reversed path name into <buffer>  */
   if (strlen(path) + 1 > size) {
 	errno = ERANGE;
+	go_back(path);
 	return((char *)NULL);
   }
   if (strlen(path) == 0) {
@@ -94,4 +100,20 @@ int size;
 	*r = '\0';
   }
   return(chdir(buffer) ? (char *)NULL : buffer);
+}
+
+PRIVATE go_back(path)
+char *path;
+{
+/* If getcwd() gets in trouble and can't complete normally, reverse the
+ * path built so far and change there so we end up in the directory that
+ * we started in.
+ */
+
+  char *r;
+
+  while ((r = rindex(path, '/')) != (char *)NULL) {
+	chdir(r+1);
+	*r = '\0';
+  }
 }

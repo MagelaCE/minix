@@ -3,16 +3,18 @@
  * them from the disk.
  *
  * The entry points into this file are
- *   get_inode:	  search inode table for a given inode; if not there, read it
- *   put_inode:	  indicate that an inode is no longer needed in memory
- *   alloc_inode: allocate a new, unused inode
- *   wipe_inode:  erase some fields of a newly allocated inode
- *   free_inode:  mark an inode as available for a new file
- *   rw_inode:	  read a disk block and extract an inode, or corresp. write
- *   dup_inode:	  indicate that someone else is using an inode table entry
+ *   get_inode:	   search inode table for a given inode; if not there, read it
+ *   put_inode:	   indicate that an inode is no longer needed in memory
+ *   alloc_inode:  allocate a new, unused inode
+ *   wipe_inode:   erase some fields of a newly allocated inode
+ *   free_inode:   mark an inode as available for a new file
+ *   update_times: update atime, ctime, and mtime
+ *   rw_inode:	   read a disk block and extract an inode, or corresp. write
+ *   dup_inode:	   indicate that someone else is using an inode table entry
  */
 
 #include "fs.h"
+#include <sys/stat.h>
 #include <minix/boot.h>
 #include "buf.h"
 #include "file.h"
@@ -57,6 +59,7 @@ ino_t numb;			/* inode number */
   xp->i_num = numb;
   xp->i_count = 1;
   if (dev != NO_DEV) rw_inode(xp, READING);	/* get inode from disk */
+  xp->i_update = 0;		/* all the times are initially up-to-date */
 
   return(xp);
 }
@@ -153,7 +156,7 @@ register struct inode *rip;	/* The inode to be erased. */
   register int i;
 
   rip->i_size = 0;
-  rip->i_modtime = clock_time();
+  rip->i_update = MTIME;	/* mark mtime for update later */
   rip->i_dirt = DIRTY;
   for (i = 0; i < NR_ZONE_NUMS; i++)
 	rip->i_zone[i] = NO_ZONE;
@@ -174,6 +177,28 @@ ino_t numb;			/* number of inode to be freed */
   /* Locate the appropriate super_block. */
   sp = get_super(dev);
   free_bit(sp->s_imap, (bit_nr) numb);
+}
+
+/*===========================================================================*
+ *				update_times				     *
+ *===========================================================================*/
+PUBLIC void update_times(rip)
+register struct inode *rip;	/* pointer to inode to be read/written */
+{
+/* Various system calls are required by the standard to update atime, ctime,
+ * or mtime.  Since updating a time requires sending a message to the clock
+ * task--an expensive business--the times are marked for update by setting
+ * bits in i_update.  When a stat, fstat, or sync is done, or an inode is 
+ * released, update_times() may be called to actually fill in the times
+ */
+
+  time_t cur_time;
+
+  cur_time = clock_time();
+  if (rip->i_update & ATIME) rip->i_atime = cur_time;
+  if (rip->i_update & CTIME) rip->i_ctime = cur_time;
+  if (rip->i_update & MTIME) rip->i_mtime = cur_time;
+  rip->i_update = 0;		/* they are all up-to-date now */
 }
 
 
@@ -200,9 +225,10 @@ int rw_flag;			/* READING or WRITING */
 
   /* Do the read or write. */
   if (rw_flag == READING) {
-	copy((char *)rip, (char *)dip, INODE_SIZE); /* copy from blk to inode*/
+	copy((char *)rip, (char *)dip, INODE_SIZE); /* copy to inode*/
   } else {
-	copy((char *)dip, (char *)rip, INODE_SIZE); /* copy from inode to blk*/
+	if (rip->i_update) update_times(rip);	/* times need updating */
+	copy((char *)dip, (char *)rip, INODE_SIZE); /* copy from inode */
 	bp->b_dirt = DIRTY;
   }
 
@@ -223,3 +249,4 @@ struct inode *ip;		/* The inode to be duplicated. */
 
   ip->i_count++;
 }
+

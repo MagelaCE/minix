@@ -1,5 +1,3 @@
-#include <lib.h>
-#include <termcap.h>
 /*
  *	termcap.c	V1.1	20/7/87		agc	Joypace Ltd
  *
@@ -31,18 +29,22 @@
  *   - Allow '#' comments in definition file		 [tgetent]
  */
 
+#include <lib.h>
+#include <termcap.h>
 #include <ctype.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 char *capab = (char *)NULL;		/* the capability itself */
 
+#if 0
 /*  The following are not yet used.  */
 extern short ospeed;		/* output speed */
 extern char PC;			/* padding character */
 extern char *BC;		/* back cursor movement */
 extern char *UP;		/* up cursor movement */
+#endif
 
 /*
  *	tgetent - get the termcap entry for terminal name, and put it

@@ -1,20 +1,63 @@
-.de TH
+.de T0
+.bs
 .m1 1
 .in 0
-.rm 65
-.he |$0 ($1)|$2|$0 ($1)|
-.fo | |-#-| |
+.rm 75
+.he |$0($1)|$2|$0($1)|
+.fo | |-%-| |
 .in 5
-.rm 60
+.rm 70
+..
+.de TH
+.T0 $0 $1 "Minix Manuals"
+..
+.de T1
+.T0 $0 $1 "Minix Commands"
+..
+.de T2
+.T0 $0 $1 "Minix System Calls"
+..
+.de T3
+.T0 $0 $1 "Minix Library Calls"
+..
+.de T4
+.T0 $0 $1 "Minix Special Files"
+..
+.de T5
+.T0 $0 $1 "Minix File Formats"
+..
+.de T6
+.T0 $0 $1 "Minix Games"
+..
+.de T7
+.T0 $0 $1 "Minix Typesetting"
+..
+.de T8
+.T0 $0 $1 "Minix System Maintenance"
 ..
 .de PP
 .sp 1
-.ti +5
+.in 5
 ..
 .de SH
 .sp 1
-.ti -5
+.in 5
+.ti 0
 .bo
-$0
+$0 $1 $2 $3 $4 $5
 .br
+..
+.de B 
+.bo
+$0 $1 $2 $3 $4 $5
+..
+.de I 
+.ul
+$0 $1 $2 $3 $4 $5
+..
+.de TP
+.sp
+.in 13
+.br
+.ti 5
 ..

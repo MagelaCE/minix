@@ -9,7 +9,7 @@
 #ifndef _SETJMP_H
 #define _SETJMP_H
 
-#define _JBLEN 3
+#define _JBLEN 13		/* enough for all machines */
 
 typedef int jmp_buf[_JBLEN];
 

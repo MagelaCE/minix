@@ -1,8 +1,13 @@
 /* test 6 */
 
+#define MAX_ERROR 4
+
 extern char *brk(), *sbrk();
 extern int errno;
+
 int errct;
+int subtest = 1;
+
 main()
 {
   int i;
@@ -16,13 +21,6 @@ main()
   else
 	printf(" %d errors\n", errct);
   exit(0);
-}
-
-e(n)
-int n;
-{
-  printf("\nError %d  ", n);
-  perror("");
 }
 
 
@@ -50,7 +48,7 @@ test60()
 	addr2 = sbrk(0);
   } while (addr2 == addr);
   click = addr2 - addr;
-  sbrk((char *) -1);
+  sbrk(-1);
   if (sbrk(0) != addr) e(4);
   brk(addr);
   if (sbrk(0) != addr) e(5);
@@ -62,7 +60,7 @@ test60()
 	addr3 = sbrk(0);
   } while (addr3 == addr);
   click2 = addr - addr3;
-  sbrk((char *) 1);
+  sbrk(1);
   if (sbrk(0) != addr) e(6);
   brk(addr);
   if (sbrk(0) != addr) e(8);
@@ -74,4 +72,19 @@ test60()
   if (sbrk(0) != addr + 5 * click) e(11);
   sbrk(-5 * click);
   if (sbrk(0) != addr) e(12);
+}
+
+
+e(n)
+int n;
+{
+  int err_num = errno;		/* save errno in case printf clobbers it */
+
+  printf("Subtest %d,  error %d  errno=%d  ", subtest, n, errno);
+  errno = err_num;		/* restore errno, just in case */
+  perror("");
+  if (errct++ > MAX_ERROR) {
+	printf("Too many errors; test aborted\n");
+	exit(1);
+  }
 }

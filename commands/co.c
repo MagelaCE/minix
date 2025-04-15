@@ -1,10 +1,10 @@
 /* co - check out			Author: Peter S. Housel 12/24/87 */
 
-#include <stdio.h>
 #include <sys/types.h>
-#include <string.h>
 #include <sys/stat.h>
+#include <string.h>
 #include <pwd.h>
+#include <stdio.h>
 
 #define SUFFIX		",S"	/* svc indicator */
 #define SVCDIR		"SVC"	/* svc postfix indicator */
@@ -33,8 +33,7 @@ char *base;			/* basename of file */
 
 char difftemp[PATHLEN];		/* extract() fix/patch input */
 
-extern FILE *fopen();
-extern char *mktemp(), *fgets(), *rindex(), *index();
+extern char *mktemp();
 extern struct passwd *getpwuid();
 
 char *whoami(), *basename();
@@ -77,7 +76,7 @@ char **argv;
 
   fprintf(stderr, "%s -> %s\n", svc, base = basename(file));
 
-  if (NULL == (svcfp = fopen(svc, "r"))) {
+  if ((FILE *) NULL == (svcfp = fopen(svc, "r"))) {
 	perror("co: can't read SVC file");
 	exit(1);
   }
@@ -108,7 +107,7 @@ char **argv;
 	if (stat(base, &stb) < 0 || chmod(base, stb.st_mode | 0200) < 0)
 		perror("co: can't chmod source file");
 
-	if (NULL == (svcfp = fopen(svc, "a"))
+	if ((FILE *) NULL == (svcfp = fopen(svc, "a"))
 	    || (fprintf(svcfp, "#***SVCLOCK*** %s %d\n", whoami(), lockrev), ferror(svcfp))) {
 		fprintf(stderr, "co: can't lock %s\n", svc);
 		exit(1);
@@ -137,7 +136,6 @@ char *src, *dst;
 svcname(src, dst)
 char *src, *dst;
 {
-  extern char *rindex();
   char *p;
 
   strcpy(dst, src);
@@ -145,15 +143,15 @@ char *src, *dst;
 
   if (0 != access(dst, 4)) {
 	char dirname[PATHLEN];
-	if (NULL != (p = rindex(src, '/')))
-		strncpy(dirname, src, p - src + 1);
+	if ( (char *) NULL != (p = strrchr(src, '/')))
+		strncpy(dirname, src, (int)(p - src) + 1);
 	else
 		dirname[0] = '\0';
 	strcat(dirname, SVCDIR);
 
 	if (0 == access(dirname, 1)) {
 		strcpy(dst, dirname);
-		if (NULL == p) {
+		if ((char *) NULL == p) {
 			strcat(dst, "/");
 			strcat(dst, src);
 		} else
@@ -177,28 +175,30 @@ int rev;
   fgets(line, LINELEN, svcfp);	/* skip '# rev' line */
   fgets(line, LINELEN, svcfp);	/* skip 'cat <***MAIN-eof***' line */
 
-  if (NULL == (outfp = fopen(out, "w"))) {
+  if ((FILE *) NULL == (outfp = fopen(out, "w"))) {
 	perror("co: can't create output file");
 	return;
   }
-  while (NULL != fgets(line, LINELEN, svcfp) && strcmp(line, "***MAIN-eof***\n"))
+  while ((char *) NULL != fgets(line, LINELEN, svcfp) &&
+	  strcmp(line, "***MAIN-eof***\n"))
 	fputs(line, outfp);
 
   fclose(outfp);
 
-  while (NULL != fgets(line, LINELEN, svcfp)) {
+  while ((char *) NULL != fgets(line, LINELEN, svcfp)) {
 	if (!strncmp(line, "if ", 3)) {
 		sscanf(line, "if test $2 -ge %d", &testrev);
 		if (rev >= testrev) {
 			unlink(difftemp);
 			return;
 		}
-		if (NULL == (outfp = fopen(difftemp, "w"))) {
+		if ((FILE *) NULL == (outfp = fopen(difftemp, "w"))) {
 			perror("co: can't create output file");
 			return;
 		}
 		sprintf(buf, "***%d-eof***\n", testrev);
-		while (NULL != fgets(line, LINELEN, svcfp) && strcmp(line, buf))
+		while ((char *) NULL != fgets(line, LINELEN, svcfp) &&
+							strcmp(line, buf))
 			fputs(line, outfp);
 		fclose(outfp);
 	} else if (!strncmp(line, "mv ", 3)) {
@@ -223,7 +223,7 @@ char *name;
 {
   char *p;
 
-  if (NULL == (p = rindex(name, '/')))
+  if ((char *) NULL == (p = strrchr(name, '/')))
 	return name;
   else
 	return p + 1;
@@ -233,7 +233,7 @@ char *whoami()
 {
   struct passwd *pw;
 
-  if (NULL != (pw = getpwuid(getuid())))
+  if ((struct passwd *) NULL != (pw = getpwuid(getuid())))
 	return pw->pw_name;
   else
 	return "nobody";
@@ -243,5 +243,5 @@ int getyn()
 {
   char ans[10];
 
-  return(NULL != fgets(ans, 10, stdin)) && ('y' == ans[0] || 'Y' == ans[0]);
+  return((char *) NULL != fgets(ans, 10, stdin)) && ('y' == ans[0] || 'Y' == ans[0]);
 }

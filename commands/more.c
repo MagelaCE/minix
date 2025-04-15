@@ -15,7 +15,6 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#define MINIX
 
 /*
 ** more.c - General purpose tty output filter and file perusal program
@@ -30,14 +29,15 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <signal.h>
 #include <sgtty.h>
 #include <setjmp.h>
+#include <stdio.h>
+
 #undef SIGTSTP			/* POSIX requires it to be defined */
 
-#ifndef MINIX
+#ifndef _MINIX
 #include <sys/param.h>
 #include <sys/file.h>
 #endif
@@ -57,9 +57,9 @@ typedef char *va_list;
 #define  vPrintf(fmt,args)	vfPrintf(stdout,fmt,args)
 /* end of varargs.h -------- */
 
-#ifdef MINIX
+#ifdef _MINIX
 #include <limits.h>
-#endif MINIX
+#endif _MINIX
 
 #define HELPFILE	"/usr/lib/more.help"
 #define VI		"/usr/ucb/vi"
@@ -398,10 +398,10 @@ checkf (fs, clearfirst)
 		perror(fs);
 		return((FILE *)NULL);
 	}
-#ifndef MINIX
+#ifndef _MINIX
 	if (magic(f, fs))
 		return((FILE *)NULL);
-#endif !MINIX
+#endif !_MINIX
 	c = Getc(f);
 	*clearfirst = c == '\f';
 	Ungetc (c, f);
@@ -410,7 +410,7 @@ checkf (fs, clearfirst)
 	return(f);
 }
 
-#ifndef MINIX
+#ifndef _MINIX
 /*
  * magic --
  *	check for file magic numbers.  This code would best be shared with
@@ -438,7 +438,7 @@ magic(f, fs)
 	(void)fseek(f, 0L, L_SET);		/* rewind() not necessary */
 	return(0);
 }
-#endif !MINIX
+#endif !_MINIX
 
 /*
 ** A real function, for the tputs routine in termlib
@@ -514,7 +514,7 @@ register int num_lines;
 	Ungetc (c, f);
 	setjmp (restore);
 	Pause = 0; startup = 0;
-	if ((num_lines = command (NULL, f)) == 0)
+	if ((num_lines = command ((char *)NULL, f)) == 0)
 	    return;
 	if (hard && promptlen > 0)
 		erase (0);
@@ -1160,7 +1160,7 @@ register FILE *f;
 	    fflush (stdout);
 	    if (lastp) {
 		write (2,"\r", 1);
-		search (NULL, f, nlines);	/* Use previous r.e. */
+		search ((char *)NULL, f, nlines);	/* Use previous r.e. */
 	    }
 	    else {
 		ttyin (cmdbuf, 78, '/');
@@ -1173,7 +1173,7 @@ register FILE *f;
 	    break;
 	case '?':
 	case 'h':
-	    if ((helpf = fopen (HELPFILE, "r")) == NULL)
+	    if ((helpf = fopen (HELPFILE, "r")) == (FILE *)NULL)
 		error ("Can't open help file");
 	    if (noscroll) doclear ();
 	    copy_file (helpf);
@@ -1187,7 +1187,7 @@ register FILE *f;
 		scanstr (Currline - dlines < 0 ? 0
 				: Currline - (dlines + 1) / 2, &cmdbuf[1]);
 		pr ("vi "); pr (cmdbuf); putchar (' '); pr (fnames[fnum]);
-		execute (filename, VI, "vi", cmdbuf, fnames[fnum], NULL);
+		execute (filename, VI, "vi", cmdbuf, fnames[fnum], (char *)NULL);
 		break;
 	    }
 	default:
@@ -1326,7 +1326,7 @@ char *filename;
 	write (2, "\n", 1);
 	promptlen = 0;
 	shellp = 1;
-	execute (filename, shell, shell, "-c", shell_line, NULL);
+	execute (filename, shell, shell, "-c", shell_line, (char *)NULL);
 }
 
 /*
@@ -1910,13 +1910,13 @@ char *re_comp(str)
 char *str;
 {
  if(str == NULL)
-    return NULL;
+    return((char *)NULL);
 
  if(re_exp != NULL)
     free(re_exp);
 
  if((re_exp = regcomp(str)) != NULL)
-    return NULL;
+    return((char *)NULL);
 
  return re_err != NULL ? re_err : "string didn't compile";
 }

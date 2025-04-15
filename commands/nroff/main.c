@@ -24,7 +24,7 @@
 
 #define NRO_MAIN			/* to define globals in nro.h */
 
-#include <stdio.h>
+
 #ifdef ATARIST
 #include <sys\types.h>
 #include <sys\time.h>
@@ -32,6 +32,9 @@
 #include <sys/types.h>
 #include <time.h>
 #endif
+#undef NULL
+
+#include <stdio.h>
 #include "nroff.h"
 
 

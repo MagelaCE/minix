@@ -2,6 +2,7 @@
 
 #include <sys/types.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 char *name[] = {"t10a", "t10b", "t10c", "t10d", "t10e", "t10f", "t10g", "t10h", "t10i", "t10j"};
 
@@ -15,6 +16,7 @@ main()
   int i, n, pid;
 
   printf("Test 10 ");
+  fflush(stdout);		/* have to flush for child's benefit */
   pid = getpid();
 
   /* Create files t10b ... t10h */

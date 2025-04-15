@@ -1,5 +1,7 @@
 /* test 2 */
 
+#include <stdio.h>
+
 extern errno;
 int kk = 0;
 
@@ -9,6 +11,8 @@ main()
   int i;
 
   printf("Test  2 ");
+  fflush(stdout);		/* have to flush for child's benefit */
+
   for (i = 0; i < 19; i++) {
 	test20();
   }

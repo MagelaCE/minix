@@ -2,8 +2,8 @@
 
 #include <sys/types.h>
 #include <sgtty.h>
-#include <stdio.h>
 #include <pwd.h>
+#include <stdio.h>
 
 main(argc, argv)
 int argc;
@@ -47,7 +47,7 @@ char *argv[];
   setgid(pwd->pw_gid);
   setuid(pwd->pw_uid);
   if (pwd->pw_shell[0]) shell = pwd->pw_shell;
-  execl(shell, shell, "-i", 0);
+  execl(shell, shell, "-i", (char *) 0);
   std_err("No shell\n");
   exit(3);
 }

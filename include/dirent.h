@@ -32,6 +32,7 @@ struct dirent {			/* data from getdents()/readdir() */
 #endif
 
 _PROTOTYPE( int closedir, (DIR *__dirp)					);
+_PROTOTYPE( int getdents, (int fildes, char *buf, unsigned nbyte)	);
 _PROTOTYPE( DIR *opendir, (char *__dirname)				);
 _PROTOTYPE( struct dirent *readdir, (DIR *__dirp)			);
 _PROTOTYPE( void rewinddir, (DIR *__dirp)				);

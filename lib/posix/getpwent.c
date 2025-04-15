@@ -26,13 +26,10 @@ PRIVATE int _pw = -1;
 PRIVATE int _bufcnt;
 PRIVATE struct passwd _pwd;
 
-PRIVATE _PROTOTYPE( void endpwent, (void));
-PRIVATE _PROTOTYPE( int getline, (void));
-PRIVATE _PROTOTYPE( struct passwd *getpwent, (void));
-PRIVATE _PROTOTYPE( int setpwent, (void));
-PRIVATE _PROTOTYPE( void skip_period, (void));
+PRIVATE _PROTOTYPE( int getline, (void)		);
+PRIVATE _PROTOTYPE( void skip_period, (void)	);
 
-PRIVATE int setpwent()
+PUBLIC int setpwent()
 {
   if (_pw >= 0)
 	lseek(_pw, (off_t) 0, SEEK_SET);
@@ -44,7 +41,7 @@ PRIVATE int setpwent()
 }
 
 
-PRIVATE void endpwent()
+PUBLIC void endpwent()
 {
   if (_pw >= 0) close(_pw);
 
@@ -79,7 +76,7 @@ PRIVATE void skip_period()
   *_buf++ = '\0';
 }
 
-PRIVATE struct passwd *getpwent()
+PUBLIC struct passwd *getpwent()
 {
   if (getline() == 0) return((struct passwd *)NULL);
 
@@ -100,7 +97,7 @@ PRIVATE struct passwd *getpwent()
   return(&_pwd);
 }
 
-struct passwd *getpwnam(__name)
+PUBLIC struct passwd *getpwnam(__name)
 char *__name;
 {
   struct passwd *pwd;
@@ -115,7 +112,7 @@ char *__name;
 	return((struct passwd *)NULL);
 }
 
-struct passwd *getpwuid(__uid)
+PUBLIC struct passwd *getpwuid(__uid)
 uid_t __uid;
 {
   struct passwd *pwd;

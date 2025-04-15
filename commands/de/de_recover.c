@@ -10,19 +10,21 @@
 /****************************************************************/
 
 
+#include <minix/config.h>
 #include <sys/types.h>
 #include <sys/dir.h>
-#include <fcntl.h>
-#include <pwd.h>
 #include <sys/stat.h>
-#include <stdio.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <pwd.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include <minix/type.h>
-#include <minix/blocksize.h>
-#include <fs/const.h>
-#include <fs/type.h>
+#include <blocksize.h>
+#include "../../fs/const.h"
+#include "../../fs/type.h"
 
 #include "de.h"
 
@@ -354,7 +356,7 @@ off_t Recover_Blocks( s )
   /*  Only recover files that belonged to the real user.  */
 
   {
-  uid real_uid = getuid();
+  uid_t real_uid = getuid();
   struct passwd *user = getpwuid( real_uid );
 
   if ( real_uid != SU_UID  &&  real_uid != inode->i_uid )
@@ -425,11 +427,11 @@ off_t Recover_Blocks( s )
  */
 
 
-int Indirect( s, block, file_size, double )
+int Indirect( s, block, file_size, dblind )
   de_state *s;
   zone_nr   block;
   off_t    *file_size;
-  int       double;
+  int       dblind;
 
   {
   zone_nr indirect[ NR_INDIRECTS ];
@@ -441,7 +443,7 @@ int Indirect( s, block, file_size, double )
     {
     off_t skip = (off_t) NR_INDIRECTS * K;
 
-    if ( *file_size < skip  ||  double )
+    if ( *file_size < skip  ||  dblind )
       {
       Warning( "File has a hole at the end" );
       return( 0 );
@@ -471,7 +473,7 @@ int Indirect( s, block, file_size, double )
     if ( *file_size == 0 )
 	return( 1 );
 
-    if ( double )
+    if ( dblind )
       {
       if ( ! Indirect( s, indirect[ i ], file_size, 0 ) )
 	return( 0 );

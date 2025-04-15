@@ -22,10 +22,10 @@
  */
 
 #include <ctype.h>
-#include <stdio.h>
 #include <sys/types.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #ifdef UNIX
 #define  WORDS   "/usr/dict/words"

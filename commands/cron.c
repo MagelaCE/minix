@@ -63,12 +63,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <stdio.h>
 #include <signal.h>
 #include <time.h>
 #include <setjmp.h>
 #include <string.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 
 #define CRONTAB "/etc/crontab"
@@ -106,7 +106,7 @@ extern char *malloc();
 main()
 {
   int pid;
-  long clock;
+  time_t clock;
 
   pid = fork();
   if (pid == -1) {
@@ -123,7 +123,7 @@ main()
    * Also, this program has been bloated by using printf.  DEBUG.  FIXME.
    */
   fclose(stdin);
-/*fclose(stdout);*/
+  fclose(stdout);
   fclose(stderr);
 
   /* Release current directory to avoid locking current device. */
@@ -163,7 +163,7 @@ nothing()
 wakeup()
 {
   register struct tm *tm;
-  long cur_time;
+  time_t cur_time;
   extern struct tm *localtime();
   CRONSTRUCT *this_entry = head;
 

@@ -21,7 +21,10 @@ struct passwd {
 #include <ansi.h>
 #endif
 
+_PROTOTYPE( void endpwent, (void)					);
 _PROTOTYPE( struct passwd *getpwnam, (char *__name)			);
-_PROTOTYPE( struct passwd *getpwuid, (int __uid)			);
+_PROTOTYPE( struct passwd *getpwuid, (uit_t __uid)			);
+_PROTOTYPE( struct passwd *getpwent, (void)				);
+_PROTOTYPE( int setpwent, (void)					);
 
 #endif /* _PWD_H */

@@ -46,9 +46,10 @@ int only_search;		/* if NO_READ, don't read, else act normal */
 
   register struct buf *bp, *prev_ptr;
 
-  /* Search the list of blocks not currently in use for (dev, block). */
-  bp = buf_hash[block & (NR_BUF_HASH - 1)];	/* search the hash chain */
+  /* Search the hash chain for (dev, block). */
   if (dev != NO_DEV) {
+	/* ??? DEBUG What if dev == NO_DEV ??? */
+	bp = buf_hash[block & (NR_BUF_HASH - 1)];
 	while (bp != NIL_BUF) {
 		if (bp->b_blocknr == block && bp->b_dev == dev) {
 			/* Block needed has been found. */
@@ -63,13 +64,15 @@ int only_search;		/* if NO_READ, don't read, else act normal */
   }
 
   /* Desired block is not on available chain.  Take oldest block ('front').
-   * However, a block that is already in use (b_count > 0) may not be taken.
+   * However, a block that is already in use (b_count != 0) may not be taken.
    */
   if (bufs_in_use == NR_BUFS) panic("All buffers in use", NR_BUFS);
-  bufs_in_use++;		/* one more buffer in use now */
   bp = front;
-  while (bp->b_count > 0 && bp->b_next != NIL_BUF) bp = bp->b_next;
-  if (bp == NIL_BUF || bp->b_count > 0) panic("No free buffer", NO_NUM);
+  while (bp->b_count != 0) {
+	bp = bp->b_next;
+	if (bp == NIL_BUF) panic("No free buffer", NO_NUM);
+  }
+  bufs_in_use++;		/* one more buffer in use now */
 
   /* Remove the block that was just taken from its hash chain. */
   prev_ptr = buf_hash[bp->b_blocknr & (NR_BUF_HASH - 1)];
@@ -127,7 +130,7 @@ int block_type;			/* INODE_BLOCK, DIRECTORY_BLOCK, or whatever */
 
   /* If block is no longer in use, first remove it from LRU chain. */
   bp->b_count--;		/* there is one use fewer now */
-  if (bp->b_count > 0) return;	/* block is still in use */
+  if (bp->b_count != 0) return;	/* block is still in use */
 
   bufs_in_use--;		/* one fewer block buffers in use */
   next_ptr = bp->b_next;	/* successor on LRU chain */
@@ -302,7 +305,7 @@ dev_t dev;			/* device to flush */
   static struct buf *dirty[NR_BUFS];	/* static so it isn't on stack */
   int ndirty;
 
-  for (bp = &buf[0], ndirty = 0; bp < &buf[NR_BUFS]; ++bp)
+  for (bp = &buf[0], ndirty = 0; bp < &buf[NR_BUFS]; bp++)
 	if (bp->b_dirt == DIRTY && bp->b_dev == dev) dirty[ndirty++] = bp;
   rw_scattered(dev, dirty, ndirty, WRITING);
 }
@@ -340,7 +343,7 @@ int rw_flag;			/* READING or WRITING */
   while (gap <= bufqsize);
   while (gap != 1) {
 	gap /= 3;
-	for (j = gap; j < bufqsize; ++j) {
+	for (j = gap; j < bufqsize; j++) {
 		for (i = j - gap;
 		     i >= 0 && bufq[i]->b_blocknr > bufq[i + gap]->b_blocknr;
 		     i -= gap) {
@@ -353,7 +356,7 @@ int rw_flag;			/* READING or WRITING */
 
 #if HAVE_SCATTERED_IO
   /* Set up i/o vector and do i/o. */
-  for (i = 0, iop = iovec; i < bufqsize; ++i, ++iop) {
+  for (i = 0, iop = iovec; i < bufqsize; i++, iop++) {
 	bp = bufq[i];
 	iop->io_position = (off_t) bp->b_blocknr * BLOCK_SIZE;
 	iop->io_buf = bp->b_data;
@@ -364,7 +367,7 @@ int rw_flag;			/* READING or WRITING */
   dev_io(SCATTERED_IO, 0, dev, (off_t) 0, bufqsize, FS_PROC_NR, (char *)iovec);
 
   /* Harvest the results.  Leave read errors for rw_block() to complain. */
-  for (i = 0, iop = iovec; i < bufqsize; ++i, ++iop) {
+  for (i = 0, iop = iovec; i < bufqsize; i++, iop++) {
 	bp = bufq[i];
 	if (rw_flag == READING) {
 	    if (iop->io_nbytes == 0)
@@ -380,7 +383,7 @@ int rw_flag;			/* READING or WRITING */
 	}
   }
 #else				/* temporary version for old drivers */
-  for (i = 0; i < bufqsize; ++i) {
+  for (i = 0; i < bufqsize; i++) {
 	bp = bufq[i];
 	bp->b_dev = dev;
 	rw_block(bp, rw_flag);

@@ -32,6 +32,9 @@
 #define ACCESS	          33 
 #define SYNC	          36 
 #define KILL	          37
+#define RENAME            38
+#define MKDIR             39
+#define RMDIR             40
 #define DUP	          41 
 #define PIPE	          42 
 #define TIMES	          43

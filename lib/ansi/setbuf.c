@@ -1,6 +1,6 @@
 #include <lib.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 void setbuf(iop, buffer)
 FILE *iop;
