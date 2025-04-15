@@ -159,15 +159,21 @@ got_base:
   mm_out.POSITION = (phys_bytes) ram_base * CLICK_SIZE;	/* tell FS where */
 
   /* Print memory information. */
+#if (MACHINE == MACINTOSH)
+  /* Mac memory does not start at zero, so adjust the numbers */
+  mem1 = click_to_round_k(minix_clicks-start_click()+ram_clicks+mem_left());  
+  mem2 = click_to_round_k(minix_clicks-start_click());
+#else
   mem1 = click_to_round_k(minix_clicks + ram_clicks + mem_left());  
   mem2 = click_to_round_k(minix_clicks);
+#endif
   mem3 = click_to_round_k(ram_clicks);
 #if (CHIP == INTEL)
   printf("%c[H%c[J",033, 033);	/* go to top of screen and clear screen */
 #endif
-  printf("Memory size = %3dK     ", mem1);
+  printf("Memory size = %4dK     ", mem1);
   printf("MINIX = %3dK     ", mem2);
-  printf("RAM disk = %3dK     ", mem3);
+  printf("RAM disk = %4dK     ", mem3);
   printf("Available = %dK\n\n", mem1 - mem2 - mem3);
   if (mem1 - mem2 - mem3 < 32) {
 	printf("\nNot enough memory to run MINIX\n\n", NO_NUM);
@@ -181,7 +187,7 @@ got_base:
   rmp->mp_seg[D].mem_phys = init_org + init_text_clicks;
   rmp->mp_seg[D].mem_len  = init_data_clicks;
   rmp->mp_seg[S].mem_phys = init_org + init_clicks;
-#if (MACHINE == ATARI)
+#if (CHIP == M68000)
   rmp->mp_seg[T].mem_vir  = rmp->mp_seg[T].mem_phys;
   rmp->mp_seg[D].mem_vir  = rmp->mp_seg[D].mem_phys;
   rmp->mp_seg[S].mem_vir  = rmp->mp_seg[S].mem_phys;

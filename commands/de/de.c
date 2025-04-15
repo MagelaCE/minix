@@ -489,7 +489,8 @@ int Process( s, c )
     case 'G' :				/*  Goto block indirect	*/
 
 		{
-		unsigned block = *( (unsigned *) &s->buffer[ s->offset ] );
+		unsigned block = *( (unsigned short *)
+				    &s->buffer[ s->offset ] );
 
 		if ( s->mode != WORD )
 		  {
@@ -1187,13 +1188,23 @@ int Str_Int( str, result )
 /****************************************************************/
 
 
+#if (CHIP == M68000)
 int In_Use( bit, map )
-  unsigned int bit;
+  int bit;
   int *map;
 
   {
-  return( map[bit >> 4] & (1 << (bit & 0xF)) );
+  return( map[(unsigned) bit >> 4] & (1 << (bit & 0xF)) );
   }
+#else
+int In_Use( bit, map )
+  int bit;
+  char *map;
+
+  {
+  return( map[(unsigned) bit >> 3] & (1 << (bit & 07)) );
+  }
+#endif
 
 
 
@@ -1336,7 +1347,7 @@ void Sigint()
 
 /****************************************************************/
 /*								*/
-/*	Error( message, arg1, arg2 )				*/
+/*	Error( text, arg1, arg2 )				*/
 /*								*/
 /*		Print an error message on stderr.		*/
 /*								*/

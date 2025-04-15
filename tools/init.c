@@ -364,7 +364,7 @@ int lineno;			/* slot number in UTMP */
   strncpy(utmp.ut_line, sp, sizeof(utmp.ut_line));
   utmp.ut_pid = pid;
   utmp.ut_type = type;
-  utmp.ut_time = time(0);
+  utmp.ut_time = time((time_t *)0);
 
   if ((fd = open(WTMP, O_WRONLY)) < 0) return;
   if (lseek(fd, 0L, SEEK_END) >= 0L) write(fd, &utmp, sizeof(struct utmp));
@@ -383,15 +383,22 @@ char *sbrk(incr)
 int incr;
 {
 /* One-off sbrk to allocate memory for execle.  The stack and heap are not set
- * up right for the library sbrk.  This should only be called once, so can be
- * very simple.
+ * up right for the library sbrk.
  */
 
   static void *some_memory[64];	/* (void *) to align it */
-  static int used_before;
+  register char *new_brk;
+  static char *old_brk = (char *) some_memory;
+  register char *result;
 
-  if (used_before || incr < 0 || incr > sizeof some_memory)
-	return((char *)-1);
-  used_before = 1;
-  return((char *) some_memory);
+  /* Overflow of the next expression will be caught by the next test without
+   * an explicit check, because sizeof (some_memory) < INT_MAX.
+   */
+  new_brk = old_brk + incr;
+  if (new_brk > (char *) some_memory + sizeof (some_memory) ||
+      new_brk < (char *) some_memory)
+	return((char *) -1);
+  result = old_brk;
+  old_brk = new_brk;
+  return(result);
 }

@@ -9,30 +9,9 @@
 #include "../fs/const.h"
 #include "../fs/type.h"
 
-#undef printf			/* defined as printk in <minix/const.h> */
-
 #include <stdio.h>
-#undef printf			/* just in case <stdio.h> defined it too */
 
-#define printf myprintf		/* avoid type conflict with local version */
-
-/* Fsck is the file system checker.  It knows about the disk geometry.
- * It is permitted to specify e.g. -DHEADS=9 or -DRLL
- */
-
-/* The number of heads/cylinder can be set by -DHEADS=<value>; default is 4 */
-#ifndef HEADS
-#define HEADS             4	/* default # heads per cylinder */
-#endif
-
-/* RLL Disks have 25 sectors per track, so use TRACKSIZE = 25. */
-#ifdef RLL
-#define TRACKSIZE        25	/* RLL disks have 25 sectors/track */
-#else
-#define TRACKSIZE        17	/* normal (MFM) disks have 17 sectors/track */
-#endif
-
-#define CYLSIZE (HEADS*TRACKSIZE)	/* # sectors per cylinder */
+#undef printf
 
 #if INTEL_32BITS
 #define BITSHIFT	  5	/* = log2(#bits(int)) */
@@ -63,9 +42,6 @@
 #define clrbit(w, b)	(w[(b) >> BITSHIFT] &= ~(1 << ((b) & BITMASK)))
 #define bitset(w, b)	(w[(b) >> BITSHIFT] & (1 << ((b) & BITMASK)))
 
-int drive, partition, cylsiz, tracksiz;
-int virgin = 1;			/* MUST be initialized to put it in data seg */
-int floptrk = 9;		/* MUST be initialized to put it in data seg */
 int zone_ct = 360;
 int inode_ct = 95;
 
@@ -122,8 +98,7 @@ unsigned *imap, *spec_imap;	/* inode bit maps */
 unsigned *zmap, *spec_zmap;	/* zone bit maps */
 unsigned *dirmap;		/* directory (inode) bit map */
 char *rwbuf;			/* one block buffer cache */
-char rwbuf1[BLOCK_SIZE];	/* in case of a DMA-overrun under DOS .. */
-char rwbuf2[BLOCK_SIZE];	/* .. an other buffer can be used */
+char rwbuf1[BLOCK_SIZE];	/* buffer */
 char nullbuf[BLOCK_SIZE];	/* null buffer */
 nlink_t *count;			/* inode count */
 dir_struct nulldir;		/* empty directory entry */
@@ -159,133 +134,6 @@ union types {
   long *u_long;			/* %ld */
   char **u_charp;		/* %s */
 };
-
-/* Print the number n. */
-printnum(n, base, sign, width, pad)
-long n;
-int base, sign;
-int width, pad;
-{
-  register short i, mod;
-  char a[MAXWIDTH];
-  register char *p = a;
-
-  if (sign)
-	if (n < 0) {
-		n = -n;
-		width--;
-	} else
-		sign = 0;
-  do {				/* mod = n % base; n /= base */
-	mod = 0;
-	for (i = 0; i < 32; i++) {
-		mod <<= 1;
-		if (n < 0) mod++;
-		n <<= 1;
-		if (mod >= base) {
-			mod -= base;
-			n++;
-		}
-	}
-	*p++ = "0123456789ABCDEF"[mod];
-	width--;
-  } while (n);
-  while (width-- > 0) putchar(pad);
-  if (sign) *p++ = '-';
-  while (p > a) putchar(*--p);
-}
-
-/* Print the character c. */
-printchar(c, mode)
-{
-  if (mode == 0 || (isprint(c) && c != '\\')) {
-	putchar(c);
-	return(1);
-  } else {
-	putchar('\\');
-	switch (c) {
-	    case '\0':	putchar('0');	break;
-	    case '\b':	putchar('b');	break;
-	    case '\n':	putchar('n');	break;
-	    case '\r':	putchar('r');	break;
-	    case '\t':	putchar('t');	break;
-	    case '\f':	putchar('f');	break;
-	    case '\\':	putchar('\\');	break;
-	    default:
-		printnum((long) (c & 0xFF), 8, 0, 3, '0');
-		return(4);
-	}
-	return(2);
-  }
-}
-
-/* Print the arguments pointer to by `arg' according to format. */
-doprnt(format, argp)
-char *format;
-union types argp;
-{
-  register char *fmt, *s;
-  register short width, pad, mode;
-
-  for (fmt = format; *fmt != 0; fmt++) switch (*fmt) {
-	    case '\n':
-		putchar('\r');
-	    default:	putchar(*fmt);	break;
-	    case '%':
-		if (*++fmt == '-') fmt++;
-		pad = *fmt == '0' ? '0' : ' ';
-		width = 0;
-		while (isdigit(*fmt)) {
-			width *= 10;
-			width += *fmt++ - '0';
-		}
-		if (*fmt == 'l' && islower(*++fmt)) *fmt = toupper(*fmt);
-		mode = isupper(*fmt);
-		switch (*fmt) {
-		    case 'c':
-		    case 'C':
-			prc(nextarg(u_char));
-			break;
-		    case 'b':
-			prn(u_unsigned, 2, 0);
-			break;
-		    case 'B':	prn(u_long, 2, 0);	break;
-		    case 'o':
-			prn(u_unsigned, 8, 0);
-			break;
-		    case 'O':	prn(u_long, 8, 0);	break;
-		    case 'd':	prn(u_int, 10, 1);	break;
-		    case 'D':	prn(u_long, 10, 1);	break;
-		    case 'u':
-			prn(u_unsigned, 10, 0);
-			break;
-		    case 'U':	prn(u_long, 10, 0);	break;
-		    case 'x':
-			prn(u_unsigned, 16, 0);
-			break;
-		    case 'X':	prn(u_long, 16, 0);	break;
-		    case 's':
-		    case 'S':
-			s = nextarg(u_charp);
-			while (*s) prc(*s++);
-			break;
-		    case '\0':
-			break;
-		    default:	putchar(*fmt);
-		}
-		while (width-- > 0) putchar(pad);
-	}
-
-  fflush(stdout);
-
-}
-
-/* Print the arguments according to fmt.  */
-void printf(fmt, args)
-char *fmt;
-{
-  doprnt(fmt, &args);
-}
 
 /* Initialize the variables used by this program. */
 initvars()
@@ -478,9 +326,7 @@ devclose()
   }
 }
 
-/* Read or write a block. Note that under STANDALONE or DOS only the
- * A-drive (drive 0) can be used
- */
+/* Read or write a block.  */
 devio(bno, dir)
 block_nr bno;
 {

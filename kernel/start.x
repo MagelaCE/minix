@@ -33,6 +33,7 @@
 
 .extern		_gdt
 
+#include <minix/config.h>
 #include <minix/const.h>
 #include <minix/com.h>
 #include "const.h"

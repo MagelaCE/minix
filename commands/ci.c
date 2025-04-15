@@ -16,7 +16,7 @@
 #define FIX		"fix $1 Fix.$1 > New.$1; mv New.$1 $1\n"
 #else
 #define FIX		"patch -n -s $1 < Fix.$1; rm -f $1.orig\n"
-#endif !PATCH
+#endif /* !PATCH */
 
 #ifdef MAXPATHLEN
 #define PATHLEN MAXPATHLEN
@@ -94,7 +94,7 @@ char **argv;
 	fprintf(stderr, "ci: filename %s is too long\n");
 	exit(1);
   }
-#endif !BSD
+#endif /* !BSD */
 
   strcpy(newsvc, svc);
   *(strrchr(newsvc, ',')) = ';';	/* temporary file will be "file;S" */

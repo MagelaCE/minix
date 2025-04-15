@@ -3,7 +3,6 @@
 #include <sys/types.h>
 #include <sgtty.h>
 #include <pwd.h>
-#include <stdio.h>
 
 main(argc, argv)
 int argc;
@@ -36,7 +35,7 @@ char *argv[];
 	ioctl(0, TIOCSETP, &args);
 	nr = read(0, password, 14);
 	password[nr - 1] = 0;
-	putc('\n', stderr);
+	std_err("\n");
 	args.sg_flags = args.sg_flags | ECHO;
 	ioctl(0, TIOCSETP, &args);
 	if (strcmp(pwd->pw_passwd, crypt(password, pwd->pw_passwd))) {

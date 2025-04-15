@@ -12,6 +12,9 @@
  *   SYS_GETSP	 caller wants to read out some process' stack pointer
  *   SYS_TIMES	 caller wants to get accounting times for a process
  *   SYS_ABORT	 MM or FS cannot go on; abort MINIX
+#if (CHIP == M68000)
+ *   SYS_FRESH	 start with a fresh process image during EXEC
+#endif
  *   SYS_SIG	 send a signal to a process
  *   SYS_KILL	 cause a signal to be sent via MM
  *   SYS_COPY	 requests a block of data to be copied between processes
@@ -38,6 +41,10 @@
  * | SYS_TIMES  | proc nr |         | buf ptr |         |
  * |------------+---------+---------+---------+---------|
  * | SYS_ABORT  |         |         |         |         |
+#if (CHIP == M68000)
+ * |------------+---------+---------+---------+---------|
+ * | SYS_FRESH  | proc nr | data_cl |         |         |
+#endif
  * |------------+---------+---------+---------+---------|
  * | SYS_GBOOT  | proc nr |         |         | bootptr |
  * ------------------------------------------------------
@@ -85,7 +92,9 @@
 #include <minix/callnr.h>
 #include <minix/com.h>
 #include "proc.h"
+#if (CHIP == INTEL)
 #include "protect.h"
+#endif
 
 PRIVATE message m;
 PRIVATE char sig_stuff[SIG_PUSH_BYTES];	/* used to send signals to processes */
@@ -104,6 +113,9 @@ FORWARD int do_times();
 FORWARD int do_trace();
 FORWARD int do_umap();
 FORWARD int do_xit();
+#if (CHIP == M68000)
+FORWARD void build_sig();
+#endif
 
 /*===========================================================================*
  *				sys_task				     *
@@ -125,6 +137,9 @@ PUBLIC void sys_task()
 	    case SYS_GETSP:	r = do_getsp(&m);	break;
 	    case SYS_TIMES:	r = do_times(&m);	break;
 	    case SYS_ABORT:	r = do_abort(&m);	break;
+#if (CHIP == M68000)
+	    case SYS_FRESH:	r = do_fresh(&m);	break;
+#endif
 	    case SYS_SIG:	r = do_sig(&m);		break;
 	    case SYS_KILL:	r = do_kill(&m);	break;
 	    case SYS_COPY:	r = do_copy(&m);	break;
@@ -149,7 +164,9 @@ register message *m_ptr;	/* pointer to request message */
 {
 /* Handle sys_fork().  m_ptr->PROC1 has forked.  The child is m_ptr->PROC2. */
 
+#if (CHIP == INTEL)
   reg_t old_ldt_sel;
+#endif 
   register struct proc *rpc;
   struct proc *rpp;
 
@@ -159,12 +176,19 @@ register message *m_ptr;	/* pointer to request message */
   rpc = proc_addr(m_ptr->PROC2);
 
   /* Copy parent 'proc' struct to child. */
+#if (CHIP == INTEL)
   old_ldt_sel = rpc->p_ldt_sel;	/* stop this being obliterated by copy */
   *rpc = *rpp;
+  rpc->p_ldt_sel = old_ldt_sel;
+#else
+  phys_copy( rpp, (phys_bytes)proc_addr(m_ptr->PROC2),
+	     (phys_bytes)sizeof(struct proc));
+#endif 
   rpc->p_nr = m_ptr->PROC2;	/* this was obliterated by copy */
-  rpc->p_ldt_sel = old_ldt_sel;	/* so was this */
 
+#if (CHIP != M68000)
   rpc->p_flags |= NO_MAP;	/* inhibit the process from running */
+#endif
   rpc->p_flags &= ~(PENDING | SIG_PENDING | P_STOP);
 				/* only one in group should have PENDING */
 				/* child does not inherit trace status */
@@ -177,6 +201,10 @@ register message *m_ptr;	/* pointer to request message */
   rpc->sys_time = 0;
   rpc->child_utime = 0;
   rpc->child_stime = 0;
+#if (CHIP == M68000)
+  rpc->p_nflips = 0;
+  mkshadow(rpp, (phys_clicks)m_ptr->m1_p1);	/* run child first */
+#endif
   return(OK);
 }
 
@@ -194,7 +222,9 @@ message *m_ptr;			/* pointer to request message */
   vir_bytes vmm, vsys, vn;
   int caller;			/* whose space has the new map (usually MM) */
   int k;			/* process whose map is to be loaded */
+#if (CHIP != M68000)
   int old_flags;		/* value of flags before modification */
+#endif
   struct mem_map *map_ptr;	/* virtual address of map inside caller (MM) */
 
   /* Extract message parameters and copy new memory map from MM. */
@@ -213,10 +243,14 @@ message *m_ptr;			/* pointer to request message */
   if ( (dst_phys = umap(proc_ptr, D, vsys, vn)) == 0)
 	panic("bad call to sys_newmap (dst)", NO_NUM);
   phys_copy(src_phys, dst_phys, pn);
+
+#if (CHIP != M68000)
   alloc_segments(rp);
   old_flags = rp->p_flags;	/* save the previous value of the flags */
   rp->p_flags &= ~NO_MAP;
   if (old_flags != 0 && rp->p_flags == 0) lock_ready(rp);
+#endif
+
   return(OK);
 }
 
@@ -237,7 +271,12 @@ register message *m_ptr;	/* pointer to request message */
   if (m_ptr->PROC2) cause_sig(m_ptr->PROC1, SIGTRAP);
   rp = proc_addr(m_ptr->PROC1);
   rp->p_reg.sp = (reg_t) sp;	/* set the stack pointer (bad type) */
+#if (CHIP == M68000)
+  rp->p_splow = (reg_t) sp;	/* set the stack pointer low water */
+  rp->p_reg.pc = (reg_t) ((vir_bytes)rp->p_map[T].mem_vir << CLICK_SHIFT);
+#else
   rp->p_reg.pc = 0;		/* reset pc */
+#endif
   rp->p_alarm = 0;		/* reset alarm timer */
   rp->p_flags &= ~RECEIVING;	/* MM does not reply to EXEC call */
   if (rp->p_flags == 0) lock_ready(rp);
@@ -258,6 +297,9 @@ message *m_ptr;			/* pointer to request message */
   struct proc *np, *xp;
   int parent;			/* number of exiting proc's parent */
   int proc_nr;			/* number of process doing the exit */
+#if (CHIP == M68000)
+  phys_clicks base, size;
+#endif
 
   parent = m_ptr->PROC1;	/* slot number of parent process */
   proc_nr = m_ptr->PROC2;	/* slot number of exiting process */
@@ -270,6 +312,11 @@ message *m_ptr;			/* pointer to request message */
   unlock();
   rc->p_alarm = 0;		/* turn off alarm timer */
   if (rc->p_flags == 0) lock_unready(rc);
+#if (CHIP == M68000)
+  rmshadow(rc, &base, &size);
+  m_ptr->m1_i1 = (int)base;
+  m_ptr->m1_i2 = (int)size;
+#endif
   set_name(proc_nr, (char *) 0);	/* disable command printing for F1 */
 
   /* If the process being terminated happens to be queued trying to send a
@@ -359,6 +406,37 @@ message *m_ptr;			/* pointer to request message */
 }
 
 
+#if (CHIP == M68000)
+/*===========================================================================*
+ *				do_fresh				     * 
+ *===========================================================================*/
+PRIVATE int do_fresh(m_ptr)
+message *m_ptr;			/* pointer to request message */
+{
+/* Handle sys_fresh.  Start with fresh process image during EXEC. */
+  register struct proc *p;
+  int proc_nr;			/* number of process doing the exec */
+  phys_clicks base, size;
+  phys_clicks c1, nc;
+
+  proc_nr = m_ptr->PROC1;	/* slot number of exec-ing process */
+  if (proc_nr < 0 || proc_nr >= NR_PROCS)
+	return(E_BAD_PROC);
+  p = proc_addr(proc_nr);
+  rmshadow(p, &base, &size);
+  do_newmap(m_ptr);
+  c1 = p->p_map[D].mem_phys;
+  nc = p->p_map[S].mem_phys - p->p_map[D].mem_phys + p->p_map[S].mem_len;
+  c1 += m_ptr->m1_i2;
+  nc -= m_ptr->m1_i2;
+  zeroclicks(c1, nc);
+  m_ptr->m1_i1 = (int)base;
+  m_ptr->m1_i2 = (int)size;
+  return(OK);
+}
+#endif /* (CHIP == M68000) */
+
+
 /*===========================================================================*
  *				do_sig					     * 
  *===========================================================================*/
@@ -372,7 +450,7 @@ message *m_ptr;			/* pointer to request message */
   vir_bytes vir_addr, sig_size, new_sp;
   int proc_nr;			/* process number */
   int sig;			/* signal number 1-16 */
-  int (*sig_handler)();		/* pointer to the signal handler */
+  void (*sig_handler)();	/* pointer to the signal handler */
 
   /* Extract parameters and prepare to build the words that get pushed. */
   proc_nr = m_ptr->PR;		/* process being signalled */
@@ -432,21 +510,21 @@ message *m_ptr;			/* pointer to request message */
  *				do_trace				    *
  *==========================================================================*/
 
-#define PROCNR	m->m2_i1
-#define REQUEST m->m2_i2
-#define ADDR	(vir_bytes)m->m2_l1
-#define DATA	m->m2_l2
-#define VLSIZE	((vir_bytes)sizeof(long))
+#define PROCNR	(m->m2_i1)
+#define REQUEST (m->m2_i2)
+#define ADDR	((vir_bytes) m->m2_l1)
+#define DATA	(m->m2_l2)
+#define VLSIZE	((vir_bytes) sizeof(long))
 
 PRIVATE int do_trace(m)
 register message *m;
 {
   register struct proc *rp;
   phys_bytes src, dst;
-  unsigned i;
+  int i;
 
   rp = proc_addr(PROCNR);
-  if (rp->p_flags & P_SLOT_FREE) return(OK);
+  if (rp->p_flags & P_SLOT_FREE) return(EIO);
   switch (REQUEST) {
   case -1:			/* stop process */
 	lock_unready(rp);
@@ -467,7 +545,9 @@ register message *m;
 	phys_copy(src, dst, (phys_bytes) sizeof(long));
 	break;
   case 3:			/* return value from process table */
-	if ((int) ADDR >= sizeof(struct proc)) return(EIO);
+	if ((ADDR & (sizeof(long) - 1)) != 0 ||
+	    ADDR > sizeof(struct proc) - sizeof(long))
+		return(EIO);
 	DATA = *(long *) ((char *) rp + (int) ADDR);
 	break;
   case 4:			/* set value from instruction space */
@@ -486,12 +566,15 @@ register message *m;
 	DATA = 0;
 	break;
   case 6:			/* set value in process table */
-	i = (unsigned) ADDR;
-	if (i + sizeof(reg_t) >= sizeof(struct stackframe_s)) return(EIO);
+	if ((ADDR & (sizeof(reg_t) - 1)) != 0 ||
+	     ADDR > sizeof(struct stackframe_s) - sizeof(reg_t))
+		return(EIO);
+	i = (int) ADDR;
 #if (CHIP == INTEL)
 	/* Altering segment registers might crash the kernel when it
 	 * tries to load them prior to restarting a process, so do
-	 * not allow it. */
+	 * not allow it.
+	 */
 	if (i == (int) &((struct proc *) 0)->p_reg.cs ||
 	    i == (int) &((struct proc *) 0)->p_reg.ds ||
 	    i == (int) &((struct proc *) 0)->p_reg.es ||
@@ -506,7 +589,7 @@ register message *m;
 		/* only selected bits are changeable */
 		SETBITS(rp, DATA);
 	else
-		*(int *) ((char *) &rp->p_reg + i) = DATA;
+		*(reg_t *) ((char *) &rp->p_reg + i) = (reg_t) DATA;
 	DATA = 0;
 	break;
   case 7:			/* resume execution */
@@ -549,14 +632,18 @@ register message *m_ptr;	/* pointer to request message */
   bytes = (phys_bytes) m_ptr->COPY_BYTES;
 
   /* Compute the source and destination addresses and do the copy. */
+#if (CHIP != M68000)
   if (src_proc == ABS)
 	src_phys = (phys_bytes) m_ptr->SRC_BUFFER;
   else
+#endif
 	src_phys = umap(proc_addr(src_proc),src_space,src_vir,(vir_bytes)bytes);
 
+#if (CHIP != M68000)
   if (dst_proc == ABS)
 	dst_phys = (phys_bytes) m_ptr->DST_BUFFER;
   else
+#endif
 	dst_phys = umap(proc_addr(dst_proc),dst_space,dst_vir,(vir_bytes)bytes);
 
   if (src_phys == 0 || dst_phys == 0) return(EFAULT);
@@ -631,6 +718,15 @@ PUBLIC void inform()
 			panic("can't inform MM", NO_NUM);
 		rp->p_pending = 0;	/* the ball is now in MM's court */
 		rp->p_flags &= ~PENDING;/* remains inhibited by SIG_PENDING */
+#if (MACHINE == ATARI)
+		/* SIGSTKFLT is not generated in the PC version. */
+		if (m.SIG_MAP == (1 << (SIGSTKFLT - 1))) {
+			if (rp->p_pendcount != 0 &&
+			    --rp->p_pendcount == 0 &&
+			    (rp->p_flags &= ~SIG_PENDING) == 0)
+				lock_ready(rp);
+		}
+#endif
 		lock_pick_proc();	/* avoid delay in scheduling MM */
 		return;
 	}
@@ -645,7 +741,7 @@ int proc_nr;			/* process number to be mapped */
 vir_bytes vir_addr;		/* virtual address in bytes within D seg */
 vir_bytes bytes;		/* # of bytes required in segment  */
 {
-/* Do umap() starting from a process number instead of a pouinter.  This
+/* Do umap() starting from a process number instead of a pointer.  This
  * function is used by device drivers, so they need not know about the
  * process table.  To save time, there is no 'seg' parameter. The segment
  * is always D.
@@ -654,8 +750,6 @@ vir_bytes bytes;		/* # of bytes required in segment  */
   return(umap(proc_addr(proc_nr), D, vir_addr, bytes));
 }
 
-
-#if (CHIP == INTEL)
 
 /*===========================================================================*
  *				umap					     * 
@@ -675,12 +769,13 @@ vir_bytes bytes;		/* # of bytes to be copied */
    * 8088 it is probably a legal stack reference, since "stackfaults" are
    * not detected by the hardware.  On 8088s, the gap is called S and
    * accepted, but on other machines it is called D and rejected.
+   * The Atari ST behaves like the 8088 in this respect.
    */
 
   if (bytes <= 0) return( (phys_bytes) 0);
   vc = (vir_addr + bytes - 1) >> CLICK_SHIFT;	/* last click of data */
 
-#if (CHIP == INTEL)
+#if (CHIP == INTEL) || (CHIP == M68000)
   if (seg != T)
 	seg = (vc < rp->p_map[D].mem_vir + rp->p_map[D].mem_len ? D : S);
 #else
@@ -690,14 +785,26 @@ vir_bytes bytes;		/* # of bytes to be copied */
 
   if((vir_addr>>CLICK_SHIFT) >= rp->p_map[seg].mem_vir + rp->p_map[seg].mem_len)
 	return( (phys_bytes) 0 );
+#if (CHIP == INTEL)
   seg_base = (phys_bytes) rp->p_map[seg].mem_phys;
   seg_base = seg_base << CLICK_SHIFT;	/* segment origin in bytes */
+#endif
   pa = (phys_bytes) vir_addr;
+#if (CHIP != M68000)
   pa -= rp->p_map[seg].mem_vir << CLICK_SHIFT;
   return(seg_base + pa);
+#endif
+#if (CHIP == M68000)
+  if (rp->p_shadow && seg != T) {
+	pa -= (phys_bytes)rp->p_map[D].mem_phys << CLICK_SHIFT;
+	pa += (phys_bytes)rp->p_shadow << CLICK_SHIFT;
+  }
+  return(pa);
+#endif
 }
 
 
+#if (CHIP == INTEL)
 /*==========================================================================*
  *				alloc_segments				    *
  *==========================================================================*/
@@ -755,12 +862,12 @@ message *m_ptr;			/* pointer to request message */
   phys_bytes src_phys, dst_phys;
 
   src_phys = umap(proc_ptr, D, (vir_bytes) &boot_parameters,
-		  (vir_bytes) sizeof boot_parameters);
+		  (vir_bytes) sizeof(boot_parameters));
   if ( (dst_phys = umap(proc_addr(m_ptr->PROC1), D,
 			(vir_bytes) m_ptr->MEM_PTR,
-			(vir_bytes) sizeof boot_parameters)) == 0)
+			(vir_bytes) sizeof(boot_parameters))) == 0)
 	panic("bad call to SYS_GBOOT", NO_NUM);
-  phys_copy(src_phys, dst_phys, (phys_bytes) sizeof boot_parameters);
+  phys_copy(src_phys, dst_phys, (phys_bytes) sizeof(boot_parameters));
   return(OK);
 }
 
@@ -781,7 +888,6 @@ register message *m_ptr;	/* pointer to request message */
 }
 
 
-#if (CHIP == INTEL)
 /*===========================================================================*
  *				do_mem					     *
  *===========================================================================*/
@@ -790,6 +896,7 @@ register message *m_ptr;	/* pointer to request message */
 {
 /* Return the base and size of the next chunk of memory of a given type. */
 
+#if (CHIP == INTEL)
   unsigned mem;
 
   for (mem = 0; mem < NR_MEMS; ++mem) {
@@ -807,7 +914,45 @@ register message *m_ptr;	/* pointer to request message */
 	}
   }
   m_ptr->COUNT = 0;		/* no more */
+#endif /* (CHIP == INTEL) */
+
+#if (MACHINE == ATARI)
+  long i;
+  static int beenhere = 0;
+
+  if (beenhere)
+	m_ptr->COUNT = 0;
+  else {
+	/* The ST fills address 0x0436 with the memory size when starting. */
+	phys_copy((phys_bytes)0x0436, (phys_bytes)&i, (phys_bytes)sizeof(i));
+	m_ptr->COUNT =  i >> CLICK_SHIFT;
+	beenhere++;
+  }
+#endif /* (MACHINE == ATARI) */
+
   m_ptr->POSITION = 0;
   return(OK);
 }
-#endif /* (CHIP == INTEL) */
+
+
+#if (CHIP == M68000)
+/*===========================================================================*
+ *                              build_sig                                    *
+ *===========================================================================*/
+PRIVATE void build_sig(sig_stuff, rp, sig)
+char *sig_stuff;
+register struct proc *rp;
+int sig;
+{
+  register struct frame {
+		int	f_sig;
+		u16_t	f_psw;
+		reg_t	f_pc;
+  } *fp;
+
+  fp = (struct frame *)sig_stuff;
+  fp->f_sig = sig;
+  fp->f_psw = rp->p_reg.psw;
+  fp->f_pc = rp->p_reg.pc;
+}
+#endif /* (CHIP == M68000) */

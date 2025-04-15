@@ -199,7 +199,7 @@ test20b()
   if (closedir(dirp) >= 0) e(15);
   if (readdir(dirp) != (struct dirent *) NULL) e(16);
   if (errno != EBADF) e(17);
-  if (readdir((DIR *) - 1) != (struct dirent *) NULL) e(18);
+  if (readdir(dirp - 2) != (struct dirent *) NULL) e(18);
   if (errno != EBADF) e(19);
   if (unlink("abc") != 0) e(20);
 
@@ -663,8 +663,8 @@ test20j()
   if (utime("A2", &times) != 0) e(3);
   if (stat("A2", &stbuf) != 0) e(4);
   if (stbuf.st_mtime != 100) e(5);
-  tloc = time(NULL);		/* get current time */
-  if (utime("A2", NULL) != 0) e(6);
+  tloc = time((time_t *)NULL);		/* get current time */
+  if (utime("A2", (struct utimbuf *)NULL) != 0) e(6);
   if (stat("A2", &stbuf) != 0) e(7);
   t = stbuf.st_mtime - tloc;
   if (t < -1 || t > 1) e(8);

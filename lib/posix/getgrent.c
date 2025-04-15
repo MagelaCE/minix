@@ -29,10 +29,7 @@ PRIVATE int _gfd = -1;
 PRIVATE int _bufcnt;
 PRIVATE struct group _grp;
 
-PUBLIC _PROTOTYPE( void endgrent, (void));
-PUBLIC _PROTOTYPE( struct group *getgrent, (void));
 PRIVATE _PROTOTYPE( int getline, (void));
-PUBLIC _PROTOTYPE( int setgrent, (void));
 PRIVATE _PROTOTYPE( void skip_period, (int c));
 
 PUBLIC int setgrent()

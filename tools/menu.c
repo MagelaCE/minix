@@ -16,7 +16,6 @@
  *    cc -c -D_MINIX -D_POSIX_SOURCE menu.c
  *    asld -o menu menu1.s menu.s /usr/lib/libc.a /usr/lib/end.s
  *
- * It is also permitted to specify e.g. -DHEADS=9 or -DRLL
  */
 
 #define MAXWIDTH	 32	/* max. width of an ``integer string'' */
@@ -236,6 +235,7 @@ char **argv;
   register char **clist = 0, **ilist = 0, **zlist = 0;
 
   register c, command;
+  int proc_lim;
 
   if (virgin) floptrk = tracksiz;	/* save 9 or 15 in floptrk */
   virgin = 0;			/* only on first pass thru */
@@ -245,8 +245,8 @@ char **argv;
   for (;;) {
 	printf("\nHit key as follows:\n\n");
 	printf("    =  start MINIX, standard keyboard\n");
-	printf("    u  start MINIX, U.S. keyboard\n");
-	printf("    d  start MINIX, Dutch keyboard\n\n");
+	printf("    u  start MINIX, U.S. extended keyboard\n");
+	printf("    d  start MINIX, Dutch keyboard for PS/2\n\n");
 	printf("    r  select root device (now %s)\n", rootname);
 	printf("    i  select RAM image device (now %s)%s\n",
 	       ramimname,
@@ -256,8 +256,9 @@ char **argv;
 	       boot_parameters.bp_ramsize,
 	       boot_parameters.bp_rootdev == DEV_RAM ?
 	       " (real size is from RAM image)" : "");
-	printf("    p  set limit on processor type (now %u)\n\n",
-	       boot_parameters.bp_processor);
+	proc_lim = boot_parameters.bp_processor;
+	if (proc_lim > 0)
+		printf("    p  set processor type to 88, 286, or 386 (now %u)\n\n", proc_lim);
 	printf("\n# ");
 	c = getc();
 	command = c & 0xFF;

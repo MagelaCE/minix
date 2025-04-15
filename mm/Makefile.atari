@@ -12,7 +12,7 @@ obj =	main.o forkexit.o break.o exec.o signal.o getset.o \
 	alloc.o utility.o table.o putc.o trace.o
 
 mm.mix:	Makefile $l/head.o $(obj) $l/libc.a $l/end.o
-	$(LD) -s -c -o mm.out $l/head.o $(obj) $l/libc.a $l/end.o
+	$(LD) -c -o mm.out $l/head.o $(obj) $l/libc.a $l/end.o
 	$(CV) mm.out $@
 	rm -f mm.out
 

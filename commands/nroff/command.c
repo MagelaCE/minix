@@ -197,6 +197,13 @@ register char  *p;
 				dc.nrfmt[indx] = '1';
 		}
 		break;
+	case BD:
+		/*
+		 *   embolden font (IGNORED)
+		 *
+		 *   .bd [S] F N
+		 */
+		break;
 	case BO:
 		/*
 		 *   bold face
@@ -265,6 +272,13 @@ register char  *p;
 		robrk ();
 		set (&dc.ceval, val, argtyp, 1, 0, HUGE);
 		break;
+	case CS:
+		/*
+		 *   constant space char (IGNORED)
+		 *
+		 *   .cs F N M
+		 */
+		break;
 	case CU:
 		/*
 		 *   continuous underline
@@ -280,6 +294,7 @@ register char  *p;
 		 *
 		 *   .de name [end]
 		 */
+		ignoring = FALSE;
 		defmac (p, sofile[dc.flevel]);
 		break;
 	case DS:
@@ -349,7 +364,7 @@ register char  *p;
 		 *
 		 *   .fl
 		 */
-		fflush (pout);
+		fflush (out_stream);
 		break;
 	case FO:
 		/*
@@ -384,9 +399,9 @@ register char  *p;
 			fontchange (*p, pfs);
 
 			robrk ();
-			fflush (pout);
-			fprintf (pout, "%s", pfs);
-			fflush (pout);
+			fflush (out_stream);
+			fprintf (out_stream, "%s", pfs);
+			fflush (out_stream);
 		}
 		break;
 	case TL:
@@ -399,6 +414,15 @@ register char  *p;
 		 */
 		gettl (p, pg.ehead, &pg.ehlim[0]);
 		gettl (p, pg.ohead, &pg.ohlim[0]);
+		break;
+	case IG:
+		/*
+		 *   ignore input lines
+		 *
+		 *   .ig name
+		 */
+		ignoring = TRUE;
+		defmac (p, sofile[dc.flevel]);
 		break;
 	case IN:
 		/*
@@ -639,6 +663,13 @@ register char  *p;
 		set (&pg.offset, val, argtyp, 0, 0, HUGE);
 		set_ireg (".o", pg.offset, 0);
 		break;
+	case PS:
+		/*
+		 *   point size (IGNORED)
+		 *
+		 *   .ps +/-N
+		 */
+		break;
 	case RR:
 		/*
 		 *   unset number reg
@@ -677,7 +708,7 @@ register char  *p;
 				myname);
 			err_exit (-1);
 		}
-		if ((sofile[dc.flevel + 1] = fopen (name, "r")) == NULL)
+		if ((sofile[dc.flevel + 1] = fopen (name, "r")) == NULL_FPTR)
 		{
 			fprintf (err_stream,
 				"***%s: unable to open %s\n", myname, name);
@@ -693,6 +724,13 @@ register char  *p;
 		 */
 		set (&spval, val, argtyp, 1, 0, HUGE);
 		space (spval);
+		break;
+	case SS:
+		/*
+		 *   space char size (IGNORED)
+		 *
+		 *   .ss N
+		 */
 		break;
 	case TI:
 		/*
@@ -728,8 +766,8 @@ char	       *m;
 {
 
 /*
- *	decodes nro command and returns its associated
- *	value.
+ *	decodes nro command and returns its associated value.
+ *	ptr "p" is incremented (and returned)
  */
 
 	register char	c1;
@@ -754,7 +792,7 @@ char	       *m;
 	 */
 	getwrd (p, macnam);
 	macnam[2] = EOS;
-	if ((s = getmac (macnam)) != NULL)
+	if ((s = getmac (macnam)) != NULL_CPTR)
 	{
 		strcpy (m, s);
 		return (MACRO);
@@ -831,7 +869,7 @@ char	       *m;
 gettl (p, q, limit)
 register char  *p;
 register char  *q;
-int		limit[];
+int	       *limit;
 {
 
 /*
@@ -865,7 +903,7 @@ register char  *p_argt;
 {
 
 /*
- *	retrieves optional argument following nro command.
+ *	retrieves optional argument following command.
  *	returns positive integer value with sign (if any)
  *	saved in character addressed by p_argt.
  */

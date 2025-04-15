@@ -1,5 +1,5 @@
 /* cc - call the C compiler		Author: Erik Baalbergen */
-
+#define MEM512K
 #ifndef MEM640K
 #ifndef MEM512K
 #ifndef RAMDISK
@@ -132,7 +132,7 @@ int f_flag = 0; /* use floating point flag */
 char *mkstr();
 char *alloc();
 
-USTRING ifile, kfile, sfile, mfile, Mfile, ofile;
+USTRING ifile, kfile, sfile, mfile, ofile;
 USTRING BASE;
 
 char *tmpdir = "/tmp";
@@ -326,23 +326,8 @@ main(argc, argv)
 			cleanup(kfile);
 		}
 
-		/* .m to .M */
-		if (ext == 'm' && f_flag) {
-			init(call);
-			append(call, FPP);
-			concat(call, &FPP_FLAGS);
-			append(call, file);
-			f = mkstr(Mfile, tmpdir, tmpname, ".M", 0);
-			append(call, f);
-			if (runvec(call, (char *)0) == 0)
-				continue;
-			cleanup(mfile);
-			file = Mfile;
-			ext = 'M';
-		}
-
-		/* .m (or .M) to .s */
-		if (ext == 'm' || ext == 'M') {
+		/* .m to .s */
+		if (ext == 'm') {
 			ldfile = S_flag ? ofile : alloc(strlen(BASE) + 3);
 
 			init(call);
@@ -354,7 +339,6 @@ main(argc, argv)
 			if (runvec(call, (char *)0) == 0)
 				continue;
 			cleanup(mfile);
-			cleanup(Mfile);
 			file = ldfile;
 			ext = 's';
 		}
@@ -381,7 +365,7 @@ main(argc, argv)
 			concat(call, &M_LD_HEAD);
 		else	concat(call, &LD_HEAD);
 		concat(call, &LDFILES);
-		if(f_flag) concat(call, &LD_FPLIB);
+		if(f_flag) concat(call, &LD_FPLIB);		
 		concat(call, &LD_TAIL);
 		if (s_flag) 
 			f = SYMBOL_FILE;

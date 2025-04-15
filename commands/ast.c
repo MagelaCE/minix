@@ -1,8 +1,10 @@
 /* ast - add symbol table.		Author: Dick van Veen */
 
 #include <sys/types.h>
-#include <fcntl.h>
 #include <a.out.h>
+#include <ctype.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <stdio.h>
 
 /* Since the a.out file in MINIX does not contain any symbol table,
@@ -20,45 +22,39 @@
  *
  * flags:
  *	-x	do not preserve local symbols
- *	-X	preserve local symbols except for those whose name begin
- *		with 'I', these are compiler generated.
+ *	-X	preserve local symbols except for those whose names begin
+ *		with 'I' or 'L' - those are compiler generated.
  *
  *	-	when no symbol file is present, symbol.out is assumed.
  *	-	when no file is present, a.out is assumed.
- *	-	when one file name is present it must be the executable file
- *	-	just one flag may be pressent.
- *
+ *	-	when one file name is present, it must be the executable file.
+ *	-	just one flag may be present.
  */
 
 #define A_OUT		"a.out"
 #define SYMBOL_FILE	"symbol.out"	/* contains symbol table */
 #define LINE_LENGTH	24
 
-#define WORTH_LESS	1	/* lines contain no symbol */
-#define LAST_LINE	2	/* end of file reached */
+#define WORTHLESS	1	/* lines contain no symbol */
 
 struct exec header;		/* header info of a.out file */
 
 int x_flag;			/* flags to ast */
 int X_flag;
-int o_flag;
 
 char *s_file, *o_file;		/* names of files used by ast */
 FILE *s_fd, *o_fd;		/* file descriptors of those files */
 int nr_symbols;			/* number of symbols added */
 char buffer[LINE_LENGTH];	/* contains line of symbol file */
 
-char io_buf[BUFSIZ];		/* for buffered output on stderr */
 unsigned int get_value();	/* forward definition */
 
 main(argc, argv)
 int argc;
 char **argv;
 {
-  extern FILE *fopen();
-
   argv++;
-  if (*argv != NULL && **argv == '-') {
+  if (*argv != (char *) NULL && **argv == '-') {
 	*argv += 1;
 	if (**argv == 'x')
 		x_flag = 1;
@@ -70,122 +66,77 @@ char **argv;
 	}
 	argv++;
   }
-  if (*argv != NULL) {
+  if (*argv != (char *) NULL) {
 	o_file = *argv;
 	argv++;
   }
-  if (*argv != NULL) {
+  if (*argv != (char *) NULL) {
 	s_file = *argv;
 	argv++;
   }
-  if (*argv != NULL) {
+  if (*argv != (char *) NULL) {
 	fprintf(stderr, "Usage: ast [-{x,X}] [file] [symbolfile]\n");
 	exit(-1);
   }
-  if (o_file == NULL) o_file = A_OUT;
-  o_fd = fopen(o_file, "a");
-  if (o_fd == NULL) {
+  if (o_file == (char *) NULL) o_file = A_OUT;
+  if ((o_fd = fopen(o_file, "a")) == (FILE *) NULL) {
 	fprintf(stderr, "can't open %s\n", o_file);
 	exit(-1);
   }
-  if (s_file == NULL) s_file = SYMBOL_FILE;
-  s_fd = fopen(s_file, "r");
-  if (s_fd == NULL) {
+  fseek(o_fd, A_SYMPOS(header), SEEK_SET);
+  if (s_file == (char *) NULL) s_file = SYMBOL_FILE;
+  if ((s_fd = fopen(s_file, "r")) == (FILE *) NULL) {
 	fprintf(stderr, "can't open %s\n", s_file);
 	exit(-1);
   }
-  setbuf(s_fd, io_buf);
-  ast(s_fd, o_fd);
+  nr_symbols = 0;
+  do_header();
+  ast();
+  fclose(o_fd);
+  redo_header();
   exit(0);
 }
 
-ast(s_fd, o_fd)
-FILE *s_fd, *o_fd;
+ast()
 {
   struct nlist symbol;
-  int line_type;
 
-  do_header();
-  for (;;) {
-	read_line(s_fd, buffer);
-	line_type = transform_line(buffer, &symbol);
-	if (line_type == WORTH_LESS) continue;
-	if (line_type == LAST_LINE) break;
-	save_line(o_fd, &symbol);
-  }
-  redo_header(o_fd);
-}
-
-read_line(fd, buffer)
-FILE *fd;
-char *buffer;
-{
-  int ch;
-  char *buf1;
-
-  buf1 = buffer;
-  *buffer = '\n';
-  ch = fgetc(fd);
-  while (ch != '\n' && ch != EOF) {
-	*buffer = ch;
-	buffer++;
-	ch = fgetc(fd);
-  }
-  if (ch == EOF)
-	*buffer = '\0';
-  else
-	*buffer = '\n';
-  buffer[1] = '\0';
+  while (fgets(buffer, LINE_LENGTH, s_fd) != (char *) NULL)
+	if (transform_line(buffer, &symbol) != WORTHLESS)
+		save_line(o_fd, &symbol);
 }
 
 transform_line(buffer, symbol)
 char *buffer;
 struct nlist *symbol;
 {
-  switch (*buffer) {
+  switch (tolower(*buffer)) {
       case 'a':			/* absolute symbol */
 	symbol->n_sclass = N_ABS;
 	break;
-      case 'A':	symbol->n_sclass = N_ABS | C_EXT;	break;
       case 'u':			/* undefined symbol */
 	symbol->n_sclass = N_UNDF;
 	break;
-      case 'U':
-	symbol->n_sclass = N_UNDF | C_EXT;
-	break;
-
       case 't':			/* text symbol */
 	symbol->n_sclass = N_TEXT;
 	break;
-      case 'T':
-	symbol->n_sclass = N_TEXT | C_EXT;
-	break;
-      case 'd':
+      case 'd':			/* data symbol */
 	symbol->n_sclass = N_DATA;
-      case 'D':			/* data symbol */
-	symbol->n_sclass = N_DATA | C_EXT;
 	break;
-      case 'b':
+      case 'b':			/* bss symbol */
 	symbol->n_sclass = N_BSS;
-      case 'B':			/* bss symbol */
-	symbol->n_sclass = N_BSS | C_EXT;
 	break;
-      case '\0':		/* reached end of file */
-	return(LAST_LINE);
       default:			/* one of first two lines */
-	return(WORTH_LESS);
+	return(WORTHLESS);
   }
+  if (isupper(*buffer))
+	symbol->n_sclass |= C_EXT;
 
-  if (buffer[1] != ' ') {
+  if (buffer[1] != ' ' || buffer[6] != ' ') {
 	fprintf(stderr, "illegal file format\n");
 	exit(-1);
   }
   symbol->n_value = get_value(buffer + 2);
-
-  if (buffer[6] != ' ') {
-	fprintf(stderr, "illegal file format\n");
-	exit(-1);
-  }
   get_name(buffer + 7, symbol->n_name);
   return(0);			/* yeah, found a symbol */
 }
@@ -194,11 +145,9 @@ save_line(fd, symbol)
 FILE *fd;
 struct nlist *symbol;
 {
-  if (!(symbol->n_sclass & C_EXT)) {	/* local symbol */
-	if (x_flag) return;
-	if (X_flag && symbol->n_name[0] == 'I') return;
-	if (X_flag && symbol->n_name[0] == 'L') return;
-  }
+  if (!(symbol->n_sclass & C_EXT))	/* local symbol */
+	if (x_flag || symbol->n_name[0] == 'I' || symbol->n_name[0] == 'L')
+		return;
   if (fwrite(symbol, sizeof(struct nlist), 1, fd) != 1) {
 	fprintf(stderr, "can't write %s\n", o_file);
 	exit(-1);
@@ -250,7 +199,10 @@ do_header()
 {
   int fd;
 
-  fd = open(o_file, O_RDONLY);
+  if ((fd = open(o_file, O_RDONLY)) < 0) {
+	fprintf(stderr, "%s: could not open\n", o_file);
+	exit(-1);
+  }
   if (read(fd, &header, sizeof(struct exec)) != sizeof(struct exec)) {
 	fprintf(stderr, "%s: no executable file\n", o_file);
 	exit(-1);
@@ -263,18 +215,21 @@ do_header()
 	fprintf(stderr, "%s: symbol table is installed\n", o_file);
 	exit(-1);
   }
-  fseek(o_fd, A_SYMPOS(header), 0);
-  nr_symbols = 0;
   close(fd);
 }
 
-redo_header(fd)
-FILE *fd;
+redo_header()
 {
-  header.a_syms = (long) (nr_symbols * sizeof(struct nlist));
-  fseek(fd, 0L, 0);
-  if (fwrite(&header, sizeof(header), 1, fd) != 1) {
-	fprintf(stderr, "%s: can't write\n", o_file);
+  int fd;
+
+  header.a_syms = (long) nr_symbols * sizeof(struct nlist);
+  if ((fd = open(o_file, O_WRONLY)) < 0) {
+	fprintf(stderr, "%s: could not rewrite header\n", o_file);
 	exit(-1);
   }
+  if (write(fd, &header, sizeof(struct exec)) != sizeof(struct exec)) {
+	fprintf(stderr, "%s: could not rewrite header\n", o_file);
+	exit(-1);
+  }
+  close(fd);
 }

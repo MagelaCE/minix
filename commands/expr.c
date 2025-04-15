@@ -456,7 +456,7 @@ register char *regexp;
 			*rpc++ = '*';
 			break;
 		} else {
-			bcopy(starable, starable + 1, rpc - starable);
+			memmove(starable + 1, starable, rpc - starable);
 			*starable = RSTAR;
 			starable = NULL;
 			++rpc;

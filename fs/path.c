@@ -9,6 +9,7 @@
  */
 
 #include "fs.h"
+#include <string.h>
 #include "buf.h"
 #include "file.h"
 #include "fproc.h"
@@ -196,7 +197,7 @@ char string[NAME_MAX];		/* component name to look for */
    * mounted file system.  The super_block provides the linkage between the
    * inode mounted on and the root directory of the mounted file system.
    */
-  while (rip && rip->i_mount == I_MOUNT) {
+  while (rip != NIL_INODE && rip->i_mount == I_MOUNT) {
 	/* The inode is indeed mounted on. */
 	for (sp = &super_block[0]; sp < &super_block[NR_SUPERS]; sp++) {
 		if (sp->s_imount == rip) {

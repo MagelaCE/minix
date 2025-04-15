@@ -1,0 +1,12 @@
+/bin/getlf "Please insert /usr diskette in drive 0.  Then hit ENTER."
+echo "/dev/ram is root device" >/etc/mtab
+/etc/mount /dev/fd0 /usr
+
+# Try to read the hardware real-time clock, if there is one, to set the date
+/bin/date `/usr/bin/readclock` </dev/tty
+
+# Initialize the first RS232 line to 1200 baud.
+/usr/bin/stty 1200 </dev/tty1
+
+cat /etc/message
+/etc/update  &

@@ -12,7 +12,7 @@
  */
 
 /* 8250 constants. */
-#define DEF_BAUD             4800	/* default baud rate */
+#define DEF_BAUD             1200	/* default baud rate */
 #define UART_FREQ         115200L	/* timer frequency */
 
 /* Interrupt enable bits. */

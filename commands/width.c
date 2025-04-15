@@ -40,29 +40,19 @@ char *argv[];
 	process(stdin, stdout, width);
   } else if (argc == k + 1) {
 	/* For example: width file   or   width -30 file */
-	in = fopen(argv[k], "r");
-	if (in == NULL) {
-		fprintf(stderr, "%s: cannot open %s\n", argv[0], argv[k]);
-		exit(1);
-	}
+	if ((in = fopen(argv[k], "r")) == (FILE *) NULL)
+		cant_open(argv[0], argv[k]);
 	process(in, stdout, width);
   } else if (argc == k + 2) {
 	/* For example, width inf outf  or   width -30 inf outf */
-	in = fopen(argv[k], "r");
-	if (in == NULL) {
-		fprintf(stderr, "%s: cannot open %s\n", argv[0], argv[k]);
-		exit(1);
-	}
-	out = fopen(argv[k + 1], "w");
-	if (out == NULL) {
-		fprintf(stderr, "%s: cannot open %s\n", argv[0], argv[k + 1]);
-		exit(1);
-	}
+	if ((in = fopen(argv[k], "r")) == (FILE *) NULL)
+		cant_open(argv[0], argv[k]);
+	if ((out = fopen(argv[k + 1], "w")) == (FILE *) NULL)
+		cant_open(argv[0], argv[k]);
 	process(in, out, width);
   } else {
 	usage(argv[0]);
   }
-  if (out != NULL) fclose(out);
   exit(0);
 }
 
@@ -77,7 +67,7 @@ int width;
   register char *p, *q;
   char in_buf[MAX_WIDTH + 1], out_buf[MAX_WIDTH + 1];
 
-  while (fgets(in_buf, MAX_WIDTH, in) != NULL) {
+  while (fgets(in_buf, MAX_WIDTH, in) != (char *) NULL) {
 	/* This loop executed once for each line in the input file. */
 	p = in_buf;
 	q = out_buf;
@@ -105,9 +95,23 @@ int width;
 }
 
 
+cant_open(program, file)
+char *program;
+char *file;
+{
+  fputs(program, stderr);
+  fputs(": cannot open ", stderr);
+  fputs(file, stderr);
+  putc('\n', stderr);
+  exit(1);
+}
+
+
 usage(s)
 char *s;
 {
-  fprintf(stderr, "Usage: %s [-<width>] [infile [outfile] ]\n", s);
+  fputs("Usage: ", stderr);
+  fputs(s, stderr);
+  fputs(" [-<width>] [infile [outfile] ]\n", stderr);
   exit(1);
 }

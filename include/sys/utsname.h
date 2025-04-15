@@ -3,8 +3,8 @@
 #ifndef _UTSNAME_H
 #define _UTSNAME_H
 
-#define _UTSLEN  9
-#define _SNLEN  15
+#define _UTSLEN  (8 + 1)
+#define _SNLEN  (14 + 1)
 
 struct utsname {
   char sysname[_UTSLEN];
@@ -14,8 +14,6 @@ struct utsname {
   char machine[_UTSLEN];
   char idnumber[_SNLEN];
 };
-
-extern struct utsname utsname;
 
 /* Function Prototypes. */
 #ifndef _ANSI_H

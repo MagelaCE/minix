@@ -1,0 +1,2437 @@
+echo x - Makefile
+sed '/^X/s///' > Makefile << '/'
+X# Makefile for nroff
+XCFLAGS=-D_MINIX -D_POSIX_SOURCE
+XOBJS    = main.s command.s text.s io.s macros.s strings.s escape.s low.s
+X
+Xall:	$(OBJS) nroff.h
+X	cc -i -o nroff $(OBJS)
+X
+Xclean:	
+X	@rm -f *.bak *.s nroff
+/
+echo x - README
+sed '/^X/s///' > README << '/'
+X-----------------------------------------
+Xnroff (TOS, Minix) v0.99 BETA 2/26/90 wjr
+X-----------------------------------------
+X
+XThis is an improved release of a version of nroff for both Minix and the
+XatariST. It was written under TOS and 4BSD unix but should port easily to
+XMinix ST as well. Unfortunately I have no access to Minix (hopefully
+Xsomeone did test this before sending it out...ast?).
+X
+XMuch of this works. The things that (still) don't are all the hard things:
+Xdiversions, traps, conditionals, etc. See the man pages for what is not
+Xsupported (yet). Font switching, underlining, etc. are limited to reverse
+Xvideo on the screen, though stdout will contain underlines as "_^H" for
+Xprinters.
+X
+XThere is a crude man package included (tmac.an) which is still not right
+Xbut is better and needs diversions to become right. It should handle most
+Xcommon man tasks, though. It gets installed in /usr/lib/tmac under Minix
+Xunless you change the location in nroff.h. For testing, you can
+X
+X	% setenv TMACDIR .
+X	% nroff -man file
+X
+Xto use tmac.an (say) in the cwd.
+X
+XFor porting info, look in nroff.h and the makefile. The termcap library
+Xis used to get standout capabilites for doing bold and italics to the
+Xscreen. Minix and BSD have termcap(3) and S5R3 has terminfo, which I
+Xbelieve also includes the tgetent/tgetnum/tgetflag/tgetstr functions for
+Xcompatibility.
+X
+XIf you want to try and use nroff for printer output, the termcap library
+Xlooks for TERMCAP in your environment (a file) so that you could do:
+X
+X	% env TERMCAP=printfile nroff -man file
+X
+Xand substitute your own file with so (standout) for your printer. This
+Xassumes your system has env, but you get the idea.
+X
+XThe program is small enough to work under Minix. It does not have a large
+Xstack, but does store all macros and strings in a common namespace. Look
+Xin nroff.h for the size.
+X
+XIf you do hack away, I would appreciate you sending me the changes
+Xso I can keep this centralized.
+X
+XThe future holds increased capabilites, though I find it pretty useful
+Xas it is. Most man things are possible and you can do reports and resumes
+Xand such without much problem. See the example files included (ex[12].nr).
+X
+X-Bill Rosenkranz
+Xrosenkra@hall.cray.com
+/
+echo x - command.cdif
+sed '/^X/s///' > command.cdif << '/'
+X*** /home/top/ast/minix/1.5.3/command/nroff/command.c	Tue Jan 23 19:25:14 1990
+X--- /home/top/ast/minix/1.5.5/command/nroff/command.c	Sun Mar  4 23:18:21 1990
+X***************
+X*** 199,200 ****
+X--- 199,207 ----
+X  		break;
+X+ 	case BD:
+X+ 		/*
+X+ 		 *   embolden font (IGNORED)
+X+ 		 *
+X+ 		 *   .bd [S] F N
+X+ 		 */
+X+ 		break;
+X  	case BO:
+X***************
+X*** 267,268 ****
+X--- 274,282 ----
+X  		break;
+X+ 	case CS:
+X+ 		/*
+X+ 		 *   constant space char (IGNORED)
+X+ 		 *
+X+ 		 *   .cs F N M
+X+ 		 */
+X+ 		break;
+X  	case CU:
+X***************
+X*** 282,283 ****
+X--- 296,298 ----
+X  		 */
+X+ 		ignoring = FALSE;
+X  		defmac (p, sofile[dc.flevel]);
+X***************
+X*** 351,353 ****
+X  		 */
+X! 		fflush (pout);
+X  		break;
+X--- 366,368 ----
+X  		 */
+X! 		fflush (out_stream);
+X  		break;
+X***************
+X*** 386,390 ****
+X  			robrk ();
+X! 			fflush (pout);
+X! 			fprintf (pout, "%s", pfs);
+X! 			fflush (pout);
+X  		}
+X--- 401,405 ----
+X  			robrk ();
+X! 			fflush (out_stream);
+X! 			fprintf (out_stream, "%s", pfs);
+X! 			fflush (out_stream);
+X  		}
+X***************
+X*** 402,403 ****
+X--- 417,427 ----
+X  		break;
+X+ 	case IG:
+X+ 		/*
+X+ 		 *   ignore input lines
+X+ 		 *
+X+ 		 *   .ig name
+X+ 		 */
+X+ 		ignoring = TRUE;
+X+ 		defmac (p, sofile[dc.flevel]);
+X+ 		break;
+X  	case IN:
+X***************
+X*** 641,642 ****
+X--- 665,673 ----
+X  		break;
+X+ 	case PS:
+X+ 		/*
+X+ 		 *   point size (IGNORED)
+X+ 		 *
+X+ 		 *   .ps +/-N
+X+ 		 */
+X+ 		break;
+X  	case RR:
+X***************
+X*** 679,681 ****
+X  		}
+X! 		if ((sofile[dc.flevel + 1] = fopen (name, "r")) == NULL)
+X  		{
+X--- 710,712 ----
+X  		}
+X! 		if ((sofile[dc.flevel + 1] = fopen (name, "r")) == NULL_FPTR)
+X  		{
+X***************
+X*** 696,697 ****
+X--- 727,735 ----
+X  		break;
+X+ 	case SS:
+X+ 		/*
+X+ 		 *   space char size (IGNORED)
+X+ 		 *
+X+ 		 *   .ss N
+X+ 		 */
+X+ 		break;
+X  	case TI:
+X***************
+X*** 730,733 ****
+X  /*
+X!  *	decodes nro command and returns its associated
+X!  *	value.
+X   */
+X--- 768,771 ----
+X  /*
+X!  *	decodes nro command and returns its associated value.
+X!  *	ptr "p" is incremented (and returned)
+X   */
+X***************
+X*** 756,758 ****
+X  	macnam[2] = EOS;
+X! 	if ((s = getmac (macnam)) != NULL)
+X  	{
+X--- 794,796 ----
+X  	macnam[2] = EOS;
+X! 	if ((s = getmac (macnam)) != NULL_CPTR)
+X  	{
+X***************
+X*** 833,835 ****
+X  register char  *q;
+X! int		limit[];
+X  {
+X--- 871,873 ----
+X  register char  *q;
+X! int	       *limit;
+X  {
+X***************
+X*** 867,869 ****
+X  /*
+X!  *	retrieves optional argument following nro command.
+X   *	returns positive integer value with sign (if any)
+X--- 905,907 ----
+X  /*
+X!  *	retrieves optional argument following command.
+X   *	returns positive integer value with sign (if any)
+/
+echo x - config.h
+sed '/^X/s///' > config.h << '/'
+X#ifndef CONFIG_H
+X#define CONFIG_H
+X
+X/*
+X *	for diffent os, define tos, unix, or minix. for gemdos, pick
+X *	a compiler (alcyon, mwc, etc). see makefile for VERSFLAGS.
+X *
+X *	for atari TOS, do:	cc -Dtos -Dalcyon ...
+X *
+X *	for minix, do:		cc -Dminix -DatariST ...	(ST minix)
+X *				cc -Dminix ...			(PC minix)
+X *
+X *	for unix, do:		cc -Dunix ...			(generic)
+X *				cc -Dunix -DBSD...		(BSD)
+X *
+X *	nroff uses index/rindex. you may need -Dindex=strchr -Drindex=strrchr
+X *	as well. this file is included in "nroff.h" which gets included in all
+X *	sources so any definitions you need should be added here.
+X *
+X *	all os-dependent code is #ifdef'ed with GEMDOS, MINIX_ST, MINIX_PC,
+X *	MINIX, or UNIX. most of the differences deal with i/o only.
+X */
+X#ifdef ALCYON
+X# ifndef tos
+X#  define tos
+X# endif
+X#endif
+X
+X#ifdef tos
+X# define GEMDOS
+X# undef minix
+X# undef unix
+X# undef _MINIX
+X# undef MINIX_ST
+X# undef MINIX_PC
+X# undef UNIX
+X#define register
+X#endif
+X
+X#ifdef alcyon
+X# ifndef ALCYON
+X#  define ALCYON			/* for gemdos version, alcyon C */
+X# endif
+X# ifndef GEMDOS
+X#  define GEMDOS
+X# endif
+X#endif
+X
+X#ifdef minix
+X# define register
+X# define _MINIX
+X# undef tos
+X# undef unix
+X# undef GEMDOS
+X# undef MINIX_ST
+X# undef MINIX_PC
+X# undef UNIX
+X# ifdef atariST
+X#  define MINIX_ST
+X# else
+X#  define MINIX_PC
+X# endif
+X#endif
+X
+X#ifdef unix
+X# define register
+X# undef tos
+X# undef minix
+X# undef GEMDOS
+X# undef MINIX_ST
+X# undef MINIX_PC
+X# ifndef UNIX
+X#  define UNIX
+X# endif
+X#endif
+X
+X#endif /*CONFIG_H*/
+X
+/
+echo x - escape.cdif
+sed '/^X/s///' > escape.cdif << '/'
+X*** /home/top/ast/minix/1.5.3/command/nroff/escape.c	Tue Jan 23 19:25:15 1990
+X--- /home/top/ast/minix/1.5.5/command/nroff/escape.c	Sun Mar  4 23:18:22 1990
+X***************
+X*** 969,971 ****
+X  		if (dc.dofnt == YES)
+X! 			strcpy (s, "\33q");
+X  		dc.lastfnt = dc.thisfnt;
+X--- 969,976 ----
+X  		if (dc.dofnt == YES)
+X! 		{
+X! 			if (dc.thisfnt == 2)
+X! 				strcpy (s, e_italic);
+X! 			else if (dc.thisfnt == 3)
+X! 				strcpy (s, e_bold);
+X! 		}
+X  		dc.lastfnt = dc.thisfnt;
+X***************
+X*** 975,977 ****
+X  		if (dc.dofnt == YES)
+X! 			strcpy (s, "\33p");
+X  		dc.lastfnt = dc.thisfnt;
+X--- 980,982 ----
+X  		if (dc.dofnt == YES)
+X! 			strcpy (s, s_italic);
+X  		dc.lastfnt = dc.thisfnt;
+X***************
+X*** 981,983 ****
+X  		if (dc.dofnt == YES)
+X! 			strcpy (s, "\33p");
+X  		dc.lastfnt = dc.thisfnt;
+X--- 986,988 ----
+X  		if (dc.dofnt == YES)
+X! 			strcpy (s, s_bold);
+X  		dc.lastfnt = dc.thisfnt;
+X***************
+X*** 994,1000 ****
+X  			if (dc.lastfnt == 1)
+X! 				strcpy (s, "\33q");	/* to R */
+X  			else if (dc.lastfnt == 2)
+X! 				strcpy (s, "\33p");	/* to I */
+X  			else if (dc.lastfnt == 3)
+X! 				strcpy (s, "\33p");	/* to B */
+X  			else
+X--- 999,1014 ----
+X  			if (dc.lastfnt == 1)
+X! 			{
+X! 				if (dc.thisfnt == 2)
+X! 					strcpy (s, e_italic);
+X! 				else if (dc.thisfnt == 3)
+X! 					strcpy (s, e_bold);
+X! 			}
+X  			else if (dc.lastfnt == 2)
+X! 			{
+X! 				strcpy (s, s_italic);	/* to I */
+X! 			}
+X  			else if (dc.lastfnt == 3)
+X! 			{
+X! 				strcpy (s, s_bold);	/* to B */
+X! 			}
+X  			else
+/
+echo x - ex1.nr
+sed '/^X/s///' > ex1.nr << '/'
+X.\" example 1.     execute with: nroff ex1.nr
+X.\"
+X.\" we first set up basic page parameters (left offset, line length,
+X.\" title length, and where titles and footers go. we define a macro
+X.\" to handle paragraphs. it just breaks the last line (.sp does this),
+X.\" spaces down 2 lines, and temprarily indents the next line (.ti).
+X.\" the .ti has a "+" so this means add to the current indent. then
+X.\" we center the title and redefine the page header after the first
+X.\" line of text to keep the page header off the first page. invoke
+X.\" the paragraph macro (.IP) at every paragraph.
+X.\"
+X.pl 66                           \" page length (lines)
+X.po 5                            \" page offset (left margin)
+X.ll 65                           \" line length
+X.lt 65                           \" title length
+X.m1 3                            \" lines from page top to header
+X.m2 3                            \" lines from header to text
+X.m3 3                            \" lines from text to footer
+X.m4 3                            \" lines from footer to page botton
+X.fo ||- % -||                    \" page footer (just page number)
+X.de IP                           \" define a macro
+X.sp 2                            \" 2 spaces
+X.ti +5                           \" indent next line 5 spaces
+X..                               \" end macro
+X.ce 6                            \" center next 6 lines
+XNROFF Report Formatting
+X
+Xby
+X
+XBill Rosenkranz
+Xrosenkra@hall.cray.com
+X.\"
+X.\"
+X.tl ||NROFF Report Formatting||  \" page header (centered)
+X.IP                              \" invoke our macro
+XNroff is a text processor and formatter based on the design
+Xprovided in "Software Tools" by Kernighan and Plauger.
+XIt has been modified to closely resemble the Unix(tm) nroff command.
+XThe text and commands found in the file(s) are processed to generate
+Xformatted text.
+XNote that one (and only one) of the files can be "-"
+Xwhich reads input from stdin at that point.
+XThe output always goes to stdout which can be redirected by the shell.
+XThe -o option lets you redirect error output to the specified file
+Xrather than stderr.
+XDebugging information always goes to the file
+X"nroff.dbg" and is generally used only for program development.
+X.IP
+XNroff recognizes the following environment variables from the shell.
+X.IP
+XAn alternate directory to find the files tmac.* ("." for example).
+XThe default is c:\\lib\\tmac under TOS and /usr/lib/tmac under
+XMinix or Unix(tm).
+X.IP
+XAn alternate directory to place any temporary files.
+XThe default is the current directory.
+X.IP
+XCommands typically are distinguished by a period in column
+Xone of the input followed by a two character abbreviation
+Xfor the command funtion.
+XThe abbreviation may then be
+Xfollowed by an optional numeric or character argument.
+XThe numeric argument may be an absolute value such as setting
+Xthe right margin to a particular column, or the argument may 
+Xbe preceded by a plus sign or a minus sign to indicate that
+Xthe parameter should be modified relative to a previous
+Xsetting.
+XThe following commands are recognized (those
+Xmarked "extension" are requests added to the basic set
+Xprovided by Unix(tm) nroff):
+X.IP
+XBegin line adjustment.
+XIf fill mode is not on, adjustment is defered until it is back on.
+XIf a type indicator is present, the adjustment type is changed as follows: 
+X.ne 7           \" need 7 lines without a break
+X.nf             \" nofill for the table
+X
+XIndicator      Type
+X   l           adjust left margin only
+X   r           adjust right margin only
+X   c           center
+Xb or n         adjust both margins (default)
+Xabsent         unchanged
+X.fi            \" back to fill mode
+X.IP
+XCauses the following lines of text to appear in boldface.
+XThe optional argument specifies the number of lines to be typed in boldface.
+XBoldface and underlining are mutually exclusive features.
+XThe appearance of a boldface command will cause any underlining to cease.
+X.IP
+XCauses succeeding text to appear at the top of a new page.
+XThe optional argument specifies the page number for the new page.
+XThe initial value is one and the
+Xdefault value is one more than the previous page number.
+X.\"
+X.\" the end...
+/
+echo x - ex2.nr
+sed '/^X/s///' > ex2.nr << '/'
+X.\" example 2.     execute with: nroff ex2.nr
+X.\" 
+X.\" this is set up similar to ex1 except we show how to use number
+X.\" registers for section numbers. sections will be: I.00, I.01,...,
+X.\" II.00, II.01,... etc. the advantage is that you can add/remove
+X.\" sections without keeping track of the numbers. try it...
+X.\"
+X.pl 66                           \" page length (lines)
+X.po 5                            \" page offset (left margin)
+X.ll 60                           \" line length
+X.lt 60                           \" title length
+X.m1 3                            \" lines from page top to header
+X.m2 3                            \" lines from header to text
+X.m3 3                            \" lines from text to footer
+X.m4 3                            \" lines from footer to page botton
+X.tl |Using Number Registers For Sections|||
+X.fo |||Page %|                   \" page footer (just page number)
+X.in 5                            \" basic text indent (not header or major)
+X.nr A 0 1                        \" define reg A for major number
+X.af A I                          \" it will be upcase roman numerals
+X.nr B 0 1                        \" define reg B for minor number
+X.af B 01                         \" it will be 2 dig number (leading 0)
+X.\"
+X.\" start a major section. increase major number, reset minor number.
+X.\" first (and only) arg is the section name (text). we force a negative
+X.\" indent (temporary) back to the po for this title. make sure to quote
+X.\" multi-word titles...
+X.\"
+X.de MA
+X.nr A +1
+X.nr B 0 1
+X.sp 2
+X.ne 4
+X.ti -5
+X.\" print section title
+X\nA. $1
+X.sp 1
+X..
+X.\"
+X.\" start minor section. similar to MA except just increase minor number.
+X.\"
+X.de MI
+X.nr B +1
+X.sp 2
+X.ne 4
+X.\" print section title
+X\nA.\nB $1
+X.sp 1
+X..
+X.\"
+X.\"
+X.\" start text...
+X.\"
+X.MA "Major Section"
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+X.MI "Minor Section"
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+X.MI "Minor Section"
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+X.MI "Minor Section"
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+X.MA "Major Section"
+X
+X.MI "Minor Section"
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+X.MI "Minor Section"
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+X.MA "Major Section"
+XBlah blah blah blah blah blah blah blah blah blah.
+XBlah blah blah blah blah blah blah blah blah blah.
+/
+echo x - io.cdif
+sed '/^X/s///' > io.cdif << '/'
+X*** /home/top/ast/minix/1.5.3/command/nroff/io.c	Tue Jan 23 19:25:15 1990
+X--- /home/top/ast/minix/1.5.5/command/nroff/io.c	Sun Mar  4 23:18:24 1990
+X***************
+X*** 98,100 ****
+X  pbstr (p)
+X! char    p[];
+X  {
+X--- 98,100 ----
+X  pbstr (p)
+X! char   *p;
+X  {
+X***************
+X*** 110,111 ****
+X--- 110,115 ----
+X  	 */
+X+ 	if (p == NULL_CPTR)
+X+ 		return;
+X+ 	if (p[0] == EOS)
+X+ 		return;
+X  	for (i = strlen (p) - 1; i >= 0; --i)
+X***************
+X*** 163,165 ****
+X  
+X! 	putc (c, fp);
+X  }
+X--- 167,172 ----
+X  
+X! 	if (fp == stdout)
+X! 		putc (c, fp);
+X! 	else
+X! 		putc_lpr (c, fp);
+X  }
+X***************
+X*** 196,201 ****
+X  				for (j = 0; j < pg.offset; ++j)
+X! 					prchar (' ', pout);
+X  				for (j = 0; j < dc.tival; ++j)
+X! 					prchar (' ', pout);
+X! 				putlin (os, pout);
+X  			}
+X--- 203,208 ----
+X  				for (j = 0; j < pg.offset; ++j)
+X! 					prchar (' ', out_stream);
+X  				for (j = 0; j < dc.tival; ++j)
+X! 					prchar (' ', out_stream);
+X! 				putlin (os, out_stream);
+X  			}
+X***************
+X*** 203,208 ****
+X  		for (j = 0; j < pg.offset; ++j)
+X! 			prchar (' ', pout);
+X  		for (j = 0; j < dc.tival; ++j)
+X! 			prchar (' ', pout);
+X! 		putlin (p, pout);
+X  	}
+X--- 210,215 ----
+X  		for (j = 0; j < pg.offset; ++j)
+X! 			prchar (' ', out_stream);
+X  		for (j = 0; j < dc.tival; ++j)
+X! 			prchar (' ', out_stream);
+X! 		putlin (p, out_stream);
+X  	}
+X***************
+X*** 213,215 ****
+X--- 220,226 ----
+X  	if (pg.lineno > pg.bottom)
+X+ 	{
+X  		pfoot ();
+X+ 		if (stepping)
+X+ 			wait_for_char ();
+X+ 	}
+X  }
+X***************
+X*** 239,242 ****
+X--- 250,272 ----
+X  
+X+ /*------------------------------*/
+X+ /*	putc_lpr		*/
+X+ /*------------------------------*/
+X+ #ifdef GEMDOS
+X+ #include <osbind.h>
+X+ #endif
+X  
+X+ putc_lpr (c, fp)
+X+ char	c;
+X+ FILE   *fp;
+X+ {
+X  
+X+ /*
+X+  *	write char to printer
+X+  */
+X  
+X+ #ifdef GEMDOS
+X+ 	Bconout (0, (int) c & 0x00FF);
+X+ #else
+X+ 	putc (c, fp);
+X+ #endif
+X+ }
+/
+echo x - low.cdif
+sed '/^X/s///' > low.cdif << '/'
+X*** /home/top/ast/minix/1.5.3/command/nroff/low.c	Sat Feb 17 10:06:02 1990
+X--- /home/top/ast/minix/1.5.5/command/nroff/low.c	Sun Mar  4 23:18:33 1990
+X***************
+X*** 58,59 ****
+X--- 58,60 ----
+X  	{
+X+ #ifdef GEMDOS
+X  		co.outbuf[co.outp]   = '\r';
+X***************
+X*** 61,62 ****
+X--- 62,68 ----
+X  		co.outbuf[co.outp+2] = EOS;
+X+ #else
+X+ 		co.outbuf[co.outp]   = '\n';
+X+ 		co.outbuf[co.outp+1] = EOS;
+X+ 		co.outbuf[co.outp+2] = EOS;
+X+ #endif
+X  		put (co.outbuf);
+X***************
+X*** 90,92 ****
+X  	{
+X! 		d = atod (*p++);
+X  		if (d == -1)
+X--- 96,99 ----
+X  	{
+X! 		d = atod (*p);
+X! 		p++;
+X  		if (d == -1)
+X***************
+X*** 102,103 ****
+X--- 109,144 ----
+X  /*------------------------------*/
+X+ /*	inptobu			*/
+X+ /*------------------------------*/
+X+ inptobu (ps)
+X+ char   *ps;
+X+ {
+X+ 
+X+ /*
+X+  *	convert input units to b.u.
+X+  */
+X+ 
+X+ 	return;
+X+ }
+X+ 
+X+ 
+X+ 
+X+ 
+X+ /*------------------------------*/
+X+ /*	butochar		*/
+X+ /*------------------------------*/
+X+ butochar (ps)
+X+ char   *ps;
+X+ {
+X+ 
+X+ /*
+X+  *	convert b.u. to char spaces
+X+  */
+X+ 
+X+ 	return;
+X+ }
+X+ 
+X+ 
+X+ 
+X+ 
+X+ /*------------------------------*/
+X  /*	skipbl			*/
+X***************
+X*** 114,116 ****
+X  
+X! 	while (*p == ' ' || *p == '\t')
+X  		++p;
+X--- 155,157 ----
+X  
+X! 	while ((*p != EOS) && (*p == ' ' || *p == '\t'))
+X  		++p;
+X***************
+X*** 776,781 ****
+X  /*------------------------------*/
+X- #ifdef ALCYON
+X- #include <osbind.h>
+X- #endif
+X- 
+X  err_exit (code)
+X--- 817,818 ----
+X***************
+X*** 789,801 ****
+X  	if (err_stream != stderr && err_stream != (FILE *) 0)
+X  		fclose (err_stream);
+X! 	if (dbg_stream != stderr && dbg_stream != (FILE *) 0)
+X  		fclose (dbg_stream);
+X  
+X- #ifdef ALCYON
+X  	if (hold_screen)
+X  	{
+X! 		printf ("enter any key...");
+X! 		Cconin ();
+X  	}
+X- #endif
+X  
+X--- 826,852 ----
+X  	if (err_stream != stderr && err_stream != (FILE *) 0)
+X+ 	{
+X+ 		/*
+X+ 		 *   not going to stderr (-o file)
+X+ 		 */
+X+ 		fflush (err_stream);
+X  		fclose (err_stream);
+X! 	}
+X! 	if (debugging && dbg_stream != stderr && dbg_stream != (FILE *) 0)
+X! 	{
+X! 		fflush (dbg_stream);
+X  		fclose (dbg_stream);
+X+ 	}
+X+ 	if (out_stream != stdout && out_stream != (FILE *) 0)
+X+ 	{
+X+ 		/*
+X+ 		 *   not going to stdout (-l)
+X+ 		 */
+X+ 		fflush (out_stream);
+X+ 		fclose (out_stream);
+X+ 	}
+X  
+X  	if (hold_screen)
+X  	{
+X! 		wait_for_char ();
+X  	}
+X  
+X***************
+X*** 804,805 ****
+X--- 855,872 ----
+X  
+X+ 
+X+ 
+X+ /*------------------------------*/
+X+ /*	wait_for_char		*/
+X+ /*------------------------------*/
+X+ #ifdef GEMDOS
+X+ #include <osbind.h>
+X+ #endif
+X+ 
+X+ wait_for_char ()
+X+ {
+X+ #ifdef GEMDOS
+X+ 		printf ("enter any key..."); fflush (stdout);
+X+ 		Cconin ();
+X+ #endif
+X+ }
+X  
+/
+echo x - macros.cdif
+sed '/^X/s///' > macros.cdif << '/'
+X*** /home/top/ast/minix/1.5.3/command/nroff/macros.c	Tue Jan 23 19:25:15 1990
+X--- /home/top/ast/minix/1.5.5/command/nroff/macros.c	Sun Mar  4 23:18:35 1990
+X***************
+X*** 71,73 ****
+X  	i = getwrd (q, name);
+X! 	if (!isalpha (*name))
+X  	{
+X--- 71,73 ----
+X  	i = getwrd (q, name);
+X! 	if (!isprint (*name))
+X  	{
+X***************
+X*** 150,156 ****
+X  	 */
+X! 	if (putmac (name, defn) == ERR)
+X  	{
+X! 		fprintf (err_stream,
+X! 			"***%s: macro definition table full\n", myname);
+X! 		err_exit (-1);
+X  	}
+X--- 150,159 ----
+X  	 */
+X! 	if (!ignoring)
+X  	{
+X! 		if (putmac (name, defn) == ERR)
+X! 		{
+X! 			fprintf (err_stream,
+X! 				"***%s: macro definition table full\n", myname);
+X! 			err_exit (-1);
+X! 		}
+X  	}
+X***************
+X*** 167,169 ****
+X  register char  *p;
+X! char		d[];
+X  register int	i;
+X--- 170,172 ----
+X  register char  *p;
+X! char	       *d;
+X  register int	i;
+X***************
+X*** 299,301 ****
+X  	 */
+X! 	return (NULL);
+X  }
+X--- 302,304 ----
+X  	 */
+X! 	return (NULL_CPTR);
+X  }
+X***************
+X*** 312,314 ****
+X  register char  *p;
+X! char		m[];
+X  {
+X--- 315,317 ----
+X  register char  *p;
+X! char	       *m;
+X  {
+X***************
+X*** 321,324 ****
+X  	register int	j;
+X! 	char	       *argp[10];
+X  	char		c;
+X  
+X--- 324,328 ----
+X  	register int	j;
+X! 	char	       *argp[15];
+X  	char		c;
+X+ 	int		xc;
+X  
+X***************
+X*** 338,342 ****
+X  	 */
+X! 	for (i = 0; i < 10; ++i)
+X  		argp[i] = p;
+X! 
+X  	/*
+X--- 342,346 ----
+X  	 */
+X! /*	for (i = 0; i < 10; ++i)
+X  		argp[i] = p;
+X! */
+X  	/*
+X***************
+X*** 355,357 ****
+X  		 *   get to substituted param and if no more, reset remaining
+X! 		 *   args to NULL and stop...
+X  		 */
+X--- 359,361 ----
+X  		 *   get to substituted param and if no more, reset remaining
+X! 		 *   args to NULL and stop. using "i" here IS ok...
+X  		 */
+X***************
+X*** 360,363 ****
+X  		{
+X  			for ( ; i < 10; i++)
+X! 				*argp[i] = '\0';
+X  			break;
+X--- 364,370 ----
+X  		{
+X+ 			set_ireg (".$", i, 0);
+X  			for ( ; i < 10; i++)
+X! 			{
+X! 				argp[i] = NULL_CPTR;
+X! 			}
+X  			break;
+X***************
+X*** 417,419 ****
+X  				 *   invocation arg. m[i]-'0' is the numerical
+X! 				 *   value of the $0 thru $9. if the arg is
+X  				 *   not there, argp[n] will be (char *) 0
+X--- 424,426 ----
+X  				 *   invocation arg. m[i]-'0' is the numerical
+X! 				 *   value of the $1 thru $9. if the arg is
+X  				 *   not there, argp[n] will be (char *) 0
+X***************
+X*** 421,423 ****
+X  				 */
+X! 				pbstr (argp[m[i] - '0']);
+X  				--i;
+X--- 428,432 ----
+X  				 */
+X! 				xc = m[i] - '1';
+X! 				if (argp[xc])
+X! 					pbstr (argp[xc]);
+X  				--i;
+X***************
+X*** 468,470 ****
+X  
+X! 	fflush (pout);
+X  	fflush (err_stream);
+X--- 477,479 ----
+X  
+X! 	fflush (out_stream);
+X  	fflush (err_stream);
+/
+echo x - main.cdif
+sed '/^X/s///' > main.cdif << '/'
+X*** /home/top/ast/minix/1.5.3/command/nroff/main.c	Sat Feb 17 10:06:02 1990
+X--- /home/top/ast/minix/1.5.5/command/nroff/main.c	Sun Mar  4 23:18:41 1990
+X***************
+X*** 1 ****
+X--- 1,3 ----
+X+ #include "config.h"
+X+ 
+X  /*
+X***************
+X*** 26,29 ****
+X  
+X! 
+X! #ifdef ATARIST
+X  #include <sys\types.h>
+X--- 28,30 ----
+X  
+X! #ifdef GEMDOS
+X  #include <sys\types.h>
+X***************
+X*** 34,37 ****
+X  #endif
+X- #undef NULL
+X- 
+X  #include <stdio.h>
+X--- 35,36 ----
+X***************
+X*** 47,54 ****
+X  	int		ifp = 0;
+X  
+X  
+X  	swflg       = FALSE;
+X  	hold_screen = FALSE;
+X  	debugging   = FALSE;
+X! 	pout        = stdout;
+X  	err_stream  = stderr;
+X--- 46,66 ----
+X  	int		ifp = 0;
+X+ 	char	       *ptmp;
+X+ #ifndef GEMDOS
+X+ 	char	       *pterm;
+X+ 	char		capability[100];
+X+ 	char	       *pcap;
+X+ 	char	       *ps;
+X+ #endif
+X  
+X  
+X+ 
+X+ 	/*
+X+ 	 *   set up initial flags and file descriptors
+X+ 	 */
+X  	swflg       = FALSE;
+X+ 	ignoring    = FALSE;
+X  	hold_screen = FALSE;
+X  	debugging   = FALSE;
+X! 	stepping    = FALSE;
+X! 	out_stream  = stdout;
+X  	err_stream  = stderr;
+X***************
+X*** 58,59 ****
+X--- 70,153 ----
+X  	/*
+X+ 	 *   this is for tmp files, if ever needed. it SHOULD start
+X+ 	 *   out without the trailing slash. if not in env, use default
+X+ 	 */
+X+ 	if (ptmp = getenv ("TMPDIR"))
+X+ 		strcpy (tmpdir, ptmp);
+X+ 	else
+X+ 		strcpy (tmpdir, ".");
+X+ 
+X+ 
+X+ 	/*
+X+ 	 *   handle terminal for \fB, \fI
+X+ 	 */
+X+ #ifdef GEMDOS
+X+ 	/*
+X+ 	 *   atari/TOS is easy...
+X+ 	 */
+X+ 	strcpy (s_standout, "\33p");
+X+ 	strcpy (e_standout, "\33q");
+X+ 	strcpy (s_italic, "\33p");
+X+ 	strcpy (e_italic, "\33q");
+X+ #else
+X+ 	s_standout[0] = '\0';
+X+ 	e_standout[0] = '\0';
+X+ 	s_italic[0]   = '\0';
+X+ 	e_italic[0]   = '\0';
+X+ 	s_bold[0]     = '\0';
+X+ 	e_bold[0]     = '\0';
+X+ 	if ((pterm = getenv ("TERM"))
+X+ 	&& (tgetent (termcap, pterm) == 1))
+X+ 	{
+X+ 		/*
+X+ 		 *   we currently use standout mode for all weirdness
+X+ 		 *   lile BOLD, italic, etc.
+X+ 		 */
+X+ 		pcap = capability;
+X+ 		if (ps = tgetstr ("so", &pcap))
+X+ 		{
+X+ /* NOTE: the termcap on my sun has padding or something in it so i just
+X+    arbitarily remove it here. this is not right, but the worst that happens
+X+    is you have no standout. since minix uses standard ansi escape for so,
+X+    \E[7m, this should not be a problem. also i rarely use any non-ansi
+X+    terminals so this is also not a problem for me. the right thing to do
+X+    would be to use tputs() to remove the padding and write a new string
+X+    but i am lazy... */
+X+ 			while (*ps && *ps != 0x1B)	ps++;
+X+ 			strcpy (s_standout, ps);
+X+ 			strcpy (s_italic, ps);
+X+ 			strcpy (s_bold, ps);
+X+ 		}
+X+ 		if (ps = tgetstr ("se", &pcap))
+X+ 		{
+X+ 			while (*ps && *ps != 0x1B)	ps++;
+X+ 			strcpy (e_standout, ps);
+X+ 			strcpy (e_italic, ps);
+X+ 			strcpy (e_bold, ps);
+X+ 		}
+X+ 		if (ps = tgetstr ("us", &pcap))
+X+ 		{
+X+ 			while (*ps && *ps != 0x1B)	ps++;
+X+ 			strcpy (s_italic, ps);
+X+ 		}
+X+ 		if (ps = tgetstr ("ue", &pcap))
+X+ 		{
+X+ 			while (*ps && *ps != 0x1B)	ps++;
+X+ 			strcpy (e_italic, ps);
+X+ 		}
+X+ 		if (ps = tgetstr ("ms", &pcap))
+X+ 		{
+X+ 			while (*ps && *ps != 0x1B)	ps++;
+X+ 			strcpy (s_bold, ps);
+X+ 		}
+X+ 		if (ps = tgetstr ("me", &pcap))
+X+ 		{
+X+ 			while (*ps && *ps != 0x1B)	ps++;
+X+ 			strcpy (e_bold, ps);
+X+ 		}
+X+ 	}
+X+ #endif
+X+ 
+X+ 
+X+ 
+X+ 	/*
+X  	 *   initialize structures (defaults)
+X***************
+X*** 86,88 ****
+X  			 */
+X! 			if ((sofile[0] = fopen (argv[i], "r")) == NULL)
+X  			{
+X--- 180,182 ----
+X  			 */
+X! 			if ((sofile[0] = fopen (argv[i], "r")) == NULL_FPTR)
+X  			{
+X***************
+X*** 106,108 ****
+X  			/*
+X! 			 *   - means read stdin
+X  			 */
+X--- 200,202 ----
+X  			/*
+X! 			 *   - means read stdin (anywhere in file list)
+X  			 */
+X***************
+X*** 117,119 ****
+X  	/*
+X! 	 *   if no files, usage
+X  	 */
+X--- 211,213 ----
+X  	/*
+X! 	 *   if no files, usage (should really use stdin...)
+X  	 */
+X***************
+X*** 126,136 ****
+X  
+X  	/*
+X! 	 *   if not going to stdout (-l)
+X  	 */
+X- 	if (pout != stdout)
+X- 	{
+X- 		fflush (pout);
+X- 		fclose (pout);
+X- 	}
+X- 
+X  	err_exit (0);
+X--- 220,225 ----
+X  
+X+ 
+X  	/*
+X! 	 *   normal exit. this will fflush/fclose streams...
+X  	 */
+X  	err_exit (0);
+X***************
+X*** 147,164 ****
+X  	/*
+X! 	 *   note: -l not documented
+X  	 */
+X! 	fprintf (stderr, "Usage: %s [options] file [...]\n", myname);
+X! 	fprintf (stderr, "Options:\n");
+X! 	fprintf (stderr, "-a              font changes\n");
+X! 	fprintf (stderr, "-b              backspace\n");
+X! 	fprintf (stderr, "-h              hold screen\n");
+X! /*	fprintf (stderr, "-l              output to printer\n");*/
+X! 	fprintf (stderr, "-m<name>        macro file (e.g. -man)\n");
+X! 	fprintf (stderr, "-o file         error log file\n");
+X! 	fprintf (stderr, "-po<n>          page offset\n");
+X! 	fprintf (stderr, "-pn<n>          initial page number\n");
+X! 	fprintf (stderr, "-v              version\n");
+X! 	fprintf (stderr, "+<n>            first page to do\n");
+X! 	fprintf (stderr, "-<n>            last page to do\n");
+X! 	fprintf (stderr, "-               use stdin\n");
+X  }
+X--- 236,257 ----
+X  	/*
+X! 	 *   note: -l may not work correctly
+X  	 */
+X! 	fprintf (stderr, "Usage:   %s [options] file [...]\n", myname);
+X! 	fprintf (stderr, "Options: -a        no font changes\n");
+X! 	fprintf (stderr, "         -b        backspace\n");
+X! 	fprintf (stderr, "         -d        debug mode (file: nroff.dbg)\n");
+X! #ifdef GEMDOS
+X! 	fprintf (stderr, "         -h        hold screen before desktop\n");
+X! #endif
+X! 	fprintf (stderr, "         -l        output to printer\n");
+X! 	fprintf (stderr, "         -m<name>  macro file (e.g. -man)\n");
+X! 	fprintf (stderr, "         -o file   error log file (stderr is default)\n");
+X! 	fprintf (stderr, "         -pl<n>    page length\n");
+X! 	fprintf (stderr, "         -po<n>    page offset\n");
+X! 	fprintf (stderr, "         -pn<n>    initial page number\n");
+X! 	fprintf (stderr, "         -s        step through pages\n");
+X! 	fprintf (stderr, "         -v        print version only\n");
+X! 	fprintf (stderr, "         +<n>      first page to do\n");
+X! 	fprintf (stderr, "         -<n>      last page to do\n");
+X! 	fprintf (stderr, "         -         use stdin (in file list)\n");
+X  }
+X***************
+X*** 178,188 ****
+X  
+X- 	register long	i;
+X- #ifdef ALCYON
+X- 	time_t		dum = 0;
+X- #else
+X  	extern long	time ();
+X! 	time_t		dum = time (0);
+X! #endif
+X  	char	       *ctim;
+X  
+X  	dc.fill    = YES;
+X--- 271,279 ----
+X  
+X  	extern long	time ();
+X! 
+X! 	register long	i;
+X! 	time_t		tval;
+X  	char	       *ctim;
+X  
+X+ 	tval       = time (0L);
+X  	dc.fill    = YES;
+X***************
+X*** 237,239 ****
+X  	 */
+X! 	ctim = ctime (&dum);
+X  
+X--- 328,330 ----
+X  	 */
+X! 	ctim = ctime (&tval);
+X  
+X***************
+X*** 374,375 ****
+X--- 465,487 ----
+X  	
+X+ 	strcpy (rg[i].rname, "hh");		/* current hour (0-23) */
+X+ 	rg[i].rauto = 1;
+X+ 	rg[i].rval  = atoi (&ctim[11]);
+X+ 	rg[i].rflag = RF_READ | RF_WRITE;
+X+ 	rg[i].rfmt  = 2 | 0x80;
+X+ 	i++;
+X+ 	
+X+ 	strcpy (rg[i].rname, "mm");		/* current minute (0-59) */
+X+ 	rg[i].rauto = 1;
+X+ 	rg[i].rval  = atoi (&ctim[14]);
+X+ 	rg[i].rflag = RF_READ | RF_WRITE;
+X+ 	rg[i].rfmt  = 2 | 0x80;
+X+ 	i++;
+X+ 	
+X+ 	strcpy (rg[i].rname, "ss");		/* current second (0-59) */
+X+ 	rg[i].rauto = 1;
+X+ 	rg[i].rval  = atoi (&ctim[17]);
+X+ 	rg[i].rflag = RF_READ | RF_WRITE;
+X+ 	rg[i].rfmt  = 2 | 0x80;
+X+ 	i++;
+X+ 	
+X  
+X***************
+X*** 570,572 ****
+X  	for (i = 0; i < MXMDEF; ++i)
+X! 		mac.mnames[i] = NULL;
+X  	for (i = 0; i < MACBUF; ++i)
+X--- 682,684 ----
+X  	for (i = 0; i < MXMDEF; ++i)
+X! 		mac.mnames[i] = NULL_CPTR;
+X  	for (i = 0; i < MACBUF; ++i)
+X***************
+X*** 577,579 ****
+X  	mac.emb   = &mac.mb[0];
+X! 	mac.ppb   = NULL;
+X  }
+X--- 689,691 ----
+X  	mac.emb   = &mac.mb[0];
+X! 	mac.ppb   = NULL_CPTR;
+X  }
+X***************
+X*** 638,640 ****
+X  		case 'L': 
+X! 			pout = fopen (printer, "w");
+X  			co.lpr = TRUE;
+X--- 750,756 ----
+X  		case 'L': 
+X! #ifdef GEMDOS
+X! 			out_stream = (FILE *) 0;
+X! #else
+X! 			out_stream = fopen (printer, "w");
+X! #endif
+X  			co.lpr = TRUE;
+X***************
+X*** 680,682 ****
+X  			 */
+X! 			if ((sofile[0] = fopen (mfile, "r")) == NULL)
+X  			{
+X--- 796,798 ----
+X  			 */
+X! 			if ((sofile[0] = fopen (mfile, "r")) == NULL_FPTR)
+X  			{
+X***************
+X*** 700,702 ****
+X  			}
+X! 			if ((err_stream = fopen (p2, "w")) == NULL)
+X  			{
+X--- 816,818 ----
+X  			}
+X! 			if ((err_stream = fopen (p2, "w")) == NULL_FPTR)
+X  			{
+X***************
+X*** 724,725 ****
+X--- 840,850 ----
+X  			}
+X+ 			else if (*(p+1) == 'l' || *(p+1) == 'L')/* -pl___ */
+X+ 			{
+X+ 				p += 2;
+X+ 				set (&pg.plval, ctod (p) - 1, '1', 0,
+X+ 					pg.m1val + pg.m2val + pg.m3val + pg.m4val + 1,
+X+ 					HUGE);
+X+ 				set_ireg (".p", pg.plval, 0);
+X+ 				pg.bottom = pg.plval - pg.m3val - pg.m4val;
+X+ 			}
+X  			else					/* -p___ */
+X***************
+X*** 731,735 ****
+X  
+X  		case 'v': 				/* version */
+X  		case 'V': 
+X! 			printf ("%s\n", version);
+X  			*q = TRUE;
+X--- 856,865 ----
+X  
+X+ 		case 's': 				/* page step mode */
+X+ 		case 'S': 
+X+ 			stepping = TRUE;
+X+ 			break;
+X+ 
+X  		case 'v': 				/* version */
+X  		case 'V': 
+X! 			printf ("%s\n", "Version 1.5");
+X  			*q = TRUE;
+/
+echo x - man.man
+sed '/^X/s///' > man.man << '/'
+X.\" man(7) manpage by rosenkra@hall.cray.com (Bill Rosenkranz)
+X.\"
+X.TH MAN 7 "Misc. Stuff" "Version 0.99" "February 26, 1990"
+X.SH NAME
+Xman - nroff macro package for manual pages
+X.SH SYNOPSIS
+Xnroff -man file ...
+X.SH DESCRIPTION
+XThese macros are used to lay out reference pages for manuals.
+X.PP
+XAny text argument
+Xt
+Xmay be zero to six words.  Quotes may be used to include blanks in a 'word'.
+XText
+Xcan be empty, but unlike normal Unix macros, the next line is not used.
+X.PP
+XA prevailing indent distance is remembered between successive
+Xindented paragraphs, and is reset to default value upon
+Xreaching a non-indented paragraph (i.e. at .SH or .SS).
+X.SH FILES
+X/usr/lib/tmac/tmac.an
+X.SH SEE ALSO
+Xnroff(1), man(1)
+X.SH "REQUEST SUMMARY"
+X.nf
+X.cc +
+XRequest        Cause    Explanation
+X               Break? 
+X
+X.B t           no       Text t is bold. Quote to imbed blanks.
+X.I t           no       Text t is italic. Quote to imbed blanks.
+X.IP x          yes      Set prevailing indent to 5. Begin
+X                        indented paragraph with hanging tag
+X                        given by first argument.  Tag x is
+X                        always placed on a separate line.
+X.LP            yes      Same as .PP.
+X.PP            yes      Begin paragraph.  Set prevailing
+X                        indent to 5.
+X.RE            yes      End of relative indent.  Set prevailing
+X                        indent to amount of starting .RS.
+X.RS            yes      Start relative indent, move left margin
+X                        in distance 5.
+X.SH t          yes      Subhead. Quote to imbed blanks.
+X.SS t          yes      Subsection. Quote to imbed blanks. No
+X                        indent for t.
+X.TH n s c v d  yes      Begin page named n of chapter s; c is
+X                        the chapter name; d is the date of the
+X                        most recent change; v is version number.
+X                        Sets prevailing indent and tabs to 5.
+X
+X+cc .
+X.fi
+X.ne 8
+X.SH EXAMPLE
+XThe following illustrates some of the requests available
+Xwith this macro package:
+X.RS
+X.nf
+X.cc +
+X.\\\|" this is a comment
+X.TH DEMO 1 "Commands Manual" "Version 1.0" "\\\|*\|(DA"
+X.SH NAME
+Xdemo - show how to use -man package  \\\|" this is a comment
+X.SH SYNOPSIS
+Xdemo [options] file [...]
+X.SH DESCRIPTION
+XThis is a test for showing how to use the
+X.I nroff(1)
+Xman package. It shows how to use .TH, .SH, .PP, .I, and .IP
+Xcommands.
+X.PP
+XThis will be a new paragraph. You can also use normal
+X.I nroff(1)
+Xcommands in the text.
+X.SS NROFF COMMANDS:
+X.IP '\\\\\|"'
+XThis is the comment command. Note how you have to quote
+Xthis sucker! You'll probably never have to write an
+X.I nroff(1)
+Xmanpage, so don't worry about it.
+X.IP nf
+XNo fill mode (the normal mode is fill mode where things
+Xget justified right and left).
+X.IP fi
+XRe-enter fill mode.
+X.IP br
+XBreak line here no matter what.
+X.IP sp
+XVertical space (also causes a break to occur).
+X.sp
+XNote that to continue an indent and make a new paragraph (as
+Xis the case here), just put in a space (.sp).
+X.PP
+XNow we should be at a new paragraph.
+X+cc .
+X
+X.fi
+X.RE
+X.ne 8
+XExecuting 'nroff -man demo.man' results in the following output:
+X.RS
+X.nf
+X.cc +
+XDEMO (1)                Commands Manual                DEMO (1)
+X
+XNAME
+X     demo - show how to use -man package
+X
+XSYNOPSIS
+X     demo [options] file [...] 
+X
+XDESCRIPTION
+X     This is a test  for  showing  how  to  use the nroff(1) 
+X     man package.    It  shows how to use .TH, .SH, .PP, .I,
+X     and .IP commands.  
+X
+X     This will be a new paragraph.  You can also use  normal
+X     nroff(1) commands in the text.  
+X
+X     NROFF COMMANDS:
+X
+X     \\\|"  
+X          This is the comment command.  Note how you have to 
+X          quote this  sucker!  You'll probably never have to
+X          write an nroff(1)  manpage,  so  don't worry about
+X          it.  
+X
+X     nf  
+X          No  fill  mode (the normal mode is fill mode where
+X          things get justified right and left).  
+X
+X     fi  
+X          Re-enter fill mode.  
+X
+X     br  
+X          Break line here no matter what.  
+X
+X     sp  
+X          Vertical space (also causes a break to occur).  
+X
+X          Note that to continue an indent  and  make  a  new
+X          paragraph  (as  is  the  case here), just put in a
+X          space (.sp).
+X
+X     Now we should be at a new paragraph.  
+X
+XVersion 1.0             23:33:57 2/25/90                       1
+X
+X+cc .
+X
+X.fi
+X.RE
+X.ne 8
+X.SH CONVENTIONS
+XA typical manual page for a command or function is laid out as follows:
+X.nf
+X.cc +
+X
+X     .TH TITLE [1-8]
+X          The name of the command or function in upper-case,
+X          which serves as the title of the manual page. This is
+X          followed by the number of the section in which it
+X          appears.
+X
+X     .SH NAME
+X          name - one-line summary
+X
+X          The name, or list of names, by which the command is
+X          called, followed by a dash and then a one-line summary
+X          of the action performed.  All in roman font, this sec-
+X          tion contains no troff(1) commands or escapes, and no
+X          macro requests.  It is used to generate the whatis(1)
+X          database.
+X
+X     .SH SYNOPSIS
+X
+X          Commands:
+X
+X               The syntax of the command and its arguments as
+X               typed on the command line.  When in boldface, a
+X               word must be typed exactly as printed.  When in
+X               italics, a word can be replaced with text that you
+X               supply.  Syntactic symbols appear in roman face:
+X
+X               [ ]  An argument, when surrounded by brackets is
+X                    optional.
+X
+X               |    Arguments separated by a vertical bar are
+X                    exclusive.  You can supply only item from
+X                    such a list.
+X
+X               ...  Arguments followed by an elipsis can be
+X                    repeated.  When an elipsis follows a brack-
+X                    eted set, the expression within the brackets
+X                    can be repeated.
+X
+X          Functions:
+X
+X               If required, the data declaration, or #include
+X               directive, is shown first, followed by the  func-
+X               tion declaration. Otherwise, the function declara-
+X               tion is shown.
+X
+X     .SH DESCRIPTION
+X          A narrative description of the command or function in
+X          detail, including how it interacts with files or data,
+X          and how it handles the standard input, standard output
+X          and standard error.
+X
+X          Filenames, and references to commands or functions
+X          described elswhere in the manual, are italicised.  The
+X          names of options, variables and other literal terms are
+X          in boldface.
+X
+X     .SH OPTIONS
+X          The list of options along with a description of how
+X          each affects the commands operation.
+X
+X     .SH FILES
+X          A list of files associated with the command or func-
+X          tion.
+X
+X     .SH "SEE ALSO"
+X          A comma-separated list of related manual pages,
+X          followed by references to other published materials.
+X          This section contains no troff(1) escapes or commands,
+X          and no macro requests.
+X
+X     .SH DIAGNOSTICS
+X          A list of diagnostic messages and an explanation of
+X          each.
+X
+X     .SH NOTES
+X          Any additional notes such as installation-dependent
+X          functionality.
+X
+X     .SH BUGS
+X          A description of limitations, known defects, and possi-
+X          ble problems associated with the command or function.
+X
+X     .SH AUTHOR
+X          The program's author and any pertinent release info.
+X
+X     .SH VERSION
+X          The program's current version number and release date.
+X+cc .
+X.fi
+/
+echo x - nroff.crc
+sed '/^X/s///' > nroff.crc << '/'
+X23703    205 /home/top/ast/minix/1.5.5/command/nroff/Makefile
+X34721   1195 /home/top/ast/minix/1.5.5/command/nroff/Makefile.atari
+X31073   2202 /home/top/ast/minix/1.5.5/command/nroff/README
+X34131  17355 /home/top/ast/minix/1.5.5/command/nroff/command.c
+X18340   1455 /home/top/ast/minix/1.5.5/command/nroff/config.h
+X61976  17208 /home/top/ast/minix/1.5.5/command/nroff/escape.c
+X09139   4135 /home/top/ast/minix/1.5.5/command/nroff/ex1.nr
+X54770   3004 /home/top/ast/minix/1.5.5/command/nroff/ex2.nr
+X03651   3900 /home/top/ast/minix/1.5.5/command/nroff/io.c
+X36484  11743 /home/top/ast/minix/1.5.5/command/nroff/low.c
+X60410   9252 /home/top/ast/minix/1.5.5/command/nroff/macros.c
+X02023  19367 /home/top/ast/minix/1.5.5/command/nroff/main.c
+X22057   7590 /home/top/ast/minix/1.5.5/command/nroff/man.man
+X05189  15993 /home/top/ast/minix/1.5.5/command/nroff/nroff.h
+X65031   4930 /home/top/ast/minix/1.5.5/command/nroff/strings.c
+X45131    883 /home/top/ast/minix/1.5.5/command/nroff/test.0
+X45100  11612 /home/top/ast/minix/1.5.5/command/nroff/text.c
+X19519   6320 /home/top/ast/minix/1.5.5/command/nroff/tmac.an
+X38232    501 /home/top/ast/minix/1.5.5/command/nroff/version.h
+/
+echo x - nroff.h.cdif
+sed '/^X/s///' > nroff.h.cdif << '/'
+X*** /home/top/ast/minix/1.5.3/command/nroff/nroff.h	Sat Feb 17 10:06:03 1990
+X--- /home/top/ast/minix/1.5.5/command/nroff/nroff.h	Sun Mar  4 23:18:46 1990
+X***************
+X*** 3,8 ****
+X  
+X! #ifdef alcyon
+X! #define ALCYON				/* for gemdos version, alcyon C */
+X! 					/* otherwise minix/unix */
+X! #endif
+X  
+X--- 3,5 ----
+X  
+X! #include "config.h"			/* os/compiler options */
+X  
+X***************
+X*** 19,23 ****
+X   *	2) configuration sizes (see _STKSIZ below if alcyon/dri)
+X!  *	3) libc should have getenv() and ctime()
+X   *	4) look in version.h for *printer file name (included below)
+X   *
+X   *	original author:
+X--- 16,26 ----
+X   *	2) configuration sizes (see _STKSIZ below if alcyon/dri)
+X!  *	3) libc should have getenv(), time(), and ctime()
+X   *	4) look in version.h for *printer file name (included below)
+X   *
+X+  *	all data is currently allocated in static arrays. the biggest
+X+  *	chunks are the parameters which control number registers and the
+X+  *	macro name space area. these are defined below: MAXREGS, MACBUF.
+X+  *	MACBUF is the larger. it holds all macros, strings, etc. if you
+X+  *	find yourself running out of macro space, increase MACBUF.
+X+  *
+X   *	original author:
+X***************
+X*** 37,38 ****
+X--- 40,54 ----
+X  
+X+ #ifdef _MINIX
+X+ # ifdef tolower
+X+ #  undef tolower
+X+ # endif
+X+ # define tolower(x) (isupper(x)?((x)-'A'+'a'):(x))
+X+ #endif
+X+ #ifdef UNIX
+X+ # ifdef tolower
+X+ #  undef tolower
+X+ # endif
+X+ # define tolower(x) (isupper(x)?((x)-'A'+'a'):(x))
+X+ #endif
+X+ 
+X  /*
+X***************
+X*** 43,55 ****
+X   */
+X! #ifdef ALCYON
+X! #define TMACFULL	"c:\\lib\\tmac\\tmac."
+X! #define TMACPRE		"\\tmac."
+X! #else /*unix/minix???*/
+X! #define TMACFULL	"/usr/lib/tmac/tmac."
+X! #define TMACPRE		"/tmac."
+X  #endif
+X  
+X  /*
+X!  *	command codes...
+X   */
+X  #define MACRO		0	/* macro definition */
+X--- 59,98 ----
+X   */
+X! #ifdef tmacfull
+X! # define TMACFULL	tmacfull
+X  #endif
+X+ #ifdef tmacpre
+X+ # define TMACPRE	tmacpre
+X+ #endif
+X  
+X+ #ifdef GEMDOS
+X+ # ifndef TMACFULL
+X+ #  define TMACFULL	"c:\\lib\\tmac\\tmac."
+X+ # endif
+X+ # ifndef TMACPRE
+X+ #  define TMACPRE	"\\tmac."
+X+ # endif
+X+ #endif
+X+ 
+X+ #ifdef _MINIX
+X+ # ifndef TMACFULL
+X+ #  define TMACFULL	"/usr/lib/tmac/tmac."
+X+ # endif
+X+ # ifndef TMACPRE
+X+ #  define TMACPRE	"/tmac."
+X+ # endif
+X+ #endif
+X+ 
+X+ #ifdef UNIX
+X+ # ifndef TMACFULL
+X+ #  define TMACFULL	"/usr/lib/tmac/tmac."
+X+ # endif
+X+ # ifndef TMACPRE
+X+ #  define TMACPRE	"/tmac."
+X+ # endif
+X+ #endif
+X+ 
+X  /*
+X!  *	command codes. indented defines are commands not yet implemented
+X   */
+X+ #undef PI
+X  #define MACRO		0	/* macro definition */
+X***************
+X*** 98,100 ****
+X  #define C2		43	/* nobreak char */
+X- /*	these 3 not done yet... */
+X  #  define TR		44	/* translate character */
+X--- 141,142 ----
+X***************
+X*** 111,117 ****
+X  #define EL		55	/* else */
+X! /*	these aren't done yet either... */
+X! #  define PS		56	/* point size */
+X! #  define SS		57	/* space char size */
+X! #  define CS		58	/* constant char space */
+X! #  define BD		59	/* bold font */
+X  #  define FP		60	/* font position */
+X--- 153,158 ----
+X  #define EL		55	/* else */
+X! #define PS		56	/* point size (IGNORED in nroff) */
+X! #define SS		57	/* space char size (IGNORED in nroff) */
+X! #define CS		58	/* constant char space (IGNORED in nroff) */
+X! #define BD		59	/* embolden font (IGNORED in nroff) */
+X  #  define FP		60	/* font position */
+X***************
+X*** 152,160 ****
+X  #  define TM		95	/* print to terminal */
+X! #  define IG		96	/* ignore */
+X  
+X- 
+X  #define COMMENT		1000	/* comment (.\") */
+X- 
+X  #define UNKNOWN		-1
+X  
+X  /*
+X--- 193,200 ----
+X  #  define TM		95	/* print to terminal */
+X! #define IG		96	/* ignore */
+X  
+X  #define COMMENT		1000	/* comment (.\") */
+X  #define UNKNOWN		-1
+X  
+X+ 
+X  /*
+X***************
+X*** 173,176 ****
+X  #define HUGE		256
+X! #define INFINITE	32000
+X! #define LEFT		0	/* indecies into hdr margin lim arrays*/
+X  #define RIGHT		1
+X--- 213,216 ----
+X  #define HUGE		256
+X! #define INFINITE	32760
+X! #define LEFT		0	/* indecies into hdr margin lim arrays */
+X  #define RIGHT		1
+X***************
+X*** 197,198 ****
+X--- 237,253 ----
+X  
+X+ /*
+X+  *	a rational way of dealing with the NULL thing...
+X+  */
+X+ #define NULL_CPTR	(char *) 0
+X+ #define NULL_FPTR	(FILE *) 0
+X+ #define NULL_IPTR	(int *) 0
+X+ #define NULL_LPTR	(long *) 0
+X+ #define NULL_SPTR	(short *) 0
+X+ #define NULL_PTR	(char *) 0
+X+ #define NULLP(type)	(type *) 0
+X+ 
+X+ 
+X+ /*
+X+  *	for justification during line fill
+X+  */
+X  #define ADJ_OFF		0
+X***************
+X*** 205,206 ****
+X--- 260,281 ----
+X  /*
+X+  *	basic unit (b.u.) conversions. in nroff, all output is fixed spaced,
+X+  *	at least in THIS nroff. so unit conversion to b.u. amount to 1 Em per
+X+  *	character or 24 b.u. per character. thus 0.5i = 120 b.u. = 5 chars.
+X+  *	everything is rounded up to the nearest Em. it is highly recommended
+X+  *	to use inches for everything...
+X+  *
+X+  *	to convert (say inches) to char spaces, do this:
+X+  *
+X+  *		char_spaces = (int)(inches * (float) BU_INCH) / BU_EM;
+X+  */
+X+ #define BU_INCH		240		/* 1.0i = 240 b.u. */
+X+ #define BU_CM		945/10		/* 1.0c = 240*50/127 b.u. */
+X+ #define BU_PICA		40		/* 1P   = 240/6 b.u. */
+X+ #define BU_EM		24		/* 1m   = 240/10 b.u. (10 char/inch) */
+X+ #define BU_EN		24		/* 1n   = 240/10 b.u. */
+X+ #define BU_POINT	240/72		/* 1p   = 240/72 b.u. */
+X+ #define BU_BU		1		/* 1    = 1 b.u. */
+X+ 
+X+ 
+X+ /*
+X   *	The parameter values selected for macro definitions are somewhat
+X***************
+X*** 217,219 ****
+X  #define MACBUF		32000	/* macro definition buffer size */
+X! #define MXMLEN		250	/* max length of each macro def */
+X  #define MNLEN		10	/* max length of macro name */
+X--- 292,294 ----
+X  #define MACBUF		32000	/* macro definition buffer size */
+X! #define MXMLEN		250	/* max length of each macro definition */
+X  #define MNLEN		10	/* max length of macro name */
+X***************
+X*** 232,233 ****
+X--- 307,311 ----
+X  
+X+ /*
+X+  *	number registers
+X+  */
+X  #define RF_READ		0x0001	/* register flags */
+X***************
+X*** 247,249 ****
+X  /*
+X!  *	control parameters for nro
+X   */
+X--- 325,327 ----
+X  /*
+X!  *	control parameters for nroff
+X   */
+X***************
+X*** 306,308 ****
+X  /*
+X!  *	page control parameters for nroff
+X   */
+X--- 384,386 ----
+X  /*
+X!  *	page control parameters
+X   */
+X***************
+X*** 339,342 ****
+X  char   *getenv ();
+X! char   *ctime ();		/* NOTE: my ctime is slightly different */
+X  
+X  /*
+X--- 417,431 ----
+X  char   *getenv ();
+X! char   *ctime ();
+X! long	time ();
+X! #ifdef UNIX
+X! char   *tgetstr ();			/* from termcap/terminfo */
+X! #endif
+X! #ifdef MINIX_ST
+X! char   *tgetstr ();
+X! #endif
+X! #ifdef MINIX_PC
+X! char   *tgetstr ();
+X! #endif
+X  
+X+ 
+X  /*
+X***************
+X*** 404,405 ****
+X--- 493,496 ----
+X  int	width ();
+X+ int	inptobu ();		/* convert input units to b.u. */
+X+ int	butochar ();		/* convert b.u. to char spaces */
+X  
+X***************
+X*** 414,416 ****
+X   */
+X- 
+X  #ifdef NRO_MAIN
+X--- 505,506 ----
+X***************
+X*** 422,424 ****
+X  struct regs		rg[MAXREGS];
+X! FILE		       *pout;
+X  FILE		       *err_stream;
+X--- 512,514 ----
+X  struct regs		rg[MAXREGS];
+X! FILE		       *out_stream;
+X  FILE		       *err_stream;
+X***************
+X*** 426,431 ****
+X  FILE		       *sofile[Nfiles+1];
+X  int			hold_screen;
+X  int			debugging;
+X  char		       *dbgfile = "nroff.dbg";
+X! #ifdef ALCYON
+X  char		       *printer = "prn:";	/* this WON'T work!!! */
+X--- 516,531 ----
+X  FILE		       *sofile[Nfiles+1];
+X+ int			ignoring;		/* .ig vs .de */
+X  int			hold_screen;
+X  int			debugging;
+X+ int			stepping;		/* paging */
+X+ char			tmpdir[256];
+X+ char			termcap[1030];
+X+ char			s_standout[20];
+X+ char			e_standout[20];
+X+ char			s_italic[20];
+X+ char			e_italic[20];
+X+ char			s_bold[20];
+X+ char			e_bold[20];
+X  char		       *dbgfile = "nroff.dbg";
+X! #ifdef GEMDOS
+X  char		       *printer = "prn:";	/* this WON'T work!!! */
+X***************
+X*** 435,438 ****
+X  
+X- #include "version.h"			/* for myname and version */
+X  
+X  #ifdef ALCYON
+X--- 535,540 ----
+X  
+X  
+X+ #include "version.h"				/* for myname and version */
+X+ 
+X+ 
+X  #ifdef ALCYON
+X***************
+X*** 442,444 ****
+X   */
+X! long			_STKSIZ = 0x00055555L;	/* about 350000 */
+X  #endif
+X--- 544,546 ----
+X   */
+X! long			_STKSIZ = 16384L;
+X  #endif
+X***************
+X*** 453,455 ****
+X  extern struct regs	rg[MAXREGS];
+X! extern FILE	       *pout;
+X  extern FILE	       *err_stream;
+X--- 555,557 ----
+X  extern struct regs	rg[MAXREGS];
+X! extern FILE	       *out_stream;
+X  extern FILE	       *err_stream;
+X***************
+X*** 457,460 ****
+X--- 559,572 ----
+X  extern FILE	       *sofile[Nfiles+1];
+X+ extern int		ignoring;
+X  extern int		hold_screen;
+X  extern int		debugging;
+X+ extern int		stepping;
+X+ extern char		tmpdir[];
+X+ extern char		termcap[];
+X+ extern char		s_standout[];
+X+ extern char		e_standout[];
+X+ extern char		s_italic[];
+X+ extern char		e_italic[];
+X+ extern char		s_bold[];
+X+ extern char		e_bold[];
+X  extern char	       *dbgfile;
+/
+echo x - strings.cdif
+sed '/^X/s///' > strings.cdif << '/'
+X*** /home/top/ast/minix/1.5.3/command/nroff/strings.c	Tue Jan 23 19:25:16 1990
+X--- /home/top/ast/minix/1.5.5/command/nroff/strings.c	Sun Mar  4 23:18:48 1990
+X***************
+X*** 130,132 ****
+X  register char  *p;
+X! char		d[];
+X  {
+X--- 130,132 ----
+X  register char  *p;
+X! char	       *d;
+X  {
+X***************
+X*** 265,267 ****
+X  	 */
+X! 	return (NULL);
+X  }
+X--- 265,267 ----
+X  	 */
+X! 	return (NULL_CPTR);
+X  }
+/
+echo x - test.0
+sed '/^X/s///' > test.0 << '/'
+X.TH TEST 0 "Test Suite" "Today's Date:" "\*(DA"
+X.SH NAME
+Xtest - test for nroff(1) man package
+X.SH SYNOPSIS
+X.nf
+Xnroff -man test.1
+X
+Xor
+X
+Xmake test
+X.fi
+X.SH DESCRIPTION
+XYou should get a manpage-like output from this test.
+XThe last word in this sentence should be
+X.I italic.
+XThe last word in this sentence should be
+X.B BOLD.
+XThey may be printed in standout mode (i.e. reverse video).
+XThat's ok.
+XIf they appear normal, check the termcap file (if Unix or minix)
+Xwhich is /etc/termcap.
+XIt should have an entry for "so" which may look like this: \\E[7m.
+X.PP
+XFor more tests, try and print the man pages ("man.man" and "nroff.man")
+Xby doing:
+X.nf
+X
+X     % nroff -man man.man
+X     % nroff -man nroff.man
+X
+X.fi
+XYou might also what to test the example files ("ex1.nr" and "ex2.nr")
+Xby doing:
+X.nf
+X
+X     % nroff ex1.nr
+X     % nroff ex2.nr
+X
+X.fi
+X.SH FILES
+X.nf
+Xtest.0, ex1.nr, ex2.nr    test/example files
+/
+echo x - text.cdif
+sed '/^X/s///' > text.cdif << '/'
+X*** /home/top/ast/minix/1.5.3/command/nroff/text.c	Sat Feb 17 10:06:03 1990
+X--- /home/top/ast/minix/1.5.5/command/nroff/text.c	Sun Mar  4 23:18:50 1990
+X***************
+X*** 249,251 ****
+X  char	       *q;
+X! int		limit[];
+X  {
+X--- 249,251 ----
+X  char	       *q;
+X! int	       *limit;
+X  {
+X***************
+X*** 343,346 ****
+X--- 343,351 ----
+X  	 */
+X+ #ifdef GEMDOS
+X  	if (p[i] != '\n' && p[i] != '\r')
+X  		dc.tival = i;
+X+ #else
+X+ 	if (p[i] != '\n' && p[i] != '\r')
+X+ 		dc.tival = i;
+X+ #endif
+X  
+X***************
+X*** 442,444 ****
+X  register char  *p;
+X! int		lim[];
+X  int		pgno;
+X--- 447,449 ----
+X  register char  *p;
+X! int	       *lim;
+X  int		pgno;
+X***************
+X*** 472,474 ****
+X--- 477,481 ----
+X  	h[++i] = '\n';
+X+ #ifdef GEMDOS
+X  	h[++i] = '\r';
+X+ #endif
+X  	h[++i] = EOS;
+X***************
+X*** 477,481 ****
+X  		for (i = 0; i < pg.offset; ++i)
+X! 			prchar (' ', pout);
+X  	}
+X! 	putlin (h, pout);
+X  }
+X--- 484,488 ----
+X  		for (i = 0; i < pg.offset; ++i)
+X! 			prchar (' ', out_stream);
+X  	}
+X! 	putlin (h, out_stream);
+X  }
+X***************
+X*** 591,595 ****
+X  		{
+X! 			prchar ('\n', pout);
+X  		}
+X! 		prchar ('\r', pout);
+X  	}
+X--- 598,604 ----
+X  		{
+X! 			prchar ('\n', out_stream);
+X  		}
+X! #ifdef GEMDOS
+X! 		prchar ('\r', out_stream);
+X! #endif
+X  	}
+X***************
+X*** 631,633 ****
+X  
+X! /*fflush (pout); fprintf (err_stream, "in spread: escapes = %d\n", escapes); fflush (err_stream);*/
+X  
+X--- 640,642 ----
+X  
+X! /*fflush (out_stream); fprintf (err_stream, "in spread: escapes = %d\n", escapes); fflush (err_stream);*/
+X  
+/
+echo x - tmac.an.cdif
+sed '/^X/s///' > tmac.an.cdif << '/'
+X*** /home/top/ast/minix/1.5.3/command/nroff/tmac.an	Tue Jan 23 19:25:16 1990
+X--- /home/top/ast/minix/1.5.5/command/nroff/tmac.an	Sun Mar  4 23:18:51 1990
+X***************
+X*** 1,38 ****
+X! .de T0
+X! .bs
+X  .m1 1
+X  .in 0
+X! .rm 75
+X! .he |$0($1)|$2|$0($1)|
+X! .fo | |-%-| |
+X  .in 5
+X! .rm 70
+X  ..
+X! .de TH
+X! .T0 $0 $1 "Minix Manuals"
+X  ..
+X! .de T1
+X! .T0 $0 $1 "Minix Commands"
+X  ..
+X! .de T2
+X! .T0 $0 $1 "Minix System Calls"
+X  ..
+X! .de T3
+X! .T0 $0 $1 "Minix Library Calls"
+X  ..
+X! .de T4
+X! .T0 $0 $1 "Minix Special Files"
+X! ..
+X! .de T5
+X! .T0 $0 $1 "Minix File Formats"
+X! ..
+X! .de T6
+X! .T0 $0 $1 "Minix Games"
+X! ..
+X! .de T7
+X! .T0 $0 $1 "Minix Typesetting"
+X! ..
+X! .de T8
+X! .T0 $0 $1 "Minix System Maintenance"
+X! ..
+X  .de PP
+X--- 1,79 ----
+X! .\" **************************************************************************
+X! .\"
+X! .\" -man package for nroff. not quite unix(tm), but working...
+X! .\"
+X! .\" usage: nroff -man file [...]
+X! .\"
+X! .\" note to hackers: if you add things here, make sure there are no blank
+X! .\" lines. they will find their way into the text. use comments (.\") to
+X! .\" make space.
+X! .\" 
+X! .\" included here are: TH, SH, SS, IP, PP, LP, RS, RE, I, B
+X! .\" 
+X! .\" see end of this file for usage example
+X! .\"
+X! .\" v0.99 2/25/90 rosenkra@hall.cray.com (Bill Rosenkranz)
+X! .\" freely distributable (no copyright, etc.)
+X! .\" 
+X! .\" **************************************************************************
+X! .\"
+X! .\" this is a date string (e.g. 22:20:37 2/25/90) accessible via \*(DA in
+X! .\" the text
+X! .\"
+X! .ds DA "\n(hh:\n(mm:\n(ss \n(mo/\n(dy/\n(yr"
+X! .\"
+X! .\" --------------------------------------------------------------------------
+X! .\" main page heading
+X! .\"
+X! .\" fields are usually: 1-name, 2-section, 3-section name, 4-version, 5-date
+X! .\" 1,2,3 are on header, 4,5 and page on footer. empty strings are skipped
+X! .\" by making the arg "".
+X! .\"
+X! .de TH
+X  .m1 1
+X  .in 0
+X! .po 0
+X! .lt 65
+X! .ll 65
+X! .tl |$1 ($2)|$3|$1 ($2)|
+X! .fo |$4|$5|%|
+X  .in 5
+X! .ll 65
+X  ..
+X! .\" --------------------------------------------------------------------------
+X! .\" start relative indent (always 5 spaces...sorry)
+X! .\"
+X! .de RS
+X! .sp
+X! .in +5
+X  ..
+X! .\" --------------------------------------------------------------------------
+X! .\" end relative indent
+X! .\"
+X! .de RE
+X! .sp
+X! .in -5
+X  ..
+X! .\" --------------------------------------------------------------------------
+X! .\" indented paragraph with tag (from this line)
+X! .\"
+X! .de IP
+X! .br
+X! .sp 1
+X! .in 5
+X! \&$1 $2 $3 $4 $5 $6 $7 $8 $9
+X! .br
+X! .in +5
+X  ..
+X! .\" --------------------------------------------------------------------------
+X! .\" start a new indented paragraph
+X! .\"
+X! .de pp
+X! .sp 1
+X! .in 5
+X! .ti +5
+X  ..
+X! .\" --------------------------------------------------------------------------
+X! .\" start a new unindented paragraph
+X! .\"
+X  .de PP
+X***************
+X*** 41,63 ****
+X  ..
+X  .de SH
+X  .sp 1
+X  .in 5
+X! .ti 0
+X! .bo
+X! $0 $1 $2 $3 $4 $5
+X  .br
+X  ..
+X! .de B 
+X! .bo
+X! $0 $1 $2 $3 $4 $5
+X  ..
+X! .de I 
+X! .ul
+X! $0 $1 $2 $3 $4 $5
+X  ..
+X! .de TP
+X! .sp
+X! .in 13
+X! .br
+X! .ti 5
+X  ..
+X--- 82,243 ----
+X  ..
+X+ .\" --------------------------------------------------------------------------
+X+ .\" start a new unindented paragraph (same as PP)
+X+ .\"
+X+ .de LP
+X+ .sp 1
+X+ .in 5
+X+ ..
+X+ .\" --------------------------------------------------------------------------
+X+ .\" main section heading
+X+ .\"
+X  .de SH
+X  .sp 1
+X+ .ne 3
+X  .in 5
+X! .ti -5
+X! .\".bo
+X! \&$1 $2 $3 $4 $5 $6 $7 $8 $9
+X  .br
+X  ..
+X! .\" --------------------------------------------------------------------------
+X! .\" subsection heading, same indent
+X! .\"
+X! .de SS
+X! .sp 1
+X! .ne 3
+X! .in 5
+X! .\".bo
+X! \&$1 $2 $3 $4 $5 $6 $7 $8 $9
+X! .br
+X  ..
+X! .\" --------------------------------------------------------------------------
+X! .\" italic text
+X! .\"
+X! .de I
+X! \&\fB$1\fR
+X  ..
+X! .\" --------------------------------------------------------------------------
+X! .\" bold text
+X! .\"
+X! .de B
+X! \&\fB$1\fR
+X  ..
+X+ .\" --------------------------------------------------------------------------
+X+ .\" italic Roman text
+X+ .\"
+X+ .de IR
+X+ \&\fB$1\fR
+X+ ..
+X+ .\" --------------------------------------------------------------------------
+X+ .\" bold Roman text
+X+ .\"
+X+ .de BR
+X+ \&\fB$1\fR
+X+ ..
+X+ .\" --------------------------------------------------------------------------
+X+ .\" small text
+X+ .\"
+X+ .de SM
+X+ \&\fB$1\fR
+X+ ..
+X+ .\" **************************************************************************
+X+ .\" example:
+X+ .\" 
+X+ .\"     .\" this is a comment...
+X+ .\"     .TH MYCMD 1 "Commands Manual" "Version 1.0" "\*(DA"
+X+ .\"     .SH NAME
+X+ .\"     mycmd - something unix-like		\" this is a comment...
+X+ .\"     .SH SYNOPSIS
+X+ .\"     mycmd [options] file [...]
+X+ .\"     .SH DESCRIPTION
+X+ .\"     This is a test for showing how to use the
+X+ .\"     nroff(1)
+X+ .\"     man package. It shows how to use .TH, .SH, .PP, .I, and .IP
+X+ .\"     commands.
+X+ .\"     .PP
+X+ .\"     This will be a new paragraph. You can also use normal
+X+ .\"     nroff(1)
+X+ .\"     commands in the text. Most used ones are:
+X+ .\"     .IP '\\\\\|"'
+X+ .\"     This is the comment command. Note how you have to quote this
+X+ .\"     sucker! You'll probably never have to write an
+X+ .\"     nroff(1)
+X+ .\"     manpage, so don't worry about it.
+X+ .\"     .IP nf
+X+ .\"     No fill mode (the normal mode is fill mode where things get
+X+ .\"     justified right and left).
+X+ .\"     .IP fi
+X+ .\"     Re-enter fill mode.
+X+ .\"     .IP br
+X+ .\"     Break line here no matter what.
+X+ .\"     .IP sp
+X+ .\"     Vertical space (also causes a break to occur).
+X+ .\"     .sp
+X+ .\"     Note that to continue an indent and make a new paragraph (as
+X+ .\"     is the case here), just put in a space.
+X+ .\"     .PP
+X+ .\"     Now we should be at a new paragraph.
+X+ .\"     .PP
+X+ .\"     And now we should be at a another new paragraph.
+X+ .\"     .SH AUTHOR
+X+ .\"     .nf
+X+ .\"     Bill Rosenkranz
+X+ .\"     rosenkra@hall.cray.com
+X+ .\"     .fi
+X+ .\" 
+X+ .\" here is the output of "nroff -man mycmd.man":
+X+ .\" 
+X+ .\" 
+X+ .\"     MYCMD (1)                Commands Manual                MYCMD (1)
+X+ .\" 
+X+ .\" 
+X+ .\" 
+X+ .\"     NAME
+X+ .\"          mycmd - something unix-like  
+X+ .\" 
+X+ .\"     SYNOPSIS
+X+ .\"          mycmd [options] file [...] 
+X+ .\" 
+X+ .\"     DESCRIPTION
+X+ .\"          This  is a test for showing how to use the nroff(1) man
+X+ .\"          package.  It shows how to use .TH, .SH,  .PP,  .I,  and
+X+ .\"          .IP commands.  
+X+ .\" 
+X+ .\"          This will  be a new paragraph.  You can also use normal
+X+ .\"          nroff(1) commands in the text.  Most used ones are: 
+X+ .\" 
+X+ .\"          \"  
+X+ .\"               This is the comment command.  Note how you have to 
+X+ .\"               quote this sucker!  You'll probably never have  to
+X+ .\"               write  an  nroff(1)  manpage, so don't worry about
+X+ .\"               it.  
+X+ .\" 
+X+ .\"          nf  
+X+ .\"               No fill mode (the normal mode is fill  mode  where
+X+ .\"               things get justified right and left).  
+X+ .\" 
+X+ .\"          fi  
+X+ .\"               Re-enter fill mode.  
+X+ .\" 
+X+ .\"          br  
+X+ .\"               Break line here no matter what.  
+X+ .\"   
+X+ .\"          sp  
+X+ .\"               Vertical space (also causes a break to occur).  
+X+ .\" 
+X+ .\"               Note  that  to  continue  an indent and make a new
+X+ .\"               paragraph (as is the case here),  just  put  in  a
+X+ .\"               space.  
+X+ .\" 
+X+ .\"          Now we should be at a new paragraph.  
+X+ .\"    
+X+ .\"          And now we should be at a another new paragraph.  
+X+ .\" 
+X+ .\"     AUTHOR
+X+ .\"          Bill Rosenkranz
+X+ .\"          rosenkra@hall.cray.com
+X+ .\" 
+X+ .\"     [blank spaces removed here...]
+X+ .\" 
+X+ .\"     Version 1.0             22:20:37 2/25/90                        1
+X+ .\" 
+/
+echo x - version.h.cdif
+sed '/^X/s///' > version.h.cdif << '/'
+X*** /home/top/ast/minix/1.5.3/command/nroff/version.h	Tue Jan 23 19:25:17 1990
+X--- /home/top/ast/minix/1.5.5/command/nroff/version.h	Sun Mar  4 23:18:53 1990
+X***************
+X*** 4,6 ****
+X  /*
+X!  *	to get around no valid argv[0]...
+X   */
+X--- 4,6 ----
+X  /*
+X!  *	to get around no valid argv[0] with some compilers...
+X   */
+X***************
+X*** 8,15 ****
+X  
+X! #ifdef ALCYON
+X! char	       *version = "nroff (TOS) v0.90 ALPHA 11/12/89 wjr";
+X! #else
+X! char	       *version = "nroff (Minix) v0.90 ALPHA 11/12/89 wjr";
+X  #endif
+X! 
+X  
+X--- 8,21 ----
+X  
+X! #ifdef GEMDOS
+X! char	       *version = "nroff (TOS) v0.99 BETA 02/25/90 wjr";
+X  #endif
+X! #ifdef MINIX_ST
+X! char	       *version = "nroff (Minix-ST) v0.99 BETA 02/25/90 wjr";
+X! #endif
+X! #ifdef MINIX_PC
+X! char	       *version = "nroff (Minix-PC) v0.99 BETA 02/25/90 wjr";
+X! #endif
+X! #ifdef UNIX
+X! char	       *version = "nroff (Unix) v0.99 BETA 02/25/90 wjr";
+X! #endif
+X  
+/

@@ -1,8 +1,8 @@
-CFLAGS=
+CFLAGS= -F
 i=/usr/include
 s=/usr/include/sys
 h=/usr/include/minix
-l=/lib
+l=/usr/lib
 a=fs.h $h/config.h $h/const.h $h/type.h $s/types.h $i/limits.h $i/errno.h \
   const.h type.h proto.h glo.h
 

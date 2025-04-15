@@ -10,8 +10,4 @@ clean:
 
 
 all:	
-	@ls *.c >tmp.1
-	@sed <tmp.1 >tmp.2 '/\.c/s///;/^/s//make f=/'
-	@rm -rf tmp.1 *.s *.bak
-	@sh tmp.2
-	@rm tmp.2
+	cc $(CFLAGS) *.c

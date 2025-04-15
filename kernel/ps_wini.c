@@ -469,8 +469,8 @@ unsigned int i, segment, offset;
 phys_bytes address;
 
   /* Copy the parameter vector from the saved vector table */
-  offset = vec_table[2 * 0x41];
-  segment = vec_table[2 * 0x41 + 1];
+  offset = vec_table[2 * WINI_0_PARM_VEC];
+  segment = vec_table[2 * WINI_0_PARM_VEC + 1];
 
   /* Calculate the address off the parameters and copy them to buf */
   address = hclick_to_physb(segment) + offset;
@@ -480,8 +480,8 @@ phys_bytes address;
   copy_params(buf, &wini[0]);
 
   /* Copy the parameter vector from the saved vector table */
-  offset = vec_table[2 * 0x46];
-  segment = vec_table[2 * 0x46 + 1];
+  offset = vec_table[2 * WINI_1_PARM_VEC];
+  segment = vec_table[2 * WINI_1_PARM_VEC + 1];
 
   /* Calculate the address off the parameters and copy them to buf */
   address = hclick_to_physb(segment) + offset;

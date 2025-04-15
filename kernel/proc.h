@@ -7,11 +7,24 @@
 
 struct proc {
   struct stackframe_s p_reg;	/* process' registers saved in stack frame */
-  int p_nr;			/* number of this process (for fast access) */
+
+#if (CHIP == INTEL)
   reg_t p_ldt_sel;		/* selector in gdt giving ldt base and limit*/
   struct segdesc_s p_ldt[2];	/* local descriptors for code and data */
 				/* 2 is LDT_SIZE - avoid include protect.h */
   reg_t p_splimit;		/* lowest legal stack value */
+#endif /* (CHIP == INTEL) */
+
+#if (CHIP == M68000)
+  reg_t p_splow;		/* lowest observed stack value */
+  int p_trap;			/* trap type (only low byte) */
+  phys_clicks p_shadow;		/* set if shadowed process image */
+  int p_nflips;			/* statistics */
+  char p_physio;		/* cannot be (un)shadowed now if set */
+				/* there will be a gap here!! ++jrb */
+#endif /* (CHIP == M68000) */
+
+  int p_nr;			/* number of this process (for fast access) */
 
   int p_int_blocked;		/* nonzero if int msg blocked by busy task */
   int p_int_held;		/* nonzero if int msg held by busy syscall */
@@ -37,7 +50,7 @@ struct proc {
   unsigned p_pendcount;		/* count of pending and unfinished signals */
 };
 
-/* Bits for p_flags in proc[].  A process is runnable iff p_flags == 0 */
+/* Bits for p_flags in proc[].  A process is runnable iff p_flags == 0. */
 #define P_SLOT_FREE      001	/* set when slot is not in use */
 #define NO_MAP           002	/* keeps unmapped forked child from running */
 #define SENDING          004	/* set when process blocked trying to send */
@@ -53,19 +66,22 @@ struct proc {
 #define BEG_SERV_ADDR (&proc[NR_TASKS])
 #define BEG_USER_ADDR (&proc[NR_TASKS + LOW_USER])
 
-#define NIL_PROC (struct proc *) 0
-#define isidlehardware( n ) ((n) == IDLE || (n) == HARDWARE)
-#define isokprocn( n ) ((unsigned) ((n) + NR_TASKS) < NR_PROCS + NR_TASKS)
-#define isoksrc_dest( n ) (isokprocn( n ) || (n) == ANY)
-#define isoksusern( n ) ((unsigned) (n) < NR_PROCS)
-#define isokusern( n ) ((unsigned) ((n) - LOW_USER) < NR_PROCS - LOW_USER)
-#define isrxhardware( n ) ((n) == ANY || (n) == HARDWARE)
-#define isservn( n ) ((unsigned) (n) < LOW_USER)
-#define istaskp( p ) ((p) < END_TASK_ADDR && (p) != cproc_addr( IDLE ))
-#define isuserp( p ) ((p) >= BEG_USER_ADDR )
-#define proc_addr(n) (pproc_addr + NR_TASKS)[(n)]
-#define cproc_addr(n) (&(proc + NR_TASKS)[(n)])
-#define proc_number(p) ((p)->p_nr)
+#define NIL_PROC          ((struct proc *) 0)
+#define isidlehardware(n) ((n) == IDLE || (n) == HARDWARE)
+#define isokprocn(n)      ((unsigned) ((n) + NR_TASKS) < NR_PROCS + NR_TASKS)
+#define isoksrc_dest(n)   (isokprocn(n) || (n) == ANY)
+#define isoksusern(n)     ((unsigned) (n) < NR_PROCS)
+#define isokusern(n)      ((unsigned) ((n) - LOW_USER) < NR_PROCS - LOW_USER)
+#define isrxhardware(n)   ((n) == ANY || (n) == HARDWARE)
+#define isservn(n)        ((unsigned) (n) < LOW_USER)
+#define istaskp(p)        ((p) < END_TASK_ADDR && (p) != cproc_addr(IDLE))
+#define isuserp(p)        ((p) >= BEG_USER_ADDR)
+#define proc_addr(n)      (pproc_addr + NR_TASKS)[(n)]
+#define cproc_addr(n)     (&(proc + NR_TASKS)[(n)])
+#define proc_number(p)    ((p)->p_nr)
+#if (CHIP == M68000)
+#define isshadowp(p)      ((p)->p_shadow)
+#endif
 
 EXTERN struct proc proc[NR_TASKS + NR_PROCS];	/* process table */
 EXTERN struct proc *pproc_addr[NR_TASKS + NR_PROCS];

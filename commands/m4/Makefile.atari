@@ -8,4 +8,5 @@ OBJS =  main.o eval.o serv.o look.o misc.o expr.o
 INCL =  mdef.h extr.h patchlevel.h
 m4: $(OBJS) $(INCL)
 	@cc -o m4 $(OBJS)
+	@chmem =8192 m4
 

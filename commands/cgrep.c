@@ -27,17 +27,17 @@ dro	890109  Minor mods to compile under Minix
 #define	NOREGEXP		/* Set this for no regular expression */
 #ifdef	REGEX
 #undef	NOREGEXP
-#endif	REGEX
+#endif	/* REGEX */
 
 #ifdef	REGCMP
 #undef	NOREGEXP
-#endif	REGCMP
+#endif	/* REGCMP */
 
 
 #ifdef OS_CPM
 #include "stdio.h"
 #include "ctype.h"
-#endif OS_CPM
+#endif /* OS_CPM */
 
 #ifdef OS_UNIX
 #include <sys/types.h>
@@ -47,14 +47,14 @@ dro	890109  Minor mods to compile under Minix
 #include <regexp.h>		/* should have this                - dro */
 #include <stdlib.h>
 #include <stdio.h>
-#endif OS_UNIX
+#endif /* OS_UNIX */
 
 
 /* Local definitions */
 
 #ifndef	NULL
 #define	NULL	((char *)0)
-#endif	NULL
+#endif	/* NULL */
 
 #ifndef NUL
 #define NUL     '\000'
@@ -114,14 +114,14 @@ char **argv;			/* Argument values */
 				fprintf(stderr, "cgrep: %s\n", re);
 				exit(1);
 			}
-#endif	REGEX
+#endif	/* REGEX */
 
 #ifdef	REGCMP
 			if ((Re = regcomp(Pat)) == NULL) {
 				fprintf(stderr, "cgrep: error in regular expression.\n");
 				exit(1);
 			}
-#endif	REGCMP
+#endif	/* REGCMP */
 
 		} else {	/* This must be a file to search */
 			nf++;	/* Count it */
@@ -179,7 +179,7 @@ char **argv;			/* Argument values */
 
 		    default:
 			fprintf(stderr, "Invalid option %s\n", argv[i]);
-			exit();
+			exit(1);
 		}
 	}
   }
@@ -324,17 +324,17 @@ char *line;			/* Line to match */
 #ifdef	NOREGEXP
   char *pptr, *lptr, *tlptr;
   int c1, c2;
-#endif	NOREGEXP
+#endif /* NOREGEXP */
 
   if (Debug) printf("Matching %s against %s", Pat, line);
 
 #ifdef	REGEX
   rtncode = re_exec(line);	/* Hand off to r/e evaluator */
-#endif	REGEX
+#endif	/* REGEX */
 
 #ifdef	REGCMP
   rtncode = (regexec(Re, line, TRUE) != NULL);
-#endif	REGCMP
+#endif /* REGCMP */
 
 #ifdef	NOREGEX			/* Have to do menial comparison.. */
   lptr = line;			/* Init line pointer */
@@ -356,7 +356,7 @@ char *line;			/* Line to match */
 		if (c1 != c2) break;
 	}
   }
-#endif	NOREGEX
+#endif	/* NOREGEX */
 
 
   if (Debug) printf("matlin returned %s\n", rtncode ? "TRUE" : "FALSE");

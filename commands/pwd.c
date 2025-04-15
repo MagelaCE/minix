@@ -19,4 +19,5 @@ main()
   }
   write(1, p, strlen(p));
   write(1, "\n", 1);
+  exit(0);
 }

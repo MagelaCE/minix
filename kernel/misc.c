@@ -89,8 +89,12 @@ int (*do_rdwt)();		/* pointer to function which does the work */
   int result;
   phys_bytes user_iovec_phys;
   message vmessage;
+  int proc_nr;
+  int device;
 
   nr_requests = m_ptr->COUNT;
+  proc_nr = m_ptr->PROC_NR;
+  device = m_ptr->DEVICE;
   if (nr_requests > sizeof iovec / sizeof iovec[0])
 	panic("FS gave some driver too big an i/o vector", nr_requests);
   iovec_phys = umap(proc_ptr, D, (vir_bytes) iovec, (vir_bytes) sizeof iovec);
@@ -104,8 +108,8 @@ int (*do_rdwt)();		/* pointer to function which does the work */
   for (request = 0; request < nr_requests; ++request) {
 	iop = &iovec[request];
 	vmessage.m_type = iop->io_request & ~OPTIONAL_IO;
-	vmessage.DEVICE = m_ptr->DEVICE;
-	vmessage.PROC_NR = m_ptr->PROC_NR;
+	vmessage.DEVICE = device;
+	vmessage.PROC_NR = proc_nr;
 	vmessage.COUNT = iop->io_nbytes;
 	vmessage.POSITION = iop->io_position;
 	vmessage.ADDRESS = iop->io_buf;

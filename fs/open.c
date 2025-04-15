@@ -21,6 +21,8 @@
 #include "param.h"
 
 PRIVATE char mode_map[] = {R_BIT, W_BIT, R_BIT|W_BIT, 0};
+PRIVATE char dot1[NAME_MAX] = ".\0\0\0\0\0\0\0\0\0\0\0";
+PRIVATE char dot2[NAME_MAX] =  "..\0\0\0\0\0\0\0\0\0\0";
 
 FORWARD int common_open();
 FORWARD struct inode *new_node();
@@ -357,7 +359,7 @@ PUBLIC int do_mkdir()
   int r1, r2;			/* status codes */
   ino_t dot, dotdot;		/* inode numbers for . and .. */
   mode_t bits;			/* mode bits for the new inode */
-  char string[NAME_MAX+1];	/* last component of the new dir's path name */
+  char string[NAME_MAX];	/* last component of the new dir's path name */
   register struct inode *rip, *ldirp;
 
   /* First make the inode. If that fails, return error code. */
@@ -377,8 +379,8 @@ PUBLIC int do_mkdir()
 
   /* Now make dir entries for . and .. unless the disk is completely full. */
   rip->i_mode |= S_IRWXU;	/* make sure . and .. can be entered */
-  r1 = search_dir(rip, ".", &dot, ENTER);	/* enter . in the new dir */
-  r2 = search_dir(rip, "..", &dotdot, ENTER);	/* enter .. in the new dir */
+  r1 = search_dir(rip, dot1, &dot, ENTER);	/* enter . in the new dir */
+  r2 = search_dir(rip, dot2, &dotdot, ENTER);	/* enter .. in the new dir */
   rip->i_mode = bits;		/* now set mode correctly */
 
   /* If both . and .. were successfully entered, increment the link counts. */
@@ -391,7 +393,7 @@ PUBLIC int do_mkdir()
 	/* It was not possible to enter . or .. probably disk was full. */
 	(void) search_dir(rip, ".",  (ino_t *) 0, DELETE);
 	(void) search_dir(rip, "..", (ino_t *) 0, DELETE);
-	(void) search_dir(ldirp, user_path, (ino_t *) 0, DELETE);
+	(void) search_dir(ldirp, string, (ino_t *) 0, DELETE);
 	rip->i_nlinks--;	/* undo the increment done in new_node() */
   }
   rip->i_dirt = DIRTY;		/* either way, i_nlinks has changed */

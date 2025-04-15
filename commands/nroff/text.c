@@ -247,7 +247,7 @@ register char  *s;
 justcntr (p, q, limit)
 register char  *p;
 char	       *q;
-int		limit[];
+int	       *limit;
 {
 
 /*
@@ -341,8 +341,13 @@ register char  *p;
 	/*
 	 *   if not end of line, reset current temp indent
 	 */
+#ifdef GEMDOS
 	if (p[i] != '\n' && p[i] != '\r')
 		dc.tival = i;
+#else
+	if (p[i] != '\n' && p[i] != '\r')
+		dc.tival = i;
+#endif
 
 	/*
 	 *   shift string
@@ -440,7 +445,7 @@ phead ()
 /*------------------------------*/
 puttl (p, lim, pgno)
 register char  *p;
-int		lim[];
+int	       *lim;
 int		pgno;
 {
 
@@ -470,14 +475,16 @@ int		pgno;
 	for (i = MAXLINE - 4; h[i] == ' '; --i)
 		h[i] = EOS;
 	h[++i] = '\n';
+#ifdef GEMDOS
 	h[++i] = '\r';
+#endif
 	h[++i] = EOS;
 	if (strlen (h) > 2)
 	{
 		for (i = 0; i < pg.offset; ++i)
-			prchar (' ', pout);
+			prchar (' ', out_stream);
 	}
-	putlin (h, pout);
+	putlin (h, out_stream);
 }
 
 
@@ -589,9 +596,11 @@ register int	n;
 	{
 		for (i = 0; i < n; ++i)
 		{
-			prchar ('\n', pout);
+			prchar ('\n', out_stream);
 		}
-		prchar ('\r', pout);
+#ifdef GEMDOS
+		prchar ('\r', out_stream);
+#endif
 	}
 }
 
@@ -629,7 +638,7 @@ int		escapes;
 		return;
 
 
-/*fflush (pout); fprintf (err_stream, "in spread: escapes = %d\n", escapes); fflush (err_stream);*/
+/*fflush (out_stream); fprintf (err_stream, "in spread: escapes = %d\n", escapes); fflush (err_stream);*/
 
 
 	/*

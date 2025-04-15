@@ -20,11 +20,14 @@
  *	27 Oct. 1986 by Jakob Schripsema: fdc_results fixed for 8 MHz
  *	28 Nov. 1986 by Peter Kay: better resetting for 386
  *	06 Jan. 1988 by Al Crew: allow 1.44 MB diskettes
+ *		1989 by Bruce Evans: i/o vector to keep up with 1-1 interleave
+ *		1990 by Bruce Evans: formatting
  */
 
 #include "kernel.h"
 #include <minix/callnr.h>
 #include <minix/com.h>
+#include <minix/diskparm.h>
 
 /* I/O Ports used by floppy disk task. */
 #define DOR            0x3F2	/* motor drive control bits */
@@ -84,6 +87,7 @@
 #define FDC_RECALIBRATE 0x07	/* command the drive to go to cyl 0 */
 #define FDC_SPECIFY     0x03	/* command the drive to accept params */
 #define FDC_READ_ID     0x4A	/* command the drive to read sector identity */
+#define FDC_FORMAT      0x4D	/* command the drive to format a track */
 
 /* DMA channel commands. */
 #define DMA_READ        0x46	/* DMA read opcode */
@@ -107,6 +111,11 @@
 #define ERR_DRIVE         -6	/* something wrong with a drive */
 #define ERR_READ_ID       -7	/* bad read id */
 
+/* Encoding of drive type in minor device number. */
+#define DEV_TYPE_BITS   0x7C	/* drive type + 1, if nonzero */
+#define DEV_TYPE_SHIFT     2	/* right shift to normalize type bits */
+#define FORMAT_DEV_BIT  0x80	/* bit in minor to turn write into format */
+
 /* Miscellaneous. */
 #define MOTOR_RUNNING   0xFF	/* message type for clock interrupt */
 #define MAX_ERRORS         3	/* how often to try rd/wt before quitting */
@@ -115,13 +124,15 @@
 #define DIVISOR          128	/* used for sector size encoding */
 #define MAX_FDC_RETRY    100	/* max # times to try to output to FDC */
 #define NT                 7	/* number of diskette/drive combinations */
-#define AUTOMATIC	0x7F	/* bit map allowing both 3.5 and 5.25 disks */
+#define AUTOMATIC	0x3F	/* bit map allowing both 3.5 and 5.25 disks */
+				/* except for drive type 6, because that is */
+				/* hard to distinguish from drive type 1 */
 #define THREE_INCH	0x48	/* bit map allowing only 3.5 inch diskettes */
 #define FIVE_INCH	0x37	/* bit map allowing only 5.25 inch diskettes */
 
 /* Variables. */
 PRIVATE struct floppy {		/* main drive struct, one entry per drive */
-  int fl_opcode;		/* DISK_READ or DISK_WRITE */
+  int fl_opcode;		/* FDC_READ, FDC_WRITE or FDC_FORMAT */
   int fl_curcyl;		/* current cylinder */
   int fl_procnr;		/* which proc wanted this operation? */
   int fl_drive;			/* drive number addressed */
@@ -133,6 +144,8 @@ PRIVATE struct floppy {		/* main drive struct, one entry per drive */
   char fl_results[MAX_RESULTS];	/* the controller can give lots of output */
   char fl_calibration;		/* CALIBRATED or UNCALIBRATED */
   char fl_density;		/* 0 = 360K/360K; 1 = 360K/1.2M; etc. */
+  char fl_auto_type;		/* nonzero to allow search for working type */
+  struct disk_parameter_s fl_param;	/* parameters for format */
 } floppy[NR_DRIVES];
 
 #define UNCALIBRATED       0	/* drive needs to be calibrated at next use */
@@ -274,26 +287,57 @@ int dont_retry;			/* nonzero to skip retry after error */
   register struct floppy *fp;
   int r, sectors, drive, errors;
   off_t block;
+  unsigned dtype;
+  phys_bytes param_phys;
+  phys_bytes user_param_phys;
 
   /* Decode the message parameters. */
-  drive = m_ptr->DEVICE;
+  drive = m_ptr->DEVICE & ~(DEV_TYPE_BITS | FORMAT_DEV_BIT);
   if (drive < 0 || drive >= NR_DRIVES) return(EIO);
   fp = &floppy[drive];		/* 'fp' points to entry for this drive */
   fp->fl_drive = drive;		/* save drive number explicitly */
-  fp->fl_opcode = m_ptr->m_type;	/* DISK_READ or DISK_WRITE */
+  fp->fl_opcode = (m_ptr->m_type == DISK_READ ? FDC_READ : FDC_WRITE);
+  if (m_ptr->DEVICE & FORMAT_DEV_BIT) {
+	if (fp->fl_opcode == FDC_READ) return(EIO);
+	fp->fl_opcode = FDC_FORMAT;
+	param_phys = umap(proc_ptr, D, (vir_bytes) &fp->fl_param,
+			  (vir_bytes) sizeof fp->fl_param);
+	user_param_phys = numap(m_ptr->PROC_NR,
+				(vir_bytes) (m_ptr->ADDRESS + BLOCK_SIZE / 2),
+				(vir_bytes) sizeof fp->fl_param);
+	phys_copy(user_param_phys, param_phys,(phys_bytes)sizeof fp->fl_param);
+
+	/* Check that the number of sectors in the data is reasonable, to
+	 * avoid division by 0.  Leave checking of other data to the FDC.
+	 */
+	if (fp->fl_param.sectors_per_cylinder == 0) return(EIO);
+  }
+  dtype = m_ptr->DEVICE & DEV_TYPE_BITS;
+  if (dtype != 0) {
+	dtype = (dtype >> DEV_TYPE_SHIFT) - 1;
+	if (dtype >= NT) return(EIO);
+	fp->fl_density = dtype;
+	fp->fl_auto_type = FALSE;
+  } else
+	fp->fl_auto_type = TRUE;
+
   if (m_ptr->POSITION % BLOCK_SIZE != 0) return(EINVAL);
   block = m_ptr->POSITION/SECTOR_SIZE;
   if (block >= HC_SIZE) return(0);	/* sector is beyond end of all disks */
-  d = fp->fl_density;		/* diskette/drive combination */
 
-  /* Check the bit map to see if this density is allowed.  If not, skip it. */
-  while ((drive_class[drive] & (1 << d)) == 0) d = (d + 1) % NT;
+  d = fp->fl_density;		/* diskette/drive combination */
+  if (fp->fl_auto_type) {
+	/* Check bit map to skip illegal densities. */
+	while ((drive_class[drive] & (1 << d)) == 0) d = (d + 1) % NT;
+  }
 
   /* Store the message parameters in the fp->fl array. */
   fp->fl_density=d;
-  fp->fl_cylinder = (int) (block / (NR_HEADS * nr_sectors[d]));
-  fp->fl_sector = base_sector + (int) (block % nr_sectors[d]);
-  fp->fl_head = (int) (block % (NR_HEADS*nr_sectors[d]) )/nr_sectors[d];
+  sectors = (m_ptr->DEVICE & FORMAT_DEV_BIT ?
+	     fp->fl_param.sectors_per_cylinder : nr_sectors[d]);
+  fp->fl_cylinder = (int) (block / (NR_HEADS * sectors));
+  fp->fl_sector = base_sector + (int) (block % sectors);
+  fp->fl_head = (int) (block % (NR_HEADS * sectors)) / sectors;
   fp->fl_count = m_ptr->COUNT;
   fp->fl_address = (vir_bytes) m_ptr->ADDRESS;
   fp->fl_procnr = m_ptr->PROC_NR;
@@ -319,12 +363,13 @@ int dont_retry;			/* nonzero to skip retry after error */
 		 * wrong drive type.  Try another one.
 		 */
 #endif
+		if (!fp->fl_auto_type) return(EIO);
                 d++;
 
 		/* Check bit map to skip illegal densities. */
 		while ((drive_class[drive] & (1 << d)) == 0) d = (d + 1) % NT;
-
  		fp->fl_density = d;
+
 		sectors = nr_sectors[d];
 		fp->fl_cylinder = (int) (block / (NR_HEADS * sectors));
 		fp->fl_sector = base_sector + (int) (block % sectors);
@@ -383,7 +428,7 @@ struct floppy *fp;		/* pointer to the drive struct */
   vir_bytes vir, ct;
   phys_bytes user_phys;
 
-  mode = (fp->fl_opcode == DISK_READ ? DMA_READ : DMA_WRITE);
+  mode = (fp->fl_opcode == FDC_READ ? DMA_READ : DMA_WRITE);
   vir = (vir_bytes) fp->fl_address;
   ct = (vir_bytes) fp->fl_count;
   user_phys = numap(fp->fl_procnr, vir, ct);
@@ -514,25 +559,31 @@ struct floppy *fp;		/* pointer to the drive struct */
 PRIVATE int transfer(fp)
 register struct floppy *fp;	/* pointer to the drive struct */
 {
-/* The drive is now on the proper cylinder.  Read or write 1 block. */
+/* The drive is now on the proper cylinder.  Read, write or format 1 block. */
 
-  int r, s, op;
+  int r, s;
 
   /* Never attempt a transfer if the drive is uncalibrated or motor is off. */
   if (fp->fl_calibration == UNCALIBRATED) return(ERR_TRANSFER);
   if ( ( (motor_status>>(fp->fl_drive+4)) & 1) == 0) return(ERR_TRANSFER);
 
   /* The command is issued by outputting 9 bytes to the controller chip. */
-  op = (fp->fl_opcode == DISK_READ ? FDC_READ : FDC_WRITE);
-  fdc_out(op);			/* issue the read or write command */
+  fdc_out(fp->fl_opcode);	/* issue the read, write or format command */
   fdc_out( (fp->fl_head << 2) | fp->fl_drive);
-  fdc_out(fp->fl_cylinder);	/* tell controller which cylinder */
-  fdc_out(fp->fl_head);		/* tell controller which head */
-  fdc_out(fp->fl_sector);	/* tell controller which sector */
-  fdc_out( (int) len[SECTOR_SIZE/DIVISOR]);	/* sector size */
-  fdc_out(nr_sectors[d]);	/* tell controller how big a track is */
-  fdc_out(gap[d]);		/* tell controller how big sector gap is */
-  fdc_out(DTL);			/* tell controller about data length */
+  if (fp->fl_opcode == FDC_FORMAT) {
+	fdc_out(fp->fl_param.sector_size_code);
+	fdc_out(fp->fl_param.sectors_per_cylinder);
+	fdc_out(fp->fl_param.gap_length_for_format);
+	fdc_out(fp->fl_param.fill_byte_for_format);
+  } else {
+	fdc_out(fp->fl_cylinder);
+	fdc_out(fp->fl_head);
+	fdc_out(fp->fl_sector);
+	fdc_out( (int) len[SECTOR_SIZE/DIVISOR]);	/* sector size code */
+	fdc_out(nr_sectors[d]);
+	fdc_out(gap[d]);	/* sector gap */
+	fdc_out(DTL);		/* data length */
+  }
 
   /* Block, waiting for disk interrupt. */
   if (need_reset) return(ERR_TRANSFER);	/* if controller is sick, abort op */
@@ -549,6 +600,8 @@ register struct floppy *fp;	/* pointer to the drive struct */
   }
   if ((fp->fl_results[ST0] & ST0_BITS) != TRANS_ST0) return(ERR_TRANSFER);
   if (fp->fl_results[ST1] | fp->fl_results[ST2]) return(ERR_TRANSFER);
+
+  if (fp->fl_opcode == FDC_FORMAT) return(OK);
 
   /* Compare actual numbers of sectors transferred with expected number. */
   s =  (fp->fl_results[ST_CYL] - fp->fl_cylinder) * NR_HEADS * nr_sectors[d];
@@ -670,9 +723,13 @@ register struct floppy *fp;	/* pointer tot he drive struct */
 		clock_mess(2, send_mess);
 		receive(CLOCK, &mess);
 	}
-#if RECORD_FLOPPY_SKEW		/* might be used to determine nr_sectors */
+#if RECORD_FLOPPY_SKEW
+/* This might be used to determine nr_sectors.  This is not quite the right
+ * place for it may be called for a format operation.  Then an error is
+ * normal, but kills the operation.
+ */
 	{
-		static char skew[17];
+		static char skew[32];
 	
 		for (r = 0; r < sizeof skew / sizeof skew[0]; ++r) {
 			read_id(fp);
@@ -732,7 +789,7 @@ PRIVATE void f_reset()
  *===========================================================================*/
 PRIVATE void clock_mess(ticks, func)
 int ticks;			/* how many clock ticks to wait */
-int (*func)();			/* function to call upon time out */
+void (*func)();			/* function to call upon time out */
 {
 /* Send the clock task a message. */
 
@@ -797,7 +854,7 @@ message *m_ptr;			/* pointer to read or write message */
   /* Determine the number of sectors and the last sector.  It only hurts
    * efficiency if these are wrong after a disk change.
    */
-  fp = &floppy[m_ptr->DEVICE];
+  fp = &floppy[(m_ptr->DEVICE & ~(DEV_TYPE_BITS|FORMAT_DEV_BIT)) % NR_DRIVES];
   nsector = nr_sectors[fp->fl_density];
   read_id(fp);			/* should reorganize and seek() before this */
   fp->fl_sector = fp->fl_results[5];	/* last sector accessed */

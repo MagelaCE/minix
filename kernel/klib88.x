@@ -34,6 +34,7 @@
 | expects to be preserved (si, di, bp, sp, segment registers, and direction
 | bit in the flags), though some of the older ones preserve bx, cx and dx.
 
+#include <minix/config.h>
 #include <minix/const.h>
 #include "const.h"
 #include "sconst.h"

@@ -61,7 +61,7 @@ int bytes;			/* how much data to move */
  * an integer at a time.  Otherwise copy character-by-character.
  */
 
-  int mask, src, dst;
+  int src, dst;
 
   if (bytes <= 0) return;	/* makes test-at-the-end possible */
   src = (int) source;		/* only low-order bits needed */	

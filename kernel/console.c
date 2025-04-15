@@ -717,7 +717,7 @@ PRIVATE void beep()
   mess.m_type = SET_ALARM;
   mess.CLOCK_PROC_NR = TTY;
   mess.DELTA_TICKS = B_TIME;
-  mess.FUNC_TO_CALL = (int (*)()) stop_beep;
+  mess.FUNC_TO_CALL = (void (*)()) stop_beep;
   sendrec(CLOCK, &mess);
 }
 

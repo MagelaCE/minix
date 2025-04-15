@@ -404,7 +404,11 @@ unsigned bytes_ahead;		/* bytes beyond position for immediate use */
   if (block_spec)
 	dev_size = rip->i_size;
   else
+#if (MACHINE == ATARI)
+	dev_size =  80L * 2 * 9 * 512;	/* can be 80L*1*9*512 as well */
+#else
 	dev_size =  80L * 2 * 15 * 512;	/* change to your usual floppy size */
+#endif
   if (dev_size == 0)
 	blocks_per_track = 17;	/* hard disk (17 * nr_heads / 2 is too many) */
   if (dev_size < 80L * 2 * 15 * 512)

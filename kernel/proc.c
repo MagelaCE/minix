@@ -28,6 +28,15 @@ FORWARD void ready();
 FORWARD void sched();
 FORWARD void unready();
 
+#if (CHIP == INTEL)
+#define CopyMess(s,sp,sm,dp,dm) \
+	cp_mess(s,(sp)->p_map[D].mem_phys,sm,(dp)->p_map[D].mem_phys,dm)
+#endif
+#if (CHIP == M68000)
+#define CopyMess(s,sp,sm,dp,dm) \
+	cp_mess(s,sp,sm,dp,dm)
+#endif
+
 /*===========================================================================*
  *				interrupt				     * 
  *===========================================================================*/
@@ -93,7 +102,9 @@ int task;			/* number of task to be started */
   if (rdy_head[TASK_Q] != NIL_PROC)
 	rdy_tail[TASK_Q]->p_nextready = rp;
   else
+#if (CHIP != M68000)
 	proc_ptr =
+#endif
 	rdy_head[TASK_Q] = rp;
   rdy_tail[TASK_Q] = rp;
   rp->p_nextready = NIL_PROC;
@@ -182,8 +193,8 @@ message *m_ptr;			/* pointer to message buffer */
        (dest_ptr->p_getfrom == ANY ||
         dest_ptr->p_getfrom == proc_number(caller_ptr))) {
 	/* Destination is indeed waiting for this message. */
-	cp_mess(proc_number(caller_ptr), caller_ptr->p_map[D].mem_phys, m_ptr,
-			   dest_ptr->p_map[D].mem_phys, dest_ptr->p_messbuf);
+	CopyMess(proc_number(caller_ptr), caller_ptr, m_ptr, dest_ptr,
+		 dest_ptr->p_messbuf);
 	dest_ptr->p_flags &= ~RECEIVING;	/* deblock destination */
 	if (dest_ptr->p_flags == 0) ready(dest_ptr);
   } else {
@@ -231,9 +242,8 @@ message *m_ptr;			/* pointer to message buffer */
 	 previous_ptr = sender_ptr, sender_ptr = sender_ptr->p_sendlink) {
 	if (src == ANY || src == proc_number(sender_ptr)) {
 		/* An acceptable message has been found. */
-		cp_mess(proc_number(sender_ptr),
-			sender_ptr->p_map[D].mem_phys, sender_ptr->p_messbuf,
-			caller_ptr->p_map[D].mem_phys, m_ptr);
+		CopyMess(proc_number(sender_ptr), sender_ptr,
+			 sender_ptr->p_messbuf, caller_ptr, m_ptr);
 		if (sender_ptr == caller_ptr->p_callerq)
 			caller_ptr->p_callerq = sender_ptr->p_sendlink;
 		else
@@ -318,8 +328,12 @@ register struct proc *rp;	/* this process is now runnable */
 		/* Add to tail of nonempty queue. */
 		rdy_tail[TASK_Q]->p_nextready = rp;
 	else
+{
+#if (CHIP != M68000)
 		proc_ptr =		/* run fresh task next */
+#endif
 		rdy_head[TASK_Q] = rp;	/* add to empty queue */
+}
 	rdy_tail[TASK_Q] = rp;
 	rp->p_nextready = NIL_PROC;	/* new entry has no successor */
 	return;
@@ -333,6 +347,17 @@ register struct proc *rp;	/* this process is now runnable */
 	rp->p_nextready = NIL_PROC;
 	return;
   }
+#if (CHIP == M68000)
+  if (isshadowp(rp)) {		/* others are similar */
+	if (rdy_head[SHADOW_Q] != NIL_PROC)
+		rdy_tail[SHADOW_Q]->p_nextready = rp;
+	else
+		rdy_head[SHADOW_Q] = rp;
+	rdy_tail[SHADOW_Q] = rp;
+	rp->p_nextready = NIL_PROC;
+	return;
+  }
+#endif
   if (rdy_head[USER_Q] != NIL_PROC)
 	rdy_tail[USER_Q]->p_nextready = rp;
   else
@@ -367,14 +392,33 @@ register struct proc *rp;	/* this process is no longer runnable */
 	if ( (xp = rdy_head[SERVER_Q]) == NIL_PROC) return;
 	if (xp == rp) {
 		rdy_head[SERVER_Q] = xp->p_nextready;
+#if (CHIP == M68000)
+		if (rp == proc_ptr)
+#endif
 		pick_proc();
 		return;
 	}
 	qtail = &rdy_tail[SERVER_Q];
-  } else {
+  } else
+#if (CHIP == M68000)
+  if (isshadowp(rp)) {
+	if ( (xp = rdy_head[SHADOW_Q]) == NIL_PROC) return;
+	if (xp == rp) {
+		rdy_head[SHADOW_Q] = xp->p_nextready;
+		if (rp == proc_ptr)
+			pick_proc();
+		return;
+	}
+	qtail = &rdy_tail[SHADOW_Q];
+  } else
+#endif
+  {
 	if ( (xp = rdy_head[USER_Q]) == NIL_PROC) return;
 	if (xp == rp) {
 		rdy_head[USER_Q] = xp->p_nextready;
+#if (CHIP == M68000)
+		if (rp == proc_ptr)
+#endif
 		pick_proc();
 		return;
 	}
@@ -509,3 +553,34 @@ PUBLIC void unhold()
   }
   while ( (rp = held_head) != NIL_PROC);
 }
+
+
+#if (CHIP == M68000)
+/*==========================================================================*
+ *				cp_mess					    *
+ *==========================================================================*/
+PRIVATE void cp_mess(src, src_p, src_m, dst_p, dst_m)
+int src;			/* sender process */
+register struct proc *src_p;	/* source proc entry */
+message *src_m;			/* source message */
+register struct proc *dst_p;	/* destination proc entry */
+message *dst_m;			/* destination buffer */
+{
+  register vir_clicks clk;
+
+  if (clk = src_p->p_shadow) {
+	clk -= src_p->p_map[D].mem_phys;
+	src_m = (message *)((char *)src_m + ((phys_bytes)clk << CLICK_SHIFT));
+  }
+  if (clk = dst_p->p_shadow) {
+	clk -= dst_p->p_map[D].mem_phys;
+	dst_m = (message *)((char *)dst_m + ((phys_bytes)clk << CLICK_SHIFT));
+  }
+#ifdef NEEDFSTRUCOPY
+  phys_copy(src_m,dst_m,(phys_bytes) sizeof(message));
+#else
+  *dst_m = *src_m;
+#endif
+  dst_m->m_source = src;
+}
+#endif

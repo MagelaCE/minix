@@ -90,7 +90,7 @@ char *argv[];
 
 /* Detect a few problems. */
   if ((exit_status == FAILURE) || (optind == argc && pattern == (char *) NULL))
-	error_exit("Usage: %s [-clnsv] [-e] expression [file ...]\n");
+	error_exit("Usage: %s [-lnsv] [-e] expression [file ...]\n");
 
 /* Ensure we have a usable pattern. */
   if (pattern == (char *) NULL)

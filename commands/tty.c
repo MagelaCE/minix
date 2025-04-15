@@ -15,5 +15,9 @@ char *argv[];
 	 /* Do nothing - shhh! we're in silent mode */ ;
   else
 	puts((tty_name != (char *) NULL) ? tty_name : "Not a tty");
-  exit(tty_name != (char *) NULL);
+
+  if (tty_name == (char *) NULL)
+	exit(1);
+  else
+	exit(0);
 }

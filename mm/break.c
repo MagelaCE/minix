@@ -186,7 +186,7 @@ int proc_nr;			/* tells who got the stack fault */
 
   rmp = &mproc[proc_nr];
   sys_getsp((int)(rmp - mproc), &new_sp);
-#if (MACHINE == ATARI)
+#if (CHIP == M68000)
   new_sp -= CLICK_SIZE;		/* one click margin between D and S */
 #endif
   r = adjust(rmp, rmp->mp_seg[D].mem_len, new_sp);

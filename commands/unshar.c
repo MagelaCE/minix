@@ -1,13 +1,13 @@
 /* unshar - extract files from a shell archive	Author: Warren Toomey */
 
 
-/* Unshar - extract files from shell archive
+/* Unshar - extract files from shell archive 
  *
- * Written by Warren Toomey [wkt@csadfa.oz.au@munnari.oz@uunet.uu.net]
- * You may freely copy or give away this source as
- * long as this notice remains intact.
+ * Written by Warren Toomey [wkt@csadfa.oz.au@munnari.oz@uunet.uu.net] You may
+ * freely copy or give away this source as long as this notice remains
+ * intact. 
  *
- * Definitions used by unshar
+ * Definitions used by unshar 
  */
 
 
@@ -33,11 +33,13 @@
 #define GRES 	   2
 #define CAT	   3
 
-static char *token[NUMTOKS] =	/* The list of emulation types! */
-{"",
- "sed",
- "gres",
- "cat"
+/* The list of emulation types. */
+static char *token[NUMTOKS]=
+{
+  "",
+  "sed",
+  "gres",
+  "cat"
 };
 
 
@@ -91,35 +93,42 @@ char *buf;			/* ignoring any quotes */
 {
   char out[BUFSIZE];
   char *temp = out;
+  char inquotes = 0, ok = 1;
   while ((*buf == ' ') || (*buf == '\t'))
 	buf++;			/* Skip whitespace */
 
-  switch (*buf) {		/* Now check first char */
-      case '\'':
-	buf++;
-	while (*buf != '\'') *temp++ = *buf++;
-	*temp = 0;
-	return(out);
-      case '\"':
-	buf++;
-	while (*buf != '\"') *temp++ = *buf++;
-	*temp = 0;
-	return(out);
-      case 0:
-	return(0);
-      default:
-	while ((*buf != ' ') && (*buf != '\t'))
-		if (*buf != '\\')
-			*temp++ = *buf++;
-		else
+  if (verbose) printf("In getstring...\n");
+  *temp = 0;
+  while (ok) {			/* Parse line */
+	switch (*buf) {
+	    case '\"':
+	    case '\'':
+		buf++;
+		inquotes != inquotes;	/* Toggle inquotes */
+		break;
+	    case 0:
+	    case '\n':		/* Stop on <, >, NULL */
+	    case '>':		/* \n, and sometimes */
+	        case '<':	ok = 0;	break;	/* space & tab */
+	    case '\t':
+	    case ' ':
+		if (!inquotes) ok = 0;
+	    case '\\':
+		if (!inquotes) {/* Ignore backquotes */
 			buf++;
-	*temp = 0;
-	return(out);
+			break;
+		}
+	    default:
+		*temp++ = *buf++;	/* Copy chars :-) */
+	}
   }
+  *temp = 0;
+  if (verbose) printf("Returning *%s*\n", out);
+  return(out);
 }
 
 
-int firstword(buf)		/* Return token value of first word */
+int firstword(buf)			/* Return token value of first word */
 char *buf;			/* in the buffer. Assume no leading */
 {				/* whitespace in the buffer */
   int i;
@@ -196,7 +205,8 @@ char *buf, *file, *word;	/* from the buffer */
 		if (*(++temp) == '<') ++temp;	/* Skip 2nd < */
 		strcpy(word, getstring(temp));	/* Get next word */
 		break;
-	    default:	temp++;
+	    default:
+		temp++;
 	}
   }
 }
@@ -246,7 +256,8 @@ void disembowel()
 		} else
 			printf("  %s\n", file);
 		break;
-	    default:	break;
+	    default:
+		break;
 	}
   }
 }
@@ -281,13 +292,14 @@ char *argv[];
 	    case 't':
 		table = 1;	/* Get the various options */
 		break;
-	    case 'b':	method = BRUTAL;	break;
-	    case 'v':	verbose = 1;	break;
+	        case 'b':	method = BRUTAL;	break;
+	        case 'v':	verbose = 1;	break;
 	    case 'x':
 		exfile[numext] = (char *) malloc(strlen(optarg) + 1);
 		strcpy(exfile[numext++], optarg);
 		break;
-	    default:	usage();
+	    default:
+		usage();
 	}
 
   if (argc == 1)

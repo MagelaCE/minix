@@ -4,7 +4,7 @@ struct tasktab {
   char name[8];
 };
 
-#if (CHIP == INTEL)
+#if (CHIP == INTEL || CHIP == M68000)
 
 /* The u.._t types and their derivatives are used when the precise size
  * must be specified for some reason, e.g., to match descriptor table
@@ -13,6 +13,10 @@ struct tasktab {
 typedef unsigned char u8_t;	/* unsigned 8 bits */
 typedef unsigned short u16_t;	/* unsigned 16 bits */
 typedef unsigned long u32_t;	/* unsigned 32 bits */
+
+#endif
+
+#if (CHIP == INTEL)
 
 /* The register type is usually the natural 'unsigned', but not during 386
  * initialization, when it has to be unsigned long!
@@ -76,3 +80,30 @@ struct farptr_s {		/* far pointer for debugger hooks */
 };
 
 #endif /* (CHIP == INTEL) */
+
+#if (CHIP == M68000)
+typedef u32_t reg_t;		/* machine register */
+
+/* the name of the following struct and some of the fields are
+   chosen for PC compatibility */
+struct stackframe_s {
+  reg_t retreg;	/* d0 */
+  reg_t d1;
+  reg_t d2;
+  reg_t d3;
+  reg_t d4;
+  reg_t d5;
+  reg_t d6;
+  reg_t d7;
+  reg_t a0;
+  reg_t a1;
+  reg_t a2;
+  reg_t a3;
+  reg_t a4;
+  reg_t a5;
+  reg_t a6;
+  reg_t sp;	/* aka a7 */
+  u16_t psw;
+  reg_t pc;
+};
+#endif /* (CHIP == M68000) */

@@ -89,19 +89,16 @@ char *argv[];
   /* There is an explicit list of files.  Loop on files. */
   while (k < argc) {
 	FILE *f;
-	if ((f = fopen(argv[k], "r")) == NULL) {
-		std_err("wc: cannot open ");
-		std_err(argv[k]);
-		std_err("\n");
-		k++;
-		continue;
+
+	if ((f = fopen(argv[k], "r")) == (FILE *) NULL) {
+		fprintf(stderr, "wc: cannot open %s\n", argv[k]);
 	} else {
-		/* Next file has been opened as std input. */
 		count(f);
 		if (lflag) printf(" %6ld", lcount);
 		if (wflag) printf(" %6ld", wcount);
 		if (cflag) printf(" %6ld", ccount);
 		printf(" %s\n", argv[k]);
+		fclose(f);
 	}
 	k++;
   }
@@ -126,7 +123,7 @@ FILE *f;
   wcount = 0;
   ccount = 0L;
 
-  while ((c = getc(f)) >= 0) {
+  while ((c = getc(f)) != EOF) {
 	ccount++;
 
 	if (isspace(c)) {

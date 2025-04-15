@@ -1,10 +1,7 @@
 #ifndef NRO_H
 #define NRO_H
 
-#ifdef alcyon
-#define ALCYON				/* for gemdos version, alcyon C */
-					/* otherwise minix/unix */
-#endif
+#include "config.h"			/* os/compiler options */
 
 /*
  *	nroff.h - stuff for nroff
@@ -17,8 +14,14 @@
  *	things to look for here:
  *	1) TMAC definition for default macro package lib
  *	2) configuration sizes (see _STKSIZ below if alcyon/dri)
- *	3) libc should have getenv() and ctime()
+ *	3) libc should have getenv(), time(), and ctime()
  *	4) look in version.h for *printer file name (included below)
+ *
+ *	all data is currently allocated in static arrays. the biggest
+ *	chunks are the parameters which control number registers and the
+ *	macro name space area. these are defined below: MAXREGS, MACBUF.
+ *	MACBUF is the larger. it holds all macros, strings, etc. if you
+ *	find yourself running out of macro space, increase MACBUF.
  *
  *	original author:
  *
@@ -35,23 +38,63 @@
 
 #include <ctype.h>
 
+#ifdef _MINIX
+# ifdef tolower
+#  undef tolower
+# endif
+# define tolower(x) (isupper(x)?((x)-'A'+'a'):(x))
+#endif
+#ifdef UNIX
+# ifdef tolower
+#  undef tolower
+# endif
+# define tolower(x) (isupper(x)?((x)-'A'+'a'):(x))
+#endif
+
 /*
  *	default prefix of macro files. files will be of the form "tmac.an"
  *	(for -man), "tmac.s" (for -ms), "tmac.e" (for -me), etc. first
  *	checks environment for TMACDIR which would be path (e.g. "c:\lib\tmac"
  *	or ".", no trailing slash char!).
  */
-#ifdef ALCYON
-#define TMACFULL	"c:\\lib\\tmac\\tmac."
-#define TMACPRE		"\\tmac."
-#else /*unix/minix???*/
-#define TMACFULL	"/usr/lib/tmac/tmac."
-#define TMACPRE		"/tmac."
+#ifdef tmacfull
+# define TMACFULL	tmacfull
+#endif
+#ifdef tmacpre
+# define TMACPRE	tmacpre
+#endif
+
+#ifdef GEMDOS
+# ifndef TMACFULL
+#  define TMACFULL	"c:\\lib\\tmac\\tmac."
+# endif
+# ifndef TMACPRE
+#  define TMACPRE	"\\tmac."
+# endif
+#endif
+
+#ifdef _MINIX
+# ifndef TMACFULL
+#  define TMACFULL	"/usr/lib/tmac/tmac."
+# endif
+# ifndef TMACPRE
+#  define TMACPRE	"/tmac."
+# endif
+#endif
+
+#ifdef UNIX
+# ifndef TMACFULL
+#  define TMACFULL	"/usr/lib/tmac/tmac."
+# endif
+# ifndef TMACPRE
+#  define TMACPRE	"/tmac."
+# endif
 #endif
 
 /*
- *	command codes...
+ *	command codes. indented defines are commands not yet implemented
  */
+#undef PI
 #define MACRO		0	/* macro definition */
 #define BP	 	1	/* begin page */
 #define BR	 	2	/* break */
@@ -96,7 +139,6 @@
 #define PN		41	/* page number for next page */
 #define RR		42	/* remove register */
 #define C2		43	/* nobreak char */
-/*	these 3 not done yet... */
 #  define TR		44	/* translate character */
 #  define LT		45	/* length of title */
 #  define FC		46	/* field delimeter */
@@ -109,11 +151,10 @@
 #define IF		53	/* if */
 #define IE		54	/* if/else */
 #define EL		55	/* else */
-/*	these aren't done yet either... */
-#  define PS		56	/* point size */
-#  define SS		57	/* space char size */
-#  define CS		58	/* constant char space */
-#  define BD		59	/* bold font */
+#define PS		56	/* point size (IGNORED in nroff) */
+#define SS		57	/* space char size (IGNORED in nroff) */
+#define CS		58	/* constant char space (IGNORED in nroff) */
+#define BD		59	/* embolden font (IGNORED in nroff) */
 #  define FP		60	/* font position */
 #  define MK		61	/* mark vertical place */
 #  define RT		62	/* return to marked vert place */
@@ -150,12 +191,11 @@
 #  define PI		93	/* pipe to program */
 #  define MC		94	/* set margin char */
 #  define TM		95	/* print to terminal */
-#  define IG		96	/* ignore */
-
+#define IG		96	/* ignore */
 
 #define COMMENT		1000	/* comment (.\") */
-
 #define UNKNOWN		-1
+
 
 /*
  *	MAXLINE is set to a value slightly larger than twice the longest
@@ -171,8 +211,8 @@
 #define PAGELEN	 	66
 #define PAGEWIDTH 	80
 #define HUGE		256
-#define INFINITE	32000
-#define LEFT		0	/* indecies into hdr margin lim arrays*/
+#define INFINITE	32760
+#define LEFT		0	/* indecies into hdr margin lim arrays */
 #define RIGHT		1
 #define Nfiles		4	/* nesting depth for input files */
 
@@ -195,11 +235,46 @@
 #undef OK
 #define OK 		!ERR
 
+/*
+ *	a rational way of dealing with the NULL thing...
+ */
+#define NULL_CPTR	(char *) 0
+#define NULL_FPTR	(FILE *) 0
+#define NULL_IPTR	(int *) 0
+#define NULL_LPTR	(long *) 0
+#define NULL_SPTR	(short *) 0
+#define NULL_PTR	(char *) 0
+#define NULLP(type)	(type *) 0
+
+
+/*
+ *	for justification during line fill
+ */
 #define ADJ_OFF		0
 #define ADJ_LEFT	1
 #define ADJ_RIGHT	2
 #define ADJ_CENTER	3
 #define ADJ_BOTH	4
+
+
+/*
+ *	basic unit (b.u.) conversions. in nroff, all output is fixed spaced,
+ *	at least in THIS nroff. so unit conversion to b.u. amount to 1 Em per
+ *	character or 24 b.u. per character. thus 0.5i = 120 b.u. = 5 chars.
+ *	everything is rounded up to the nearest Em. it is highly recommended
+ *	to use inches for everything...
+ *
+ *	to convert (say inches) to char spaces, do this:
+ *
+ *		char_spaces = (int)(inches * (float) BU_INCH) / BU_EM;
+ */
+#define BU_INCH		240		/* 1.0i = 240 b.u. */
+#define BU_CM		945/10		/* 1.0c = 240*50/127 b.u. */
+#define BU_PICA		40		/* 1P   = 240/6 b.u. */
+#define BU_EM		24		/* 1m   = 240/10 b.u. (10 char/inch) */
+#define BU_EN		24		/* 1n   = 240/10 b.u. */
+#define BU_POINT	240/72		/* 1p   = 240/72 b.u. */
+#define BU_BU		1		/* 1    = 1 b.u. */
 
 
 /*
@@ -215,7 +290,7 @@
 
 #define MXMDEF		150	/* max no. of macro definitions */
 #define MACBUF		32000	/* macro definition buffer size */
-#define MXMLEN		250	/* max length of each macro def */
+#define MXMLEN		250	/* max length of each macro definition */
 #define MNLEN		10	/* max length of macro name */
 #define MAXREGS		100	/* max number of registers (2-char) */
 
@@ -230,6 +305,9 @@ struct macros
 };
 
 
+/*
+ *	number registers
+ */
 #define RF_READ		0x0001	/* register flags */
 #define RF_WRITE	0x0002
 
@@ -245,7 +323,7 @@ struct regs
 
 
 /*
- *	control parameters for nro
+ *	control parameters for nroff
  */
 struct docctl
 {
@@ -304,7 +382,7 @@ struct cout
 
 
 /*
- *	page control parameters for nroff
+ *	page control parameters
  */
 struct page
 {
@@ -337,7 +415,18 @@ struct page
  *	forward refs from libc
  */
 char   *getenv ();
-char   *ctime ();		/* NOTE: my ctime is slightly different */
+char   *ctime ();
+long	time ();
+#ifdef UNIX
+char   *tgetstr ();			/* from termcap/terminfo */
+#endif
+#ifdef MINIX_ST
+char   *tgetstr ();
+#endif
+#ifdef MINIX_PC
+char   *tgetstr ();
+#endif
+
 
 /*
  *	forward refs from nroff
@@ -402,6 +491,8 @@ int	spread ();
 int	strkovr ();
 int	underl ();
 int	width ();
+int	inptobu ();		/* convert input units to b.u. */
+int	butochar ();		/* convert b.u. to char spaces */
 
 int	findreg ();
 int	set_ireg ();
@@ -412,7 +503,6 @@ int	set_ireg ();
  *	globals. define NRO_MAIN in main.c to define globals there. else
  *	you get extern.
  */
-
 #ifdef NRO_MAIN
 
 struct docctl		dc;
@@ -420,27 +510,39 @@ struct page		pg;
 struct cout		co;
 struct macros		mac;
 struct regs		rg[MAXREGS];
-FILE		       *pout;
+FILE		       *out_stream;
 FILE		       *err_stream;
 FILE		       *dbg_stream;
 FILE		       *sofile[Nfiles+1];
+int			ignoring;		/* .ig vs .de */
 int			hold_screen;
 int			debugging;
+int			stepping;		/* paging */
+char			tmpdir[256];
+char			termcap[1030];
+char			s_standout[20];
+char			e_standout[20];
+char			s_italic[20];
+char			e_italic[20];
+char			s_bold[20];
+char			e_bold[20];
 char		       *dbgfile = "nroff.dbg";
-#ifdef ALCYON
+#ifdef GEMDOS
 char		       *printer = "prn:";	/* this WON'T work!!! */
 #else
 char		       *printer = "/dev/lp";	/* this probably won't */
 #endif
 
-#include "version.h"			/* for myname and version */
+
+#include "version.h"				/* for myname and version */
+
 
 #ifdef ALCYON
 /*
  *	this SHOULD be big enough for most needs. only used by startup
  *	code (gemstart.o or crt0.o)
  */
-long			_STKSIZ = 0x00055555L;	/* about 350000 */
+long			_STKSIZ = 16384L;
 #endif
 
 
@@ -451,12 +553,22 @@ extern struct page	pg;
 extern struct cout	co;
 extern struct macros	mac;
 extern struct regs	rg[MAXREGS];
-extern FILE	       *pout;
+extern FILE	       *out_stream;
 extern FILE	       *err_stream;
 extern FILE	       *dbg_stream;
 extern FILE	       *sofile[Nfiles+1];
+extern int		ignoring;
 extern int		hold_screen;
 extern int		debugging;
+extern int		stepping;
+extern char		tmpdir[];
+extern char		termcap[];
+extern char		s_standout[];
+extern char		e_standout[];
+extern char		s_italic[];
+extern char		e_italic[];
+extern char		s_bold[];
+extern char		e_bold[];
 extern char	       *dbgfile;
 extern char	       *printer;
 extern char	       *myname;

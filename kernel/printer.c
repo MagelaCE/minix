@@ -24,15 +24,54 @@
 #include <minix/callnr.h>
 #include <minix/com.h>
 
-#define NORMAL_STATUS   0x90	/* printer gives this status when idle */
-#define BUSY_STATUS     0x10	/* printer gives this status when busy */
+/* Control bits (in port_base + 2).  "+" means positive logic and "-" means
+ * negative logic.  Most of the signals are negative logic on the pins but
+ * many are converted to positive logic in the ports.  Some manuals are
+ * misleading because they only document the pin logic.
+ *
+ *	+0x01	Pin 1	-Strobe
+ *	+0x02	Pin 14	-Auto Feed
+ *	-0x04	Pin 16	-Initialize Printer
+ *	+0x08	Pin 17	-Select Printer
+ *	+0x10	IRQ7 Enable
+ *
+ * Auto Feed and Select Printer are always enabled. Strobe is enabled briefly
+ * when characters are output.  Initialize Printer is enabled briefly when
+ * the task is started.  IRQ7 is enabled when the first character is output
+ * and left enabled until output is completed (or later after certain
+ * abnormal completions).
+ */
 #define ASSERT_STROBE   0x1D	/* strobe a character to the interface */
 #define NEGATE_STROBE   0x1C	/* enable interrupt on interface */
 #define SELECT          0x0C	/* select printer bit */
 #define INIT_PRINTER    0x08	/* init printer bits */
-#define NO_PAPER        0x20	/* status bit saying that paper is up */
+
+/* Status bits (in port_base + 2).
+ *
+ *	-0x08	Pin 15	-Error
+ *	+0x10	Pin 13	+Select Status
+ *	+0x20	Pin 12	+Out of Paper
+ *	-0x40	Pin 10	-Acknowledge
+ *	-0x80	Pin 11	+Busy
+ */
+#define BUSY_STATUS     0x10	/* printer gives this status when busy */
+#define NO_PAPER        0x20	/* status bit saying that paper is out */
+#define NORMAL_STATUS   0x90	/* printer gives this status when idle */
 #define ON_LINE         0x10	/* status bit saying that printer is online */
 #define STATUS_MASK	0xB0	/* mask to filter out status bits */ 
+
+/* Centronics interface timing that must be met by software (in microsec).
+ *
+ * Strobe length:	0.5u to 100u (not sure about the upper limit).
+ * Data set up:		0.5u before strobe.
+ * Data hold:		        0.5u after strobe.
+ * Init pulse length:	   over 200u (not sure).
+ *
+ * The strobe length is about 50u with the code here and function calls for
+ * out_byte() - not much to spare.  The 0.5u minimums may be violated if
+ * out_byte() is generated in-line on a fast machine.  Some printer boards
+ * are slower than 0.5u anyway.
+ */
 
 PRIVATE int caller;		/* process to tell when printing done (FS) */
 PRIVATE int done_status;	/* status of last output completion */
@@ -216,7 +255,7 @@ PRIVATE void print_init()
   obuf_phys = umap(proc_ptr, D, obuf, sizeof obuf);
   phys_copy(0x408L, umap(proc_ptr, D, &port_base, 2), 2L);
   out_byte(port_base + 2, INIT_PRINTER);
-  milli_delay(2);
+  milli_delay(2);		/* easily satisfies Centronics minimum */
   out_byte(port_base + 2, SELECT);
   cim_printer();		/* ready for printer interrupts */
 }
@@ -248,25 +287,45 @@ PUBLIC void pr_char()
 {
 /* This is the interrupt handler.  When a character has been printed, an
  * interrupt occurs, and the assembly code routine trapped to calls pr_char().
- * One annoying problem is that the 8259A controller sometimes generates
- * spurious interrupts to vector 15, which is the printer vector.  Ignore them.
+ *
+ * One problem is that the 8259A controller generates spurious interrupts to
+ * IRQ7 when it gets confused by mistimed interrupts on any line.  (IRQ7 for
+ * the first controller happens to be the printer IRQ.)  Such an interrupt is
+ * ignored as a side-affect of the method of checking the busy status.  This
+ * is harmless for the printer task but probably fatal to the task that missed
+ * the interrupt.  It may be possible to recover by doing more work here.
  */
 
   register int status;
 
-  if (oleft == 0) return;	/* finished, canceled, or spurious interrupt */
+  if (oleft == 0) {
+	/* Nothing more to print.  Turn off printer interrupts in case they
+	 * are level-sensitive as on the PS/2.  This should be safe even
+	 * when the printer is busy with a previous character, because the
+	 * interrupt status does not affect the printer.
+	 */
+	out_byte(port_base + 2, SELECT);
+	return;
+  }
 
   do {
 	/* Loop to handle fast (buffered) printers.  It is important that
 	 * processor interrupts are not disabled here, just printer interrupts.
 	 */
 	status = in_byte(port_base + 1);
-	if ((status & STATUS_MASK) == BUSY_STATUS)
-		return;		/* still busy with last char */
-	else if ((status & STATUS_MASK) == NORMAL_STATUS) {
+	if ((status & STATUS_MASK) == BUSY_STATUS) {
+		/* Still busy with last output.  This normally happens
+		 * immediately after doing output to an unbuffered or slow
+		 * printer.  It may happen after a call from pr_start or
+		 * pr_restart, since they are not synchronized with printer
+		 * interrupts.  It may happen after a spurious interrupt.
+		 */
+		return;
+	}
+	if ((status & STATUS_MASK) == NORMAL_STATUS) {
 		/* Everything is all right.  Output another character. */
 		out_byte(port_base, *optr++);	/* output character */
-		lock();		/* some printers don't like long strobes */
+		lock();		/* ensure strobe is not too long */
 		out_byte(port_base + 2, ASSERT_STROBE);
 		out_byte(port_base + 2, NEGATE_STROBE);
 		unlock();

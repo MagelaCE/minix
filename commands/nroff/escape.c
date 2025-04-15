@@ -967,19 +967,24 @@ char   *s;
 	{
 	case 'R':				/* Times Roman */
 		if (dc.dofnt == YES)
-			strcpy (s, "\33q");
+		{
+			if (dc.thisfnt == 2)
+				strcpy (s, e_italic);
+			else if (dc.thisfnt == 3)
+				strcpy (s, e_bold);
+		}
 		dc.lastfnt = dc.thisfnt;
 		dc.thisfnt = 1;
 		break;
 	case 'I':				/* Times italic */
 		if (dc.dofnt == YES)
-			strcpy (s, "\33p");
+			strcpy (s, s_italic);
 		dc.lastfnt = dc.thisfnt;
 		dc.thisfnt = 2;
 		break;
 	case 'B':				/* Times bold */
 		if (dc.dofnt == YES)
-			strcpy (s, "\33p");
+			strcpy (s, s_bold);
 		dc.lastfnt = dc.thisfnt;
 		dc.thisfnt = 3;
 		break;
@@ -992,11 +997,20 @@ char   *s;
 		if (dc.dofnt == YES)
 		{
 			if (dc.lastfnt == 1)
-				strcpy (s, "\33q");	/* to R */
+			{
+				if (dc.thisfnt == 2)
+					strcpy (s, e_italic);
+				else if (dc.thisfnt == 3)
+					strcpy (s, e_bold);
+			}
 			else if (dc.lastfnt == 2)
-				strcpy (s, "\33p");	/* to I */
+			{
+				strcpy (s, s_italic);	/* to I */
+			}
 			else if (dc.lastfnt == 3)
-				strcpy (s, "\33p");	/* to B */
+			{
+				strcpy (s, s_bold);	/* to B */
+			}
 			else
 				*s = '\0';		/* nothing */
 		}

@@ -4,6 +4,7 @@
  *	du.c		1.1	27/5/87		agc	Joypace Ltd.
  *			1.2	24 Mar 89	nick@nswitgould.oz
  *			1.3	31 Mar 89	nick@nswitgould.oz
+ *			1.4	22 Feb 90	meulenbr@cst.prl.philips.nl
  *
  *	Copyright 1987, Joypace Ltd., London UK. All rights reserved.
  *	This code may be freely distributed, provided that this notice
@@ -13,6 +14,7 @@
  *
  *  1.2: 	Fixed bug involving 14 character long filenames
  *  1.3:	Add [-l levels] option to restrict printing.
+ *  1.4:	Added processing of multiple arguments
  *
  */
 
@@ -226,8 +228,10 @@ char **argv;
 			"Usage: %s [-a] [-s] [-l levels] [startdir]\n", prog);
 		exit(1);
 	}
-  if (optind < argc) startdir = argv[optind];
-  tot = dodir(startdir, levels);
-  if (silent) printf("%ld\t%s\n", tot, startdir);
+  do {
+    if (optind < argc) startdir = argv[optind++];
+    tot = dodir(startdir, levels);
+    if (silent) printf("%ld\t%s\n", tot, startdir);
+  } while (optind < argc);
   exit(0);
 }

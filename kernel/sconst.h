@@ -47,22 +47,21 @@
 /* The registers are twice as wide. There are 2 extra segment regs, but
  * these are packed in the double-width es and ds slots.
  */
-EAXREG		=	2 * AXREG
+EAXREG		=	2 * AXREG	/* use "=" to avoid parentheses */
 ERETADR		=	2 * RETADR
 EPCREG		=	2 * PCREG
 ECSREG		=	2 * CSREG
 EPSWREG		=	2 * PSWREG
 P3_STACKTOP	=	2 * P_STACKTOP
-#define P_NR		P3_STACKTOP
+#define P_LDT_SEL	P3_STACKTOP
 #define Msize		18
 #define SIZEOF_INT	4
 #else
-#define P_NR		P_STACKTOP
+#define P_LDT_SEL	P_STACKTOP
 #define Msize		12	/* size of a message in 16-bit words */
 #define SIZEOF_INT	2
 #endif
 
-P_LDT_SEL	=	P_NR + SIZEOF_INT
 P_LDT		=	P_LDT_SEL + SIZEOF_INT
 P_SPLIMIT	=	P_LDT_SEL + 16	/* 16 is from 2 8-byte descriptors */
 

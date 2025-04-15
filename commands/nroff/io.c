@@ -96,7 +96,7 @@ FILE   *infp;
 /*	pbstr			*/
 /*------------------------------*/
 pbstr (p)
-char    p[];
+char   *p;
 {
 
 /*
@@ -108,6 +108,10 @@ char    p[];
 	/*
 	 *   if string is null, we do nothing
 	 */
+	if (p == NULL_CPTR)
+		return;
+	if (p[0] == EOS)
+		return;
 	for (i = strlen (p) - 1; i >= 0; --i)
 	{
 		putbak (p[i]);
@@ -161,7 +165,10 @@ FILE   *fp;
  *	print character with test for printer
  */
 
-	putc (c, fp);
+	if (fp == stdout)
+		putc (c, fp);
+	else
+		putc_lpr (c, fp);
 }
 
 
@@ -194,24 +201,28 @@ char   *p;
 			if (strkovr (p, os) == TRUE)
 			{
 				for (j = 0; j < pg.offset; ++j)
-					prchar (' ', pout);
+					prchar (' ', out_stream);
 				for (j = 0; j < dc.tival; ++j)
-					prchar (' ', pout);
-				putlin (os, pout);
+					prchar (' ', out_stream);
+				putlin (os, out_stream);
 			}
 		}
 		for (j = 0; j < pg.offset; ++j)
-			prchar (' ', pout);
+			prchar (' ', out_stream);
 		for (j = 0; j < dc.tival; ++j)
-			prchar (' ', pout);
-		putlin (p, pout);
+			prchar (' ', out_stream);
+		putlin (p, out_stream);
 	}
 	dc.tival = dc.inval;
 	skip (min (dc.lsval - 1, pg.bottom - pg.lineno));
 	pg.lineno = pg.lineno + dc.lsval;
 	set_ireg ("ln", pg.lineno, 0);
 	if (pg.lineno > pg.bottom)
+	{
 		pfoot ();
+		if (stepping)
+			wait_for_char ();
+	}
 }
 
 
@@ -237,6 +248,25 @@ FILE	       *pbuf;
 
 
 
+/*------------------------------*/
+/*	putc_lpr		*/
+/*------------------------------*/
+#ifdef GEMDOS
+#include <osbind.h>
+#endif
 
+putc_lpr (c, fp)
+char	c;
+FILE   *fp;
+{
 
+/*
+ *	write char to printer
+ */
 
+#ifdef GEMDOS
+	Bconout (0, (int) c & 0x00FF);
+#else
+	putc (c, fp);
+#endif
+}

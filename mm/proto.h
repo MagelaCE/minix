@@ -33,6 +33,9 @@ extern int do_getset();
 /* main.c */
 extern int do_brk2();
 extern phys_clicks get_mem();
+#if (MACHINE == MACINTOSH)
+extern phys_clicks start_click();
+#endif
 extern void main();
 extern void reply();
 

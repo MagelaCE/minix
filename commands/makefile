@@ -13,11 +13,12 @@
 # be run to change it.  See the shell script 'changemem' in tools.
 
 l=/usr/lib
-CFLAGS=  -F -D_MINIX -D_POSIX_SOURCE
+b=../bin
+CFLAGS=  -F -D_MINIX -D_POSIX_SOURCE 
 
 File:	$l/libc.a $f.s
-	@cc -i -o bin/$f $f.s
-	@chmem =8192 bin/$f >/dev/null
+	@cc -i -o $b/$f $f.s
+	@chmem =8192 $b/$f >/dev/null
 
 clean:	
 	@rm -f *.s *.bak

@@ -85,7 +85,7 @@ char *finduser()
 	fprintf(stderr, "%s is not logged on\n", user);
 	return( (char *) NULL);
   }
-  if (strcmp(utmptty, tty) && tty != NULL) {
+  if (tty != NULL && strcmp(utmptty, tty)) {
 	fprintf(stderr, "%s is logged onto %s, not %s\n", user, utmptty, tty);
 	return( (char *) NULL);
   }

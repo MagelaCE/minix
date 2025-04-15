@@ -117,8 +117,7 @@ FILE *fopen_read(BYTE *), *fopen_write(BYTE *);
 void calcchecksum(int);
 #endif USE_MACROS
 
-#else !LATTICE			/* For compilers which don't know about
-			 * prototypes. */
+#else /* !LATTICE */	/* For compilers which don't know about prototypes. */
 
 void asciiout(), exit(), intodiaglist(), outdiaglist(),
  printhelp(), producediag(), wordout();
@@ -133,9 +132,9 @@ FILE *fopen_read(), *fopen_write();
 
 #if USE_MACROS
 void calcchecksum();
-#endif USE_MACROS
+#endif /* USE_MACROS */
 
-#endif LATTICE
+#endif /* LATTICE */
 /* Chksum.h */
 /* Calcchecksum() was converted to a macro for effectivity reasons. */
 /* Don't (!!) give it an argument that has to be evaluated. This    */
@@ -168,7 +167,7 @@ void calcchecksum();
 #ifdef AMIGA
 #include <stdlib.h>
 #include <string.h>
-#endif AMIGA
+#endif /* AMIGA */
 
 
 #define VERSION  "5.2"
@@ -192,7 +191,7 @@ BYTE **argv;
 
   /* Change file buffer size. */
   _bufsiz = 10240;
-#endif AMIGA
+#endif /* AMIGA */
 
   error = openinput = openoutput = a_to_b = diag = repair = FALSE;
   new_version = TRUE;
@@ -373,7 +372,7 @@ register int ch;
   Crot += ch;
 }
 
-#endif !USE_MACROS
+#endif /* !USE_MACROS */
 
 
 /* Encode 4 binary bytes to 5 ascii bytes. */
@@ -484,7 +483,7 @@ register BYTE *name;
 #ifdef AMIGA
 #include <stdlib.h>
 #include <string.h>
-#endif AMIGA
+#endif /* AMIGA */
 
 
 
@@ -820,7 +819,7 @@ register int length;
 #ifdef AMIGA
 #include <stdlib.h>
 #include <string.h>
-#endif AMIGA
+#endif /* AMIGA */
 
 
 /* File names. */

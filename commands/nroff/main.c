@@ -1,3 +1,5 @@
+#include "config.h"
+
 /*
  *	main.c - main for nroff word processor
  *
@@ -24,16 +26,13 @@
 
 #define NRO_MAIN			/* to define globals in nro.h */
 
-
-#ifdef ATARIST
+#ifdef GEMDOS
 #include <sys\types.h>
 #include <sys\time.h>
 #else
 #include <sys/types.h>
 #include <time.h>
 #endif
-#undef NULL
-
 #include <stdio.h>
 #include "nroff.h"
 
@@ -45,14 +44,109 @@ char   *argv[];
 	register int	i;
 	int		swflg;
 	int		ifp = 0;
+	char	       *ptmp;
+#ifndef GEMDOS
+	char	       *pterm;
+	char		capability[100];
+	char	       *pcap;
+	char	       *ps;
+#endif
 
 
+
+	/*
+	 *   set up initial flags and file descriptors
+	 */
 	swflg       = FALSE;
+	ignoring    = FALSE;
 	hold_screen = FALSE;
 	debugging   = FALSE;
-	pout        = stdout;
+	stepping    = FALSE;
+	out_stream  = stdout;
 	err_stream  = stderr;
 	dbg_stream  = stderr;
+
+
+	/*
+	 *   this is for tmp files, if ever needed. it SHOULD start
+	 *   out without the trailing slash. if not in env, use default
+	 */
+	if (ptmp = getenv ("TMPDIR"))
+		strcpy (tmpdir, ptmp);
+	else
+		strcpy (tmpdir, ".");
+
+
+	/*
+	 *   handle terminal for \fB, \fI
+	 */
+#ifdef GEMDOS
+	/*
+	 *   atari/TOS is easy...
+	 */
+	strcpy (s_standout, "\33p");
+	strcpy (e_standout, "\33q");
+	strcpy (s_italic, "\33p");
+	strcpy (e_italic, "\33q");
+#else
+	s_standout[0] = '\0';
+	e_standout[0] = '\0';
+	s_italic[0]   = '\0';
+	e_italic[0]   = '\0';
+	s_bold[0]     = '\0';
+	e_bold[0]     = '\0';
+	if ((pterm = getenv ("TERM"))
+	&& (tgetent (termcap, pterm) == 1))
+	{
+		/*
+		 *   we currently use standout mode for all weirdness
+		 *   lile BOLD, italic, etc.
+		 */
+		pcap = capability;
+		if (ps = tgetstr ("so", &pcap))
+		{
+/* NOTE: the termcap on my sun has padding or something in it so i just
+   arbitarily remove it here. this is not right, but the worst that happens
+   is you have no standout. since minix uses standard ansi escape for so,
+   \E[7m, this should not be a problem. also i rarely use any non-ansi
+   terminals so this is also not a problem for me. the right thing to do
+   would be to use tputs() to remove the padding and write a new string
+   but i am lazy... */
+			while (*ps && *ps != 0x1B)	ps++;
+			strcpy (s_standout, ps);
+			strcpy (s_italic, ps);
+			strcpy (s_bold, ps);
+		}
+		if (ps = tgetstr ("se", &pcap))
+		{
+			while (*ps && *ps != 0x1B)	ps++;
+			strcpy (e_standout, ps);
+			strcpy (e_italic, ps);
+			strcpy (e_bold, ps);
+		}
+		if (ps = tgetstr ("us", &pcap))
+		{
+			while (*ps && *ps != 0x1B)	ps++;
+			strcpy (s_italic, ps);
+		}
+		if (ps = tgetstr ("ue", &pcap))
+		{
+			while (*ps && *ps != 0x1B)	ps++;
+			strcpy (e_italic, ps);
+		}
+		if (ps = tgetstr ("ms", &pcap))
+		{
+			while (*ps && *ps != 0x1B)	ps++;
+			strcpy (s_bold, ps);
+		}
+		if (ps = tgetstr ("me", &pcap))
+		{
+			while (*ps && *ps != 0x1B)	ps++;
+			strcpy (e_bold, ps);
+		}
+	}
+#endif
+
 
 
 	/*
@@ -84,7 +178,7 @@ char   *argv[];
 			/*
 			 *   open this file...
 			 */
-			if ((sofile[0] = fopen (argv[i], "r")) == NULL)
+			if ((sofile[0] = fopen (argv[i], "r")) == NULL_FPTR)
 			{
 				fprintf (err_stream,
 					"***%s: unable to open file %s\n",
@@ -104,7 +198,7 @@ char   *argv[];
 		else if (*argv[i] == '-' && *(argv[i]+1) == 0)
 		{
 			/*
-			 *   - means read stdin
+			 *   - means read stdin (anywhere in file list)
 			 */
 			sofile[0] = stdin;
 			ifp = 1;
@@ -115,7 +209,7 @@ char   *argv[];
 
 
 	/*
-	 *   if no files, usage
+	 *   if no files, usage (should really use stdin...)
 	 */
 	if ((ifp == 0 && swflg == FALSE) || argc <= 1)
 	{
@@ -124,15 +218,10 @@ char   *argv[];
 		err_exit (-1);
 	}
 
-	/*
-	 *   if not going to stdout (-l)
-	 */
-	if (pout != stdout)
-	{
-		fflush (pout);
-		fclose (pout);
-	}
 
+	/*
+	 *   normal exit. this will fflush/fclose streams...
+	 */
 	err_exit (0);
 }
 
@@ -145,22 +234,26 @@ char   *argv[];
 usage ()
 {
 	/*
-	 *   note: -l not documented
+	 *   note: -l may not work correctly
 	 */
-	fprintf (stderr, "Usage: %s [options] file [...]\n", myname);
-	fprintf (stderr, "Options:\n");
-	fprintf (stderr, "-a              font changes\n");
-	fprintf (stderr, "-b              backspace\n");
-	fprintf (stderr, "-h              hold screen\n");
-/*	fprintf (stderr, "-l              output to printer\n");*/
-	fprintf (stderr, "-m<name>        macro file (e.g. -man)\n");
-	fprintf (stderr, "-o file         error log file\n");
-	fprintf (stderr, "-po<n>          page offset\n");
-	fprintf (stderr, "-pn<n>          initial page number\n");
-	fprintf (stderr, "-v              version\n");
-	fprintf (stderr, "+<n>            first page to do\n");
-	fprintf (stderr, "-<n>            last page to do\n");
-	fprintf (stderr, "-               use stdin\n");
+	fprintf (stderr, "Usage:   %s [options] file [...]\n", myname);
+	fprintf (stderr, "Options: -a        no font changes\n");
+	fprintf (stderr, "         -b        backspace\n");
+	fprintf (stderr, "         -d        debug mode (file: nroff.dbg)\n");
+#ifdef GEMDOS
+	fprintf (stderr, "         -h        hold screen before desktop\n");
+#endif
+	fprintf (stderr, "         -l        output to printer\n");
+	fprintf (stderr, "         -m<name>  macro file (e.g. -man)\n");
+	fprintf (stderr, "         -o file   error log file (stderr is default)\n");
+	fprintf (stderr, "         -pl<n>    page length\n");
+	fprintf (stderr, "         -po<n>    page offset\n");
+	fprintf (stderr, "         -pn<n>    initial page number\n");
+	fprintf (stderr, "         -s        step through pages\n");
+	fprintf (stderr, "         -v        print version only\n");
+	fprintf (stderr, "         +<n>      first page to do\n");
+	fprintf (stderr, "         -<n>      last page to do\n");
+	fprintf (stderr, "         -         use stdin (in file list)\n");
 }
 
 
@@ -176,15 +269,13 @@ init ()
  *	initialize parameters for nro word processor
  */
 
-	register long	i;
-#ifdef ALCYON
-	time_t		dum = 0;
-#else
 	extern long	time ();
-	time_t		dum = time (0);
-#endif
+
+	register long	i;
+	time_t		tval;
 	char	       *ctim;
 
+	tval       = time (0L);
 	dc.fill    = YES;
 	dc.dofnt   = YES;
 	dc.lsval   = 1;
@@ -235,7 +326,7 @@ init ()
 	/*
 	 *   this should be checked...
 	 */
-	ctim = ctime (&dum);
+	ctim = ctime (&tval);
 
 
 	/*
@@ -370,6 +461,27 @@ init ()
 	rg[i].rval  = atoi (&ctim[22]);
 	rg[i].rflag = RF_READ | RF_WRITE;
 	rg[i].rfmt  = '1';
+	i++;
+	
+	strcpy (rg[i].rname, "hh");		/* current hour (0-23) */
+	rg[i].rauto = 1;
+	rg[i].rval  = atoi (&ctim[11]);
+	rg[i].rflag = RF_READ | RF_WRITE;
+	rg[i].rfmt  = 2 | 0x80;
+	i++;
+	
+	strcpy (rg[i].rname, "mm");		/* current minute (0-59) */
+	rg[i].rauto = 1;
+	rg[i].rval  = atoi (&ctim[14]);
+	rg[i].rflag = RF_READ | RF_WRITE;
+	rg[i].rfmt  = 2 | 0x80;
+	i++;
+	
+	strcpy (rg[i].rname, "ss");		/* current second (0-59) */
+	rg[i].rauto = 1;
+	rg[i].rval  = atoi (&ctim[17]);
+	rg[i].rflag = RF_READ | RF_WRITE;
+	rg[i].rfmt  = 2 | 0x80;
 	i++;
 	
 
@@ -568,14 +680,14 @@ init ()
 		co.outbuf[i] = EOS;
 
 	for (i = 0; i < MXMDEF; ++i)
-		mac.mnames[i] = NULL;
+		mac.mnames[i] = NULL_CPTR;
 	for (i = 0; i < MACBUF; ++i)
 		mac.mb[i] = '\0';
 	for (i = 0; i < MAXLINE; ++i)
 		mac.pbb[i] = '\0';
 	mac.lastp = 0;
 	mac.emb   = &mac.mb[0];
-	mac.ppb   = NULL;
+	mac.ppb   = NULL_CPTR;
 }
 
 
@@ -636,7 +748,11 @@ register int   *q;
 
 		case 'l': 				/* to lpr (was P) */
 		case 'L': 
-			pout = fopen (printer, "w");
+#ifdef GEMDOS
+			out_stream = (FILE *) 0;
+#else
+			out_stream = fopen (printer, "w");
+#endif
 			co.lpr = TRUE;
 			break;
 
@@ -678,7 +794,7 @@ register int   *q;
 			/*
 			 *   open file and read it
 			 */
-			if ((sofile[0] = fopen (mfile, "r")) == NULL)
+			if ((sofile[0] = fopen (mfile, "r")) == NULL_FPTR)
 			{
 				fprintf (stderr,
 					"***%s: unable to open macro file %s\n",
@@ -698,7 +814,7 @@ register int   *q;
 					myname);
 				err_exit (-1);
 			}
-			if ((err_stream = fopen (p2, "w")) == NULL)
+			if ((err_stream = fopen (p2, "w")) == NULL_FPTR)
 			{
 				fprintf (stderr,
 					"***%s: unable to open error file %s\n",
@@ -722,6 +838,15 @@ register int   *q;
 				pg.newpag = pg.curpag + 1;
 				set_ireg ("%", pg.newpag, 0);
 			}
+			else if (*(p+1) == 'l' || *(p+1) == 'L')/* -pl___ */
+			{
+				p += 2;
+				set (&pg.plval, ctod (p) - 1, '1', 0,
+					pg.m1val + pg.m2val + pg.m3val + pg.m4val + 1,
+					HUGE);
+				set_ireg (".p", pg.plval, 0);
+				pg.bottom = pg.plval - pg.m3val - pg.m4val;
+			}
 			else					/* -p___ */
 			{
 				set (&pg.offset, ctod (++p), '1', 0, 0, HUGE);
@@ -729,9 +854,14 @@ register int   *q;
 			}
 			break;
 
+		case 's': 				/* page step mode */
+		case 'S': 
+			stepping = TRUE;
+			break;
+
 		case 'v': 				/* version */
 		case 'V': 
-			printf ("%s\n", version);
+			printf ("%s\n", "Version 1.5");
 			*q = TRUE;
 			break;
 

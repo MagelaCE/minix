@@ -45,6 +45,11 @@
 #define TIMER_FREQ   1193182L	/* clock frequency for timer in PC and AT */
 #endif
 
+#if (CHIP == M68000)
+#define FLUSH_MASK      0x07	/* bit mask used for flushing RS232 input */
+#define TIMER_FREQ   2457600L	/* timer 3 input clock frequency */
+#endif
+
 /* Clock task variables. */
 PRIVATE time_t boot_time;	/* time in seconds of system boot */
 PRIVATE time_t next_alarm;	/* probable time of next alarm */
@@ -53,7 +58,7 @@ PRIVATE time_t realtime;	/* real time clock */
 PRIVATE int sched_ticks = SCHED_RATE;	/* counter: when 0, call scheduler */
 PRIVATE struct proc *prev_ptr;	/* last user process run by clock task */
 PRIVATE message mc;		/* message buffer for both input and output */
-PRIVATE int (*watch_dog[NR_TASKS+1])();	/* watch_dog functions to call */
+PRIVATE void (*watch_dog[NR_TASKS+1])();  /* watch_dog functions to call */
 
 FORWARD void do_clocktick();
 FORWARD void do_get_time();
@@ -113,7 +118,7 @@ message *m_ptr;			/* pointer to request message */
   register struct proc *rp;
   int proc_nr;			/* which process wants the alarm */
   long delta_ticks;		/* in how many clock ticks does he want it? */
-  int (*function)();		/* function to call (tasks only) */
+  void (*function)();		/* function to call (tasks only) */
 
   /* Extract the parameters from the message. */
   proc_nr = m_ptr->CLOCK_PROC_NR;	/* process to interrupt later */
@@ -197,7 +202,9 @@ PRIVATE void do_clocktick()
 	sched_ticks = SCHED_RATE;		/* reset quantum */
 	prev_ptr = bill_ptr;			/* new previous process */
   }
-
+#if (CHIP == M68000)
+  if (rdy_head[SHADOW_Q]) unshadow(rdy_head[SHADOW_Q]);
+#endif
 }
 
 
@@ -265,6 +272,26 @@ PUBLIC unsigned read_counter()
 }
 #endif
 
+#if (CHIP == M68000)
+#include "staddr.h"
+#include "stmfp.h"
+
+/*===========================================================================*
+ *				init_clock				     *
+ *===========================================================================*/
+PRIVATE void init_clock()
+{
+/* Initialize the timer C in the MFP 68901.
+ * Reducing to HZ is not possible by hardware.  The resulting interrupt
+ * rate is further reduced by software with a factor of 4.
+ * Note that the expression below works for both HZ=50 and HZ=60.
+ */
+  do
+	MFP->mf_tcdr = TIMER_FREQ/(64*4*HZ);
+  while ((MFP->mf_tcdr & 0xFF) != TIMER_FREQ/(64*4*HZ));
+  MFP->mf_tcdcr |= (T_Q064<<4);
+}
+#endif
 
 /*===========================================================================*
  *				clock_handler				     *
@@ -330,12 +357,29 @@ PUBLIC void clock_handler()
   if (rp != bill_ptr) ++bill_ptr->sys_time;
 
   ++pending_ticks;
+#if (CHIP != M68000)
   tty_wakeup();			/* possibly wake up TTY */
   pr_restart();			/* possibly restart printer */
+#endif
+#if (CHIP == M68000)
+  kb_timer();			/* keyboard repeat */
+  if (sched_ticks == 1) fd_timer();	/* floppy deselect */
+
+  /* If input characters are accumulating on an RS232 line, process them. */
+  if (flush_flag) {
+	if ( (((int)(realtime+pending_ticks)) & FLUSH_MASK) == 0) rs_flush();
+		 		/* only low-order bits of realtime mattered */
+  }
+#endif
 
   if (next_alarm <= realtime + pending_ticks ||
       sched_ticks == 1 &&
-      bill_ptr == prev_ptr && rdy_head[USER_Q] != NIL_PROC) {
+      bill_ptr == prev_ptr &&
+#if (CHIP != M68000)
+      rdy_head[USER_Q] != NIL_PROC) {
+#else
+      (rdy_head[USER_Q] != NIL_PROC || rdy_head[SHADOW_Q] != NIL_PROC)) {
+#endif
 	interrupt(CLOCK);
 	return;
   }

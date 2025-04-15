@@ -69,7 +69,7 @@ FILE	       *infp;
 	 *   char is alpha...). getwrd returns the length of the word.
 	 */
 	i = getwrd (q, name);
-	if (!isalpha (*name))
+	if (!isprint (*name))
 	{
 		fprintf (err_stream,
 			"***%s: missing or illegal macro definition name\n",
@@ -148,11 +148,14 @@ FILE	       *infp;
 	/*
 	 *   store the macro
 	 */
-	if (putmac (name, defn) == ERR)
+	if (!ignoring)
 	{
-		fprintf (err_stream,
-			"***%s: macro definition table full\n", myname);
-		err_exit (-1);
+		if (putmac (name, defn) == ERR)
+		{
+			fprintf (err_stream,
+				"***%s: macro definition table full\n", myname);
+			err_exit (-1);
+		}
 	}
 }
 
@@ -165,7 +168,7 @@ FILE	       *infp;
 /*------------------------------*/
 colmac (p, d, i)
 register char  *p;
-char		d[];
+char	       *d;
 register int	i;
 {
 
@@ -297,7 +300,7 @@ register char  *name;
 	/*
 	 *   none found, return null
 	 */
-	return (NULL);
+	return (NULL_CPTR);
 }
 
 
@@ -310,7 +313,7 @@ register char  *name;
 /*------------------------------*/
 maceval (p, m)
 register char  *p;
-char		m[];
+char	       *m;
 {
 
 /*
@@ -319,8 +322,9 @@ char		m[];
 
 	register int	i;
 	register int	j;
-	char	       *argp[10];
+	char	       *argp[15];
 	char		c;
+	int		xc;
 
 
 
@@ -336,9 +340,9 @@ char		m[];
 	 *
 	 *	NO!!! this is fixed...
 	 */
-	for (i = 0; i < 10; ++i)
+/*	for (i = 0; i < 10; ++i)
 		argp[i] = p;
-
+*/
 	/*
 	 *   skip the command name
 	 */
@@ -353,13 +357,16 @@ char		m[];
 	{
 		/*
 		 *   get to substituted param and if no more, reset remaining
-		 *   args to NULL and stop...
+		 *   args to NULL and stop. using "i" here IS ok...
 		 */
 		p = skipbl (p);
 		if (*p == '\r' || *p == '\n' || *p == EOS)
 		{
+			set_ireg (".$", i, 0);
 			for ( ; i < 10; i++)
-				*argp[i] = '\0';
+			{
+				argp[i] = NULL_CPTR;
+			}
 			break;
 		}
 
@@ -415,11 +422,13 @@ char		m[];
 				 *   it WAS a numeric replacement arg. so we
 				 *   want to push back the appropriate macro
 				 *   invocation arg. m[i]-'0' is the numerical
-				 *   value of the $0 thru $9. if the arg is
+				 *   value of the $1 thru $9. if the arg is
 				 *   not there, argp[n] will be (char *) 0
 				 *   and pbstr will do nothing.
 				 */
-				pbstr (argp[m[i] - '0']);
+				xc = m[i] - '1';
+				if (argp[xc])
+					pbstr (argp[xc]);
 				--i;
 			}
 		}
@@ -466,7 +475,7 @@ int	opt;				/* 0=name&size,1=total size,2=full */
 	space      = 0L;
 	totalspace = 0L;
 
-	fflush (pout);
+	fflush (out_stream);
 	fflush (err_stream);
 
 	for (i = (long) mac.lastp; i >= 0; --i)
