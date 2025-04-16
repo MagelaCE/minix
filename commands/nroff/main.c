@@ -39,6 +39,7 @@
 #include <sys/types.h>
 #include <time.h>
 #endif
+
 #include <stdio.h>
 #include "nroff.h"
 
@@ -282,7 +283,6 @@ init ()
  *	initialize parameters for nro word processor
  */
 
-	extern long	time ();
 
 	register int	i;
 	time_t		tval;

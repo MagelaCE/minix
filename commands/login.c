@@ -35,6 +35,9 @@
  *  - made all 'bad login accounting' optional by "#ifdef BADLOG".
  * F. van Kempen,    Februari 1990
  *  - fixed 'first argument' bug and added some casts.
+ *
+ * Andy Tanenbaum April 1990
+ * - if /bin/sh cannot be located, try /usr/bin/sh
  */
 
 #include <sys/types.h>
@@ -199,6 +202,7 @@ char *argv[];
   struct stat statbuf;
   char *bp, *argx[8];		/* pw_shell arguments */
   char *sh = "/bin/sh";		/* sh/pw_shell field value */
+  char *sh2= "/usr/bin/sh";	/* other possibility */
 
   /* Reset some of the line parameters in case they have been mashed. */
   if (ioctl(0, TIOCGETP, &args) < 0) exit(1);
@@ -318,6 +322,7 @@ char *argv[];
 	setgid(pwd->pw_gid);
 	setuid(pwd->pw_uid);
 	execve(sh, argx, env);
+	execve(sh2, argx, env);		/* if /bin/sh absent, try /usr/bin/sh*/
 
 	write(1, "exec failure\n", 13);
 	exit(1);

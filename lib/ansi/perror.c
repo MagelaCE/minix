@@ -41,6 +41,8 @@ char *sys_errlist[] = {
 	"Math argument",
 	"Result too large",
 	"Resource deadlock avoided",
+	"Filename too long",
+	"No locks available",
 	"Function not implemented",
 	"Directory not empty"
 };

@@ -6,17 +6,6 @@
  */
 char	       *myname  = "nroff";
 
-#ifdef GEMDOS
-char	       *version = "nroff (TOS) v0.99 BETA 02/25/90 wjr";
-#endif
-#ifdef MINIX_ST
-char	       *version = "nroff (Minix-ST) v0.99 BETA 02/25/90 wjr";
-#endif
-#ifdef MINIX_PC
-char	       *version = "nroff (Minix-PC) v0.99 BETA 02/25/90 wjr";
-#endif
-#ifdef UNIX
-char	       *version = "nroff (Unix) v0.99 BETA 02/25/90 wjr";
-#endif
+char	       *version = "nroff v0.99 BETA 02/25/90 wjr";
 
 #endif /*VERSION_H*/

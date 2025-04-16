@@ -1,7 +1,7 @@
 /* The <times.h> header is for time times() system call. */
 
-#ifndef _SYS_TIMES_H
-#define _SYS_TIMES_H
+#ifndef _TIMES_H
+#define _TIMES_H
 
 #ifndef _CLOCK_T
 #define _CLOCK_T
@@ -23,4 +23,4 @@ struct tms {
 
 _PROTOTYPE( clock_t times, (struct tms *_buffer)			);
 
-#endif /* _SYS_TIMES_H */
+#endif /* _TIMES_H */

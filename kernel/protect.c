@@ -137,6 +137,11 @@ PUBLIC void prot_init()
 	clock_int, CLOCK_VECTOR, INTR_PRIVILEGE,
 	tty_int, KEYBOARD_VECTOR, INTR_PRIVILEGE,
 	psecondary_int, SECONDARY_VECTOR, INTR_PRIVILEGE,
+#if AM_KERNEL
+#if !NONET 
+	eth_int, ETHER_VECTOR, INTR_PRIVILEGE,
+#endif
+#endif
 	prs232_int, RS232_VECTOR, INTR_PRIVILEGE,
 	disk_int, FLOPPY_VECTOR, INTR_PRIVILEGE,
 	lpr_int, PRINTER_VECTOR, INTR_PRIVILEGE,
@@ -183,6 +188,14 @@ PUBLIC void prot_init()
 	       (phys_bytes) COLOR_SIZE, TASK_PRIVILEGE);
   init_dataseg(&gdt[MONO_INDEX], (phys_bytes) MONO_BASE,
 	       (phys_bytes) MONO_SIZE, TASK_PRIVILEGE);
+
+#if AM_KERNEL
+#if !NONET
+/* Build descriptor for Western Digital Etherplus card buffer. */
+  init_dataseg(&gdt[EPLUS_INDEX], (phys_bytes) EPLUS_BASE,
+		(phys_bytes) EPLUS_SIZE, TASK_PRIVILEGE);
+#endif /* !NONET */
+#endif /* AM_KERNEL */
 
   /* Build main TSS.
    * This is used only to record the stack pointer to be used after an

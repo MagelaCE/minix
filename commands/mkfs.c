@@ -50,10 +50,13 @@
 #define N_BLOCKS       0x10000L	/* must be multiple of 8 */
 
 #ifdef DOS
-#  maybedefine O_RDONLY	     4	/* O_RDONLY | BINARY_BIT */
-#  maybedefine BWRITE	     5	/* O_WRONLY | BINARY_BIT */
+   maybedefine O_RDONLY	     4	/* O_RDONLY | BINARY_BIT */
+   maybedefine BWRITE	     5	/* O_WRONLY | BINARY_BIT */
 #endif
 
+#if (MACHINE == ATARI)
+int	isdev;
+#endif
 
 int next_zone, next_inode, zone_size, zone_shift = 0, zoff;
 unsigned nrblocks;
@@ -212,7 +215,7 @@ char *argv[];
 
   cache_init();
 #if (MACHINE == ATARI)
-  {
+  if (isdev) {
     char block0[BLOCK_SIZE];
     get_block(0, block0);	
     /* need to read twice; first time gets an empty block */
@@ -227,9 +230,9 @@ char *argv[];
     bzero(&block0[30], 480);	/* boot code                   */
     put_block(0, block0);	
   }
-#else
-  put_block(0, zero);		/* Write a null boot block. */
+  else
 #endif
+  put_block(0, zero);		/* Write a null boot block. */
 
   zone_shift = 0;		/* for future use */
   zones = nrblocks >> zone_shift;
@@ -1143,6 +1146,18 @@ char *string;
   close(fd);
   fd = open(string, O_RDWR);
   if (fd < 0) pexit("Can't open special file");
+#if (MACHINE == ATARI)
+  {
+	struct stat statbuf;
+
+	if (fstat(fd, &statbuf) < 0)
+		return;
+	isdev = (statbuf.st_mode & S_IFMT) == S_IFCHR
+		||
+		(statbuf.st_mode & S_IFMT) == S_IFBLK
+		;
+  }
+#endif
 }
 
 

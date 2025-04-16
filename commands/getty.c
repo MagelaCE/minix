@@ -46,7 +46,8 @@
 
 #define GDEFS       "/etc/gettydefs"	/* pathname of getty definitions */
 #define ISSUE       	"/etc/issue"	/* System-name textfile */
-#define LOGIN       	"/bin/login"
+#define LOGIN1       	"/bin/login"
+#define LOGIN2       	"/usr/bin/login"
 #define COMMENT     		 '#'	/* this char starts a comment-line */
 #define SEPA        		 '#'	/* this char separates the fields */
 #define EOT         	     '\004'
@@ -386,6 +387,8 @@ char *name;
   ch = ' ';
   *name = '\0';
   while (ch != EOF) {
+	/* Give us a new line */
+	write(1, "\r\n", 2);
 	write(1, defs->prompt, (unsigned) strlen(defs->prompt));
 	ioctl(0, TIOCFLUSH, (struct sgttyb *) NULL);
 	np = name;
@@ -429,7 +432,7 @@ char *name;
 		    case '\r':
 			crmap = 1;	/* ugly keyboard! */
 		    case '\n':
-			write(1, "\n", 1);	/* should map this */
+			write(1, "\r\n", 2);	/* should map this */
 			*np = '\0';
 			ch = EOF;
 			break;
@@ -470,10 +473,9 @@ char *name;
  */
 void do_login(name)
 char *name;
-{
-  char *cmd = LOGIN;
-
-  execl(cmd, cmd, name, (char *) NULL);
+{ 
+  execl(LOGIN1, LOGIN1, name, (char *) NULL);
+  execl(LOGIN2, LOGIN2, name, (char *) NULL);
 }
 
 
@@ -627,7 +629,7 @@ char *parms;
  * time, and the latter is somewhat ugly from the user's
  * point of view.  Just pick your choice...
  */
-#define CHOICE_A
+#define CHOICE_B
 void do_carrier()
 {
 #ifdef CHOICE_A

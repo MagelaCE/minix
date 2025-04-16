@@ -501,6 +501,7 @@ register struct lsfile *entry;
 	    case S_IFDIR:	bits[0] = 'd';	break;
 	    case S_IFBLK:	bits[0] = 'b';	break;
 	    case S_IFCHR:	bits[0] = 'c';	break;
+	    case S_IFIFO:	bits[0] = 'p';	break;
 	    default:	bits[0] = '-';	break;
 	}
 

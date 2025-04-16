@@ -277,7 +277,7 @@ char *s;
 #define is_first_char(c)	((c) == '.' || (c) == '_')
 #define is_second_char(c)	((c) == '_' || isalpha((c)))
 #define is_other_char(c)	((c) == '_' || isalnum((c)))
-
+#define alt_space(c)		((c) == ',' || (c) == '#')
 int yylex()
 {
   int col = 0;
@@ -285,6 +285,7 @@ int yylex()
   int is_member = 0;
   int in_define = 0;
   int lastch = 0;
+  int was_space = 1;
   char s[MAXNAME];
 
 
@@ -325,6 +326,7 @@ int yylex()
 		}
 
 		/* Lets do another character */
+		was_space = 1;
 		continue;
 	}
 
@@ -333,22 +335,20 @@ int yylex()
 		/* Are we seeing 'p' in col 1 */
 		if (lastch == 'p' && col == 1) {
 			is_member = -1;
-			continue;
 		}
 
 		/* Are we seeing '-' that follows 'p' in col 1 */
 		else if (lastch == '-' && is_member < 0 && col == 3) {
 			is_member = 1;
-			continue;
 		}
 
 		/* If we have seen 'p -' now we are reading the name
 		 * or the first character of a global symbol */
-		if (is_member > 0 || is_first_char(lastch)) {
+		else if (is_member > 0 || (is_first_char(lastch) && was_space)) {
 			s[i++] = lastch;
 			if (is_member < 0) is_member = 0;
 		}
-		continue;
+		was_space = alt_space(lastch);
 	}
 
 	/* Do the second char of a name */
@@ -357,14 +357,17 @@ int yylex()
 			s[i++] = lastch;
 		} else
 			is_member = 0;
+			was_space = alt_space(lastch);
 	}
 
 	/* Do the rest of a symbol or member name */
 	else if (is_member > 0 || is_other_char(lastch)) {
 		s[i++] = lastch;
-		continue;
-	} else
+		was_space = alt_space(lastch);
+	} else {
+		was_space = alt_space(lastch);
 		goto EOS;
+	}
   }
 
   /* Returns EOF on end of file */

@@ -13,10 +13,10 @@
  *				+---------------------+
  */
 
-#ifndef _SYS_WAIT_H
-#define _SYS_WAIT_H
+#ifndef _WAIT_H
+#define _WAIT_H
 
-#ifndef _SYS_TYPES_H		/* not quite right */
+#ifndef _TYPES_H		/* not quite right */
 #include <sys/types.h>
 #endif
 
@@ -38,7 +38,7 @@
 #include <ansi.h>
 #endif
 
-_PROTOTYPE( pid_t wait, (int *stat_loc)					);
-_PROTOTYPE( pid_t waitpid, (pid_t _pid, int *_stat_loc, int _options)	);
+_PROTOTYPE( pid_t wait, (int *_stat_loc)			   	   );
+_PROTOTYPE( pid_t waitpid, (pid_t _pid, int *_stat_loc, int _options)	   );
 
-#endif /* _SYS_WAIT_H */
+#endif /* _WAIT_H */

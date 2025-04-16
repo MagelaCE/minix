@@ -196,7 +196,7 @@ char *file_name;                /* file to open */
 	unsigned char click_buf[4];
 
 	offset = sizeof click_buf;
-	if (read(fd, click_buf, offset) != sizeof click_buf)
+	if (read(fd, click_buf, sizeof click_buf) != sizeof click_buf)
 		pexit("can't read click_shift in ", file_name);
 	if (lseek(fd,  -offset, 1) < 0)
 		pexit("can't seek before click_shift in ", file_name);

@@ -180,10 +180,13 @@ char *s1, *s2;
   exit(1);
 }
 
+BOOL get_header();
+
 main(argc, argv)
 int argc;
 register char *argv[];
 {
+  register char *mem_name;
   register char *ptr;
   struct stat st;
   int i;
@@ -244,8 +247,29 @@ register char *argv[];
 		path[0] = '\0';
 	}
 	adjust_boundary();
+  } else if (ext_fl) {
+	/* extraction code moved here from tarfile() MSP */
+	while (get_header()) {
+		mem_name = header.member.m_name;
+		if (is_dir(mem_name)) {
+			for (ptr = mem_name; *ptr; ptr++);
+			*(ptr - 1) = '\0';
+			header.dbuf.typeflag = '5';
+		}
+		for (i = 3; i < argc; i++)
+			if (!strncmp(argv[i], mem_name, strlen(argv[i])))
+				break;
+		if (argc == 3 || (i < argc)) {
+			extract(mem_name);
+		} else
+			if (header.dbuf.typeflag == '0' ||
+			    header.dbuf.typeflag == 0 ||
+			    header.dbuf.typeflag == ' ')
+				skip_entry();
+		flush();
+  	}
   } else
-	tarfile();
+	tarfile();	/* tarfile() justs prints info. now MSP */
 
   flush();
   exit(0);
@@ -268,6 +292,9 @@ BOOL get_header()
   return TRUE;
 }
 
+/* tarfile() just lists info about archive now; as of the t flag. */
+/* Extraction has been moved into main() as that needs access to argv[] */
+
 tarfile()
 {
   register char *ptr;
@@ -275,48 +302,39 @@ tarfile()
 
   while (get_header()) {
 	mem_name = header.member.m_name;
-	if (ext_fl) {
-		if (is_dir(mem_name)) {
-			for (ptr = mem_name; *ptr; ptr++);
-			*(ptr - 1) = '\0';
-			header.dbuf.typeflag = '5';
-		}
-		extract(mem_name);
-	} else {
-		string_print(NIL_PTR, "%s%s", mem_name,
-			     (verbose_flag ? " " : "\n"));
-		switch (header.dbuf.typeflag) {
-		    case '1':
-			verb_print("linked to", header.dbuf.linkname);
+	string_print(NIL_PTR, "%s%s", mem_name,
+		     (verbose_flag ? " " : "\n"));
+	switch (header.dbuf.typeflag) {
+	    case '1':
+		verb_print("linked to", header.dbuf.linkname);
+		break;
+	    case '6':
+		verb_print("", "fifo");
+		break;
+	    case '3':
+	    case '4':
+		if (verbose_flag) string_print(NIL_PTR,
+				     "%s special file major %s minor %s\n",
+			      (header.dbuf.typeflag == '3' ?
+			       "character" : "block"),
+				     header.dbuf.devmajor, header.dbuf.devminor);
+		break;
+	    case '0':	/* official POSIX */
+	    case 0:	/* also mentioned in POSIX */
+	    case ' ':	/* ofetn used */
+		if (!is_dir(mem_name)) {
+			if (verbose_flag)
+				string_print(NIL_PTR, "%d tape blocks\n",
+					     block_size());
+			skip_entry();
 			break;
-		    case '6':
-			verb_print("", "fifo");
-			break;
-		    case '3':
-		    case '4':
-			if (verbose_flag) string_print(NIL_PTR,
-					     "%s special file major %s minor %s\n",
-				      (header.dbuf.typeflag == '3' ?
-				       "character" : "block"),
-					     header.dbuf.devmajor, header.dbuf.devminor);
-			break;
-		    case '0':	/* official POSIX */
-		    case 0:	/* also mentioned in POSIX */
-		    case ' ':	/* ofetn used */
-			if (!is_dir(mem_name)) {
-				if (verbose_flag)
-					string_print(NIL_PTR, "%d tape blocks\n",
-						     block_size());
-				skip_entry();
-				break;
-			} else	/* FALL TROUGH */
-		    case '5':
-				verb_print("", "directory");
-			break;
-		    default:
-			string_print(NIL_PTR, "not recogised item %d\n",
-				     header.dbuf.typeflag);
-		}
+		} else	/* FALL TROUGH */
+	    case '5':
+			verb_print("", "directory");
+		break;
+	    default:
+		string_print(NIL_PTR, "not recogised item %d\n",
+			     header.dbuf.typeflag);
 	}
 	flush();
   }
@@ -739,7 +757,7 @@ char *file;
   struct link *new;
   char *malloc();
 
-  if (*file == 0) return;
+  if ((*file == 0) || (st->st_nlink == 1)) return;
   new = (struct link *) malloc(sizeof(struct link));
   if (new == NULL) {
 	print("Out of memory\n");

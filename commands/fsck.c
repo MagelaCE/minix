@@ -1,5 +1,19 @@
 /* fsck - file system checker		Author: Robbert van Renesse */
 
+/* Modified by Norbert Schlenker
+*   Removed vestiges of standalone/DOS versions:
+*     - various unused variables and buffers removed
+*     - now uses library functions rather than private internal routines
+*     - bytewise structure copies replaced by structure assignment
+*     - fixed one bug with 14 character file names
+*     - other small tweaks for speed
+*
+* Modified by Lars Fredriksen at the request of Andy Tanenbaum, 90-03-10.
+*   Removed -m option, by which fsck could be told to make a file
+*   system on a 360K floppy.  The code had limited utility, was buggy,
+*   and failed due to a bug in the ACK C compiler.  Use mkfs instead!
+*/
+
 #include <sys/types.h>
 #include <ctype.h>
 #include <errno.h>
@@ -108,7 +122,7 @@ int dev;			/* file descriptor of the device */
 int nfreeinode, nregular, ndirectory, nblkspec, ncharspec, nbadinode;
 int npipe, nfreezone, ztype[NLEVEL];
 
-int repair, automatic, listing, listsuper, makefs;	/* flags */
+int repair, automatic, listing, listsuper;	/* flags */
 int firstlist;			/* has the listing header been printed? */
 unsigned part_offset;		/* sector offset for this partition */
 char answer[] = {"Answer questions with y or n.  Then hit RETURN"};
@@ -278,12 +292,10 @@ devclose()
 devio(bno, dir)
 block_nr bno;
 {
-  off_t offset = btoa(bno);
-
   if (dir == READING && bno == thisblk) return;
   thisblk = bno;
 
-  lseek(dev, offset, SEEK_SET);
+  lseek(dev, btoa(bno), SEEK_SET);
   if (dir == READING) {
 	if (read(dev, rwbuf, BLOCK_SIZE) == BLOCK_SIZE)
 		return;
@@ -386,13 +398,11 @@ lsuper()
   if (repair) exit(0);
 }
 
-
 /* Get the super block from either disk or user.  Do some initial checks. */
 getsuper()
 {
   devread(btoa(BLK_SUPER), (char *) &sb, sizeof(sb));
   if (listsuper) lsuper();
-
   if (sb.s_magic != SUPER_MAGIC) fatal("bad magic number in super block");
   if ((short) sb.s_ninodes <= 0) fatal("no inodes");
   if (sb.s_nzones <= 2) fatal("no zones");
@@ -626,10 +636,6 @@ char *type;
   register unsigned *p = dmap, *q = cmap;
   int report = 1, nerr = 0;
 
-  if (makefs) {
-	dumpbitmap(cmap, blkno, nblk);
-	return;
-  }
   printf("Checking %s map\n", type);
   loadbitmap(dmap, blkno, nblk);
   do {
@@ -650,7 +656,6 @@ chkilist()
   register ino_t ino = 1;
   mode_t mode;
 
-  if (makefs) return;
   printf("Checking inode list\n");
   do
 	if (!bitset(imap, (bit_nr) ino)) {
@@ -1235,7 +1240,7 @@ chktree()
 {
   dir_struct dir;
 
-  if (!makefs) nfreeinode = sb.s_ninodes;
+  nfreeinode = sb.s_ninodes;
   nfreezone = N_DATA;
   dir.d_inum = ROOT_INODE;
   dir.d_name[0] = 0;
@@ -1273,7 +1278,7 @@ printtotal()
 chkdev(f, clist, ilist, zlist)
 char *f, **clist, **ilist, **zlist;
 {
-  if (automatic || makefs) repair = 1;
+  if (automatic) repair = 1;
   device = f;
   initvars();
 
@@ -1349,8 +1354,9 @@ char **argv;
 		devgiven = 1;
 	}
   if (!devgiven) {
-	printf("Usage: fsck [-acilmrsz] file\n");
+	printf("Usage: fsck [-acilrsz] file\n");
 	exit(1);
   }
   return(0);
 }
+

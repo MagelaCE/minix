@@ -26,8 +26,8 @@
 struct bparam_s boot_parameters =
 	{DROOTDEV, DRAMIMAGEDEV, DRAMSIZE, DSCANCODE, DPROCESSOR};
 
-char *ramimname = "/dev/fd0";
-char *rootname = "/dev/ram";
+char *ramimname;
+char *rootname;
 
 #define between(c,l,u)	((unsigned short) ((c) - (l)) <= ((u) - (l)))
 #define isprint(c)	between(c, ' ', '~')
@@ -59,6 +59,20 @@ union types {
   long *u_long;			/* %ld */
   char **u_charp;		/* %s */
 };
+
+  static char *devname[] = {
+			  "/dev/fd0",
+			  "/dev/fd1",
+			  "/dev/hd1",
+			  "/dev/hd2",
+			  "/dev/hd3",
+			  "/dev/hd4",
+			  "",
+			  "/dev/hd6",
+			  "/dev/hd7",
+			  "/dev/hd8",
+			  "/dev/hd9",
+  };
 
 /* Print the given character. */
 putchar(c)
@@ -242,6 +256,8 @@ char **argv;
   if (tracksiz < 9 || cylsiz < 18) printf("Bootblok gave bad tracksiz\n");
   rwbuf = rwbuf1;
   printf("\n\n\n\n");
+  ramimname = devname[DRAMIMAGEDEV - DEV_HD0 + 1];
+  rootname = devname[DROOTDEV - DEV_HD0 + 1];
   for (;;) {
 	printf("\nHit key as follows:\n\n");
 	printf("    =  start MINIX, standard keyboard\n");
@@ -375,19 +391,6 @@ char *description;
 int ram_allowed;
 {
   char chr;
-  static char *devname[] = {
-			  "/dev/fd0",
-			  "/dev/fd1",
-			  "/dev/hd1",
-			  "/dev/hd2",
-			  "/dev/hd3",
-			  "/dev/hd4",
-			  "",
-			  "/dev/hd6",
-			  "/dev/hd7",
-			  "/dev/hd8",
-			  "/dev/hd9",
-  };
   printf("\nPlease enter (abbreviated) name of %s device.\n", description);
   printf("Floppy f0, f1, hard h1 to h4, h6 to h9");
   if (ram_allowed) printf(", RAM r");

@@ -288,14 +288,9 @@ _eth_int:			| Interrupt routine for ethernet input
 	in	INT_CTLMASK
 	orb	al,#ETHER_MASK
 	out	INT_CTLMASK
-	sti			| may not be able to handle this
-				| but ethernet doesn't work in protected mode
-				| yet, and tacitly assumes CLICK_SIZE == 16
+	sti
 	call	_dp8390_int	| call the handler
 	cli
-	in	INT_CTLMASK
-	andb	al,#notop(ETHER_MASK)
-	out	INT_CTLMASK
 	ret
 
 

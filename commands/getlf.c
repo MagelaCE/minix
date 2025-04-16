@@ -18,7 +18,8 @@ char *argv[];
   open("/dev/tty", O_RDONLY);
 
   do {
-	read(0, &c, 1);
+	if (read(0, &c, 1) <= 0) exit(1);
+	if (c <= 0) exit(1);
   } while (c != '\n');
   exit(0);
 }

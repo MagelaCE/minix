@@ -20,7 +20,7 @@ char    *patbuf;                /* where to put compiled pattern */
                 delim,          /* pattern delimiter         */
                 *cclass();      /* Compile class routine     */
 
-        patptr = patbuf;
+        lp = patptr = patbuf;
         delim = getcharacter();
 
         while ( (c = getcharacter()) != -1 && c != delim )

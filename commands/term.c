@@ -226,15 +226,17 @@ struct sgttyb *sgsavep;
    * ttys may have some use. */
 
   struct sgttyb sgtty;
+  int tabs;
 
   sgtty = *sgsavep;
+  tabs = sgtty.sg_flags & XTABS;
   if (speed == -1) speed = sgtty.sg_ispeed;
   if (parity == -1) parity = sgtty.sg_flags & (EVENP | ODDP);
   if (bits == -1)
 	bits = sgtty.sg_flags & BITS8;	/* BITS8 is actually a mask */
   sgtty.sg_ispeed = speed;
   sgtty.sg_ospeed = speed;
-  sgtty.sg_flags = RAW | parity | bits;
+  sgtty.sg_flags = RAW | parity | bits | tabs;
   ioctl(fd, TIOCSETP, &sgtty);
 }
 

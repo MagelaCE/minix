@@ -54,14 +54,14 @@
 #define EXTERN				/* so we get proc, mproc and fproc */
 #include <minix/type.h>
 
-#include "/usr/src/kernel/const.h"
-#include "/usr/src/kernel/type.h"
-#include "/usr/src/kernel/proc.h"
+#include "../kernel/const.h"
+#include "../kernel/type.h"
+#include "../kernel/proc.h"
 #undef printf				/* kernel's const.h defined this */
 
-#include "/usr/src/mm/mproc.h"
-#include "/usr/src/fs/fproc.h"
-#include "/usr/src/fs/const.h"
+#include "../mm/mproc.h"
+#include "../fs/fproc.h"
+#include "../fs/const.h"
 #undef printf				/* fs's const.h defined this */
 
 

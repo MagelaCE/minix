@@ -10,13 +10,7 @@
 
 /* MACHINE must be set to one of the machine types list below. */
 #define MACHINE       IBM_PC	/* Must be one of the names listed below */
-#define IBM_PC             1	/* any  8088 or 80286-based system */
-#define IBM_386            3	/* any 80386-based system, IBM or clone  */
-#define IBM_486            4	/* any 80486-based system, IBM or clone  */
-#define IBM_586            5	/* any 80586-based system, IBM or clone  */
-#define PS2_30            23	/* IBM PS/2 model 30        (8086) */
-#define PS2_50            25	/* IBM PS/2 model 50 or 60 (80286) */
-#define PS2_70            27	/* IBM PS/2 model 70 or 80 (80386) */
+#define IBM_PC             1	/* any  8088 or 80x86-based system */
 #define SUN_4             40	/* any SUN SPARC-based system */
 #define ATARI             60	/* ATARI ST (68000) */
 #define AMIGA             61	/* Commodore Amiga (68000) */
@@ -50,8 +44,7 @@
 #define C_RS232_INT_HANDLERS 0	/* rs232.c - use slower C int handlers */
 #define DEFAULT_CLASS      0	/* floppy.c - 3 or 5 to get only that size */
 #define LINEWRAP           0	/* console.c - wrap lines at column 80 */
-#define NO_HANDSHAKE       0	/* rs232.c - don't use CTS/RTS handshaking */
-#define STUPID_WINI_ADJUST 0	/* *wini.c - skip odd 1st sector of partition*/
+#define NO_HANDSHAKE       1	/* rs232.c - don't use CTS/RTS handshaking */
 
 /* These configuration defines control debugging and unfinished code. */
 #define FLOPPY_TIMING      0	/* floppy.c - for fine tuning floppy driver */
@@ -74,8 +67,8 @@
 #define M68000            2	/* CHIP type for Atari, Amiga, Macintosh    */
 #define SPARC             3	/* CHIP type for SUN-4 (e.g. SPARCstation)  */
 
-#if MACHINE <= PS2_70
-#define CHIP          INTEL
+#if MACHINE == IBM_PC
+#define CHIP           INTEL
 #endif
 
 #if (MACHINE == ATARI) | (MACHINE == AMIGA) | (MACHINE == MACINTOSH)

@@ -224,7 +224,7 @@ char *name;
                 /*
                  * Allocate some new room
                  */
-                Nextvar->vptr = getmem( WORD );
+                Nextvar->vptr = getmem((unsigned int) WORD );
                 fillmem( Nextvar->vptr, WORD, 0 );
         }
         else
@@ -354,9 +354,9 @@ assignment()
         if ( Stackptr->lvalue )
         {
                 if ( Stackptr->class )
-                        movemem( &ival, Stackptr->value.dptr, WORD );
+                        movemem((char *) &ival, Stackptr->value.dptr, WORD );
                 else
-                        movemem(&ival, Stackptr->value.dptr, Stackptr->size);
+                        movemem((char *) &ival, Stackptr->value.dptr, Stackptr->size);
                 pop();
                 pushint( ival );
         }
@@ -498,7 +498,7 @@ DATUM args[];
 
 		lflg = (*s == 'l' || *s == 'L');
 		if ( lflg )
-			*t++ == *s++;
+			*t++ = *s++ ;
 		if ( *s == 'd' || *s == 'D' || *s == 'u' || *s == 'U' ||
 		     *s == 'x' || *s == 'X' || *s == 'o' || *s == 'O' )
 		{
