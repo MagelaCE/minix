@@ -74,7 +74,7 @@ int rw_flag;			/* READING or WRITING */
 	return(EBADF);
   if (nbytes == 0) return(0);	/* so char special files need not check for 0*/
   position = f->filp_pos;
-  if (position > (off_t) MAX_FILE_POS) return(EINVAL);
+  if (position < 0 || position > MAX_FILE_POS) return(EINVAL);
   oflags = f->filp_flags;
   rip = f->filp_ino;
   f_size = rip->i_size;

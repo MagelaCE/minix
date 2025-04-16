@@ -338,8 +338,9 @@ PUBLIC int do_lseek()
 	case 2: pos = rfilp->filp_ino->i_size + offset;	break;
 	default: return(EINVAL);
   }
-  /* The following test is not really valid, as off_t is an unsigned long. */
-  if (pos > (off_t) MAX_FILE_POS) return(EINVAL);
+
+  /* Check if pos is invalid. */
+  if (pos < 0 || pos > MAX_FILE_POS) return(EINVAL);
 
   if (pos != rfilp->filp_pos)
 	rfilp->filp_ino->i_seek = ISEEK;	/* inhibit read ahead */

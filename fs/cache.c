@@ -265,7 +265,7 @@ int rw_flag;			/* READING or WRITING */
 	if (r != BLOCK_SIZE) {
 		if (r >= 0) r = END_OF_FILE;
 		if (r != END_OF_FILE)
-		 printf("Unrecoverable disk error on device %d/%d, block %d\n",
+		 printf("Unrecoverable disk error on device %d/%d, block %u\n",
 			(dev>>MAJOR)&BYTE, (dev>>MINOR)&BYTE, bp->b_blocknr);
 		bp->b_dev = NO_DEV;	/* invalidate block */
 

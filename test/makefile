@@ -7,7 +7,7 @@ $f:	$f.s
 clean:	
 	@rm -f *.s *.bak
 
-# The test11, test17, and test18 files must be setuid root, which means
+# The test11 file must be setuid root, which means
 # that you should be root when typing 'make all'.  Furthermore, cem needs
 # extra memory when compiling test17.c and test18.c.
 all:
@@ -39,7 +39,7 @@ all:
 	rm -f *.bak *.s
 
 	chown bin test*
-	chown root test11 test17 test18
-	chmod 4755 test11 test17 test18
+	chown root test11
+	chmod 4755 test11
 	chmod 777 .
 
