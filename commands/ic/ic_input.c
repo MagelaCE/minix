@@ -37,7 +37,7 @@ Save_Term()
 
   {
   ioctl( 0, TIOCGETP, &saved_mode  );
-  ioctl( 0, TIOCGETC, &saved_chars );
+  ioctl( 0, TIOCGETC, (struct sgttyb *) &saved_chars );
   }
 
 
@@ -78,7 +78,7 @@ Set_Term()
   ic_chars.t_stopc  = '\377';
 
   ioctl( 0, TIOCSETP, &ic_mode  );
-  ioctl( 0, TIOCSETC, &ic_chars );
+  ioctl( 0, TIOCSETC, (struct sgttyb *) &ic_chars );
   }
 
 
@@ -101,7 +101,7 @@ Reset_Term()
 
   {
   ioctl( 0, TIOCSETP, &saved_mode  );
-  ioctl( 0, TIOCSETC, &saved_chars );
+  ioctl( 0, TIOCSETC, (struct sgttyb *) &saved_chars );
   }
 
 

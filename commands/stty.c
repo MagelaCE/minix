@@ -26,7 +26,7 @@ char *argv[];
 {
 
   /* Stty with no arguments just reports on current status. */
-  if (ioctl(FD, TIOCGETP, &args) < 0 || ioctl(FD, TIOCGETC, &tch) < 0) {
+  if (ioctl(FD,TIOCGETP,&args)<0 || ioctl(FD,TIOCGETC,(struct sgttyb*)&tch)<0){
 	prints("%s: can't read ioctl parameters from stdin\n", argv[0]);
 	exit(1);
   }
@@ -41,7 +41,7 @@ char *argv[];
 	option(argv[k], k + 1 < argc ? argv[k + 1] : "");
 	k++;
   }
-  if (ioctl(FD, TIOCSETP, &args) < 0 || ioctl(FD, TIOCSETC, &tch) < 0) {
+  if (ioctl(FD,TIOCSETP,&args)<0 || ioctl(FD,TIOCSETC,(struct sgttyb*)&tch)<0){
 	prints("%s: can't write ioctl parameters to stdin\n", argv[0]);
 	exit(2);
   }

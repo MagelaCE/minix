@@ -20,21 +20,20 @@
 #include <minix/type.h>
 #include <minix/callnr.h>
 
-extern message M;
+extern message _M;
 
 #define MM                 0
 #define FS                 1
 
-_PROTOTYPE( int callm1, (int proc, int syscallnr, 
-			 int int1, int int2, int int3,
-			 char *ptr1, char *ptr2, char *ptr3)		);
-_PROTOTYPE( int callm3, (int proc, int syscallnr, int int1,
-			 const char *name)				);
-_PROTOTYPE( int callx, (int proc, int syscallnr)			);
-_PROTOTYPE( int len, (const char *s)					);
-_PROTOTYPE( void panic, (const char *message, int errnum)		);
-_PROTOTYPE( int sendrec, (int src_dest, message *m_ptr)			);
-_PROTOTYPE( int syserr, (const char *name) /* used but not defined */	);
+_PROTOTYPE( int _callm1, (int _proc, int _syscallnr,
+			 int _int1, int _int2, int _int3,
+			 char *_ptr1, char *_ptr2, char *_ptr3)		);
+_PROTOTYPE( int _callm3, (int _proc, int _syscallnr, int _int1,
+			 const char *_name)				);
+_PROTOTYPE( int _callx, (int _proc, int _syscallnr)			);
+_PROTOTYPE( int _len, (const char *_s)					);
+_PROTOTYPE( void panic, (const char *_message, int _errnum)		);
+_PROTOTYPE( int _sendrec, (int _src_dest, message *_m_ptr)		);
 _PROTOTYPE( void begsig, (int dummy)					);
 
 #endif /* _LIB_H */

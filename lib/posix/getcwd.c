@@ -52,16 +52,13 @@ int size;
 	/* Search the parent directory for the current entry  */
 	if ((fd = open(".", O_RDONLY)) == -1) return((char *)NULL);
 	while (!found && read(fd, (char *)&d, DIRECT_SIZE) == DIRECT_SIZE) {
+		if (d.d_ino == 0L) continue;	/* empty slot */
 		if (same_device) {
 			if (current.st_ino == d.d_ino) found = 1;
 		} else {
 			temp_name[0] = '\0';
 			strncat(temp_name, d.d_name, NAME_MAX);
-			if (stat(temp_name, &dir_entry) == -1) {
-				close(fd);
-				go_back(path);
-				return((char *)NULL);
-			}
+			if (stat(temp_name, &dir_entry) == -1)continue;
 			if (current.st_dev == dir_entry.st_dev &&
 			    current.st_ino == dir_entry.st_ino)
 				found = 1;

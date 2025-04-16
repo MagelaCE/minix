@@ -17,6 +17,9 @@
  *	- Originally written in BDS C;
  *	- Adapted for standard C by W. N. Paul
  *	- Heavily hacked up to conform to "real" nroff by Bill Rosenkranz
+ *	- Changed array index i from type long to type int (32000 is the
+ *	  largest value anyhow) to prevent compiler warnings
+ *	  by Wim 'Blue Baron' van Dorst (wsincc@tuerc3.urc.tue.nl)
  */
 
 #undef NRO_MAIN					/* extern globals */
@@ -465,7 +468,7 @@ int	opt;				/* 0=name&size,1=total size,2=full */
  *	print all macros and strings and tabulate sizes
  */
 
-	register long	i;
+	register int	i;
 	register long	space;
  	register long	totalspace;
 	register char  *pname;
@@ -478,7 +481,7 @@ int	opt;				/* 0=name&size,1=total size,2=full */
 	fflush (out_stream);
 	fflush (err_stream);
 
-	for (i = (long) mac.lastp; i >= 0; --i)
+	for (i = mac.lastp; i >= 0; --i)
 	{
  		/*
 		 *   is this REALLY a macro?

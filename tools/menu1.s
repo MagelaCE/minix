@@ -2,7 +2,7 @@ STACKSIZE = 8192
 
 .globl _main, _exit, _edata, _end, _putc, _getc, _reset_diskette, _diskio
 .globl csv, cret, begtext, begdata, begbss
-.globl _cylsiz, _tracksiz, _drive
+.globl _cylsiz, _tracksiz, _drive, _boot_parameters
 
 .text
 begtext:

@@ -192,11 +192,13 @@ char *file_name;                /* file to open */
   /* If the kernel, determine click_shift and clicksize. */
   if (num == 0) {
 	long lseek();
+	long offset;
 	unsigned char click_buf[4];
 
-	if (read(fd, click_buf, sizeof click_buf) != sizeof click_buf)
+	offset = sizeof click_buf;
+	if (read(fd, click_buf, offset) != sizeof click_buf)
 		pexit("can't read click_shift in ", file_name);
-	if (lseek(fd, (long) -sizeof click_buf, 1) < 0)
+	if (lseek(fd,  -offset, 1) < 0)
 		pexit("can't seek before click_shift in ", file_name);
 	click_shift = click_buf[2] + (click_buf[3] << 8);
 	if (click_shift == 0)
@@ -276,8 +278,9 @@ char *file_name;
   {
     if ( (unsigned) (count = left_to_read) > READ_UNIT)
       count = READ_UNIT;
-    if ( (bytes_read = read(fd, inbuf, count)) <= 0)
+    if ( (bytes_read = read(fd, inbuf, count)) <= 0) {
       pexit("read error on file ", file_name);
+    }
     wr_out(inbuf, bytes_read);
     left_to_read -= count;
   }

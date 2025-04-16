@@ -106,9 +106,15 @@ sysinfo_t sysinfo;			/* sysinfo holds actual system info */
 #define	TASKTAB	tasktab
 
 /* default paths for system binaries */
+#if (CHIP == M68000)
+#define KERNEL_PATH	"/usr/src/kernel/kernel.mix"
+#define MM_PATH		"/usr/src/mm/mm.mix"
+#define FS_PATH		"/usr/src/fs/fs.mix"
+#else
 #define KERNEL_PATH	"/usr/src/kernel/kernel"
 #define MM_PATH		"/usr/src/mm/mm"
 #define FS_PATH		"/usr/src/fs/fs"
+# endif
 
 #define	KMEM_PATH	"/dev/kmem"	/* opened for kernel proc table */
 #define	MEM_PATH	"/dev/mem"	/* opened for mm/fs + user processes */
@@ -138,9 +144,9 @@ struct tasktab tasktab[NR_TASKS + INIT_PROC_NR + 1];	/* task table */
  * (PAUSE) MM
  */
 #define S_HEADER "  PID TTY  TIME CMD\n"
-#define S_FORMAT "%5d  %2s%3D:%02D %.63s\n"
+#define S_FORMAT "%5d  %3s%3ld:%02ld %.62s\n"
 #define L_HEADER "  F S UID   PID  PPID  PGRP ADDR  SZ        RECV TTY  TIME CMD\n"
-#define L_FORMAT "%3o %c %3d %5d %5d %5d %4d %3d %11s  %2s%3D:%02D %.20s\n"
+#define L_FORMAT "%3o %c %3d %5d %5d %5d %4d %3d %11s  %3s%3ld:%02ld %.19s\n"
 
 struct pstat {				/* structure filled by pstat() */
 	dev_t ps_dev;			/* major/minor of controlling tty */
@@ -178,14 +184,16 @@ struct pstat {				/* structure filled by pstat() */
  */
 char *tname(dev_nr)
 {
-	static char *ttys[] = {"co", "t1", "t2", "t3"};
+	static char buf[4];
 	
-	if (majdev(dev_nr) != TTY_MAJ ||		/* yuchhh! */
-	    mindev(dev_nr) < 0 ||
-	    mindev(dev_nr) >= sizeof(ttys) / sizeof(char *))
-		return "? ";
-	
-	return ttys[mindev(dev_nr)];	
+	if (majdev(dev_nr) != TTY_MAJ ||	/* yuchhh! */
+	    mindev(dev_nr) < 0 || mindev(dev_nr) >= 100)
+		return "?  ";
+	if (mindev(dev_nr) == 0)
+		return "co ";
+
+	sprintf(buf, "t%-2d", mindev(dev_nr));
+	return buf;
 }
 
 /* return canonical task name of task p_nr; overwritten on each call */
@@ -413,7 +421,11 @@ char *get_args(bufp)
 struct pstat *bufp;
 {
 	union {
+#if (CHIP == M68000)
+		long stk_i;
+#else
 		int stk_i;
+#endif
 		char *stk_cp;
 		char stk_c;
 	} stk[ARG_MAX / sizeof(char *)], *sp;
@@ -480,8 +492,11 @@ struct pstat *bufp;
 		return NULL;
 
 	/* get a local version of argv[0]; l is offset back from end of stack */
-	l = (bufp->ps_stack + bufp->ps_ssize) -
-		(bufp->ps_data + (vir_bytes) sp[1].stk_cp);
+	l = bufp->ps_stack + bufp->ps_ssize -
+#if (CHIP == INTEL)
+		bufp->ps_data - 
+#endif
+		(vir_bytes) sp[1].stk_cp;
 	if (l < 0 || l > cnt)
 		return NULL;
 	args = &((char *) stk)[cnt - (int) l];

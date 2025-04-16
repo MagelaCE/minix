@@ -38,7 +38,7 @@ char *ourtty = NULL;		/* our terminal name */
 struct sgttyb ttyold, ttynew;	/* our tty controlling structs */
 
 extern int getopt(), optind;	/* from getopt(3) */
-
+void intr();
 
 char *finduser()
 {
@@ -70,7 +70,7 @@ char *finduser()
   /* We want to find if 'user' is logged on, and return in utmptty[]
    * 'user' `s terminal, and if 'user' is logged onto the tty the
    * caller specified, return that tty name. */
-  while (read(utmpfd, &utmp, sizeof(utmp)) == sizeof(utmp)) {
+  while (read(utmpfd, (char *) &utmp, sizeof(utmp)) == sizeof(utmp)) {
 	/* is this the user we are looking for? */
 	if (strcmp(utmp.ut_name, user)) continue;
 
@@ -93,18 +93,6 @@ char *finduser()
 
   if (verbose) fprintf(stderr, "Writing to %s on %s\n", user, utmptty);
   return(utmptty);
-}
-
-
-void intr()
-{
-/* The interrupt key has been hit. exit cleanly. */
-
-  signal(SIGINT, SIG_IGN);
-  fprintf(stderr, "\nInterrupt. Exiting write\n");
-  ioctl(0, TIOCSETP, &ttyold);
-  if (writing) write(otty, "\nEOT\n", 5);
-  exit(0);
 }
 
 
@@ -257,3 +245,16 @@ char *argv[];
   }
   exit(-1);
 }
+
+void intr()
+{
+/* The interrupt key has been hit. exit cleanly. */
+
+  signal(SIGINT, SIG_IGN);
+  fprintf(stderr, "\nInterrupt. Exiting write\n");
+  ioctl(0, TIOCSETP, &ttyold);
+  if (writing) write(otty, "\nEOT\n", 5);
+  exit(0);
+}
+
+

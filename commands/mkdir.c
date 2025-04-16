@@ -1,5 +1,6 @@
 /* mkdir - make a directory		Author: Adri Koppes */
 
+#include <sys/types.h>
 #include <signal.h>
 
 int error = 0;

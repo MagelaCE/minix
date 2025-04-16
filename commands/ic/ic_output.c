@@ -64,18 +64,18 @@ Init_Termcap()
   term = getenv( "TERM" );
 
   if ( term == NULL )
-    return( NULL );
+    return( 0 );
 
   if ( tgetent( buffer, term ) != 1 )
-    return( NULL );
+    return( 0 );
 
 
 
   if ( (Tmove=tgetstr( "cm", &s )) == NULL )
-    return( NULL );
+    return( 0 );
 
   if ( (Tclr_all=tgetstr( "cl", &s )) == NULL )
-    return( NULL );
+    return( 0 );
 
   if ( (Treverse=tgetstr( "so", &s )) == NULL )
     {
@@ -288,7 +288,7 @@ Draw_Screen( s )
   else
     printf( "Output base = %2d    ", s->output_base );
 
-  if ( (int) s->scratch_pad != NULL )
+  if ( (int) s->scratch_pad != 0 )
     printf( "Scratch file = %s", s->file_name );
 
   Move( WAIT_COLUMN, WAIT_LINE );

@@ -333,7 +333,7 @@ char *line;			/* Line to match */
 #endif	/* REGEX */
 
 #ifdef	REGCMP
-  rtncode = (regexec(Re, line, TRUE) != NULL);
+  rtncode = (regexec(Re, line, TRUE) != (int) NULL);
 #endif /* REGCMP */
 
 #ifdef	NOREGEX			/* Have to do menial comparison.. */

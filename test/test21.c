@@ -28,8 +28,9 @@ char *argv[];
 
   sync();
   if (geteuid() == 0) {
-	printf("Test 21 must NOT be root; test aborted\n");
-	exit(1);
+	/* Must not run as root. */
+	setgid(2);
+	setuid(2);
   }
 
   if (argc == 2) m = atoi(argv[1]);

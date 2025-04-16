@@ -86,13 +86,15 @@ int interrupt = FALSE;		/* If sigint or sigquit occurs */
 
 
 /* Sigint() and Sigquit() Flag occurrence of an interrupt. */
-Sigint()
+void Sigint(sig)
+int sig;
 {
   interrupt = SIGINT;
 }
 
 
-Sigquit()
+void Sigquit(sig)
+int sig;
 {
   interrupt = SIGQUIT;
 }

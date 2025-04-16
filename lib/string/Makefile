@@ -70,4 +70,4 @@ string.shar: Readme Copyright Makefile Perf.T5100 perf.c analyze.c $(DIFFS) $(SR
 	>string.shar
 
 clean:
-	rm -f operf nperf analyze operf.out nperf.out Perf.local *.s
+	@rm -f operf nperf analyze operf.out nperf.out Perf.local *.s

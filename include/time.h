@@ -9,32 +9,33 @@
 #ifndef _TIME_H
 #define _TIME_H
 
-#define NULL	((void *) 0)
 #define CLOCKS_PER_SEC    60	/* MINIX always uses 60 Hz, even in Europe */
 
 #ifdef _POSIX_SOURCE
 #define CLK_TCK CLOCKS_PER_SEC	/* obsolete name for CLOCKS_PER_SEC */
 #endif
 
+#define NULL    ((void *)0)
+
+#ifndef _SIZE_T
+#define _SIZE_T
+typedef unsigned int size_t;
+#endif
+
 #ifndef _TIME_T
 #define _TIME_T
-typedef long time_t;		/* time in sec since 1 Jan 1970 0000 GMT */
+typedef unsigned long time_t;	/* time in sec since 1 Jan 1970 0000 GMT */
 #endif
 
 #ifndef _CLOCK_T
 #define _CLOCK_T
-typedef	long clock_t;		/* time in ticks since process started */
-#endif
-
-#ifndef _SIZE_T
-#define _SIZE_T			/* may not be allowed by ANSI */
-typedef unsigned size_t;	/* but we need size_t */
+typedef unsigned long clock_t;	/* time in ticks since process started */
 #endif
 
 struct tm {
   int tm_sec;			/* seconds after the minute [0, 59] */
   int tm_min;			/* minutes after the hour [0, 59] */
-  int tm_hour;			/* hours since midnight [0, 28] */
+  int tm_hour;			/* hours since midnight [0, 23] */
   int tm_mday;			/* day of the month [1, 31] */
   int tm_mon;			/* months since January [0, 11] */
   int tm_year;			/* years since 1900 */
@@ -48,20 +49,19 @@ struct tm {
 #include <ansi.h>
 #endif
 
-_PROTOTYPE( clock_t clock, (void)					   );
-_PROTOTYPE( double difftime, (time_t __time1, time_t __time0)		   );
-_PROTOTYPE( time_t mktime, (const struct tm *__timeptr)			   );
-_PROTOTYPE( time_t time, (time_t *__timeptr)				   );
-_PROTOTYPE( char *asctime, (const struct tm *__timeptr)		   	   );
-_PROTOTYPE( char *ctime, (const time_t *__timer)			   );
-_PROTOTYPE( struct tm *gmtime, (const time_t *__timer)			   );
-_PROTOTYPE( struct tm *localtime, (const time_t *__timer)		   );
-_PROTOTYPE( time_t time, (time_t *__tloc)				   );
-_PROTOTYPE( size_t strftime, \
-	(char *__s, size_t __max, char *__fmt, const struct tm *__timep)   );
+_PROTOTYPE( clock_t clock, (void)					);
+_PROTOTYPE( double difftime, (time_t _time1, time_t _time0)		);
+_PROTOTYPE( time_t mktime, (struct tm *_timeptr)			);
+_PROTOTYPE( time_t time, (time_t *_timeptr)				);
+_PROTOTYPE( char *asctime, (const struct tm *_timeptr)			);
+_PROTOTYPE( char *ctime, (const time_t *_timer)			);
+_PROTOTYPE( struct tm *gmtime, (const time_t *_timer)			);
+_PROTOTYPE( struct tm *localtime, (const time_t *_timer)		);
+_PROTOTYPE( size_t strftime, (char *_s, size_t _max, const char *_fmt,
+				const struct tm *_timep)		);
 
 #ifdef _POSIX_SOURCE
-_PROTOTYPE( void tzset, (void)						   );
+_PROTOTYPE( void tzset, (void)						);
 #endif
 
 #endif /* _TIME_H */

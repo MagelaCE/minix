@@ -24,7 +24,7 @@ PRIVATE _PROTOTYPE( void assert_failed, (void));
 
 #define BRKSIZE		1024
 #define	PTRSIZE		sizeof(char *)
-#define Align(x,a)	(((x) + (a - 1)) & ~(a - 1))
+#define Align(x,a)	(((x) + (a - 1)) & ~(ptrint)(a - 1))
 #define NextSlot(p)	(* (char **) ((p) - PTRSIZE))
 #define NextFree(p)	(* (char **) (p))
 

@@ -77,10 +77,6 @@ over_kernel_ds:
 	mov	ss,dx
 	mov	sp,#k_stktop	| set sp to point to the top of kernel stack
 
-| Trap to debugger if one is installed.
-
-	int	3
-
 | Call C startup code to prepare for switching modes.
 
 	push	ds

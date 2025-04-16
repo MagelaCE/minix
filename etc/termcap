@@ -19,7 +19,6 @@ mx|minix|minix console:\
 	:DC=\E[%dP:dc=\E[P:\
 	:DL=\E[%dM:dl=\E[M:\
 	:DO=\E[%dB:do=\E[B:\
-	:ho=\E[1;1H:\
 	:IC=\E[%d@:ic=\E[@:\
 	:it#8:\
 	:le=^H:LE=\E[%dD:nd=\E[CL:\

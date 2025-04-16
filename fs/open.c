@@ -21,8 +21,8 @@
 #include "param.h"
 
 PRIVATE char mode_map[] = {R_BIT, W_BIT, R_BIT|W_BIT, 0};
-PRIVATE char dot1[NAME_MAX] = ".\0\0\0\0\0\0\0\0\0\0\0";
-PRIVATE char dot2[NAME_MAX] =  "..\0\0\0\0\0\0\0\0\0\0";
+PRIVATE char dot1[NAME_MAX] = ".\0\0\0\0\0\0\0\0\0\0\0\0";
+PRIVATE char dot2[NAME_MAX] =  "..\0\0\0\0\0\0\0\0\0\0\0";
 
 FORWARD int common_open();
 FORWARD struct inode *new_node();
@@ -298,7 +298,7 @@ PUBLIC int do_close()
 		do_sync();	/* purge cache */
 		if (mounted(rip) == FALSE) invalidate((dev_t) rip->i_zone[0]);
 	}
-	dev_close(rip);
+	if (rfilp->filp_count == 1) dev_close(rip);	/* about to become 0 */
   }
 
   /* If the inode being closed is a pipe, release everyone hanging on it. */
@@ -341,7 +341,8 @@ PUBLIC int do_lseek()
   /* The following test is not really valid, as off_t is an unsigned long. */
   if (pos > (off_t) MAX_FILE_POS) return(EINVAL);
 
-  rfilp->filp_ino->i_seek = ISEEK;	/* inhibit read ahead */
+  if (pos != rfilp->filp_pos)
+	rfilp->filp_ino->i_seek = ISEEK;	/* inhibit read ahead */
   rfilp->filp_pos = pos;
 
   reply_l1 = pos;		/* insert the long into the output message */

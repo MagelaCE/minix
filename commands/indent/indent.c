@@ -19,6 +19,8 @@
  */
 
 #define	PUBLIC
+#define NAME_SIZE 14
+
 #include "globs.h"
 #include "codes.h"
 #include <ctype.h>
@@ -313,6 +315,15 @@ main(argc, argv)
 	       goto sw_buffer;		/* go to common code to get out
 					   of this loop */
 	    }
+/*
+ * Something is buffered up in save_com, and -bl processing is in effect.
+ * Add the brace after the comment so it will come out on the next line.
+ */
+	    flushed_nl = 0;	/* comment can start on the same line */
+	    *sc_end++ = '\n';	/* break line after comment */
+	    *sc_end++ = '{';
+	    goto sw_buffer;
+
 	 case comment:			/* we have a comment, so we
 					   must copy it into the buffer */
 	    if (!flushed_nl || sc_end != 0)
@@ -1314,6 +1325,7 @@ bakcopy()
    if (*p == '/')
       p++;
    sprintf(bakfile, "%s.BAK", p);
+   if (strlen(p) >= NAME_SIZE) *bakfile ^= 040;	/* toggle char */
 
    /* copy in_name to backup file */
    bakchn = creat(bakfile, 0600);

@@ -58,6 +58,8 @@
  *  USG UNIX (3.0) ioctl conventions courtesy  Jeff Martin
  */
 
+#include <sys/types.h>
+
 #ifdef vax11c
 #include <types.h>
 #include <stat.h>
@@ -88,6 +90,8 @@ FILE *popen();
 #define TRUE 1
 #undef ERROR
 #define ERROR (-1)
+
+void bibi();
 
 /*
  * Max value for HOWMANY is 255.
@@ -199,13 +203,15 @@ jmp_buf tohere;		/* For the interrupt on RX timeout */
 
 int tryzhdrtype=ZRINIT;	/* Header type to send corresponding to Last rx close */
 
-alrm()
+void alrm(sig)
+int sig;
 {
 	longjmp(tohere, -1);
 }
 
 /* called by signal interrupt or terminate to clean things up */
-bibi(n)
+void bibi(n)
+int n;
 {
 	if (Zmodem)
 		zmputs(Attn);

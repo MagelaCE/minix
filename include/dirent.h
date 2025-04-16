@@ -31,10 +31,10 @@ struct dirent {			/* data from getdents()/readdir() */
 #include <ansi.h>
 #endif
 
-_PROTOTYPE( int closedir, (DIR *__dirp)					);
-_PROTOTYPE( int getdents, (int fildes, char *buf, unsigned nbyte)	);
-_PROTOTYPE( DIR *opendir, (char *__dirname)				);
-_PROTOTYPE( struct dirent *readdir, (DIR *__dirp)			);
-_PROTOTYPE( void rewinddir, (DIR *__dirp)				);
+_PROTOTYPE( int closedir, (DIR *_dirp)					);
+_PROTOTYPE( int getdents, (int _fildes, char *_buf, unsigned _nbyte)	);
+_PROTOTYPE( DIR *opendir, (char *_dirname)				);
+_PROTOTYPE( struct dirent *readdir, (DIR *_dirp)			);
+_PROTOTYPE( void rewinddir, (DIR *_dirp)				);
 
 #endif /* _DIRENT_H */

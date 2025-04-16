@@ -20,9 +20,9 @@ typedef struct regexp {
 #include <ansi.h>
 #endif
 
-_PROTOTYPE( regexp *regcomp, (char *__exp)				);
-_PROTOTYPE( int regexec, (regexp *_prog, char *__string, int __bolflag) );
-_PROTOTYPE( void regsub, (regexp *__prog, char *__source, char *__dest)	);
-_PROTOTYPE( void regerror, (char *__message) 				);
+_PROTOTYPE( regexp *regcomp, (char *_exp)				);
+_PROTOTYPE( int regexec, (regexp *_prog, char *_string, int _bolflag)	);
+_PROTOTYPE( void regsub, (regexp *_prog, char *_source, char *_dest)	);
+_PROTOTYPE( void regerror, (char *_message) 				);
 
 #endif /* _REGEXP_H */

@@ -41,7 +41,7 @@ char *argv[];
 	if (*s == 'c') {
 		chars = TRUE;
 		lines = FALSE;
-	} else if (*s != 'l' && *s != (char *) NULL) {
+	} else if (*s != 'l' && *s != '\0') {
 		fprintf(stderr, "tail: unknown option %c\n", *s);
 		argc = 0;
 	}

@@ -506,5 +506,5 @@ long t;
   }
 
   /* At this point, 'year', 'month', 'day', 'hour', 'minute'  ok */
-  printf("\n\n%s %d %0d:%0d %d", moname[month], day + 1, hour + 0, minute, year);
+  printf("\n\n%s %2d %2d:%02d %d", moname[month], day+1, hour, minute, year);
 }

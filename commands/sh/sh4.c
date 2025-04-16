@@ -1,11 +1,11 @@
 #define Extern extern
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/dir.h>
 #include <limits.h>
 #include <signal.h>
 #include <errno.h>
 #include <setjmp.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/dir.h>
 #include "sh.h"
 
 /* -------- eval.c -------- */

@@ -16,10 +16,22 @@
 #undef assert			/* make this file idempotent */
 #endif
 
+#ifndef	_ANSI_H
+#include <ansi.h>
+#endif
+
+
 #ifdef NDEBUG
 /* Debugging disabled -- do not evaluate assertions. */
 #define assert(expr)  ((void) 0)
 #else
 /* Debugging enabled -- verify assertions at run time. */
-#define assert(expr) ((void) ((expr) ? 0 : __assert(__FILE__,  __LINE__)))
+
+#if _ANSI
+_PROTOTYPE( _VOID __bad_assertion, (const char *__expr, const char *__file, int __line) );
+#define assert(expr) ((void) ((expr) ? (void)0 : __bad_assertion( #expr, __FILE__,  __LINE__)))
+#else
+#define assert(expr) ((void) ((expr) ? 0 : __assert( __FILE__,  __LINE__)))
+#endif
+
 #endif

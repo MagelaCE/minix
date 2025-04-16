@@ -68,7 +68,7 @@ extern char *ttyname();
 extern char *cuserid();
 
 
-void Usage(void)
+void Usage()
 {
    fprintf(stderr, "Usage: leave [[+]hhmm]\n");
   exit(1);

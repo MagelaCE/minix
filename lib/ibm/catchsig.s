@@ -1,6 +1,7 @@
 .define _begsig
+.define ___vectab
 .globl _begsig
-.globl ___vectab, _M
+.globl ___vectab, __M
 mtype = 2			| M+mtype = &M.m_type
 _begsig:
 	push ax			| after interrupt, save all regs
@@ -18,12 +19,12 @@ _begsig:
 	dec bx			| ___vectab[0] is for sig 1
 	add bx,bx		| pointers are two bytes on 8088
 	mov bx,___vectab(bx)	| bx = address of routine to call
-	push _M+mtype		| push status of last system call
+	push __M+mtype		| push status of last system call
 	push ax			| func called with signal number as arg
 	call (bx)
 back:
 	pop ax			| get signal number off stack
-	pop _M+mtype		| restore status of previous system call
+	pop __M+mtype		| restore status of previous system call
 	pop es			| signal handling finished
 	pop ds
 	pop bp

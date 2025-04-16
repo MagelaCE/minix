@@ -27,6 +27,7 @@ ed:	$(OBJS)
   cc -T. -i -o ed $(OBJS)
 */
 
+#include <sys/types.h>
 #include <signal.h>
 #include <stdio.h>
 
@@ -1053,7 +1054,8 @@ extern char fname[];
 int version = 1;
 int diag = 1;
 
-intr()
+void intr(sig)
+int sig;
 {
   printf("?\n");
   longjmp(env, 1);

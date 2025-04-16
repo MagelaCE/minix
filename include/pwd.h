@@ -22,8 +22,8 @@ struct passwd {
 #endif
 
 _PROTOTYPE( void endpwent, (void)					);
-_PROTOTYPE( struct passwd *getpwnam, (char *__name)			);
-_PROTOTYPE( struct passwd *getpwuid, (uit_t __uid)			);
+_PROTOTYPE( struct passwd *getpwnam, (char *_name)			);
+_PROTOTYPE( struct passwd *getpwuid, (int _uid)				);
 _PROTOTYPE( struct passwd *getpwent, (void)				);
 _PROTOTYPE( int setpwent, (void)					);
 

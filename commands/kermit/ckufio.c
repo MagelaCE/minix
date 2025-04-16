@@ -20,7 +20,6 @@ char *ckzv = "Unix file support, 4E(037) 27 Jan 88";
 #include <ctype.h>			/* Character types */
 #include <stdio.h>			/* Standard i/o */
 #ifdef MINIX
-#define _POSIX_SOURCE
 #include <limits.h>
 #endif
 #include <sys/dir.h>			/* Directory structure */

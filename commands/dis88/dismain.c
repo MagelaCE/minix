@@ -546,7 +546,7 @@ main(argc,argv)
    if ( ! cpuid )
       fprintf(stderr,"\07%s: warning: host/cpu clash\n",PRG);
 
-   read(fd,&HDR,sizeof(struct exec));
+   read(fd, (char *) &HDR,sizeof(struct exec));
 
    if (BADMAG(HDR))
       {
@@ -592,7 +592,7 @@ main(argc,argv)
       else
          {
          for (relptr = 0; relptr < relnum; ++relptr)
-            read(fd,&relo[relptr],sizeof(struct reloc));
+            read(fd, (char *) &relo[relptr],sizeof(struct reloc));
          relptr--;
          }
 
@@ -602,7 +602,7 @@ main(argc,argv)
       else
          {
          for (symptr = 0; symptr < tabnum; ++symptr)
-            read(fd,&symtab[symptr],sizeof(struct nlist));
+            read(fd, (char *) &symtab[symptr],sizeof(struct nlist));
          symptr--;
          }
    else

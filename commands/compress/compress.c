@@ -1490,10 +1490,10 @@ void cl_hash(hsize)		/* reset code table */
 {
 #ifdef AZTEC86
 #ifdef PCDOS
-	/* this function only in PC-DOS lib, not in _MINIX lib */
+	/* This function only in PC-DOS lib, not in MINIX lib */
 	memset(htab,-1,(int)(hsize * sizeof(count_int)));
 #else
-/* _MINIX and all non-PC machines do it this way */	
+/* MINIX and all non-PC machines do it this way */	
 #ifndef XENIX_16	/* Normal machine */
 	REGISTER count_int *htab_p = htab+hsize;
 #else
@@ -1577,7 +1577,7 @@ void version()
 	fprintf(stderr, "vax, ");
 #endif
 #ifdef _MINIX
-	fprintf(stderr, "_MINIX, ");
+	fprintf(stderr, "MINIX, ");
 #endif
 #ifdef NO_UCHAR
 	fprintf(stderr, "NO_UCHAR, ");

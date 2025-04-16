@@ -9,6 +9,7 @@
 /****************************************************************/
 
 
+#include <minix/config.h>
 #include <sys/types.h>
 #include <sgtty.h>
 #include <signal.h>
@@ -41,14 +42,14 @@
 
 static struct sgttyb saved_mode;
 static struct tchars saved_chars;
-
+void Timed_Out();
 
 
 void Save_Term()
 
   {
   ioctl( 0, TIOCGETP, &saved_mode  );
-  ioctl( 0, TIOCGETC, &saved_chars );
+  ioctl( 0, TIOCGETC, (struct sgttyb *) &saved_chars );
   }
 
 
@@ -74,7 +75,7 @@ void Set_Term()
   chars.t_intrc  = '\003';
 
   ioctl( 0, TIOCSETP, &mode  );
-  ioctl( 0, TIOCSETC, &chars );
+  ioctl( 0, TIOCSETC, (struct sgttyb *) &chars );
   }
 
 
@@ -84,7 +85,7 @@ void Reset_Term()
 
   {
   ioctl( 0, TIOCSETP, &saved_mode  );
-  ioctl( 0, TIOCSETC, &saved_chars );
+  ioctl( 0, TIOCSETC, (struct sgttyb *) &saved_chars );
   }
 
 
@@ -149,10 +150,6 @@ int Get_Char()
   }
 
 
-
-
-Timed_Out()
-  {}
 
 
 
@@ -286,3 +283,8 @@ int Arrow_Esc( c )
 
   return( c );
   }
+
+void Timed_Out()
+  {}
+
+

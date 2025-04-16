@@ -50,7 +50,7 @@ char *argv[];
   fd = open(argv[2], O_RDWR);
   if (fd < 0) stderr3("chmem: can't open ", argv[2], "\n");
 
-  if (read(fd, header, sizeof(header)) != sizeof(header))
+  if (read(fd, (char *) header, sizeof(header)) != sizeof(header))
 	stderr3("chmem: ", argv[2], "bad header\n");
   if ((header[0] & 0xFFFFL) != MAGIC)
 	stderr3("chmem: ", argv[2], " not executable\n");
@@ -85,7 +85,7 @@ char *argv[];
   newdynam -= overflow;
   newtot -= overflow;
   lseek(fd, (long) TOTPOS, SEEK_SET);
-  if (write(fd, &newtot, 4) < 0)
+  if (write(fd, (char *) &newtot, 4) < 0)
 	stderr3("chmem: can't modify ", argv[2], "\n");
   printf("%s: Stack+malloc area changed from %ld to %ld bytes.\n",
          argv[2], olddynam, newdynam);

@@ -1188,23 +1188,14 @@ int Str_Int( str, result )
 /****************************************************************/
 
 
-#if (CHIP == M68000)
 int In_Use( bit, map )
   int bit;
-  int *map;
+  unsigned *map;
 
   {
-  return( map[(unsigned) bit >> 4] & (1 << (bit & 0xF)) );
+  return( map[(unsigned) bit / (CHAR_BIT * sizeof(int))] &
+	  (1 << ((unsigned) bit % (CHAR_BIT * sizeof(int)))) );
   }
-#else
-int In_Use( bit, map )
-  int bit;
-  char *map;
-
-  {
-  return( map[(unsigned) bit >> 3] & (1 << (bit & 07)) );
-  }
-#endif
 
 
 

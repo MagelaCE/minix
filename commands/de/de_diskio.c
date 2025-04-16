@@ -286,7 +286,7 @@ void Write_Word( s, word )
   if ( lseek( s->device_d, s->address, SEEK_SET ) == -1 )
     Error( "Error seeking %s", s->device_name );
 
-  if ( write( s->device_d, &word, 2 ) != 2 )
+  if ( write( s->device_d, (char *) &word, 2 ) != 2 )
     Error( "Error writing %s", s->device_name );
   }
 

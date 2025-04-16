@@ -13,7 +13,7 @@
 #define  MAX_NODES	999	/* Enough for 500 animals  */
 #define  MAX_LINE	90
 
-int Abort();
+void Abort();
 char *Get_Animal();
 char *Get_Question();
 char *A_or_An();
@@ -284,7 +284,7 @@ int size;
 }
 
 
-Abort()
+void Abort()
 {
   ioctl(0, TIOCSETP, &old_tty_mode);
 

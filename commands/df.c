@@ -73,7 +73,7 @@ int silent;
 	return;
   }
   lseek(fd, (long) BLOCK_SIZE, SEEK_SET);	/* skip boot block */
-  if (read(fd, &super, SUPER_SIZE) != (int) SUPER_SIZE) {
+  if (read(fd, (char *) &super, SUPER_SIZE) != (int) SUPER_SIZE) {
 	fprintf(stderr, "df: Can't read super block of %s\n", name);
 	close(fd);
 	return;

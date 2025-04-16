@@ -7,6 +7,15 @@
 #    define EXTERN extern
 #endif
 
+#include <minix/config.h>
+#if (CHIP == M68000)
+#    define INT		long
+#    define ALIGN(p)		(((long)(p) & 1) ? ++(p) : (p) )
+#else
+#    define INT		int
+#    define ALIGN(p)		(p)
+#endif
+
 /*#define DEBUG 1  remove this line to compile without debug statements */
 #ifdef DEBUG
 EXTERN char Debug;              /* debug print flag */
@@ -31,6 +40,7 @@ EXTERN char Debug;              /* debug print flag */
  */
 EXTERN FILE *Fileptr;
 EXTERN char *Filename;          /* current input file name */
+EXTERN char *Filechar;		/* ptr to next input char if input is string */
 EXTERN int Linecount;           /* current input line number */
 EXTERN int Recordcount;         /* record count */
 /*
@@ -41,7 +51,6 @@ EXTERN char *Fields[ MAXWORDS ];        /* pointers to the words in Linebuf */
 EXTERN int Fieldcount;                  /* and the # of words */
 EXTERN char Workbuf[ MAXWORKBUFLEN ];   /* work area for C action and */
                                         /* regular expression parsers */
-EXTERN char *Stringptr;                 /* pointer to command string */
 
 /**********************************************************
  * Regular Expression Parser variables                    *
@@ -133,7 +142,7 @@ EXTERN char *Stringptr;                 /* pointer to command string */
 #define ACTUAL          0
 #define LVALUE          1
 #define BYTE            1
-#define WORD            2
+#define WORD            sizeof(INT)	/* ugh ! */
 /*
  * Symbol table
  */
@@ -150,7 +159,7 @@ EXTERN VARIABLE Vartab[ MAXVARTABSZ ], *Nextvar;
  * Value stack
  */
 union datum {
-        int     ival;
+        INT     ival;
         char    *dptr;
         char    **ptrptr;
 };
@@ -212,3 +221,4 @@ EXTERN RULE *Rules,             /* rule structures linked list head */
 extern char *str_compile(), *getmem(), *cclass(), *pmatch(), *fetchptr();
 extern VARIABLE *findvar(), *addvar(), *decl();
 extern char *newfile();
+extern INT pop(), popint(), dopattern();

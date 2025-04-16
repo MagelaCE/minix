@@ -11,16 +11,16 @@ struct sgttyb *argp;
   long erase, kill, intr, quit, xon, xoff, eof, brk, speed;
   struct tchars *argt;
 
-  M.TTY_REQUEST = request;
-  M.TTY_LINE = fd;
+  _M.TTY_REQUEST = request;
+  _M.TTY_LINE = fd;
 
   switch(request) {
      case TIOCSETP:
 	erase = argp->sg_erase & BYTE;
 	kill = argp->sg_kill & BYTE;
 	speed = ((argp->sg_ospeed & BYTE) << 8) | (argp->sg_ispeed & BYTE);
-	M.TTY_SPEK = (speed << 16) | (erase << 8) | kill;
-	M.TTY_FLAGS = argp->sg_flags;
+	_M.TTY_SPEK = (speed << 16) | (erase << 8) | kill;
+	_M.TTY_FLAGS = argp->sg_flags;
 	n = callx(FS, IOCTL);
   	return(n);
  
@@ -32,17 +32,17 @@ struct sgttyb *argp;
   	xoff = argt->t_stopc & BYTE;
   	eof  = argt->t_eofc & BYTE;
   	brk  = argt->t_brkc & BYTE;		/* not used at the moment */
-  	M.TTY_SPEK = (intr<<24) | (quit<<16) | (xon<<8) | (xoff<<0);
-  	M.TTY_FLAGS = (eof<<8) | (brk<<0);
+  	_M.TTY_SPEK = (intr<<24) | (quit<<16) | (xon<<8) | (xoff<<0);
+  	_M.TTY_FLAGS = (eof<<8) | (brk<<0);
   	n = callx(FS, IOCTL);
   	return(n);
   	
      case TIOCGETP:
   	n = callx(FS, IOCTL);
-	argp->sg_erase = (M.TTY_SPEK >> 8) & BYTE;
-	argp->sg_kill  = (M.TTY_SPEK >> 0) & BYTE;
-  	argp->sg_flags = M.TTY_FLAGS & 0xFFFFL;
-	speed = (M.TTY_SPEK >> 16) & 0xFFFFL;
+	argp->sg_erase = (_M.TTY_SPEK >> 8) & BYTE;
+	argp->sg_kill  = (_M.TTY_SPEK >> 0) & BYTE;
+  	argp->sg_flags = _M.TTY_FLAGS & 0xFFFFL;
+	speed = (_M.TTY_SPEK >> 16) & 0xFFFFL;
 	argp->sg_ispeed = speed & BYTE;
 	argp->sg_ospeed = (speed >> 8) & BYTE;
   	return(n);
@@ -50,20 +50,20 @@ struct sgttyb *argp;
      case TIOCGETC:
   	n = callx(FS, IOCTL);
 	argt = (struct tchars *) argp;
-  	argt->t_intrc  = (M.TTY_SPEK >> 24) & BYTE;
-  	argt->t_quitc  = (M.TTY_SPEK >> 16) & BYTE;
-  	argt->t_startc = (M.TTY_SPEK >>  8) & BYTE;
-  	argt->t_stopc  = (M.TTY_SPEK >>  0) & BYTE;
-  	argt->t_eofc   = (M.TTY_FLAGS >> 8) & BYTE;
-  	argt->t_brkc   = (M.TTY_FLAGS >> 8) & BYTE;
+  	argt->t_intrc  = (_M.TTY_SPEK >> 24) & BYTE;
+  	argt->t_quitc  = (_M.TTY_SPEK >> 16) & BYTE;
+  	argt->t_startc = (_M.TTY_SPEK >>  8) & BYTE;
+  	argt->t_stopc  = (_M.TTY_SPEK >>  0) & BYTE;
+  	argt->t_eofc   = (_M.TTY_FLAGS >> 8) & BYTE;
+  	argt->t_brkc   = (_M.TTY_FLAGS >> 8) & BYTE;
   	return(n);
 
-/* This is silly, do we want to add 1001 cases and M.TTY_XYZ's here?
+/* This is silly, do we want to add 1001 cases and _M.TTY_XYZ's here?
  * We should just pop argp into the message for low-level interpretation.
  */
 
      case TIOCFLUSH:
-	M.TTY_FLAGS = (int /* kludge */) argp;
+	_M.TTY_FLAGS = (int /* kludge */) argp;
 	return callx(FS, IOCTL);
 
      default:

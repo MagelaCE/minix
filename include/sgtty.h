@@ -34,7 +34,7 @@ struct tchars {
 #define CBREAK	     0000002	/* enable cbreak mode */
 #define COOKED       0000000	/* neither CBREAK nor RAW */
 
-#define DCD	     010000	/* Data Carrier Detect */
+#define DCD          0100000	/* Data Carrier Detect */
 
 /* Line speeds */
 #define B0		   0	/* code for line-hangup */
@@ -54,7 +54,6 @@ struct tchars {
 /* Things Minix supports but not properly */
 /* the divide-by-100 encoding ain't too hot */
 #define ANYP         0000300
-#define B0                 0
 #define B50                0
 #define B75                0
 #define B134               0
@@ -90,8 +89,8 @@ struct tchars {
 
 #include <ansi.h>
 
-_PROTOTYPE( int gtty, (int fd, struct sgttyb *argp)			);
-_PROTOTYPE( int ioctl, (int fd, int request, struct sgttyb *argp)	);
-_PROTOTYPE( int stty, (int fd, struct sgttyb *argp)			);
+_PROTOTYPE( int gtty, (int _fd, struct sgttyb *_argp)			);
+_PROTOTYPE( int ioctl, (int _fd, int _request, struct sgttyb *_argp)	);
+_PROTOTYPE( int stty, (int _fd, struct sgttyb *_argp)			);
 
 #endif /* _SGTTY_H */

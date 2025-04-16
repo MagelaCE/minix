@@ -123,6 +123,7 @@ int disabled;			/* Nr of files done */
 char USAGE[] = "Usage: sort [-funbirdcmt'x'] [+beg_pos [-end_pos]] [-o outfile] [file] ..";
 
 /* Forward declarations */
+void catch();
 char *file_name(), *skip_fields();
 MERGE *skip_lines(), *print();
 extern char *msbrk(), *mbrk();
@@ -277,16 +278,6 @@ BOOL beg_fl;			/* Assign beg or end of field */
 	} else			/* No end pos. */
 		field->end_field = ERROR;
   }
-}
-
-catch()
-{
-  register short i;
-
-  signal(SIGINT, SIG_IGN);
-  only_merge = FALSE;
-  for (i = 0; i < 26; i++) (void) unlink(file_name(i));
-  exit(2);
 }
 
 main(argc, argv)
@@ -1165,3 +1156,14 @@ char *address;
 	error(TRUE, "Cannot reset memory", NIL_PTR);
   return address;
 }
+
+void catch()
+{
+  register short i;
+
+  signal(SIGINT, SIG_IGN);
+  only_merge = FALSE;
+  for (i = 0; i < 26; i++) (void) unlink(file_name(i));
+  exit(2);
+}
+

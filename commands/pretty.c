@@ -15,6 +15,8 @@
 
 #include <stdio.h>
 
+#define NAME_SIZE          14
+#define PATH_MAX          255
 #define MAX_LINE           78
 #define BUF_SIZE         1024
 #define TAB                 8
@@ -32,17 +34,36 @@ int argc;
 char *argv[];
 {
 
-  int i;
+  int i, n;
+  char *name, intermediate[PATH_MAX+1], *p;
 
   if (argc < 2) usage();
+
   for (i = 1; i < argc; i++) {
-	indent(argv[i]);
-	process(argv[i]);
+	/* Invent a name for the intermediate file. */
+	name = argv[i];
+	p = name + strlen(name) - 1;
+	while (p >= name && *p != '/') p--;
+	p++;			/* p points to last component */
+	strncpy(intermediate, p, NAME_SIZE);
+	if (strlen(intermediate) < NAME_SIZE) {
+		/* Name is less than 14 chars.  Just add "+" to name. */
+		strcat(intermediate, "+");
+	} else {
+		/* Name is 14 chars.  Invert case of last character. */
+		n = strlen(intermediate);
+		intermediate[n - 1] ^= 040;
+	}
+
+	indent(name, intermediate);
+	process(name, intermediate);
+	unlink(intermediate);
   }
 }
 
-indent(s)
+indent(s, intermediate)
 char *s;			/* name of file to prettyprint */
+char *intermediate;		/* name of intermediate file */
 {
 /* Call indent to indent the file.  Then rename it. */
   int n;
@@ -60,18 +81,19 @@ char *s;			/* name of file to prettyprint */
   /* Rename the intermediate file. */
   strcpy(buf, "mv ");
   strcat(buf, s);
-  strcat(buf, " +");
-  strcat(buf, s);
+  strcat(buf, " ");
+  strcat(buf, intermediate);
   strcat(buf, "\n");
   n = system(buf);
   if (n < 0) {
-	fprintf(stderr, "pretty: mv %s +%s failed\n", s, s);
+	fprintf(stderr, "pretty: mv %s %s failed\n", s, intermediate);
 	exit(1);
   }
 }
 
-process(s)
+process(s, intermediate)
 char *s;			/* name of file to prettyprint */
+char *intermediate;		/* name of intermediate file */
 {
 /* File is now indented.  Post process it. */
 
@@ -79,12 +101,9 @@ char *s;			/* name of file to prettyprint */
   FILE *in, *out;
   char *p;
 
-  /* If the original file was called abc, the output from indent is +abc. */
-  strcpy(buf, "+");
-  strcat(buf, s);
-  in = fopen(buf, "r");
+  in = fopen(intermediate, "r");	/* open intermediate file */
   if (in == NULL) {
-	fprintf(stderr, "pretty: cannot open %s\n", buf);
+	fprintf(stderr, "pretty: cannot open %s\n", intermediate);
 	exit(1);
   }
 

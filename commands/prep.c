@@ -57,6 +57,7 @@ char *argv[];
 	putchar(EOL);
 	lfwritten = 1;
   }
+  exit(0);
 }
 
 
@@ -108,6 +109,9 @@ int backslash()
 	c = getchar();
 	c = getchar();
 	c = getchar();
+	return(c);
+
+      default:
 	return(c);
 
   }

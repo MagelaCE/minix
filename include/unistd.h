@@ -3,9 +3,6 @@
 #ifndef _UNISTD_H
 #define _UNISTD_H
 
-/* NULL must be defined in <unistd.h> according to POSIX Sec. 2.8.1. */
-#define NULL	((void *) 0)
-
 /* Values used by access().  POSIX Table 2-6. */
 #define F_OK               0	/* test if file exists */
 #define X_OK               1	/* test if file is executable */
@@ -25,26 +22,29 @@
 #define STDOUT_FILENO      1	/* file descriptor for stdout */
 #define STDERR_FILENO      2	/* file descriptor for stderr */
 
+/* NULL must be defined in <unistd.h> according to POSIX Sec. 2.8.1. */
+#define NULL    ((void *)0)
+
 /* The following relate to configurable system variables. POSIX Table 4-2. */
-#define _SC_ARG_MAX        1
-#define _SC_CHILD_MAX      2
-#define _SC_CLOCKS_PER_SEC 3
-#define _SC_NGROUPS_MAX    4
-#define _SC_OPEN_MAX       5
-#define _SC_JOB_CONTROL    6
-#define _SC_SAVED_IDS      7
-#define _SC_VERSION        8
+#define _SC_ARG_MAX		1
+#define _SC_CHILD_MAX		2
+#define _SC_CLOCKS_PER_SEC	3
+#define _SC_NGROUPS_MAX		4
+#define _SC_OPEN_MAX		5
+#define _SC_JOB_CONTROL		6
+#define _SC_SAVED_IDS		7
+#define _SC_VERSION		8
 
 /* The following relate to configurable pathname variables. POSIX Table 5-2. */
-#define _PC_LINK_MAX    1	/* link count */
-#define _PC_MAX_CANON   2	/* size of the canonical input queue */
-#define _PC_MAX_INPUT   3	/* type-ahead buffer size */
-#define _PC_NAME_MAX    4	/* file name size */
-#define _PC_PATH_MAX    5	/* pathname size */
-#define _PC_PIPE_BUF    6	/* pipe size */
-#define _PC_NO_TRUNC    7	/* treatment of long name components */
-#define _PC_VDISABLE    8	/* tty disable */
-#define _PC_CHOWN_RESTRICTED  9	/* chown restricted or not */
+#define _PC_LINK_MAX		1	/* link count */
+#define _PC_MAX_CANON		2	/* size of the canonical input queue */
+#define _PC_MAX_INPUT		3	/* type-ahead buffer size */
+#define _PC_NAME_MAX		4	/* file name size */
+#define _PC_PATH_MAX		5	/* pathname size */
+#define _PC_PIPE_BUF		6	/* pipe size */
+#define _PC_NO_TRUNC		7	/* treatment of long name components */
+#define _PC_VDISABLE		8	/* tty disable */
+#define _PC_CHOWN_RESTRICTED	9	/* chown restricted or not */
 
 /* POSIX defines several options that may be implemented or not, at the
  * implementer's whim.  This implementer has made the following choices:

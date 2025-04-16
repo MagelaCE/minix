@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <utime.h>
 
 #define COPY_SIZE 4096
 #define MAX_ENTRIES 512
@@ -80,8 +81,8 @@ char *argv[];
 		    case 'j':	jflag++;	break;
 		    case 'm':	mflag++;	break;
 		    case 'n':	nflag++;	break;
-		    case 'r':	rflag++;	break;
 		    case 's':	sflag++;	break;
+		    case 'r':	rflag++;	break;
 		    case 't':	tflag++;	break;
 		    case 'v':	vflag++;	break;
 		    case 'z':	zflag++;	break;

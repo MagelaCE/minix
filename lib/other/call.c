@@ -13,12 +13,12 @@ char *ptr3;			/* pointer parameter */
 /* Send a message and get the response.  The 'M.m_type' field of the
  * reply contains a value (>= 0) or an error code (<0). Use message format m1.
  */
-  M.m1_i1 = int1;
-  M.m1_i2 = int2;
-  M.m1_i3 = int3;
-  M.m1_p1 = ptr1;
-  M.m1_p2 = ptr2;
-  M.m1_p3 = ptr3;
+  _M.m1_i1 = int1;
+  _M.m1_i2 = int2;
+  _M.m1_i3 = int3;
+  _M.m1_p1 = ptr1;
+  _M.m1_p2 = ptr2;
+  _M.m1_p3 = ptr3;
   return callx(proc, syscallnr);
 }
 
@@ -36,10 +36,10 @@ _CONST char *name;		/* string */
   register int k;
   register char *rp;
   k = len(name);
-  M.m3_i1 = k;
-  M.m3_i2 = int1;
-  M.m3_p1 = (char *) name;
-  rp = &M.m3_ca1[0];
+  _M.m3_i1 = k;
+  _M.m3_i2 = int1;
+  _M.m3_p1 = (char *) name;
+  rp = &_M.m3_ca1[0];
   if (k <= M3_STRING) while (k--)
 		*rp++ = *name++;
   return callx(proc, syscallnr);
@@ -50,19 +50,19 @@ PUBLIC int callx(proc, syscallnr)
 int proc;			/* FS or MM */
 int syscallnr;			/* which system call */
 {
-/* Send a message and get the response.  The 'M.m_type' field of the
+/* Send a message and get the response.  The '_M.m_type' field of the
  * reply contains a value (>= 0) or an error code (<0).
  */
   int k;
 
-  M.m_type = syscallnr;
-  k = sendrec(proc, &M);
+  _M.m_type = syscallnr;
+  k = sendrec(proc, &_M);
   if (k != 0) return(k);	/* send itself failed */
-  if (M.m_type < 0) {
-	errno = -M.m_type;
+  if (_M.m_type < 0) {
+	errno = -_M.m_type;
 	return(-1);
   }
-  return(M.m_type);
+  return(_M.m_type);
 }
 
 

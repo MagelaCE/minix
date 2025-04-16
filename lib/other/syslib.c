@@ -18,8 +18,8 @@ int proc;			/* which proc has exited */
 
   callm1(SYSTASK, SYS_XIT, parent, proc, 0, NIL_PTR, NIL_PTR, NIL_PTR);
 #if (CHIP == M68000)
-  *basep = (phys_clicks) M.m1_i1;
-  *sizep = (phys_clicks) M.m1_i2;
+  *basep = (phys_clicks) _M.m1_i1;
+  *sizep = (phys_clicks) _M.m1_i2;
 #endif
 }
 
@@ -32,7 +32,7 @@ vir_bytes *newsp;		/* place to put sp read from kernel */
 
 
   callm1(SYSTASK, SYS_GETSP, proc, 0, 0, NIL_PTR, NIL_PTR, NIL_PTR);
-  *newsp = (vir_bytes) M.STACK_PTR;
+  *newsp = (vir_bytes) _M.STACK_PTR;
 }
 
 
@@ -43,9 +43,9 @@ void (*sighandler) ();		/* pointer to signal handler in user space */
 {
 /* A proc has to be signaled.  Tell the kernel. */
 
-  M.m6_i1 = proc;
-  M.m6_i2 = sig;
-  M.m6_f1 = sighandler;
+  _M.m6_i1 = proc;
+  _M.m6_i2 = sig;
+  _M.m6_f1 = sighandler;
   callx(SYSTASK, SYS_SIG);
 }
 
@@ -112,10 +112,10 @@ time_t ptr[4];		/* pointer to time buffer */
 /* Fetch the accounting info for a proc. */
 
   callm1(SYSTASK, SYS_TIMES, proc, 0, 0, (char *)ptr, NIL_PTR, NIL_PTR);
-  ptr[0] = M.USER_TIME;
-  ptr[1] = M.SYSTEM_TIME;
-  ptr[2] = M.CHILD_UTIME;
-  ptr[3] = M.CHILD_STIME;
+  ptr[0] = _M.USER_TIME;
+  ptr[1] = _M.SYSTEM_TIME;
+  ptr[2] = _M.CHILD_UTIME;
+  ptr[3] = _M.CHILD_STIME;
 }
 
 
@@ -136,8 +136,8 @@ phys_clicks *basep, *sizep;	/* base and size for free_mem() */
 /* Create a fresh process image for exec().  Tell the kernel. */
 
   callm1(SYSTASK, SYS_FRESH, proc, (int) dc, 0, ptr, NIL_PTR, NIL_PTR);
-  *basep = (phys_clicks) M.m1_i1;
-  *sizep = (phys_clicks) M.m1_i2;
+  *basep = (phys_clicks) _M.m1_i1;
+  *sizep = (phys_clicks) _M.m1_i2;
 }
 
 #endif
@@ -149,8 +149,8 @@ int sig;			/* signal number: 1 - 16 */
 {
 /* A proc has to be signaled via MM.  Tell the kernel. */
 
-  M.m6_i1 = proc;
-  M.m6_i2 = sig;
+  _M.m6_i1 = proc;
+  _M.m6_i2 = sig;
   callx(SYSTASK, SYS_KILL);
 }
 
@@ -160,12 +160,12 @@ long addr, *data_p;
 {
   int r;
 
-  M.m2_i1 = procnr;
-  M.m2_i2 = req;
-  M.m2_l1 = addr;
-  if (data_p) M.m2_l2 = *data_p;
+  _M.m2_i1 = procnr;
+  _M.m2_i2 = req;
+  _M.m2_l1 = addr;
+  if (data_p) _M.m2_l2 = *data_p;
   r = callx(SYSTASK, SYS_TRACE);
-  if (data_p) *data_p = M.m2_l2;
+  if (data_p) *data_p = _M.m2_l2;
   return(r);
 }
 

@@ -27,6 +27,7 @@
 #define CPU_TYPE_SEGMENT   0xFFFF	/* BIOS segment for CPU type 	 */
 #define CPU_TYPE_OFFSET    0x000E	/* BIOS offset for CPU type 	 */
 #define PC_AT              0xFC	/* IBM code for PC-AT (0xFFFFE) */
+#define PS_386		0xF8 /* IBM code for 386 PS/2's */	
 
 
 #define CLK_ELE 0x70		/* ptr corresponding to element of time to be*/
@@ -61,8 +62,10 @@ main()
   struct time time1;
   struct time time2;
   int i;
+  int cpu_type;	
 
-  if (peek(CPU_TYPE_SEGMENT, CPU_TYPE_OFFSET) != PC_AT) {
+  cpu_type = peek(CPU_TYPE_SEGMENT, CPU_TYPE_OFFSET);
+  if (cpu_type != PS_386 && cpu_type != PC_AT) {
 	printf("-q\n");
 	exit(1);
   }

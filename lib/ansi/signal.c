@@ -20,14 +20,14 @@ void (*func) ();			/* pointer to function that catches signal */
   void (*old) ();
 
   old = __vectab[signr - 1];
-  M.m6_i1 = signr;
+  _M.m6_i1 = signr;
   if (func == SIG_IGN || func == SIG_DFL)
 	/* Keep old signal catcher until it is completely de-installed */
-	M.m6_f1 = (void (*)())func;
+	_M.m6_f1 = (void (*)())func;
   else {
 	/* Use new signal catcher immediately (old one may not exist) */
 	__vectab[signr - 1] = func;
-	M.m6_f1 = begsig;
+	_M.m6_f1 = begsig;
   }
   r = callx(MM, SIGNAL);
   if (r < 0) {

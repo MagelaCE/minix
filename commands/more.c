@@ -62,7 +62,7 @@ typedef char *va_list;
 #endif /*  _MINIX */
 
 #define HELPFILE	"/usr/lib/more.help"
-#define VI		"/usr/ucb/vi"
+#define VI		"/usr/ucb/elvis"
 
 #define Fopen(s,m)	(Currline = 0,file_pos=0,fopen(s,m))
 #define Ftell(f)	file_pos
@@ -90,10 +90,10 @@ typedef char *va_list;
 int Printf();
 
 struct sgttyb	otty, savetty;
+void		onquit(), end_it(), onsusp();
 long		file_pos, file_size;
 int		fnum, no_intty, no_tty, slow_tty;
-int		dum_opt, dlines, onquit(), end_it(), chgwinsz();
-int		onsusp();
+int		dum_opt, dlines, chgwinsz();
 int		nscroll = 11;	/* Number of lines scrolled by 'd' */
 int		fold_opt = 1;	/* Fold long lines */
 int		stop_opt = 1;	/* Stop after form feeds */
@@ -534,7 +534,8 @@ register int num_lines;
 ** Come here if a quit signal is received
 */
 
-onquit()
+void onquit(sig)
+int sig;
 {
     signal(SIGQUIT, SIG_IGN);
     if (!inwait) {
@@ -583,9 +584,9 @@ chgwinsz()
 ** Clean up terminal state and exit. Also come here if interrupt signal received
 */
 
-end_it ()
+void end_it (sig)
+int sig;
 {
-
     reset_tty ();
     if (clreol) {
 	putchar ('\r');
@@ -1868,7 +1869,7 @@ register FILE *f;
 /* Come here when we get a suspend signal from the terminal */
 
 #ifdef SIGTSTP
-onsusp ()
+void onsusp ()
 {
     /* ignore SIGTTOU so we don't get stopped if csh grabs the tty */
     signal(SIGTTOU, SIG_IGN);

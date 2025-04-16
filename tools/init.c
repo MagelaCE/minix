@@ -39,6 +39,7 @@
 #include <signal.h>
 #include <sgtty.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <utmp.h>
 
@@ -116,7 +117,7 @@ main()
   int i;			/* loop variable */
   int status;			/* return status from child process */
   struct slotent *slotp;	/* slots[] pointer */
-  int onhup();			/* SIGHUP interrupt catch routine */
+  void onhup();			/* SIGHUP interrupt catch routine */
 
   sync();			/* force buffers out onto disk */
 
@@ -188,7 +189,7 @@ main()
   }
 }
 
-onhup()
+void onhup()
 {
   gothup = 1;
   signal(SIGHUP, onhup);
@@ -367,14 +368,15 @@ int lineno;			/* slot number in UTMP */
   utmp.ut_time = time((time_t *)0);
 
   if ((fd = open(WTMP, O_WRONLY)) < 0) return;
-  if (lseek(fd, 0L, SEEK_END) >= 0L) write(fd, &utmp, sizeof(struct utmp));
+  if (lseek(fd, 0L, SEEK_END) >= 0L) 
+	write(fd, (char *) &utmp, sizeof(struct utmp));
   close(fd);
 
   if (lineno >= 0) {		/* remove entry from utmp */
 	if ((fd = open(UTMP, O_WRONLY)) < 0) return;
 	lineno *= sizeof(struct utmp);
 	if (lseek(fd, (long) lineno, SEEK_SET) >= 0L)
-		write(fd, &utmp, sizeof(struct utmp));
+		write(fd, (char *) &utmp, sizeof(struct utmp));
 	close(fd);
   }
 }

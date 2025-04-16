@@ -12,7 +12,9 @@ obj =	main.s open.s read.s write.s pipe.s device.s \
 	putc.s
 
 fs:	Makefile $l/head.s $(obj) $l/libc.a $l/end.s
-	asld -i -o fs $l/head.s $(obj) $l/libc.a $l/end.s
+	asld -i -s -o fs $l/head.s $(obj) $l/libc.a $l/end.s >symbol.out
+	ast -X fs
+	@rm symbol.out
 
 clean:
 	@rm -f $(obj) fs *.bak

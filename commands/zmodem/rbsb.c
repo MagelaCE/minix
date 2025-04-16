@@ -235,7 +235,7 @@ mode(n)
 			ioctl(iofd, TIOCEXCL, 0);
 #endif
 			ioctl(iofd, TIOCGETP, &oldtty);
-			ioctl(iofd, TIOCGETC, &oldtch);
+			ioctl(iofd, TIOCGETC, (struct sgttyb *) &oldtch);
 #ifdef LLITOUT
 			ioctl(iofd, TIOCLGET, &Locmode);
 #endif
@@ -270,7 +270,7 @@ mode(n)
 #endif
 
 		ioctl(iofd, TIOCSETP, &tty);
-		ioctl(iofd, TIOCSETC, &tch);
+		ioctl(iofd, TIOCSETC, (struct sgttyb *) &tch);
 #ifdef LLITOUT
 		ioctl(iofd, TIOCLBIS, &Locbit);
 #endif
@@ -284,7 +284,7 @@ mode(n)
 			ioctl(iofd, TIOCEXCL, 0);
 #endif
 			ioctl(iofd, TIOCGETP, &oldtty);
-			ioctl(iofd, TIOCGETC, &oldtch);
+			ioctl(iofd, TIOCGETC, (struct sgttyb *) &oldtch);
 #ifdef LLITOUT
 			ioctl(iofd, TIOCLGET, &Locmode);
 #endif
@@ -308,7 +308,7 @@ mode(n)
 #endif
 #ifdef V7
 		ioctl(iofd, TIOCSETP, &oldtty);
-		ioctl(iofd, TIOCSETC, &oldtch);
+		ioctl(iofd, TIOCSETC, (struct sgttyb *) &oldtch);
 #ifdef TIOCNXCL
 		ioctl(iofd, TIOCNXCL, 0);
 #endif

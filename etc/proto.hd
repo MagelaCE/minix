@@ -14,7 +14,7 @@ d--777 2 1
 	login		---755 2 1 /bin/login
 	ls		---755 2 1 /bin/ls
 	mined		---755 2 1 /bin/mined
-	mkdir		-u-755 0 1 /bin/mkdir
+	mkdir		---755 0 1 /bin/mkdir
 	mkfs		---755 2 1 /bin/mkfs
 	mknod		---755 2 1 /bin/mknod
 	more		---755 2 1 /bin/more
@@ -23,7 +23,7 @@ d--777 2 1
 	pwd		---755 2 1 /bin/pwd
 	readclock	---755 2 1 /bin/readclock
 	rm		---755 2 1 /bin/rm
-	rmdir		-u-755 0 1 /bin/rmdir
+	rmdir		---755 0 1 /bin/rmdir
 	sh		---755 2 1 /bin/sh
 	sync		---755 2 1 /bin/sync
    $

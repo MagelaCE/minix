@@ -18,13 +18,12 @@
 
 typedef	char *va_list;
 
-#define _vasz(x)	      ((sizeof(x)+sizeof(int)-1) & ~(sizeof(int) -1))
+#define __vasz(x)		((sizeof(x)+sizeof(int)-1) & ~(sizeof(int) -1))
 
-#define va_start(ap, parmN)   \
-  ((ap) = (va_list)((char *)(va_list)&(parmN) + _vasz(parmN)))
+#define va_start(ap, parmN)	((ap) = (va_list)&parmN + __vasz(parmN))
 #define va_arg(ap, type)      \
-  (*((type *)((char *)((ap) = (void *)((char *)(ap) + _vasz(type))) \
-						    - _vasz(type))))
+  (*((type *)((va_list)((ap) = (void *)((va_list)(ap) + __vasz(type))) \
+						    - __vasz(type))))
 #define va_end(ap)
 
 #endif /* _STDARG_H */

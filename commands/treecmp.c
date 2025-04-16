@@ -19,6 +19,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <string.h>
+#include <unistd.h>
 #include <stdio.h>
 
 #define BUFSIZE 4096		/* size of file buffers */
@@ -78,7 +80,7 @@ char *old, *new;
   if (stat(new, &stat1) < 0) {
 	/* The new file does not exist. */
 	if (changes == 0)
-		fprintf(stderr, "Cannot stat %s\n", new);
+		fprintf(stderr, "Cannot stat: %s\n", new);
 	else
 		printf("%s\n", new);
 	return;
@@ -88,7 +90,7 @@ char *old, *new;
 	if (changes == 0) 
 		fprintf(stderr, "Missing file: %s\n", old);
 	else
-		printf("%s\n", old);
+		printf("%s\n", new);
 	return;
   }
 
@@ -116,10 +118,9 @@ char *old, *new;
 {
 /* Compare to regular files.  If they are different, complain. */
 
-  int fd1, fd2, n1, n2, i;
+  int fd1, fd2, n1, n2;
   unsigned bytes;
   long count;
-  char *p1, *p2;
 
   if (stat1.st_size != stat2.st_size) {
 	if (changes == 0)
@@ -156,19 +157,14 @@ char *old, *new;
 	}
 
 	/* Compare the buffers. */
-	i = n1;
-	p1 = buf1;
-	p2 = buf2;
-	while (i--) {
-		if (*p1++ != *p2++) {
-			if (changes == 0)
-				printf("File diff: %s and %s\n", new, old);
-			else
-				printf("%s\n", new);
-			close(fd1);
-			close(fd2);
-			return;
-		}
+	if (memcmp((void *) buf1, (void *) buf2, (size_t) n1) != 0) {
+		if (changes == 0)
+			printf("File diff: %s and %s\n", new, old);
+		else
+			printf("%s\n", new);
+		close(fd1);
+		close(fd2);
+		return;
 	}
 	count -= n1;
   }

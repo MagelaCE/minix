@@ -14,9 +14,8 @@ main( argc, argv )
 int argc;
 char **argv;
 {
-        int gotrules, didfile, getstdin;
+        int gotrules, didfile;
 
-        getstdin =
         didfile =
         gotrules = 0;
 
@@ -43,66 +42,69 @@ char **argv;
         /*
          * Parse command line
          */
-        while ( --argc )
+        while ( --argc > 0 && **(++argv) == '-')
         {
-                if ( **(++argv) == '-' )
+                /*
+                 * Process dash options.
+                 */
+                switch ( *(++(*argv)) )
+                {
+#ifdef DEBUG
+                case 'd':
+                        ++Debug;
+                        break;
+#endif
+		case 'F':
+			Fieldsep[0] = *(*argv+1);
+			Fieldsep[1] = '\0';
+			break;
+
+		case 'f':
+			++argv; --argc;
+			if ( gotrules || argc <= 0 ) usage();
+                        if ( !strcmp( *argv, '-' ) )
+                                newfile( (char *)NULL );
+                        else
+				newfile( *argv );
+			compile();
+			gotrules = 1;
+			break;
+
+		case '\0':
+			goto dosomething;
+                default: usage();
+                }
+        }
+
+    dosomething:
+
+        while ( argc-- > 0 )
+        {
+                if ( gotrules )
                 {
                         /*
-                         * Process dash options.
+                         * Already read rules file - assume this is
+                         * is a text file for processing.
                          */
-                        switch ( tolower( *(++(*argv)) ) )
-                        {
-#ifdef DEBUG
-                        case 'd':
-                                ++Debug;
-                                break;
-#endif
-                        case 0:
-                                ++getstdin;
-                                --argv;
-                                goto dosomething;
-                                break;
-                        default: usage();
-                        }
+                        if ( ++didfile == 1 && Beginact )
+                                doaction( Beginact );
+                        if ( !strcmp( *argv, '-' ) )
+                                newfile( (char *)NULL );
+                        else
+                                newfile( *argv );
+                        process();
                 }
                 else
                 {
-dosomething:
-                        if ( gotrules )
-                        {
-                                /*
-                                 * Already read rules file - assume this is
-                                 * is a text file for processing.
-                                 */
-                                if ( ++didfile == 1 && Beginact )
-                                        doaction( Beginact );
-                                if ( getstdin )
-                                {
-                                        --getstdin;
-                                        newfile( 0 );
-                                }
-                                else
-                                        newfile( *argv );
-                                process();
-                        }
-                        else
-                        {
-                                /*
-                                 * First file name argument on command line
-                                 * is assumed to be a rules file - attempt to
-                                 * compile it.
-                                 */
-                                if ( getstdin )
-                                {
-                                        --getstdin;
-                                        newfile( 0 );
-                                }
-                                else
-                                        newfile( *argv );
-                                compile();
-                                gotrules = 1;
-                        }
+                        /*
+                         * First argument on command line is assumed
+                         * to be a prgram - attempt to compile it.
+                         */
+                        strfile( *argv );
+                        compile();
+                        gotrules = 1;
                 }
+                argv++;
         }
         if ( !gotrules )
                 usage();
@@ -112,7 +114,7 @@ dosomething:
                 /*
                  * Didn't process any files yet - process stdin.
                  */
-                newfile( 0 );
+                newfile( (char *)NULL );
                 if ( Beginact )
                         doaction( Beginact );
                 process();
@@ -304,17 +306,9 @@ process()
 #endif
 
                 Rulep = Rules;
-                do
+                while ( Rulep )
                 {
-                        if ( ! Rulep->pattern.start )
-                        {
-                                /*
-                                 * No pattern given - perform action on
-                                 * every input line.
-                                 */
-                                doaction( Rulep->action );
-                        }
-                        else if ( Rulep->pattern.startseen )
+                        if ( Rulep->pattern.startseen )
                         {
                                 /*
                                  * Start pattern already found - perform
@@ -337,8 +331,8 @@ process()
                                 if ( Rulep->pattern.stop )
                                         Rulep->pattern.startseen = 1;
                         }
+                        Rulep = Rulep->nextrule;
                 }
-                while ( Rulep = Rulep->nextrule );
 
                 /*
                  * Release memory allocated by parse().
@@ -458,7 +452,7 @@ char *
 getmem( len )
 unsigned len;
 {
-        char *cp;
+        char *cp, *malloc();
 
         if ( cp=malloc( len ) )
                 return cp;
@@ -469,6 +463,8 @@ char *
 newfile( s )
 char *s;
 {
+	static int getstdin = 0;
+
         Linecount = 0;
         if ( Filename = s )
         {
@@ -484,9 +480,20 @@ char *s;
                 /*
                  * No file name given - process standard input.
                  */
+	        if ( getstdin++ )
+	        	error( "stdin usage must be unique", USAGE_ERROR );
                 Fileptr = stdin;
                 Filename = "standard input";
         }
+}
+
+strfile( s )
+char *s;
+{
+        Linecount = 0;
+        Fileptr = (FILE *)NULL;
+        Filename = "argument";
+        Filechar = s;
 }
 
 getline()
@@ -524,6 +531,13 @@ getcharacter()
          */
         int c;
 
+        if ( Fileptr == (FILE *) NULL ) {
+        	c = *Filechar;
+        	if ( c == 0 )
+        		c = -1;
+        	else
+        		Filechar++;
+        } else
 #ifdef BDS_C
         /*
          * BDS C doesn't do CR+LF to LF and ^Z to -1 conversions <gag>
@@ -561,12 +575,16 @@ ungetcharacter( c )
                 --Recordcount;
         if ( c=='\n' )
                 --Linecount;
-        return ungetc( c, Fileptr );
+        if ( Fileptr == (FILE *)NULL )
+        	return *--Filechar = c;
+	else
+	        return ungetc( c, Fileptr );
 }
 
 endfile()
 {
-        fclose( Fileptr );
+	if ( Fileptr != (FILE *)NULL && Fileptr != stdin )
+	        fclose( Fileptr );
         Filename = Linecount = 0;
 }
 
@@ -589,7 +607,8 @@ int severe;
 
 usage()
 {
-        error( "Usage: bawk <actfile> [<file> ...]\n", USAGE_ERROR );
+        error( "Usage: bawk [ -Fc ] [ program | -f progfile ] [ file ... ]\n",
+	       USAGE_ERROR );
 }
 
 movemem( from, to, count )

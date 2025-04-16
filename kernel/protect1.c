@@ -74,7 +74,7 @@ PUBLIC void ldt_init()
   for (rp = BEG_PROC_ADDR, ldt_selector = FIRST_LDT_INDEX * DESC_SIZE;
        rp < END_PROC_ADDR; ++rp, ldt_selector += DESC_SIZE) {
 	init_dataseg(&gdt[ldt_selector / DESC_SIZE],
-		     data_base + (phys_bytes) rp->p_ldt,
+		     data_base + (phys_bytes) (vir_bytes) rp->p_ldt,
 		     (phys_bytes) sizeof rp->p_ldt, INTR_PRIVILEGE);
 	gdt[ldt_selector / DESC_SIZE].access = PRESENT | LDT;
 	rp->p_ldt_sel = ldt_selector;

@@ -153,10 +153,10 @@ PUBLIC void prot_init()
   /* Build temporary gdt and idt pointers in GDT where BIOS needs them. */
   ((struct desctableptr_s *) &gdt[BIOS_GDT_INDEX])->limit = sizeof gdt - 1;
   ((struct desctableptr_s *) &gdt[BIOS_GDT_INDEX])->base =
-	data_base + (phys_bytes) gdt;
+	data_base + (phys_bytes) (vir_bytes) gdt;
   ((struct desctableptr_s *) &gdt[BIOS_IDT_INDEX])->limit = sizeof idt - 1;
   ((struct desctableptr_s *) &gdt[BIOS_IDT_INDEX])->base =
-	data_base + (phys_bytes) idt;
+	data_base + (phys_bytes) (vir_bytes) idt;
 
   /* Build segment descriptors for tasks and interrupt handlers. */
   init_dataseg(&gdt[DS_INDEX], data_base, data_bytes, INTR_PRIVILEGE);
@@ -169,7 +169,7 @@ PUBLIC void prot_init()
 	       (phys_bytes) MAX_286_SEG_SIZE, INTR_PRIVILEGE);
   init_dataseg(&gdt[DB_DS_INDEX], hclick_to_physb(break_vector.selector),
 	       (phys_bytes) MAX_286_SEG_SIZE, INTR_PRIVILEGE);
-  init_dataseg(&gdt[GDT_INDEX], data_base + (phys_bytes) gdt,
+  init_dataseg(&gdt[GDT_INDEX], data_base + (phys_bytes) (vir_bytes) gdt,
 	       (phys_bytes) sizeof gdt, INTR_PRIVILEGE);
 
   /* Build scratch descriptors for functions in klib286. */
@@ -192,17 +192,17 @@ PUBLIC void prot_init()
    * process table.
    */
   tss.ss0 = DS_SELECTOR;
-  init_dataseg(&gdt[TSS_INDEX], data_base + (phys_bytes) &tss,
+  init_dataseg(&gdt[TSS_INDEX], data_base + (phys_bytes) (vir_bytes) &tss,
 	       (phys_bytes) sizeof tss, INTR_PRIVILEGE);
   gdt[TSS_INDEX].access = PRESENT | (INTR_PRIVILEGE << DPL_SHIFT) | TSS_TYPE;
 
   /* Build descriptors for interrupt gates in IDT. */
   for (gtp = &gate_table[0];
        gtp < &gate_table[sizeof gate_table / sizeof gate_table[0]]; ++gtp) {
-	int_gate(gtp->vec_nr, (phys_bytes) gtp->gate,
+	int_gate(gtp->vec_nr, (phys_bytes) (vir_bytes) gtp->gate,
 		 PRESENT | INT_GATE_TYPE | (gtp->privilege << DPL_SHIFT));
   }
-  int_gate(SYS_VECTOR, (phys_bytes) p_s_call,
+  int_gate(SYS_VECTOR, (phys_bytes) (vir_bytes) p_s_call,
 	   PRESENT | (USER_PRIVILEGE << DPL_SHIFT) | INT_GATE_TYPE);
 
 #if INTEL_32BITS
@@ -221,7 +221,7 @@ PUBLIC void prot_init()
 	       TASK_PRIVILEGE);
 
   /* Complete building of interrupt gates. */
-  int_gate(SYS386_VECTOR, (phys_bytes) s_call,
+  int_gate(SYS386_VECTOR, (phys_bytes) (vir_bytes) s_call,
 	   PRESENT | (USER_PRIVILEGE << DPL_SHIFT) | INT_GATE_TYPE);
 #endif
 

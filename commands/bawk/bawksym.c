@@ -122,21 +122,21 @@ function( funcnum )
                                 break;
                 }
         }
-        if ( lpar && Token!=T_RPAREN )
-                error( "missing ')'", ACT_ERROR );
-        else if ( Token==T_RPAREN )
-                getoken();
+        if ( lpar )
+        {
+        	if ( Token!=T_RPAREN )
+                	error( "missing ')'", ACT_ERROR );
+	        else
+	                getoken();
+	}
 
         switch ( funcnum )
         {
         case F_PRINT:   /* quick and simple string printing */
-                pushint(pprint(args[0].ival, args[1].ival, args[2].ival,
-                     args[3].ival, args[4].ival, args[5].ival, args[6].ival,
- 		         args[7].ival, args[8].ival, args[9].ival));
+                pushint( (INT)pprint( args ) );
                 break;
         case F_PRINTF:  /* just like the real printf() function */
-                pushint( printf( args[0], args[1], args[2], args[3], args[4],
-                         args[5], args[6], args[7], args[8], args[9] ) );
+                pushint( (INT)pprntf( args[0].dptr, &args[1] ) );
                 break;
         case F_GETLINE:
                 /*
@@ -146,29 +146,29 @@ function( funcnum )
                  */
                 while ( Fieldcount )
                         free( Fields[ --Fieldcount ] );
-                pushint( getline() );
+                pushint( (INT)getline() );
                 Fieldcount = parse( Linebuf, Fields, Fieldsep );
                 break;
         case F_STRLEN:  /* calculate length of string argument */
-                pushint( strlen( args[0].dptr ) );
+                pushint( (INT)strlen( args[0].dptr ) );
                 break;
         case F_STRCPY:  /* copy second string argument to first string */
-                pushint((int) strcpy( args[0].dptr, args[1].dptr ) );
+                pushint( (INT)strcpy( args[0].dptr, args[1].dptr ) );
                 break;
         case F_STRCMP:  /* compare two strings */
-                pushint( strcmp( args[0].dptr, args[1].dptr ) );
+                pushint( (INT)strcmp( args[0].dptr, args[1].dptr ) );
                 break;
         case F_TOUPPER: /* convert the character argument to upper case */
-                pushint( toupper( args[0].ival ) );
+                pushint( (INT)toupper( args[0].ival ) );
                 break;
         case F_TOLOWER: /* convert the character argument to lower case */
-                pushint( tolower( args[0].ival ) );
+                pushint( (INT)tolower( args[0].ival ) );
                 break;
         case F_MATCH:   /* match a string argument to a regular expression */
-                pushint( match( args[0].dptr, args[1].dptr ) );
+                pushint( (INT)match( args[0].dptr, args[1].dptr ) );
                 break;
         case F_NEXTFILE:/* close current input file and process next file */
-                pushint( endfile() );
+                pushint( (INT)endfile() );
                 break;
         default:        /* oops! */
                 error( "bad function call", ACT_ERROR );
@@ -345,7 +345,7 @@ assignment()
         /*
          * Perform an assignment
          */
-        int ival;
+        INT ival;
 
         ival = popint();
         /*
@@ -364,7 +364,7 @@ assignment()
                 error( "'=' needs an lvalue", ACT_ERROR );
 }
 
-pop()
+INT pop()
 {
         /*
          * Pop the stack and return the integer value
@@ -395,7 +395,7 @@ DATUM *pdatum;
 }
 
 pushint( intvalue )
-int intvalue;
+INT intvalue;
 {
         /*
          * push an integer onto the stack
@@ -411,12 +411,12 @@ int intvalue;
                 error( "stack overflow", MEM_ERROR );
 }
 
-popint()
+INT popint()
 {
         /*
          * Resolve the item on the top of the stack and return it
          */
-        int intvalue;
+        INT intvalue;
 
         if ( Stackptr->lvalue )
         {
@@ -445,23 +445,94 @@ popint()
 }
 
 
-pprint(s0, s1, s2, s3, s4, s5, s6, s7, s8, s9)
-char *s0, *s1, *s2, *s3, *s4, *s5, *s6, *s7, *s8, *s9;
+pprint( args )
+DATUM args[];
 {
-    if (s0 != NULL) printf(" %s", s0);
-    if (s1 != NULL) printf(" %s", s1);
-    if (s2 != NULL) printf(" %s", s2);
-    if (s3 != NULL) printf(" %s", s3);
-    if (s4 != NULL) printf(" %s", s4);
-    if (s5 != NULL) printf(" %s", s5);
-    if (s6 != NULL) printf(" %s", s6);
-    if (s7 != NULL) printf(" %s", s7);
-    if (s8 != NULL) printf(" %s", s8);
-    if (s9 != NULL) printf(" %s", s9);
- 
-    printf("\n");  /* AWK's default behaviour */
- 
-    return 0;
+	/*
+	 * execute the "print string, ..." command
+	 */
+	int i;
+
+	for ( i=0; i<MAXARGS; i++ )
+		if ( args[i].dptr != (char *)NULL )
+			printf(" %s", args[i].dptr);
+ 	printf("\n");  /* AWK's default behaviour */
+
+	return 0;
 }
 
 
+pprntf( fmt, args )
+char *fmt;
+DATUM args[];
+{
+	/*
+	 * execute the "printf fmt, data ..." command
+	 */
+	char lfmt[40], *t;
+	register char *s;
+	int i, type, lflg;
+#define LINT	0
+#define SINT	1
+#define	PNTR	2
+
+	s = fmt;
+	i = 0;
+	while ( *s != '\0' && i < MAXARGS-1 )
+	{
+		if ( *s != '%' )
+		{
+			putc( *s++, stdout );
+			continue;
+		}
+		t = lfmt;
+		*t++ = *s++;		/* % */
+		if ( *s == '-' || *s == '+' )
+			*t++ = *s++;	/* sign */
+		while ( *s >= '0' && *s <= '9' || *s == '*' )
+			*t++ = *s++;	/* width */
+		if ( *s == '.' )
+			*t++ = *s++;	/* . */
+		while ( *s >= '0' && *s <= '9' || *s == '*' )
+			*t++ = *s++;	/* digits */
+
+		lflg = (*s == 'l' || *s == 'L');
+		if ( lflg )
+			*t++ == *s++;
+		if ( *s == 'd' || *s == 'D' || *s == 'u' || *s == 'U' ||
+		     *s == 'x' || *s == 'X' || *s == 'o' || *s == 'O' )
+		{
+			type = lflg ? LINT : SINT;
+			*t++ = *s++;
+		}
+		else if ( *s == 'p' || *s == 'P' || *s == 's' || *s == 'S' )
+		{
+			type = PNTR;
+			*t++ = *s++;
+		}
+		else /* yuk. Better to forbid %e, %f and %g here ? */
+		{
+			type = SINT;
+			if (*s) *t++ = *s++;
+		}
+		*t++ = '\0';
+
+		switch ( type )
+		{
+		    case LINT:
+			printf( lfmt, (long) args[i++].ival );
+			break;
+		    case SINT:
+			printf( lfmt, (int) args[i++].ival );
+			break;
+		    case PNTR:
+			printf( lfmt, args[i++].dptr );
+			break;
+		    default:
+			/* impossible */
+			break;
+		}
+	}
+
+	return 0;
+}

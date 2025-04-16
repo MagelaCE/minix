@@ -13,14 +13,14 @@ struct utimbuf *timp;
 
   if (timp == (struct utimbuf *)NULL) {
 	current_time = time((long *)NULL);
-	M.m2_l1 = current_time;
-	M.m2_l2 = current_time;
+	_M.m2_l1 = current_time;
+	_M.m2_l2 = current_time;
   } else {
-	M.m2_l1 = timp->actime;
-	M.m2_l2 = timp->modtime;
+	_M.m2_l1 = timp->actime;
+	_M.m2_l2 = timp->modtime;
   }
 
-  M.m2_i1 = len(name);
-  M.m2_p1 = name;
+  _M.m2_i1 = len(name);
+  _M.m2_p1 = name;
   return callx(FS, UTIME);
 }

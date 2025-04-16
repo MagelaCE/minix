@@ -85,9 +85,11 @@
 /* Macro to tell if device is ready.
  * Don't require DSR, since modems drop this to indicate the line is not
  * ready even when the modem itself is ready.
+ * If NO_HANDSHAKE, read the status port to clear the interrupt, then force
+ * the ready bit.
  */
 #if NO_HANDSHAKE
-# define devready(rs) ODEVREADY
+# define devready(rs) (in_byte(rs->modem_status_port), MS_CTS)
 #else
 # define devready(rs) (in_byte(rs->modem_status_port) & MS_CTS)
 #endif
@@ -136,6 +138,7 @@ struct rs232_s {
   port_t modem_status_port;
 
   unsigned char lstatus;	/* last line status */
+  unsigned char pad;		/* ensure alignment for 16-bit ints */
   unsigned framing_errors;	/* error counts (no reporting yet) */
   unsigned overrun_errors;
   unsigned parity_errors;
@@ -315,24 +318,28 @@ int minor;			/* which rs line */
   rs->line_status_port = this_8250 + 5;
   rs->modem_status_port = this_8250 + 6;
 
-  /* Set up output queue. */
-  rs->ostate = devready(rs) | ORAW | OSWREADY;
-
-  /* Stop external device while we initialize the hardware. */
-  istop(rs);
-
-  /* Clear any leftover interrupts.
-   * Modem status was just done in devready().
-   * Output interrupts are harmless.
+  /* Set up the hardware to a base state, in particular
+   *	o turn off DTR (MC_DTR) to try to stop the external device.
+   *	o disable interrupts at the chip level, to force an edge transition
+   *	  on the 8259 line when interrupts are next enabled and active.
+   *	  RS232 interrupts are guaranteed to be disabled now by the 8259
+   *	  mask, but there used to be trouble if the mask was set without
+   *	  handling a previous interrupt.
+   *	o be careful about the divisor latch.  It may be enabled now, and
+   *	  that used to cause trouble when interrupts were enabled too early
+   *	  (see comment in rs_config()).  Call rs_config() early to avoid this.
    */
-  in_byte(rs->recv_port);
-  in_byte(rs->line_status_port);
-
-  /* Configure the port.
-   * This must be done before enabling interrupts, because the divisor latch
-   * may be hiding the receiver register (see comments in rs_config()).
-   */
+  istop(rs);			/* sets modem_ctl_port */
+  out_byte(rs->int_enab_port, 0);
   speed = rs_config(minor, DEF_BAUD, DEF_BAUD, LC_NO_PARITY, 1, 8, RAW);
+
+  /* Clear any harmful leftover interrupts.  An output interrupt is harmless
+   * and will occur when interrupts are enabled anyway.  Set up the output
+   * queue using the status from clearing the modem status interrupt.
+   */
+  in_byte(rs->line_status_port);
+  in_byte(rs->recv_port);
+  rs->ostate = devready(rs) | ORAW | OSWREADY;	/* reads modem_ctl_port */
 
   /* Enable interrupts for both interrupt controller and device. */
   if (minor & 1)		/* COM2 on IRQ3 */

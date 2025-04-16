@@ -70,7 +70,7 @@ FILE *makerewindable();
 int copy();
 void readbox(), printall(), interact(), savelet(), updatebox();
 void printlet(), doshell(), usage();
-int onint();
+void onint();
 char *basename(), *whoami();
 extern FILE *fopen(), *freopen(), *fdopen();
 extern struct passwd *getpwnam(), *getpwuid();
@@ -178,7 +178,7 @@ char *vec[];
 	fprintf(stderr, "mail: couldn't exec %s\n", MAILER);
 	return -1;
   }
-#endif MAILER
+#endif /* MAILER */
 
   if (NULL == (pw = getpwuid(getuid()))) {
 	fprintf(stderr, "mail: unknown sender\n");
@@ -526,7 +526,7 @@ void interact()
 	    case '?':
 		dohelp();
 		continue;
-#endif NOTDEF
+#endif /* NOTDEF */
 	    case 'q':
 		return;
 	    case 'x':
@@ -538,7 +538,7 @@ void interact()
   }
 }
 
-int onint()
+void onint()
 {
   longjmp(printjump, 1);
 }
