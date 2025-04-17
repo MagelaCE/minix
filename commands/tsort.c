@@ -44,6 +44,7 @@ unsigned siz;
         fputs("Out of memory.\n",stderr);
         exit(1);
     }
+    return(rval);
 }
 
 /*
@@ -189,7 +190,7 @@ popname() {
 ** topo - do a topological sort of the dependency graph.
 */
 topo() {
-    vertex *x = vset,*n;
+    vertex *x;
     edge *e;
     vertex *outq = NULL,*tmp;
 #define insq(x) ((x->next = outq),(outq = x))
@@ -200,7 +201,7 @@ topo() {
     ** Since it break the next links to insert x into the queue,
     ** x->next is saved before insq, to resume the list traversal.
     */
-    for(n = x->next; x != NULL; x = n, n = x->next)
+    for(x = vset; x != NULL; x = x->next)
         if(x->indegree == 0) {
             insq(x);
             pushname(x->key);       

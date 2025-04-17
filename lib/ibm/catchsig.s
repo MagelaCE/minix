@@ -1,8 +1,6 @@
 .define _begsig
-.define ___vectab
-.globl _begsig
 .globl ___vectab, __M
-mtype = 2			| M+mtype = &M.m_type
+mtype = 2			| _M+mtype = &_M.m_type
 _begsig:
 	push ax			| after interrupt, save all regs
 	push bx
@@ -16,7 +14,7 @@ _begsig:
 	mov bx,sp
 	mov bx,18(bx)		| bx = signal number
 	mov ax,bx		| ax = signal number
-	dec bx			| ___vectab[0] is for sig 1
+	dec bx			| __vectab[0] is for sig 1
 	add bx,bx		| pointers are two bytes on 8088
 	mov bx,___vectab(bx)	| bx = address of routine to call
 	push __M+mtype		| push status of last system call
@@ -34,8 +32,6 @@ back:
 	pop cx
 	pop bx
 	pop ax
-	pop dummy		| remove signal number from stack
+	add sp,*2		| remove signal number from stack
 	iret
 
-.data 
-dummy: .word 0

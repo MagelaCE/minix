@@ -1,0 +1,45 @@
+# SB library makefile.
+#	Only funny stuff is handling for the "bcopy" routine, where
+#	we try to use the system version if any exists.
+#
+#	On PDP-11 systems only, BCOPYSUF can be set to ".s" to use
+#	an assembly-language version.  The bcopy.s here is
+#	better than the BSD2.9 version and can replace it.
+
+CFLAGS = -c -O
+
+OFILES = sbstr.o sbvall.o sbm.o sberr.o sbbcpy.o
+
+BCOPYSUF = .c
+
+.c.o:
+	cc $(CFLAGS) $*.c
+	ar rv libsb.a $*.o
+
+# Default entry - build library and attempt ranlib, but since some
+# systems don't have ranlib, ignore error in latter.
+sb:	$(OFILES)
+	-sh -c "ranlib libsb.a"
+
+# Note that ELLE's makefile invokes this entry, since it does the ranlib
+# itself if necessary.
+sbnoran: $(OFILES)
+
+# BCOPY special-case handling.  If system already appears to have
+#	a "bcopy" routine, we use that for best efficiency (normally it
+#	is written in assembler to take advantage of things like
+#	block move instructions).
+#	Otherwise, we use our own C-language version.
+
+sbbcpy.o: sbbcpy$(BCOPYSUF)
+	cc -c -O sbbcpy$(BCOPYSUF)
+	rm -f a.out bnull.c bnull.o bfind.c bfind.o bfind
+	echo "sbm_null(){}"     > bnull.c
+	cc -c bnull.c
+	echo "main(){exit(0);bcopy();}" > bfind.c
+	-cc -o bfind bfind.c
+	-sh -c "if ./bfind;\
+		then echo Using system bcopy; (mv bnull.o sbbcpy.o)\
+		else echo Using SB bcopy; fi"
+	rm -f bfind bfind.c bfind.o a.out bnull.c bnull.o
+	ar rv libsb.a sbbcpy.o

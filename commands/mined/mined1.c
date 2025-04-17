@@ -2,8 +2,6 @@
  * Part one of the mined editor.
  */
 
-/*#define COMPAT /* On ST define COMPAT if you want 1.1 ST key bindings */
- 			
 /*
  * Author: Michiel Huisjes.
  * 

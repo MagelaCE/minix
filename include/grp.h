@@ -18,4 +18,10 @@ struct	group {
 _PROTOTYPE( struct group *getgrgid,  (int _gid)  			);
 _PROTOTYPE( struct group *getgrnam, (char *_name) 			);
 
+#ifdef _MINIX
+_PROTOTYPE( void endgrent, (void)					);
+_PROTOTYPE( struct group *getgrent, (void)				);
+_PROTOTYPE( int setgrent, (void)					);
+#endif
+
 #endif /* _GRP_H */

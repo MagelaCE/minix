@@ -1,0 +1,10 @@
+# ========== compile everything ===========
+cd posix
+for i in *.c
+do
+	make f=`basename $i .c`
+done
+mv *.s ../libc
+cd ..
+
+

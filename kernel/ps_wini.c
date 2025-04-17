@@ -1,7 +1,11 @@
 /* This file contains a driver for the IBM PS/2 ST506 types 1 and 2 adapters.
  * The original version was written by Wim van Leersum.  It has been
- * modified extensively to make it run the PS/2 that support use the 
- * MCA.
+ * modified extensively to make it run on PS/2s that have the MCA.
+ * The w_transfer routine and the code #ifdef'ed for the PS/2 Model 30/286
+ * comes from Rene Nieuwenhuizen's ps_wini.c.  This driver has been tested
+ * on a Model 80, a Model 55/SX, and a Model 30/286.  It will hopefully
+ * run on a regular Model 30, but it hasn't been tested.
+ *
  *
  * The driver supports the following operations (using message format m2):
  *
@@ -73,31 +77,22 @@
 #define DMA_INIT       0x00A	/* DMA init port */
 #define DMA_STATUS	0x08    /* DMA status port for channels 0-3 */
 
-#undef	PS30_286		/* Configure driver for use on the M30/286 */
+/* I/O Ports used for Programmable Option Selection */
+#define SBSER		0x94	/* System Board Setup Enable Register */
+#define POS2		0x102	/* POS 2 register */
+#define POS3		0x103	/* POS 3 register */
 
-#ifndef	PS30_286
 /*
  * This driver is written to run on all versions of the PS/2.  The
  * models < 50 are based on the XT.  The models >= 50 are based on the AT.
  * en_wini_int will call the appropriate cim routine to enable interrupts.
  */
 #define	en_wini_int()	{ \
-				if (ps_mca) \
+				if (pc_at) \
 					cim_at_wini(); \
 				else \
 					cim_xt_wini(); \
 			}
-
-#else	/* PS30_286 */
-
-/* I/O Ports used for Programmable Option Selection */
-#define SBSER		0x94	/* System Board Setup Enable Register */
-#define POS2		0x102	/* POS 2 register */
-#define POS3		0x103	/* POS 3 register */
-
-#define en_wini_int()	cim_at_wini()
-
-#endif	/* PS30_286 */
 
 /* Variables. */
 PRIVATE struct wini {		/* main drive struct, one entry per drive */
@@ -109,8 +104,9 @@ PRIVATE struct wini {		/* main drive struct, one entry per drive */
   int wn_head;			/* head number addressed */
   int wn_heads;			/* maximum number of heads */
   int wn_maxsec;		/* maximum number of sectors per track */
+  int wn_maxcyl;		/* maximum number of cylinders */
   int wn_ctlbyte;		/* control byte (steprate) */
-  int wn_precomp;		/* write precompensation cylinder / 4 */
+  int wn_precomp;		/* write precompensation cylinder */
   long wn_low;			/* lowest cylinder of partition */
   long wn_size;			/* size of partition in blocks */
   int wn_count;			/* byte count */
@@ -272,26 +268,28 @@ register struct wini *wn;	/* pointer to the drive struct */
 	}
 
 	if (win_results() != OK) {
-		w_need_reset = TRUE;
+		abort_com();
 		return(ERR);
 	}
 
+	r = OK;				/* be optimistic! */
 	w_dma_setup(wn);		/* setup DMA */
+
 	out_byte(ACR, 0x03);		/* turn on interrupts and DMA */
+  	out_byte(DMA_INIT, 3);		/* initialize DMA controller */
+	en_wini_int();			/* OK to receive interrupts */
+
 	if (com_out(0, DR) != OK) return(ERR); /* ask for data transfer */
 
-	r = OK;				/* be optimistic! */
-
-	en_wini_int();		/* OK to receive interrupts */
-
 	receive(HARDWARE, &dummy);	/* receive interrupt */
+
+	out_byte(ACR, 0x0);		/* disable interrupt and dma */
+	out_byte(DMA_INIT, 7);		/* shut off DMA controller */
 
   	if (win_results() != OK) {
 		abort_com();		/* stop the current command */
 		r = ERR;
   	} 
-
-	out_byte(ACR, 0x0);	/* disable interrupt and dma */
 
   	return(r);
 }
@@ -306,19 +304,17 @@ PRIVATE int w_reset()
  */
 
   int i, r;
+  message dummy;
 
   out_byte(ACR, 0x80);	/* Strobe reset bit high. */
   out_byte(ACR, 0);	/* Strobe reset bit low. */
 
   for (i = 0; i < MAX_WIN_RETRY; i++) {
-	if ((in_byte(ASR) & IR) == IR) break;
-	milli_delay(20);
+		if ((in_byte(ASR) & BUSY) != BUSY) break;
+		milli_delay(20);
   }
 
-  if (i == MAX_WIN_RETRY) {
-	printf("Winchester won't reset\n");
-	return(ERR);
-  }
+  if (i == MAX_WIN_RETRY) panic("Winchester won't reset!", 0);
 
   /* Reset succeeded.  Tell WIN drive parameters. */
   if (win_init() != OK) {		/* Initialize the controler */
@@ -351,12 +347,10 @@ PRIVATE int win_init()
 #define CSB5	0x0D		/* Sync field length */
 #define CSB6	0x0		/* Step rate in 50 microseconds */
 #define CSB7	0x0		/* IBM reserved */
-#define CSB10	0x03		/* Max Cylinders of 1024 Cylinders */
-#define CSB11	0xff	
 	
   command[0] = CSB0;
 
-  if (ps_mca) { 
+  if (pc_at) { 
 	/* Setup the Command Specify Block */
   	command[1] = CSB1;
   	command[2] = CSB2;
@@ -365,10 +359,14 @@ PRIVATE int win_init()
   	command[5] = CSB5;
   	command[6] = CSB6;
   	command[7] = CSB7;
-  	command[8] = wini[0].wn_precomp >> 12;	/* set upper write precomp */
-  	command[9] = wini[0].wn_precomp & 0xFF;	/* set lower write precomp */
-  	command[10] = CSB10;
-  	command[11] = CSB11;
+  	command[8] = (unsigned) wini[0].wn_precomp < wini[0].wn_maxcyl ?
+			(wini[0].wn_precomp >> 8) & BYTE : 
+			(wini[0].wn_maxcyl >> 8) & BYTE;
+  	command[9] = (unsigned) wini[0].wn_precomp < wini[0].wn_maxcyl ?
+			wini[0].wn_precomp & BYTE :
+			wini[0].wn_maxcyl & BYTE;
+  	command[10] = (wini[0].wn_maxcyl >> 8) & BYTE;
+  	command[11] = wini[0].wn_maxcyl & BYTE;
   	command[12] = wini[0].wn_maxsec;
   	command[13] = wini[0].wn_heads;
   } else {
@@ -396,10 +394,16 @@ PRIVATE int win_init()
   }
 
   if (nr_drives > 1) {
-  	command[8] = wini[5].wn_precomp >> 12;	/* set upper write precomp */
-  	command[9] = wini[5].wn_precomp & 0xFF;	/* set lower write precomp */
+  	command[8] = (unsigned) wini[5].wn_precomp < wini[5].wn_maxcyl ?
+			(wini[5].wn_precomp >> 8) & BYTE : 
+			(wini[5].wn_maxcyl >> 8) & BYTE;
+  	command[9] = (unsigned) wini[5].wn_precomp < wini[5].wn_maxcyl ?
+			wini[5].wn_precomp & BYTE :
+			wini[5].wn_maxcyl & BYTE;
+	command[10] = (wini[5].wn_maxcyl >> 8) & BYTE;
+	command[11] = wini[5].wn_maxcyl & BYTE;
   	command[12] = wini[5].wn_maxsec;
-  	command[13] = wini[0].wn_heads;
+  	command[13] = wini[5].wn_heads;
 
 	if (com_out(14, CSB | DRIVE_2) != OK)	/* Output command block */
 		return(ERR);
@@ -459,7 +463,6 @@ int attention;
 
   	if (!controller_ready()) {
 		printf("Controller not ready in com_out\n");
-		dump_isr();
 		w_need_reset = TRUE;
 		return(ERR);
   	}
@@ -525,14 +528,16 @@ PRIVATE void init_params()
   /* Set the parameters in the drive structure */
   wini[0].wn_low = wini[5].wn_low = 0L;
 
-#ifndef PS30_286
   /* Initialize the controller */
-  ch_select();  /* select fixed disk chip */
-  win_init();   /* output parameters to controller */
-  ch_unselect(); /* unselect the fixed disk chip */
-#else	/* PS30_286 */
-  out_byte(ACR, 0);		/* make sure to turn off 16 bit mode */
-#endif	/* PS30_286 */
+  if (nr_drives > 0) {
+  	ch_select();  /* select fixed disk chip */
+  	if (win_init() != OK) {	
+		/* Probably controller not a ST506 */
+		nr_drives = 0;
+		printf("Controller does not appear to be a ST506\n");
+	}
+  	ch_unselect(); /* unselect the fixed disk chip */
+  }
 
   /* Read the partition table for each drive and save them */
   for (i = 0; i < nr_drives; i++) {
@@ -570,13 +575,16 @@ register struct wini *dest;
   register int i;
   long cyl, heads, sectors;
 
+  cyl = (long)(*(u16_t *)src);
+
   for (i=0; i<5; i++) {
 	dest[i].wn_heads = (int)src[2];
-	dest[i].wn_precomp = *(u16_t *)&src[5] >> 2;
+	dest[i].wn_precomp = *(u16_t *)&src[5];
 	dest[i].wn_ctlbyte = (int)src[8];
 	dest[i].wn_maxsec = (int)src[14];
+	dest[i].wn_maxcyl = (int)cyl;
   }
-  cyl = (long)(*(u16_t *)src);
+
   heads = (long)dest[0].wn_heads;
   sectors = (long)dest[0].wn_maxsec;
   dest[0].wn_size = cyl * heads * sectors;
@@ -638,7 +646,6 @@ register struct wini wn[];
  *===========================================================================*/
 PRIVATE void ch_select() 
 {
-#ifndef	PS30_286
 /*
  * The original comment said that this function select the fixed disk
  * drive "chip".  I have no idea what this does, but it sounds important.
@@ -647,19 +654,18 @@ PRIVATE void ch_select()
 
  if (ps_mca)	/* If MCA, turn on fixed disk activity light */
 	out_byte(SYS_PORTA, in_byte(SYS_PORTA) | LIGHT_ON); 
- else		/* else bit 1 of Planar Control Reg selects it (disk?) */
-        out_byte(PCR, in_byte(PCR) | 1); 
-#else	/* PS30_286 */
-/* Select fixed disk chip. Extracted from a debugged BIOS listing.
-   Seems to be some magic to get controler on the phone. */
+ else if (pc_at) {
+	/* Select fixed disk chip. Extracted from a debugged BIOS listing.
+   	   Seems to be some magic to get controler on the phone. */
+	lock();
+	out_byte(SBSER, 0x20);
+	out_byte(POS2, (in_byte(POS2) | 1));
+	out_byte(POS3, (in_byte(POS3) | 8));
+	out_byte(SBSER, 0xA0);
+	unlock();
+ } else		/* else bit 1 of Planar Control Reg selects it (disk?) */
+        out_byte(PCR, in_byte(PCR) | 1); 	/* This must be a Model 30 */
 
-  lock();
-  out_byte(SBSER, 0x20);
-  out_byte(POS2, (in_byte(POS2) | 1));
-  out_byte(POS3, (in_byte(POS3) | 8));
-  out_byte(SBSER, 0xA0);
-  unlock();
-#endif	/* PS30_286 */
 }
 
 /*==========================================================================*
@@ -667,7 +673,6 @@ PRIVATE void ch_select()
  *==========================================================================*/
 PRIVATE void ch_unselect() 
 {
-#ifndef	PS30_286
 /*
  * The original comment said that this function unselects the fixed disk
  * drive "chip".  I have no idea what this does, but it sounds important.
@@ -675,16 +680,18 @@ PRIVATE void ch_unselect()
  */
  if (ps_mca)	/* If MCA, turn off fixed disk activity light */
 	out_byte(SYS_PORTA, in_byte(SYS_PORTA)  & ~LIGHT_ON); 
- else		/* else bit 1 of Planar Control Reg selects it (disk?) */
- 	out_byte(PCR, in_byte(PCR) & ~1);
-#else	/* PS30_286 */
-  lock();
-  out_byte(SBSER, 0x20);
-  out_byte(POS2, (in_byte(POS2) | 1));
-  out_byte(POS3, (in_byte(POS3) & 7));
-  out_byte(SBSER, 0xA0);
-  unlock();
-#endif	/* PS30_286 */
+ else if (pc_at) {
+	/* This must be a Model 30/286 
+	   Select fixed disk chip. Extracted from a debugged BIOS listing.
+	   Seems to be some magic to get controler on the phone. */
+	lock();
+	out_byte(SBSER, 0x20);
+	out_byte(POS2, (in_byte(POS2) | 1));
+	out_byte(POS3, (in_byte(POS3) & 7));
+	out_byte(SBSER, 0xA0);
+	unlock();
+ } else		/* else bit 1 of Planar Control Reg selects it (disk?) */
+ 	out_byte(PCR, in_byte(PCR) & ~1);	/* This must be a Model 30 */
 }
 
 /*==========================================================================*
@@ -738,7 +745,6 @@ register struct wini *wn;
   out_byte(DMA_TOP, top_addr);	/* output highest 4 bits */
   out_byte(DMA_COUNT, low_ct);	/* output low 8 bits of count - 1 */
   out_byte(DMA_COUNT, high_ct);	/* output high 8 bits of count - 1 */
-  out_byte(DMA_INIT, 3);	/* initialize DMA */
 }
 
 /*===========================================================================*
@@ -804,7 +810,7 @@ register struct wini *wn;
 	command[0] = wn->wn_opcode == DISK_READ ? WIN_READ : WIN_WRITE;
 	command[1] = ((wn->wn_head << 4) & 0xF0) | 
 					((wn->wn_cylinder >> 8) & 0x03);
-	command[2] = wn->wn_cylinder & 0xFF;
+	command[2] = wn->wn_cylinder & BYTE;
 	command[3] = wn->wn_sector;
 	command[4] = 2;
 	command[5] = BLOCK_SIZE/SECTOR_SIZE;	
@@ -820,4 +826,3 @@ PRIVATE int status()
 
   return in_byte(ASR);
 }
-

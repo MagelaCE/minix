@@ -1,0 +1,6 @@
+for i in `cat ibm/ibm.lst`
+do
+	echo Packing $i
+	libpack <ibm/$i >libc/$i
+done
+

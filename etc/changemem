@@ -21,6 +21,7 @@ chmem =60000 $b/ed
 chmem =50000 $b/file
 chmem =50000 $b/find
 chmem =60000 $b/fix
+chmem =30000 $b/fsck
 chmem =64000 $b/libpack
 chmem =64000 $b/libupack
 chmem =20000 $b/make
@@ -36,6 +37,7 @@ chmem =16000 $b/strings
 chmem =12000 $b/sh
 chmem =60000 $b/sort
 chmem =16000 $b/strip
+chmem =20000 $b/tar
 chmem =60000 $b/treecmp
 for i in 1 2 3 4 5 6 7 8 9 10
 do chmem =8000 ../test/test$i

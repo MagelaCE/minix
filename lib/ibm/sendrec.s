@@ -1,4 +1,4 @@
-.define _send,_receive,_sendrec
+.define _send, _receive, _sendrec
 
 | See ../h/com.h for C definitions
 SEND = 1

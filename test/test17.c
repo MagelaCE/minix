@@ -1206,7 +1206,10 @@ make_and_fill_dirs()
 {
   int mode, i;
 
-  for (i = 0; i < 8; i++) mkdir(dir[i], 0700);
+  for (i = 0; i < 8; i++) {
+	mkdir(dir[i], 0700);
+	chown(dir[i], USER_ID, GROUP_ID);
+  }
   setuid(USER_ID);
   setgid(GROUP_ID);
 

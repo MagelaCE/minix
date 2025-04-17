@@ -25,29 +25,17 @@ case $1 in
 		what_cpu=80386
 		what_wini=AT;;
 
-	ps2_mca) cpu=88
-		wini=ps2_mca_wini.c
+	ps)     cpu=88
+		wini=ps_wini.c
 		what_bits=16
 		what_cpu=8088
-		what_wini="PS/2 MCA";;
-
-	ps2_30)	cpu=88
-		wini=ps2_30_wini.c
-		what_bits=16
-		what_cpu=8088
-		what_wini="PS/2 Model 30";;
-
-	ps2_286) cpu=88
-		wini=ps2_286_wini
-		what_bits=16
-		what_cpu=8088
-		what_wini="PS/2 Model 30/286";;
+		what_wini="PS/2";;
 
 	clean)	echo "rm -f klib.x mpx.x wini.c"
 		rm -f klib.x mpx.x wini.c
 		exit 0;;
 	*)	
-		echo "$prog: usage: $prog [at, bios, xt, 386, ps2_mca, ps2_30, ps2_286]"
+		echo "$prog: usage: $prog [at, bios, xt, 386, ps2]"
 		exit 1;;
 esac
 

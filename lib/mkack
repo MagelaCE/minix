@@ -1,0 +1,6 @@
+for i in `cat ack/ack.lst`
+do
+	echo Packing $i
+	libpack <ack/$i >libc/$i
+done
+

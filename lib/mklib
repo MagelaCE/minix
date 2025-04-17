@@ -1,0 +1,6 @@
+for i in `cat liborder`
+do
+	echo Adding $i
+	ar q libc.a libc/$i
+done
+ 

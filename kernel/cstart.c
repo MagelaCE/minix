@@ -31,6 +31,8 @@
 #	define PS	0xFA	/* code in first byte for PS/2 Model 30 */
 #	define PS_386	0xF8	/* code in first byte for PS/2 386 70 & 80 */
 #	define PS_50	0x04	/* code in second byte for PS/2 Model 50 */
+#	define PS_50A	0xBA	/* code in second byte on some Model 50s */
+#	define PS_50Z	0xE9	/* code in second byte for Model 50Z */
 #	define PS_60	0x05	/* code in second byte for PS/2 Model 60 */
 
 PRIVATE char k_environ[128];	/* environment strings passed by loader */
@@ -108,7 +110,8 @@ u16_t ds;			/* real mode kernel data segment */
   if (machine_magic == PC_AT) {
 	pc_at = TRUE;
 	/* could be a PS/2 Model 50 or 60 -- check submodel byte */
-	if (mach_submagic == PS_50 || mach_submagic == PS_60) ps_mca = TRUE;
+	if (mach_submagic == PS_50 || mach_submagic == PS_60)   ps_mca = TRUE;
+	if (mach_submagic == PS_50A || mach_submagic == PS_50Z) ps_mca = TRUE;
   } else if (machine_magic == PS_386)
 	pc_at = ps_mca = TRUE;
   else if (machine_magic == PS)

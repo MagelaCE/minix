@@ -257,7 +257,7 @@ pcpar:	.byte	0xDF, 0x02, 25, 2, 9, 0x2A, 0xFF, 0x50, 0xF6, 1, 3 | for pc
 atpar:	.byte	0xDF, 0x02, 25, 2,15, 0x1B, 0xFF, 0x54, 0xF6, 1, 8 | for at
 
 fderr:	.asciz "Read error.  Automatic reboot.\r\n"
-greet:	.asciz "\rBooting MINIX 1.5.  Copyright 1990 Prentice-Hall, Inc.\r\n"
+greet:	.asciz "\rBooting MINIX 1.5.  Copyright 1991 Prentice-Hall, Inc.\r\n"
 tracksiz:.word 15	| changed to 9 for ps and pc
 
 | Don't forget that words 504 - 510 are filled in by build.  The regular

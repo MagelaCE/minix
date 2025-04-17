@@ -4,14 +4,12 @@
  * command and puts the editor back in the main loop.
  */
 
-/* _JBLEN should be 3 for IBM PC, 13 for ATARI. */
-
 #ifndef _SETJMP_H
 #define _SETJMP_H
 
-#define _JBLEN 13		/* enough for all machines */
+#define _JBLEN 16		/* enough for all machines */
 
-typedef int jmp_buf[_JBLEN];
+typedef char *jmp_buf[_JBLEN];
 
 /* Function Prototypes. */
 #ifndef _ANSI_H

@@ -1,0 +1,194 @@
+ELLE CHANGES:
+	This file attempts to summarize the changes made to ELLE from
+version to version.
+
+ELLE 4.1:
+	Various functions added for MINIX.
+	Source files greatly re-organized; #ifdefs changed to #ifs.
+
+ELLE 4.0:
+	Primarily a new source version, with almost all source files renamed
+	to fit a 6-char limit.  TOPS-20 conditionals added.
+	One new command:
+	  ^X ^M - Toggle EOL mode.  This sets a per-buffer flag which
+		says whether lines are ended with ASCII LF or CR-LF.
+		This is primarily for the benefit of systems like TOPS-20.
+
+ELLE 3.0c:	SUN code additions (Andy Poggio)
+	Speeded up SUN console screen update, and added two new functions:
+	  M-R - "Select Region"
+	  M-S - "Stuff Selection"
+	A new file, e_profdef.sun, exists for setting up a standard SUN
+	configuration.
+ELLE 3.0b: SUN code brought up to date.
+ELLE 3.0a:
+	Fix to make ^X E accept numeric repeat-count argument.
+	Bug fixes and minor improvements to the SB routines.
+	Bug fix to R-search.
+
+ELLE 3.0:
+	The major change is not user-visible: the configuration setup for
+	ELLE has been made more flexible so it is easier to specify your
+	own favorite version of things.  Accordingly, the default
+	ELLE configuration has been expanded to include more functions.
+	The instructions for building ELLE have been updated and should
+	be reviewed even by people who have built ELLE versions before.
+
+	New commands:
+	  ^_   - "Describe".  Asks user for a command and shows
+		a brief description of what it does.
+	  M-G  - "Fill Region".
+	  ^X . - "Set Fill Prefix".
+	  ^X T - "Auto Fill Mode" toggle.
+
+	A "Keyboard Macro" feature is now standard:
+		^X ( to start collecting a keyboard macro.
+		^X ) to stop collecting.
+		^X E to execute the collected macro.
+		^X * to display the collected macro.
+	Currently there can only be one keyboard macro.
+
+	^X ^V (Visit File) now defined for benefit of EMACS folk;
+	same as ^X ^R (Read File). 
+
+	^X ^Z (Return to Superior) now pauses the editor so it can be
+	continued later, without asking for confirmation.  This only works
+	when the environment allows it (system has SIGTSTP and user is
+	using new tty discipline); otherwise behavior is the same as before
+	and ELLE asks for confirmation before quitting.  The latter action
+	can always be forced by using ^U ^X ^Z no matter what the system.
+		
+	By popular demand, hangup of the terminal (SIGHUP) is now caught,
+	and will cause ELLE to write out all modified buffers to
+	files named $HOME/+<buffername>.  Note the potential for gronkage
+	if you are modifying very large files.
+
+	Bug fix for ^X ^B (List Buffers) on long-filename systems.
+	Bug fixes for getcap in e_trm.c.
+	Bug fix to Replace String.
+
+ELLE 2.8e:
+	IMAGEN conditionals integrated.  Bug fix to Kill Buffer.
+ELLE 2.8d:
+	Bug fix to sbm's realloc (affected TERMCAP).
+ELLE 2.8c:
+	ELLE now checks access before writing to a filename.  If
+	the file exists but does not permit write access, ELLE will not
+	write out the buffer.  Thus, read-only files cannot be "over-written".
+	The explicit check is needed because ELLE never actually overwrites
+	old files; it only renames them.
+
+	New command: C-X %	"Replace String"
+
+ELLE 2.8b:
+	Minor aesthetic tweaks to Select Buffer and Next Screen.
+
+	Find File checks for access errors before creating a new buffer.
+
+	Universal Arg (^U) now behaves more like EMACS, accepting
+	a numeric argument after invocation.
+
+	Integration of SUN workstation code from Andy Poggio; allows
+	use of SUN mouse to move around and select up to 10 menu functions.
+
+ELLE 2.8a:
+	Very minor fixes; mostly integration of some conditionalized
+	but untested ICONOGRAPHICS code.
+
+	Screen updates which use line insert/delete operations have
+	been improved.
+
+	Improved handling of "rug-pull" situations which arise when a
+	file that ELLE is actively reading gets over-written by some other
+	program (such as ED).  ELLE cannot detect all such cases, but
+	for those where previously a fatal error would result,
+	ELLE now warns the user of file corruption and continues.
+
+ELLE 2.8:
+	Incremental Search is now the default function for ^S.
+	It acts almost exactly like Incremental Search in EMACS.
+	In particular, an ESC with an empty search string will
+	invoke the String Search function (the previous default, where
+	you type a complete line before the search starts).  As before,
+	unlike EMACS a CR is treated as a string terminator similar to ESC.
+
+	The other major user-visible change is that ^X ^Z (to exit ELLE) now
+	only asks you ONCE if you really want to quit.  If there are
+	any modified buffers, ELLE will tell you about them, but will
+	NOT ask if you wish to save them -- only if you really want to
+	exit.  This simplifies the procedure and allows the user to
+	save the buffers in whichever way is best.
+
+	Fatal error handling will now output a message and wait
+	for user input.  The buffer is not saved automatically to
+	the file "ELLE.crash" as before.  If the user types a "S"
+	in response to the "(A,B,C,D,S,W,?)" prompt, the current
+	buffer will be saved; if a "W" is typed, all modified
+	buffers will be saved.  Buffer writing is now done at
+	a very low level to reduce the chances of bugs in the
+	saving routine.  Any saved buffers will be written
+	to the files $HOME/+buffername.  For example, if you have
+	a modified buffer called "foo", and your home directory
+	is "/a/user", then the buffer will be written to the
+	file "/a/user/+foo", and ELLE will tell you that it is doing so.
+	(I am open to suggestions for better filenames.)
+	Users are not expected to remember this, since fatal errors
+	are not supposed to happen (hah!).  I think there is
+	sufficient prompting that the right course of action will be
+	clear enough.  Such errors should of course be reported so
+	I can investigate them.
+
+	Less visible changes are those which fix a number of minor bugs.
+	The most serious was one where certain redisplay situations
+	could make ^X O (Go to Other Window) enter an infinite loop!
+	Other code revisions were of a cosmetic nature, to make
+	ELLE more portable to different machines and C compilers.
+
+	A lot of effort was spent making disk I/O more efficient by preserving
+	byte and block alignment where it made sense to do so.  The number
+	of system calls for memory allocation has also been much reduced.
+	The result is that some operations such as searching through a
+	large file have become much faster (I measured a roughly 300%
+	improvement for some files).
+
+	The output of ^X ^B (List Buffers) is now lined up better.
+
+ELLE 2.7:
+	If ELLE is invoked with two filename arguments, both files
+	will be read in, using two windows.
+
+	Insert-char on typein is slightly faster (not real noticeable).
+
+	User profiles can be defined.
+
+ELLE 2.6:
+	New commands:
+		C-X K	Kill Buffer
+		M-[	Backward Paragraph
+		M-]	Forward Paragraph
+		M-H	Mark Paragraph
+		C-M-W	Append Next Kill
+		M-T	Transpose Word
+
+	Changes:
+		C-X ^	Grow Window - was C-X G but changed to follow EMACS.
+		C-X F	Set Fill Column - now acts as in EMACS.
+				Sets the fill column to argument.
+				With no arg, sets to column cursor is in.
+		C-T	Transpose Character - fixed to work like EMACS.
+
+	Misc fixes:
+
+		It is still possible to have too many files open, so that
+	you cannot read in any more.  However, ELLE now will never be
+	prevented from writing files out, and one can use the Kill Buffer
+	command to make room for new files.
+		ELLE now preserves the UID and GID of edited files, if
+	possible (i.e. if user is SU).
+		If TERMCAP claims that your terminal has a META or EDIT
+	key (as per items km, mm, mo), ELLE will try to allow its use.
+	Previously there was no way to know if a meta-key existed unless
+	the terminal was a DM2500.  If for any reason ELLE's guess is
+	wrong, you can force 7-bit or 8-bit input by giving the switches
+	"-7" or "-8" in the ELLE command line.
+		M-V works a little better.

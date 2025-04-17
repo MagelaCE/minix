@@ -55,7 +55,7 @@ PUBLIC int do_mknod()
   if (fetch_name(name1, name1_length, M1) != OK) return(err_code);
   bits = (mode & I_TYPE) | (mode & ALL_MODES & fp->fp_umask);
   size = (unsigned int) name2;
-  put_inode(new_node(user_path, bits, (zone_nr) addr), (off_t)size*BLOCK_SIZE);
+  put_inode(new_node(user_path, bits, (zone_nr) addr, (off_t)size*BLOCK_SIZE);
   return(err_code);
 }
 

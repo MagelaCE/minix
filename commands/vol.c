@@ -54,7 +54,7 @@ char *argv[];
 	fd = open(name, 1 - reading);
 	if (fd < 0) message("vol: cannot open %s\n", name);
 
-	std_err("Please insert volume ");
+	std_err("Please insert volume ");
 	num(volume);
 	std_err(" and hit return\n");
 	read(tty, buffer, BLOCK_SIZE);
