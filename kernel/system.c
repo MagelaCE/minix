@@ -212,6 +212,7 @@ message *m_ptr;			/* pointer to request message */
   rp->p_alarm = 0;		/* reset alarm timer */
   rp->p_flags &= ~RECEIVING;	/* MM does not reply to EXEC call */
   if (rp->p_flags == 0) ready(rp);
+  set_name(k, sp);		/* save command string for F1 display */
   return(OK);
 }
 
@@ -239,6 +240,7 @@ message *m_ptr;			/* pointer to request message */
   rp->child_stime += rc->sys_time + rc->child_stime;
   unready(rc);
   rc->p_alarm = 0;		/* turn off alarm timer */
+  set_name(proc_nr, (char *) 0);	/* disable command printing for F1 */
 
   /* If the process being terminated happens to be queued trying to send a
    * message (i.e., the process was killed by a signal, rather than it doing an

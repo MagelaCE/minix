@@ -8,3 +8,4 @@ EXTERN struct dmap {
   int (*dmap_close)();
   int dmap_task;
 } dmap[];
+

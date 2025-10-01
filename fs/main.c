@@ -24,6 +24,7 @@
 
 #define M64K     0xFFFF0000L	/* 16 bit mask for DMA check */
 #define INFO               2	/* where in data_org is info from build */
+#define MAX_RAM          512	/* maxium RAM disk size in blocks */
 
 /*===========================================================================*
  *				main					     *
@@ -237,6 +238,7 @@ PRIVATE load_ram()
   if (sp->s_magic != SUPER_MAGIC)
 	panic("Diskette in drive 0 is not root file system", NO_NUM);
   count = sp->s_nzones << sp->s_log_zone_size;	/* # blocks on root dev */
+  if (count > MAX_RAM) panic("RAM disk is too big. # blocks = ", count);
   ram_clicks = count * (BLOCK_SIZE/CLICK_SIZE);
   put_block(bp, FULL_DATA_BLOCK);
 

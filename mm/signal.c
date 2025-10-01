@@ -169,13 +169,13 @@ uid send_uid;			/* identity of process sending the signal */
 	}
 
 	if (send_sig == FALSE || rmp->mp_ignore & mask) continue;
-
-	/* If process is hanging on PAUSE, WAIT, tty, pipe, etc. release it. */
-	unpause(rmp - mproc);	/* check to see if process is paused */
 	count++;
 
 	/* Send the signal or kill the process, possibly with core dump. */
 	sig_proc(rmp, sig_nr);
+
+	/* If process is hanging on PAUSE, WAIT, tty, pipe, etc. release it. */
+	unpause(rmp - mproc);	/* check to see if process is paused */
 	if (proc_id > 0) break;	/* only one process being signalled */
   }
 
@@ -219,8 +219,8 @@ int sig_nr;			/* signal to send to process (1-16) */
   /* Signal should not or cannot be caught.  Take default action. */
   core_file = ( core_bits >> (sig_nr - 1 )) & 1;
   rmp->mp_sigstatus = (char) sig_nr;
-  mm_exit(rmp, 0);		/* terminate process */
   if (core_file) dump_core(rmp); /* dump core */
+  mm_exit(rmp, 0);		/* terminate process */
 }
 
 
@@ -299,14 +299,14 @@ int pro;			/* which process number */
   rmp = &mproc[pro];
 
   /* Check to see if process is hanging on PAUSE call. */
-  if (rmp->mp_flags & PAUSED) {
+  if ( (rmp->mp_flags & PAUSED) && (rmp->mp_flags & HANGING) == 0) {
 	rmp->mp_flags &= ~PAUSED;	/* turn off PAUSED bit */
 	reply(pro, EINTR, 0, NIL_PTR);
 	return;
   }
 
   /* Check to see if process is hanging on a WAIT call. */
-  if (rmp->mp_flags & WAITING) {
+  if ( (rmp->mp_flags & WAITING) && (rmp->mp_flags & HANGING) == 0) {
 	rmp->mp_flags &= ~ WAITING;	/* turn off WAITING bit */
 	reply(pro, EINTR, 0, NIL_PTR);
 	return;
@@ -341,7 +341,7 @@ register struct mproc *rmp;	/* whose core is to be dumped */
   tell_fs(CHDIR, slot, 0, 0);
 
   /* Can core file be written? */
-  if (rmp->mp_realuid != rmp->mp_effuid) {tell_fs(CHDIR,0,1,0); return;}
+  if (rmp->mp_realuid != rmp->mp_effuid) return;
   xmp = mp;			/* allowed() looks at 'mp' */
   mp = rmp;
   r = allowed(core_name, &s_buf, W_BIT);	/* is core_file writable */
@@ -351,7 +351,7 @@ register struct mproc *rmp;	/* whose core is to be dumped */
   if (s >= 0) close(s);
   if (rmp->mp_effuid == SUPER_USER) r = 0;	/* su can always dump core */
 
-  if (r >= 0 || (r == ENOENT && s >= 0)) {
+  if (s >= 0 && (r >= 0 || r == ENOENT)) {
 	/* Either file is writable or it doesn't exist & dir is writable */
 	r = creat(core_name, CORE_MODE);
 	tell_fs(CHDIR, 0, 1, 0);	/* go back to MM's own dir */

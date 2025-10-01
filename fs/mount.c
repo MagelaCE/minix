@@ -26,11 +26,10 @@ PUBLIC int do_mount()
 /* Perform the mount(name, mfile, rd_only) system call. */
 
   register struct inode *rip, *root_ip;
-  register struct super_block *xp, *sp;
-  register dev_nr dev;
-  register mask_bits bits;
-  register int r;
-  int found;
+  struct super_block *xp, *sp;
+  dev_nr dev;
+  mask_bits bits;
+  int r, found, loaded;
   extern struct inode *get_inode(), *eat_path();
   extern dev_nr name_to_dev();
 
@@ -86,29 +85,27 @@ PUBLIC int do_mount()
   if (r == OK) {
 	if ( (root_ip = get_inode(dev, ROOT_INODE)) == NIL_INODE) r = err_code;
   }
+  if (root_ip != NIL_INODE && root_ip->i_mode == 0) r = EINVAL;
 
   /* Load the i-node and zone bit maps from the new device. */
+  loaded = FALSE;
   if (r == OK) {
 	if (load_bit_maps(dev) != OK) r = ENFILE;	/* load bit maps */
-  }
-
-/* If error, return the super block and the inodes. */
-  if (r != OK) {
-	sp->s_dev = NO_DEV;
-	put_inode(rip);
-	put_inode(root_ip);
-	return(r);
+	loaded = TRUE;
   }
 
   /* File types of 'rip' and 'root_ip' may not conflict. */
-  if ( (rip->i_mode & I_TYPE) == I_DIRECTORY &&
-	(root_ip->i_mode & I_TYPE) != I_DIRECTORY) r = ENOTDIR;
+  if ( (r == OK) && ((rip->i_mode & I_TYPE) == I_DIRECTORY) &&
+	((root_ip->i_mode & I_TYPE) != I_DIRECTORY)) r = ENOTDIR;
 
   /* If error, return the super block and both inodes; release the maps. */
   if (r != OK) {
-	sp->s_dev = NO_DEV;
 	put_inode(rip);
 	put_inode(root_ip);
+	if (loaded) unload_bit_maps(dev);
+	do_sync();
+	invalidate(dev);
+	sp->s_dev = NO_DEV;
 	return(r);
   }
 
@@ -158,13 +155,14 @@ PUBLIC int do_umount()
 		break;
 	}
   }
-  if (sp == NIL_SUPER) return(EINVAL);
 
   /* Release the bit maps, sync the disk, and invalidate cache. */
-  if (unload_bit_maps(dev) != OK) panic("do_umount", NO_NUM);
+  if (sp != NIL_SUPER)
+	if (unload_bit_maps(dev) != OK) panic("do_umount", NO_NUM);
   do_sync();			/* force any cached blocks out of memory */
   invalidate(dev);		/* invalidate cache entries for this dev */
-  
+  if (sp == NIL_SUPER) return(EINVAL);
+
   /* Finish off the unmount. */
   sp->s_imount->i_mount = NO_MOUNT;	/* inode returns to normal */
   put_inode(sp->s_imount);	/* release the inode mounted on */

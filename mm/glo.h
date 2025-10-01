@@ -15,3 +15,4 @@ EXTERN int result2;		/* secondary result */
 EXTERN char *res_ptr;		/* result, if pointer */
 
 EXTERN char mm_stack[MM_STACK_BYTES];	/* MM's stack */
+

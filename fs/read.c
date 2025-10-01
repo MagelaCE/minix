@@ -28,6 +28,7 @@
 #define FD_MASK          077	/* max file descriptor is 63 */
 
 PRIVATE message umess;		/* message for asking SYSTASK for user copy */
+PUBLIC int rdwt_err;		/* set to EIO if disk error occurs */
 
 /*===========================================================================*
  *				do_read					     *
@@ -82,6 +83,8 @@ int rw_flag;			/* READING or WRITING */
   cum_io = 0;
   virg = TRUE;
   mode_word = rip->i_mode & I_TYPE;
+  if (mode_word == I_BLOCK_SPECIAL && f_size == 0) f_size = MAX_P_LONG;
+  rdwt_err = OK;		/* set to EIO if disk error occurs */
 
   /* Check for character special files. */
   if (mode_word == I_CHAR_SPECIAL) {
@@ -106,7 +109,7 @@ int rw_flag;			/* READING or WRITING */
 
 	/* Pipes are a little different.  Check. */
 	if (rip->i_pipe && (r = pipe_check(rip, rw_flag, virg,
-				nbytes, &position)) <= 0) return(0);
+				nbytes, &position)) <= 0) return(r);
 
 	/* Split the transfer into chunks that don't span two blocks. */
 	while (nbytes != 0) {
@@ -124,6 +127,7 @@ int rw_flag;			/* READING or WRITING */
 		/* Read or write 'chunk' bytes. */
 		r=rw_chunk(rip, position, off, chunk, rw_flag, buffer, seg,usr);
 		if (r != OK) break;	/* EOF reached */
+		if (rdwt_err < 0) break;
 
 		/* Update counters and pointers. */
 		buffer += chunk;	/* user buffer address */
@@ -159,6 +163,8 @@ int rw_flag;			/* READING or WRITING */
   }
   if (mode_word == I_REGULAR) rip->i_seek = NO_SEEK;
 
+  if (rdwt_err != OK) r = rdwt_err;	/* check for disk error */
+  if (rdwt_err == EOF) r = cum_io;
   return(r == OK ? cum_io : r);
 }
 

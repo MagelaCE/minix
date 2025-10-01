@@ -52,6 +52,7 @@
 #include "../h/signal.h"
 #include "const.h"
 #include "type.h"
+#include "glo.h"
 #include "proc.h"
 
 #define NR_TTYS            1	/* how many terminals can system handle */
@@ -148,7 +149,7 @@ PRIVATE char tty_copy_buf[2*MAX_OVERRUN];  /* copy buf used to avoid races */
 PRIVATE char tty_buf[TTY_BUF_SIZE];	/* scratch buffer to/from user space */
 PRIVATE int shift1, shift2, capslock, numlock;	/* keep track of shift keys */
 PRIVATE int control, alt;	/* keep track of key statii */
-PRIVATE int olivetti;		/* flag set for Olivetti M24 keyboard */
+PUBLIC  int color;		/* 1 if console is color, 0 if it is mono */
 PUBLIC scan_code;		/* scan code for '=' saved by bootstrap */
 
 /* Scan codes to ASCII for unshifted keys */
@@ -360,7 +361,10 @@ char ch;			/* scan code for character that arrived */
 		sig = (ch == tp->tty_intr ? SIGINT : SIGQUIT);
 		tp->tty_inhibited = RUNNING;	/* do implied CRTL-Q */
 		finish(tp, EINTR);		/* send reply */
-		echo(tp, '\n');
+		tp->tty_inhead = tp->tty_inqueue;	/* discard input */
+		tp->tty_intail = tp->tty_inqueue;
+		tp->tty_incount = 0;
+		tp->tty_lfct = 0;
 		cause_sig(LOW_USER + 1 + line, sig);
 		return;
 	}
@@ -801,11 +805,10 @@ long other;			/* used for IOCTL replies */
 #define OLIVETTI_EQUAL    12	/* the '=' key is 12 on olivetti, 13 on IBM */
 
 /* Global variables used by the console driver. */
-PUBLIC int color;		/* 1 if console is color, 0 if it is mono */
 PUBLIC  message keybd_mess;	/* message used for console input chars */
 PRIVATE vid_retrace;		/* how many characters to display per burst */
 PRIVATE unsigned vid_base;	/* base of video ram (0xB000 or 0xB800) */
-PRIVATE int vid_mask;		/* 037777 for color (16K) or 07777 for mono */
+PUBLIC int vid_mask;		/* 037777 for color (16K) or 07777 for mono */
 PRIVATE int vid_port;		/* I/O port for accessing 6845 */
 
 
@@ -1034,7 +1037,7 @@ register struct tty_struct *tp;	/* pointer to tty struct */
   vid_copy(tp->tty_ramqueue, vid_base, tp->tty_vid, tp->tty_rwords);
 
   /* Update the video parameters and cursor. */
-  tp->tty_vid += 2 * tp->tty_rwords;
+  tp->tty_vid = (tp->tty_vid + 2 * tp->tty_rwords);
   set_6845(CURSOR, tp->tty_vid >> 1);	/* cursor counts in words */
   tp->tty_rwords = 0;
 }
@@ -1160,6 +1163,8 @@ PRIVATE tty_init()
 /* Initialize the tty tables. */
 
   register struct tty_struct *tp;
+  int i;
+  phys_bytes phy1, phy2, vram;
 
   for (tp = &tty_struct[0]; tp < &tty_struct[NR_TTYS]; tp++) {
 	tp->tty_inhead = tp->tty_inqueue;

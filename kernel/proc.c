@@ -24,7 +24,7 @@
 #include "proc.h"
 
 /*===========================================================================*
- *				interrupt				     *
+ *				interrupt				     * 
  *===========================================================================*/
 PUBLIC interrupt(task, m_ptr)
 int task;			/* number of task to be started */
@@ -37,6 +37,7 @@ message *m_ptr;			/* interrupt message to send to the task */
 #ifdef i8088
   /* Re-enable the 8259A interrupt controller. */
   port_out(INT_CTL, ENABLE);	/* this re-enables the 8259A controller chip */
+  if (pc_at) port_out(INT2_CTL, ENABLE);	/* re-enable second 8259A */
 #endif
 
   /* Try to send the interrupt message to the indicated task. */
@@ -75,7 +76,7 @@ message *m_ptr;			/* interrupt message to send to the task */
 
 
 /*===========================================================================*
- *				sys_call				     *
+ *				sys_call				     * 
  *===========================================================================*/
 PUBLIC sys_call(function, caller, src_dest, m_ptr)
 int function;			/* SEND, RECEIVE, or BOTH */
@@ -117,7 +118,7 @@ message *m_ptr;			/* pointer to message */
 }
 
 /*===========================================================================*
- *				mini_send				     *
+ *				mini_send				     * 
  *===========================================================================*/
 PUBLIC int mini_send(caller, dest, m_ptr)
 int caller;			/* who is trying to send a message? */
@@ -152,7 +153,7 @@ message *m_ptr;			/* pointer to message buffer */
   if ( (dest_ptr->p_flags & RECEIVING) &&
 		(dest_ptr->p_getfrom == ANY || dest_ptr->p_getfrom == caller) ) {
 	/* Destination is indeed waiting for this message. */
-	cp_mess(caller, caller_ptr->p_map[D].mem_phys, m_ptr,
+	cp_mess(caller, caller_ptr->p_map[D].mem_phys, m_ptr, 
 				dest_ptr->p_map[D].mem_phys, dest_ptr->p_messbuf);
 	dest_ptr->p_flags &= ~RECEIVING;	/* deblock destination */
 	if (dest_ptr->p_flags == 0) ready(dest_ptr);
@@ -178,7 +179,7 @@ message *m_ptr;			/* pointer to message buffer */
 
 
 /*===========================================================================*
- *				mini_rec				     *
+ *				mini_rec				     * 
  *===========================================================================*/
 PRIVATE int mini_rec(caller, src, m_ptr)
 int caller;			/* process trying to get message */
@@ -188,7 +189,7 @@ message *m_ptr;			/* pointer to message buffer */
 /* A process or task wants to get a message.  If one is already queued,
  * acquire it and deblock the sender.  If no message from the desired source
  * is available, block the caller.  No need to check parameters for validity.
- * Users calls are always sendrec(), and mini_send() has checked already.
+ * Users calls are always sendrec(), and mini_send() has checked already.  
  * Calls from the tasks, MM, and FS are trusted.
  */
 
@@ -232,7 +233,7 @@ message *m_ptr;			/* pointer to message buffer */
 
 
 /*===========================================================================*
- *				pick_proc				     *
+ *				pick_proc				     * 
  *===========================================================================*/
 PUBLIC pick_proc()
 {
@@ -268,7 +269,7 @@ PUBLIC pick_proc()
 }
 
 /*===========================================================================*
- *				ready					     *
+ *				ready					     * 
  *===========================================================================*/
 PUBLIC ready(rp)
 register struct proc *rp;	/* this process is now runnable */
@@ -299,7 +300,7 @@ register struct proc *rp;	/* this process is now runnable */
 
 
 /*===========================================================================*
- *				unready					     *
+ *				unready					     * 
  *===========================================================================*/
 PUBLIC unready(rp)
 register struct proc *rp;	/* this process is no longer runnable */
@@ -332,7 +333,7 @@ register struct proc *rp;	/* this process is no longer runnable */
 
 
 /*===========================================================================*
- *				sched					     *
+ *				sched					     * 
  *===========================================================================*/
 PUBLIC sched()
 {

@@ -151,6 +151,7 @@ int exit_status;		/* the process' exit status (for parent) */
 
   /* Tell the kernel and FS that the process is no longer runnable. */
   sys_xit(rmp->mp_parent, rmp - mproc);
+  tell_fs(EXIT, rmp - mproc, 0, 0);  /* file system can free the proc slot */
 }
 
 
@@ -221,7 +222,6 @@ register struct mproc *child;	/* tells which process is exiting */
   r = child->mp_sigstatus & 0377;
   r = r | (child->mp_exitstatus << 8);
   reply(child->mp_parent, child->mp_pid, r, NIL_PTR);
-   tell_fs(EXIT, child_nr, 0, 0); /* file system can free the proc slot */
 
   /* Release the memory occupied by the child. */
   s = (phys_clicks) child->mp_seg[S].mem_vir + child->mp_seg[S].mem_len;
@@ -230,6 +230,7 @@ register struct mproc *child;	/* tells which process is exiting */
 
   /* Update flags. */
   child->mp_flags  &= ~HANGING;	/* turn off HANGING bit */
+  child->mp_flags  &= ~PAUSED;	/* turn off PAUSED bit */
   parent->mp_flags &= ~WAITING;	/* parent is no longer waiting */
   child->mp_flags  &= ~IN_USE;	/* release the table slot */
   procs_in_use--;

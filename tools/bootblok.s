@@ -219,7 +219,7 @@ pcpar:	.byte	0xDF, 0x02, 25, 2, 9, 0x2A, 0xFF, 0x50, 0xF6, 1, 3   | for PC
 atpar:	.byte	0xDF, 0x02, 25, 2,15, 0x1B, 0xFF, 0x54, 0xF6, 1, 8   | for AT
 
 fderr:	.asciz	"Read error.  Automatic reboot.\r\n"
-greet:	.asciz "\rBooting MINIX 1.0\r\n"
+greet:	.asciz "\rBooting MINIX 1.1\r\n"
 
 
 

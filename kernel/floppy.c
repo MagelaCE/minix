@@ -14,6 +14,8 @@
  *
  *   floppy_task:	main entry when system is brought up
  *
+ *  Changes:
+ *	27 october 1986 by Jakob Schripsema: fdc_results fixed for 8 MHz
  */
 
 #include "../h/const.h"
@@ -23,12 +25,14 @@
 #include "../h/error.h"
 #include "const.h"
 #include "type.h"
+#include "glo.h"
 #include "proc.h"
 
 /* I/O Ports used by floppy disk task. */
 #define DOR            0x3F2	/* motor drive control bits */
 #define FDC_STATUS     0x3F4	/* floppy disk controller status register */
 #define FDC_DATA       0x3F5	/* floppy disk controller data register */
+#define FDC_RATE       0x3F7	/* transfer rate register */
 #define DMA_ADDR       0x004	/* port for low 16 bits of DMA address */
 #define DMA_TOP        0x081	/* port for top 4 bits of 20-bit DMA addr */
 #define DMA_COUNT      0x005	/* port for DMA count (count =  bytes - 1) */
@@ -78,15 +82,13 @@
 
 /* Parameters for the disk drive. */
 #define SECTOR_SIZE      512	/* physical sector size in bytes */
-#define NR_SECTORS	 0x09	/* number of sectors per track */
+#define HC_SIZE         2400	/* # sectors on a high-capacity (1.2M) disk */
 #define NR_HEADS        0x02	/* two heads (i.e., two tracks/cylinder) */
-#define GAP		 0x2A 	/* intersector gap size */
 #define DTL             0xFF	/* determines data length (sector size) */
 #define SPEC1           0xDF	/* first parameter to SPECIFY */
 #define SPEC2           0x02	/* second parameter to SPECIFY */
 
 #define MOTOR_OFF       3*HZ	/* how long to wait before stopping motor */
-#define MOTOR_START	 HZ/4	/* how long does it take motor to start up? */
 
 /* Error codes */
 #define ERR_SEEK          -1	/* bad seek */
@@ -98,12 +100,12 @@
 
 /* Miscellaneous. */
 #define MOTOR_RUNNING   0xFF	/* message type for clock interrupt */
-#define MAX_ERRORS        10	/* how often to try rd/wt before quitting */
+#define MAX_ERRORS        20	/* how often to try rd/wt before quitting */
 #define MAX_RESULTS        8	/* max number of bytes controller returns */
 #define NR_DRIVES          2	/* maximum number of drives */
 #define DIVISOR          128	/* used for sector size encoding */
 #define MAX_FDC_RETRY    100	/* max # times to try to output to FDC */
-#define NR_BLOCKS	  720	/* number of blocks on 9 sector diskette */
+#define NT                 4	/* number of diskette/drive combinations */
 
 /* Variables. */
 PRIVATE struct floppy {		/* main drive struct, one entry per drive */
@@ -118,6 +120,7 @@ PRIVATE struct floppy {		/* main drive struct, one entry per drive */
   vir_bytes fl_address;		/* user virtual address */
   char fl_results[MAX_RESULTS];	/* the controller can give lots of output */
   char fl_calibration;		/* CALIBRATED or UNCALIBRATED */
+  char fl_density;		/* 0 = 360K/360K; 1 = 360K/1.2M; 2= 1.2M/1.2M */
 } floppy[NR_DRIVES];
 
 #define UNCALIBRATED       0	/* drive needs to be calibrated at next use */
@@ -128,12 +131,26 @@ PRIVATE int motor_goal;		/* desired motor status is in 4 high bits */
 PRIVATE int prev_motor;		/* which motor was started last */
 PRIVATE int need_reset;		/* set to 1 when controller must be reset */
 PRIVATE int initialized;	/* set to 1 after first successful transfer */
-PRIVATE int steps_per_cyl = 1;	/* # pulses to give stepping motor per cyl */
+PRIVATE int d;			/* diskette/drive combination */
 
 PRIVATE message mess;		/* message buffer for in and out */
 
 PRIVATE char len[] = {-1,0,1,-1,2,-1,-1,3,-1,-1,-1,-1,-1,-1,-1,4};
-PRIVATE char interleave[] = {1,2,3,4,5,6,7,8,9};
+PRIVATE char interleave[] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+
+/* Four combinations of diskette/drive are supported:
+ * # Drive  diskette  Sectors  Tracks  Rotation Data-rate  Comment
+ * 0  360K    360K      9       40     300 RPM  250 kbps   Standard PC DSDD
+ * 1  720K    360K      9       40     300 RPM  250 kbps   Quad density PC
+ * 2  1.2M    360K      9       40     360 RPM  300 kbps   PC disk in AT drive
+ * 3  1.2M    1.2M     15       80     360 RPM  500 kbps   AT disk in AT drive
+ */
+PRIVATE int gap[NT]           = {0x2A, 0x2A, 0x23, 0x1B}; /* gap size */
+PRIVATE int rate[NT]          = {0x02, 0x02, 0x01, 0x00}; /* 250,300,500 kbps*/
+PRIVATE int nr_sectors[NT]    = {9,    9,    9,    15};   /* sectors/track */
+PRIVATE int nr_blocks[NT]     = {720,  720,  720,  2400}; /* sectors/diskette*/
+PRIVATE int steps_per_cyl[NT] = {1,    2,    2,    1};	  /* 2 = dbl step */
+PRIVATE int mtr_setup[NT]     = {HZ/4,HZ/4,3*HZ/4,3*HZ/4};/* in ticks */
 
 /*===========================================================================*
  *				floppy_task				     * 
@@ -190,10 +207,11 @@ message *m_ptr;			/* pointer to read or write message */
   fp->fl_opcode = m_ptr->m_type;	/* DISK_READ or DISK_WRITE */
   if (m_ptr->POSITION % BLOCK_SIZE != 0) return(EINVAL);
   block = m_ptr->POSITION/SECTOR_SIZE;
-  if (block >= NR_BLOCKS) return(0);
-  fp->fl_cylinder = (int) (block / (NR_HEADS * NR_SECTORS));
-  fp->fl_sector = (int) interleave[block % NR_SECTORS];
-  fp->fl_head = (int) (block % (NR_HEADS*NR_SECTORS) )/NR_SECTORS;
+  if (block >= HC_SIZE) return(EOF);	/* sector is beyond end of 1.2M disk */
+  d = fp->fl_density;		/* diskette/drive combination */
+  fp->fl_cylinder = (int) (block / (NR_HEADS * nr_sectors[d]));
+  fp->fl_sector = (int) interleave[block % nr_sectors[d]];
+  fp->fl_head = (int) (block % (NR_HEADS*nr_sectors[d]) )/nr_sectors[d];
   fp->fl_count = m_ptr->COUNT;
   fp->fl_address = (vir_bytes) m_ptr->ADDRESS;
   fp->fl_procnr = m_ptr->PROC_NR;
@@ -209,14 +227,12 @@ message *m_ptr;			/* pointer to read or write message */
 	 * Increment 'errors' here since loop is aborted on error.
 	 */
 	errors++;		/* increment count once per loop cycle */
- 	if (initialized == 0 && errors == MAX_ERRORS && fp->fl_cylinder > 0) {
-		if (steps_per_cyl > 1) {
-			panic("Unreadable diskette (drive density?)", NO_NUM);
-		} else {
-			steps_per_cyl++;
-			errors = 0;
-		}
+ 	if (errors % (MAX_ERRORS/NT) == 0) {
+ 		d = (d + 1) % NT;	/* try next density */
+ 		fp->fl_density = d;
+ 		need_reset = 1;
 	}
+  	if (block >= nr_blocks[d]) continue;
 
 	/* First check to see if a reset is needed. */
 	if (need_reset) reset();
@@ -329,7 +345,7 @@ struct floppy *fp;		/* pointer to the drive struct */
 
   /* If the motor was already running, we don't have to wait for it. */
   if (running) return;			/* motor was already running */
-  clock_mess(MOTOR_START, send_mess);	/* motor was not running */
+  clock_mess(mtr_setup[d], send_mess);	/* motor was not running */
   receive(CLOCK, &mess);		/* wait for clock interrupt */
 }
 
@@ -371,7 +387,7 @@ struct floppy *fp;		/* pointer to the drive struct */
   /* No.  Wrong cylinder.  Issue a SEEK and wait for interrupt. */
   fdc_out(FDC_SEEK);		/* start issuing the SEEK command */
   fdc_out( (fp->fl_head << 2) | fp->fl_drive);
-  fdc_out(fp->fl_cylinder * steps_per_cyl);
+  fdc_out(fp->fl_cylinder * steps_per_cyl[d]);
   if (need_reset) return(ERR_SEEK);	/* if controller is sick, abort seek */
   receive(HARDWARE, &mess);
 
@@ -379,7 +395,7 @@ struct floppy *fp;		/* pointer to the drive struct */
   fdc_out(FDC_SENSE);		/* probe FDC to make it return status */
   r = fdc_results(fp);		/* get controller status bytes */
   if ( (fp->fl_results[ST0] & ST0_BITS) != SEEK_ST0) r = ERR_SEEK;
-  if (fp->fl_results[ST1] != fp->fl_cylinder * steps_per_cyl) r = ERR_SEEK;
+  if (fp->fl_results[ST1] != fp->fl_cylinder * steps_per_cyl[d]) r = ERR_SEEK;
   if (r != OK) 
 	if (recalibrate(fp) != OK) return(ERR_SEEK);
   return(r);
@@ -395,10 +411,14 @@ register struct floppy *fp;	/* pointer to the drive struct */
 /* The drive is now on the proper cylinder.  Read or write 1 block. */
 
   int r, s, op;
+  extern int olivetti;
 
   /* Never attempt a transfer if the drive is uncalibrated or motor is off. */
   if (fp->fl_calibration == UNCALIBRATED) return(ERR_TRANSFER);
   if ( ( (motor_status>>(fp->fl_drive+4)) & 1) == 0) return(ERR_TRANSFER);
+
+  /* The PC-AT requires the date rate to be set to 250 or 500 kbps */
+  if (pc_at) port_out(FDC_RATE, rate[d]);
 
   /* The command is issued by outputing 9 bytes to the controller chip. */
   op = (fp->fl_opcode == DISK_READ ? FDC_READ : FDC_WRITE);
@@ -408,8 +428,8 @@ register struct floppy *fp;	/* pointer to the drive struct */
   fdc_out(fp->fl_head);		/* tell controller which head */
   fdc_out(fp->fl_sector);	/* tell controller which sector */
   fdc_out( (int) len[SECTOR_SIZE/DIVISOR]);	/* sector size */
-  fdc_out(NR_SECTORS);	/* tell controller how big a track is */
-  fdc_out(GAP);		/* tell controller how big sector gap is */
+  fdc_out(nr_sectors[d]);	/* tell controller how big a track is */
+  fdc_out(gap[d]);		/* tell controller how big sector gap is */
   fdc_out(DTL);			/* tell controller about data length */
 
   /* Block, waiting for disk interrupt. */
@@ -429,8 +449,8 @@ register struct floppy *fp;	/* pointer to the drive struct */
   if (fp->fl_results[ST1] | fp->fl_results[ST2]) return(ERR_TRANSFER);
 
   /* Compare actual numbers of sectors transferred with expected number. */
-  s =  (fp->fl_results[ST_CYL] - fp->fl_cylinder) * NR_HEADS * NR_SECTORS;
-  s += (fp->fl_results[ST_HEAD] - fp->fl_head) * NR_SECTORS;
+  s =  (fp->fl_results[ST_CYL] - fp->fl_cylinder) * NR_HEADS * nr_sectors[d];
+  s += (fp->fl_results[ST_HEAD] - fp->fl_head) * nr_sectors[d];
   s += (fp->fl_results[ST_SEC] - fp->fl_sector);
   if (s * SECTOR_SIZE != fp->fl_count) return(ERR_TRANSFER);
   return(OK);
@@ -445,19 +465,24 @@ register struct floppy *fp;	/* pointer to the drive struct */
 {
 /* Extract results from the controller after an operation. */
 
-  int i, j, status;
+  int i, j, status, ready;
 
   /* Loop, extracting bytes from FDC until it says it has no more. */
   for (i = 0; i < MAX_RESULTS; i++) {
-	port_in(FDC_STATUS, &status);
-	if ( (status & MASTER) == 0) return(ERR_STATUS);
-	port_in(FDC_STATUS, &status);	/* read it again */
+	ready = FALSE;
+	for (j = 0; j < MAX_FDC_RETRY; j++) {
+		port_in(FDC_STATUS, &status);
+		if (status & MASTER) {
+			ready = TRUE;
+			break;
+		}
+	}
+	if (ready == FALSE) return(ERR_STATUS);	/* time out */
+
+	if ((status & CTL_BUSY) == 0) return(OK);
 	if ((status & DIRECTION) == 0) return(ERR_STATUS);
 	port_in(FDC_DATA, &status);
 	fp->fl_results[i] = status & BYTE;
-	for (j = 0; j < 5; j++);	/* delay loop */
-	port_in(FDC_STATUS, &status);
-	if ( (status & CTL_BUSY) == 0) return(OK);
   }
 
   /* FDC is giving back too many results. */
@@ -548,7 +573,6 @@ PRIVATE reset()
 
   int i, r, status;
   register struct floppy *fp;
-
   /* Disable interrupts and strobe reset bit low. */
   need_reset = FALSE;
   lock();
@@ -564,10 +588,7 @@ PRIVATE reset()
   fp->fl_results[0] = 0;	/* this byte will be checked shortly */
   fdc_out(FDC_SENSE);		/* did it work? */
   r = fdc_results(fp);		/* get results */
-  if (r != OK) panic("FDC won't reset", r);
   status = fp->fl_results[0] & BYTE;
-  if (status != CHANGE)
-  	panic("FDC did not become ready after reset", fp->fl_results[0]);
 
   /* Tell FDC drive parameters. */
   fdc_out(FDC_SPECIFY);		/* specify some timing parameters */

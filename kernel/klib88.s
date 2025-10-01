@@ -15,18 +15,18 @@
 |   vid_copy:	copy data to video ram (on color display during retrace only)
 |   get_byte:	reads a byte from a user program and returns it as value
 |   reboot:	reboot for CTRL-ALT-DEL
-|   wreboot:	wait for character then reboot
+|   wreboot:	wait for character then reboot 
 
 | The following procedures are defined in this file and called from outside it.
 .globl _phys_copy, _cp_mess, _port_out, _port_in, _lock, _unlock, _restore
 .globl _build_sig, csv, cret, _get_chrome, _vid_copy, _get_byte, _reboot
-.globl _wreboot
+.globl _wreboot, _portw_in, _portw_out
 
 | The following external procedure is called in this file.
 .globl _panic
 
 | Variables and data structures
-.globl _color, _cur_proc, _proc_ptr, splimit, _vec_table
+.globl _color, _cur_proc, _proc_ptr, splimit, _vec_table, _vid_mask
 
 
 |*===========================================================================*
@@ -73,7 +73,7 @@ _phys_copy:
 	mov dx,32(bp)		| dx = high-order word of byte count
 	mov cx,30(bp)		| cx = low-order word of byte count
 
-	test cx,#0x8000		| if bytes >= 32768, only do 32768
+	test cx,#0x8000		| if bytes >= 32768, only do 32768 
 	jnz L3			| per iteration
 	test dx,#0xFFFF		| check high-order 17 bits to see if bytes
 	jnz L3			| if bytes >= 32768 then go to L3
@@ -212,10 +212,47 @@ _port_in:
 
 
 |*===========================================================================*
+|*				portw_out				     *
+|*===========================================================================*
+| portw_out(port, value) writes 'value' on the I/O port 'port'.
+
+_portw_out:
+	push bx			| save bx
+	mov bx,sp		| index off bx
+	push ax			| save ax
+	push dx			| save dx
+	mov dx,4(bx)		| dx = port
+	mov ax,6(bx)		| ax = value
+	outw			| output 1 word
+	pop dx			| restore dx
+	pop ax			| restore ax
+	pop bx			| restore bx
+	ret			| return to caller
+
+
+|*===========================================================================*
+|*				portw_in				     *
+|*===========================================================================*
+| portw_in(port, &value) reads from port 'port' and puts the result in 'value'.
+_portw_in:
+	push bx			| save bx
+	mov bx,sp		| index off bx
+	push ax			| save ax
+	push dx			| save dx
+	mov dx,4(bx)		| dx = port
+	inw			| input 1 word
+	mov bx,6(bx)		| fetch address where byte is to go
+	mov (bx),ax		| return byte to caller in param
+	pop dx			| restore dx
+	pop ax			| restore ax
+	pop bx			| restore bx
+	ret			| return to caller
+
+|*===========================================================================*
 |*				lock					     *
 |*===========================================================================*
 | Disable CPU interrupts.
-_lock:
+_lock:  
 	pushf			| save flags on stack
 	cli			| disable interrupts
 	pop lockvar		| save flags for possible restoration later
@@ -318,7 +355,7 @@ cret:
 |*===========================================================================*
 |*				get_chrome				     *
 |*===========================================================================*
-| This routine calls the BIOS to find out if the display is monochrome or
+| This routine calls the BIOS to find out if the display is monochrome or 
 | color.  The drivers are different, as are the video ram addresses, so we
 | need to know.
 _get_chrome:
@@ -354,48 +391,72 @@ _vid_copy:
 	mov bp,sp		| set bp to sp for indexing
 	push si			| save the registers
 	push di			| save di
+	push bx			| save bx
 	push cx			| save cx
 	push dx			| save dx
 	push es			| save es
-	mov si,4(bp)		| si = pointer to data to be copied
+vid.0:	mov si,4(bp)		| si = pointer to data to be copied
 	mov di,8(bp)		| di = offset within video ram
+	and di,_vid_mask	| only 4K or 16K counts
 	mov cx,10(bp)		| cx = word count for copy loop
 	mov dx,#0x3DA		| prepare to see if color display is retracing
 
-	test _color,*1		| skip vertical retrace test if display is mono
-	jz vid.3		| if monochrome then go to vid.2
+	mov bx,di		| see if copy will run off end of video ram
+	add bx,cx		| compute where copy ends
+	add bx,cx		| bx = last character copied + 1
+	sub bx,_vid_mask	| bx = # characters beyond end of video ram
+	sub bx,#1		| note: dec bx doesn't set flags properly
+	jle vid.1		| jump if no overrun
+	sar bx,#1		| bx = # words that don't fit in video ram
+	sub cx,bx		| reduce count by overrun
+	mov tmp,cx		| save actual count used for later
 
-vid.1:	in			| with a color display, you can only copy to
-	test al,*010		| the video ram during vertical retrace, so
-	jnz vid.1		| wait for start of retrace period.  Bit 3 of
-vid.2:	in			| 0x3DA is set during retrace.  First wait
-	test al,*010		| until it is off (no retrace), then wait
-	jz vid.2		| until it comes on (start of retrace)
+vid.1:	test _color,*1		| skip vertical retrace test if display is mono
+	jz vid.4		| if monochrome then go to vid.2
 
-vid.3:	pushf			| copying may now start; save flags
+|vid.2:	in			| with a color display, you can only copy to
+|	test al,*010		| the video ram during vertical retrace, so
+|	jnz vid.2		| wait for start of retrace period.  Bit 3 of
+vid.3:	in			| 0x3DA is set during retrace.  First wait
+	testb al,*010		| until it is off (no retrace), then wait
+	jz vid.3		| until it comes on (start of retrace)
+
+vid.4:	pushf			| copying may now start; save flags
 	cli			| interrupts just get in the way: disable them
 	mov es,6(bp)		| load es now: int routines may ruin it
 
 	cmp si,#0		| si = 0 means blank the screen
-	je vid.5		| jump for blanking
+	je vid.7		| jump for blanking
 	lock			| this is a trick for the IBM PC simulator only
 	nop			| 'lock' indicates a video ram access
 	rep			| this is the copy loop
 	movw			| ditto
 
-vid.4:	popf			| restore flags
-	pop es			| restore registers
+vid.5:	popf			| restore flags
+	cmp bx,#0		| if bx < 0, then no overrun and we are done
+	jle vid.6		| jump if everything fit
+	mov 10(bp),bx		| set up residual count
+	mov 8(bp),#0		| start copying at base of video ram
+	cmp 4(bp),#0		| NIL_PTR means store blanks
+	je vid.0		| go do it
+	mov si,tmp		| si = count of words copied
+	add si,si		| si = count of bytes copied
+	add 4(bp),si		| increment buffer pointer
+	jmp vid.0		| go copy some more
+
+vid.6:	pop es			| restore registers
 	pop dx			| restore dx
 	pop cx			| restore cx
+	pop bx			| restore bx
 	pop di			| restore di
 	pop si			| restore si
 	pop bp			| restore bp
 	ret			| return to caller
 
-vid.5:	mov ax,#BLANK		| ax = blanking character
+vid.7:	mov ax,#BLANK		| ax = blanking character
 	rep			| copy loop
 	stow			| blank screen
-	jmp vid.4		| done
+	jmp vid.5		| done
 
 |*===========================================================================*
 |*				get_byte				     *
@@ -420,6 +481,8 @@ _get_byte:
 	ret			| return to caller
 
 
+
+
 |*===========================================================================*
 |*				reboot & wreboot			     *
 |*===========================================================================*
@@ -442,9 +505,8 @@ _wreboot:
 	int 0x19		| reboot the PC
 
 | Restore the interrupt vectors in low core.
-resvec:
-	cld
-	mov cx,#2*65
+resvec:	cld
+	mov cx,#2*71
 	mov si,#_vec_table
 	xor di,di
 	mov es,di
@@ -452,8 +514,15 @@ resvec:
 	movw
 	ret
 
+| Some library routines use exit, so this label is needed.
+| Actual calls to exit cannot occur in the kernel.
+.globl _exit
+_exit:	sti
+	jmp _exit
+
 .data
 lockvar:	.word 0		| place to store flags for lock()/restore()
 splimit:	.word 0		| stack limit for current task (kernel only)
+tmp:		.word 0		| count of bytes already copied
 stkoverrun:	.asciz "Kernel stack overrun, task = "
-_vec_table:	.zerow 130	| storage for interrupt vectors
+_vec_table:	.zerow 142	| storage for interrupt vectors

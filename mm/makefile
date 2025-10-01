@@ -1,78 +1,78 @@
-CFLAGS= -Di8088 -O
+CFLAGS = -Di8088 -w -F -T.
 h=../h
-l=../lib
+l=/usr/lib
 
-obj =	main.o forkexit.o break.o exec.o signal.o getset.o  \
-	alloc.o utility.o table.o putc.o 
+obj =	main.s forkexit.s break.s exec.s signal.s getset.s  \
+	alloc.s utility.s table.s putc.s 
 
-mm:	makefile  $l/head.o $(obj) $l/libc.a $l/end.o
-	@echo "Start linking MM"
-	@ld -o mm $l/head.o $(obj) $l/libc.a $l/end.o
-	@echo "MM done"
+mm:	makefile    $l/head.s $(obj) $l/libc.a $l/end.s
+	@echo "Start linking MM."
+	@asld -o mm $l/head.s $(obj) $l/libc.a $l/end.s
+	@echo "MM done."
 
 
-alloc.o:	const.h $h/const.h $h/type.h
+alloc.s:	const.h $h/const.h $h/type.h
 
-break.o:	const.h $h/const.h $h/type.h
-break.o:	$h/error.h
-break.o:	$h/signal.h
-break.o:	glo.h
-break.o:	mproc.h
-break.o:	param.h
+break.s:	const.h $h/const.h $h/type.h
+break.s:	$h/error.h
+break.s:	$h/signal.h
+break.s:	glo.h
+break.s:	mproc.h
+break.s:	param.h
 
-exec.o:		const.h $h/const.h $h/type.h
-exec.o:		$h/callnr.h
-exec.o:		$h/error.h
-exec.o:		$h/stat.h
-exec.o:		glo.h
-exec.o:		mproc.h
-exec.o:		param.h
+exec.s:		const.h $h/const.h $h/type.h
+exec.s:		$h/callnr.h
+exec.s:		$h/error.h
+exec.s:		$h/stat.h
+exec.s:		glo.h
+exec.s:		mproc.h
+exec.s:		param.h
 
-forkexit.o:	const.h $h/const.h $h/type.h
-forkexit.o:	$h/callnr.h
-forkexit.o:	$h/error.h
-forkexit.o:	glo.h
-forkexit.o:	mproc.h
-forkexit.o:	param.h
+forkexit.s:	const.h $h/const.h $h/type.h
+forkexit.s:	$h/callnr.h
+forkexit.s:	$h/error.h
+forkexit.s:	glo.h
+forkexit.s:	mproc.h
+forkexit.s:	param.h
 
-getset.o:	const.h $h/const.h $h/type.h
-getset.o:	$h/callnr.h
-getset.o:	$h/error.h
-getset.o:	glo.h
-getset.o:	mproc.h
-getset.o:	param.h
+getset.s:	const.h $h/const.h $h/type.h
+getset.s:	$h/callnr.h
+getset.s:	$h/error.h
+getset.s:	glo.h
+getset.s:	mproc.h
+getset.s:	param.h
 
-main.o:		const.h $h/const.h $h/type.h
-main.o:		$h/callnr.h
-main.o:		$h/com.h
-main.o:		$h/error.h
-main.o:		glo.h
-main.o:		mproc.h
-main.o:		param.h
+main.s:		const.h $h/const.h $h/type.h
+main.s:		$h/callnr.h
+main.s:		$h/com.h
+main.s:		$h/error.h
+main.s:		glo.h
+main.s:		mproc.h
+main.s:		param.h
 
-putc.o:		$h/const.h $h/type.h
-putc.o:		$h/com.h
+putc.s:		$h/const.h $h/type.h
+putc.s:		$h/com.h
 
-signal.o:	const.h $h/const.h $h/type.h
-signal.o:	$h/callnr.h
-signal.o:	$h/com.h
-signal.o:	$h/error.h
-signal.o:	$h/signal.h
-signal.o:	$h/stat.h
-signal.o:	glo.h
-signal.o:	mproc.h
-signal.o:	param.h
+signal.s:	const.h $h/const.h $h/type.h
+signal.s:	$h/callnr.h
+signal.s:	$h/com.h
+signal.s:	$h/error.h
+signal.s:	$h/signal.h
+signal.s:	$h/stat.h
+signal.s:	glo.h
+signal.s:	mproc.h
+signal.s:	param.h
 
-table.o:	const.h $h/const.h $h/type.h
-table.o:	$h/callnr.h
-table.o:	glo.h
-table.o:	mproc.h
-table.o:	param.h
+table.s:	const.h $h/const.h $h/type.h
+table.s:	$h/callnr.h
+table.s:	glo.h
+table.s:	mproc.h
+table.s:	param.h
 
-utility.o:	const.h $h/const.h $h/type.h
-utility.o:	$h/callnr.h
-utility.o:	$h/com.h
-utility.o:	$h/error.h
-utility.o:	$h/stat.h
-utility.o:	glo.h
-utility.o:	mproc.h
+utility.s:	const.h $h/const.h $h/type.h
+utility.s:	$h/callnr.h
+utility.s:	$h/com.h
+utility.s:	$h/error.h
+utility.s:	$h/stat.h
+utility.s:	glo.h
+utility.s:	mproc.h

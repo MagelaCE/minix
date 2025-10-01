@@ -3,7 +3,7 @@
 
 int (*vectab[NR_SIGS])();	/* array of functions to catch signals */
 
-/* The definition of signal really should be
+/* The definition of signal really should be 
  *  PUBLIC int (*signal(signr, func))()
  * but some compilers refuse to accept this, even though it is correct.
  * The only thing to do if you are stuck with such a defective compiler is

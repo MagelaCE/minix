@@ -66,7 +66,7 @@ PUBLIC int do_exec()
   tell_fs(CHDIR, who, 0, 0);	/* temporarily switch to user's directory */
   fd = allowed(u.name_buf, &s_buf, X_BIT);	/* is file executable? */
   tell_fs(CHDIR, 0, 1, 0);	/* switch back to MM's own directory */
-  if (fd < 0) return(EACCES);	/* file was not executable */
+  if (fd < 0) return(fd);	/* file was not executable */
 
   /* Read the file header and extract the segment sizes. */
   sc = (stk_bytes + CLICK_SIZE - 1) >> CLICK_SHIFT;

@@ -46,7 +46,7 @@ int mask;			/* R_BIT, W_BIT, or X_BIT */
 	return(EACCES);
   }
   /* Even for superuser, at least 1 X bit must be on. */
-  if (mp->mp_effuid == 0 && mask == X_BIT &&
+  if (mp->mp_effuid == SUPER_USER && mask == X_BIT &&
 	(s_buf->st_mode & (X_BIT << 6 | X_BIT << 3 | X_BIT))) return(fd);
 
   /* Right adjust the relevant set of permission bits. */
@@ -54,6 +54,7 @@ int mask;			/* R_BIT, W_BIT, or X_BIT */
   else if (mp->mp_effgid == s_buf->st_gid) shift = 3;
   else shift = 0;
 
+  if (mp->mp_effuid == SUPER_USER && mask != X_BIT) return(fd);
   if (s_buf->st_mode >> shift & mask)	/* test the relevant bits */
 	return(fd);		/* permission granted */
   else {

@@ -74,6 +74,7 @@ PUBLIC int do_sync()
   register struct inode *rip;
   register struct buf *bp;
   register struct super_block *sp;
+  dev_nr d;
   extern real_time clock_time();
   extern struct super_block *get_super();
 
@@ -85,7 +86,7 @@ PUBLIC int do_sync()
   /* Update the time in the root super_block. */
   sp = get_super(ROOT_DEV);
   sp->s_time = clock_time();
-  sp->s_dirt = DIRTY;
+  if (sp->s_rd_only == FALSE) sp->s_dirt = DIRTY;
 
   /* Write all the dirty inodes to the disk. */
   for (rip = &inode[0]; rip < &inode[NR_INODES]; rip++)
@@ -98,8 +99,17 @@ PUBLIC int do_sync()
   /* Write all the dirty blocks to the disk. First do drive 0, then the rest.
    * This avoids starting drive 0, then starting drive 1, etc.
    */
-  for (bp = &buf[0]; bp < &buf[NR_BUFS]; bp++)
-	if (bp->b_dev != NO_DEV && bp->b_dirt == DIRTY) rw_block(bp, WRITING);
+  for (bp = &buf[0]; bp < &buf[NR_BUFS]; bp++) {
+	d = bp->b_dev;
+	if (d != NO_DEV && bp->b_dirt == DIRTY && ((d>>MINOR) & BYTE) == 0) 
+		rw_block(bp, WRITING);
+  }
+
+  for (bp = &buf[0]; bp < &buf[NR_BUFS]; bp++) {
+	d = bp->b_dev;
+	if (d != NO_DEV && bp->b_dirt == DIRTY && ((d>>MINOR) & BYTE) != 0) 
+		rw_block(bp, WRITING);
+  }
 
   return(OK);		/* sync() can't fail */
 }
@@ -148,13 +158,14 @@ PUBLIC int do_exit()
 {
 /* Perform the file system portion of the exit(status) system call. */
 
-  register int i;
+  register int i, exitee;
 
   /* Only MM may do the EXIT call directly. */
   if (who != MM_PROC_NR) return(ERROR);
 
   /* Nevertheless, pretend that the call came from the user. */
   fp = &fproc[slot1];		/* get_filp() needs 'fp' */
+  exitee = slot1;
 
   /* Loop on file descriptors, closing any that are open. */
   for (i=0; i < NR_FDS; i++) {
@@ -166,8 +177,12 @@ PUBLIC int do_exit()
   put_inode(fp->fp_rootdir);
   put_inode(fp->fp_workdir);
 
-  if (fp->fp_suspended == SUSPENDED && fp->fp_task == XPIPE) susp_count--;
+  if (fp->fp_suspended == SUSPENDED) {
+	if (fp->fp_task == XPIPE) susp_count--;
+	pro = exitee;
+	do_unpause();
 	fp->fp_suspended = NOT_SUSPENDED;
+  }
   return(OK);
 }
 

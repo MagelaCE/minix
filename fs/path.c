@@ -36,7 +36,7 @@ char *path;			/* the path name to be parsed */
 
   /* First open the path down to the final directory. */
   if ( (ldip = last_dir(path, string)) == NIL_INODE)
-  	return(NIL_INODE);	/* we couldn't open final directory */
+	return(NIL_INODE);	/* we couldn't open final directory */
 
   /* The path consisting only of "/" is a special case, check for it. */
   if (string[0] == '\0') return(ldip);
@@ -129,7 +129,7 @@ char string[NAME_SIZE];		/* component extracted from 'old_name' */
   /* Pad the component name out to NAME_SIZE chars, using 0 as filler. */
   while (np < &string[NAME_SIZE]) *np++ = '\0';
 
-	if (rnp >= &user_path[MAX_PATH]) {
+  if (rnp >= &user_path[MAX_PATH]) {
 	err_code = E_LONG_STRING;
 	return((char *) 0);
   }
@@ -150,8 +150,9 @@ char string[NAME_SIZE];		/* component name to look for */
  */
 
   register struct inode *rip;
+  struct inode *rip2;
   register struct super_block *sp;
-  register int r;
+  int r;
   dev_nr mnt_dev;
   inode_nr numb;
   extern struct inode *get_inode();
@@ -170,20 +171,21 @@ char string[NAME_SIZE];		/* component name to look for */
 
   if (rip->i_num == ROOT_INODE)
 	if (dirp->i_num == ROOT_INODE) {
-		if (string[1] == '.') {
+	    if (string[1] == '.') {
 		for (sp = &super_block[1]; sp < &super_block[NR_SUPERS]; sp++) {
-				if (sp->s_dev == rip->i_dev) {
+			if (sp->s_dev == rip->i_dev) {
 				/* Release the root inode.  Replace by the
-					* inode mounted on.
-					*/
-					put_inode(rip);
-					mnt_dev = sp->s_imount->i_dev;
-					rip = get_inode(mnt_dev, sp->s_imount->i_num);
-					rip = advance(rip, string);
-					break;
-				}
+				 * inode mounted on.
+				 */
+				put_inode(rip);
+				mnt_dev = sp->s_imount->i_dev;
+				rip2 = get_inode(mnt_dev, sp->s_imount->i_num);
+				rip = advance(rip2, string);
+				put_inode(rip2);
+				break;
 			}
 		}
+	    }
 	}
   /* See if the inode is mounted on.  If so, switch to root directory of the
    * mounted file system.  The super_block provides the linkage between the
@@ -302,6 +304,7 @@ int flag;			/* LOOK_UP, ENTER, or DELETE */
   ldir_ptr->i_modtime = clock_time();
   ldir_ptr->i_dirt = DIRTY;
   if (new_slots > old_slots)
-  ldir_ptr->i_size = (file_pos) new_slots * DIR_ENTRY_SIZE;
+	ldir_ptr->i_size = (file_pos) new_slots * DIR_ENTRY_SIZE;
   return(OK);
 }
+
