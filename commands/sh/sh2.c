@@ -1,3 +1,4 @@
+#define Extern extern
 #include "signal.h"
 #include "errno.h"
 #include "setjmp.h"

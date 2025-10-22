@@ -41,9 +41,9 @@ mkfs.s:	mkfs.c
 	cc -c -DUNIX mkfs.c
 
 fsck:	fsck.s fsck1.s
-	@echo "Start linking fsck.  /lib/cem will be removed to make space on RAM disk"
+	@echo "Start linking fsck."
 	asld -o fsck -T.  fsck1.s fsck.s $l/libc.a $l/end.s
-	@echo fsck done. Please restore /lib/cem manually.
+	@echo fsck done.
 fsck.s: fsck.c
 	cc -c -Di8088 -w -F -T. fsck.c
 
@@ -53,11 +53,11 @@ fsck.s: fsck.c
 # the header at the front is removed, and each piece is padded out to an
 # integral multiple of 16 bytes.  Build also prints a message telling how big
 # the various pieces (except fsck) are.
-image:	build bootblok kernel mm fs init fsck
+image:	build bootblok ../kernel/kernel ../mm/mm ../fs/fs init fsck
 	/etc/umount /dev/fd0
 	@echo "Insert blank disk in drive 0 and hit return"
 	@getlf
-	build bootblok kernel mm fs init fsck /dev/fd0
+	build bootblok ../kernel/kernel ../mm/mm ../fs/fs init fsck /dev/fd0
 
 # 'make usr' builds a file system on a file called 'usr', and then
 # copies this file to the diskette (9 sectors per track).  It builds the file

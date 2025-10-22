@@ -163,9 +163,9 @@ PUBLIC do_brk2()
   mem2 = (ram_base + 512/CLICK_SIZE)/CLICK_TO_K;	/* MINIX, rounded */
   mem3 = ram_clicks/CLICK_TO_K;
   printf("%c 8%c~0",033, 033);	/* go to top of screen and clear screen */
-  printf("Memory size = %dK     ", mem1);
-  printf("MINIX = %dK     ", mem2);
-  printf("RAM disk = %dK     ", mem3);
+  printf("Memory size = %3dK     ", mem1);
+  printf("MINIX = %3dK     ", mem2);
+  printf("RAM disk = %3dK     ", mem3);
   printf("Available = %dK\n\n", mem1 - mem2 - mem3);
   if (mem1 - mem2 - mem3 < 32) {
 	printf("\nNot enough memory to run MINIX\n\n", NO_NUM);

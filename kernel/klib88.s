@@ -16,11 +16,15 @@
 |   get_byte:	reads a byte from a user program and returns it as value
 |   reboot:	reboot for CTRL-ALT-DEL
 |   wreboot:	wait for character then reboot 
+|   dma_read:	transfer data between HD controller and memory
+|   dma_write:	transfer data between memory and HD controller
+|   em_xfer:	read or write AT extended memory using the BIOS
 
 | The following procedures are defined in this file and called from outside it.
 .globl _phys_copy, _cp_mess, _port_out, _port_in, _lock, _unlock, _restore
 .globl _build_sig, csv, cret, _get_chrome, _vid_copy, _get_byte, _reboot
-.globl _wreboot, _portw_in, _portw_out
+.globl _wreboot, _dma_read, _dma_write, _em_xfer
+.globl _portw_in, _portw_out
 
 | The following external procedure is called in this file.
 .globl _panic
@@ -247,6 +251,7 @@ _portw_in:
 	pop ax			| restore ax
 	pop bx			| restore bx
 	ret			| return to caller
+	
 
 |*===========================================================================*
 |*				lock					     *
@@ -368,6 +373,53 @@ _get_chrome:
 getchr1: xor ax,ax		| mono = 0
 	ret			| monochrome return
 
+|*===========================================================================*
+|*				dma_read				     *
+|*===========================================================================*
+_dma_read:
+	push	bp
+	mov	bp,sp
+	push	cx
+	push	dx
+	push	di
+	push	es
+	mov	cx,#256		| transfer 256 words
+	mov	dx,#0x1F0	| from/to port 1f0
+	cld
+	mov	es,4(bp)	| segment in es
+	mov	di,6(bp)	| offset in di
+	.byte	0xF3, 0x6D	| opcode for 'rep insw'
+	pop	es
+	pop	di
+	pop	dx
+	pop	dx
+	mov	sp,bp
+	pop	bp
+	ret
+
+|*===========================================================================*
+|*				dma_write				     *
+|*===========================================================================*
+_dma_write:
+	push	bp
+	mov	bp,sp
+	push	cx
+	push	dx
+	push	si
+	push	ds
+	mov	cx,#256		| transfer 256 words
+	mov	dx,#0x1F0	| from/to port 1f0
+	cld
+	mov	ds,4(bp)	| segment in ds
+	mov	si,6(bp)	| offset in si
+	.byte	0xF3, 0x6F	| opcode for 'rep outsw'
+	pop	ds
+	pop	si
+	pop	dx
+	pop	dx
+	mov	sp,bp
+	pop	bp
+	ret
 
 |*===========================================================================*
 |*				vid_copy				     *
@@ -428,7 +480,7 @@ vid.4:	pushf			| copying may now start; save flags
 	cmp si,#0		| si = 0 means blank the screen
 	je vid.7		| jump for blanking
 	lock			| this is a trick for the IBM PC simulator only
-	nop			| 'lock' indicates a video ram access
+	inc vidlock		| 'lock' indicates a video ram access
 	rep			| this is the copy loop
 	movw			| ditto
 
@@ -480,6 +532,136 @@ _get_byte:
 	pop bp			| restore bp
 	ret			| return to caller
 
+|===========================================================================
+|                		em_xfer
+|===========================================================================
+|
+|  This file contains one routine which transfers words between user memory
+|  and extended memory on an AT or clone.  A BIOS call (INT 15h, Func 87h)
+|  is used to accomplish the transfer.  The BIOS call is "faked" by pushing
+|  the processor flags on the stack and then doing a far call to the actual
+|  BIOS location.  An actual INT 15h would get a MINIX complaint from an
+|  unexpected trap.
+|
+|  NOTE:  WARNING:  CAUTION: ...
+|  Before using this routine, you must find your BIOS address for INT 15h.
+|  The debug command "d 0:54 57" will give you the segment and address of
+|  the BIOS call.  On my machine this generates:
+|      0000:0050      59 F8 00 F0                          Y...
+|  These values are then plugged into the two strange ".word xxxx" lines
+|  near the end of this routine.  They correspond to offset=0xf859 and
+|  seg=0xf000.  The offset is the first two bytes and the segment is the
+|  last two bytes (Note the byte swap).
+|
+|  This particular BIOS routine runs with interrupts off since the 80286
+|  must be placed in protected mode to access the memory above 1 Mbyte.
+|  So there should be no problems using the BIOS call.
+|
+	.text
+gdt:				| Begin global descriptor table
+					| Dummy descriptor
+	.word 0		| segment length (limit)
+	.word 0		| bits 15-0 of physical address
+	.byte 0		| bits 23-16 of physical address
+	.byte 0		| access rights byte
+	.word 0		| reserved
+					| descriptor for GDT itself
+	.word 0		| segment length (limit)
+	.word 0		| bits 15-0 of physical address
+	.byte 0		| bits 23-16 of physical address
+	.byte 0		| access rights byte
+	.word 0		| reserved
+src:					| source descriptor
+srcsz:	.word 0		| segment length (limit)
+srcl:	.word 0		| bits 15-0 of physical address
+srch:	.byte 0		| bits 23-16 of physical address
+	.byte 0x93	| access rights byte
+	.word 0		| reserved
+tgt:					| target descriptor
+tgtsz:	.word 0		| segment length (limit)
+tgtl:	.word 0		| bits 15-0 of physical address
+tgth:	.byte 0		| bits 23-16 of physical address
+	.byte 0x93	| access rights byte
+	.word 0		| reserved
+					| BIOS CS descriptor
+	.word 0		| segment length (limit)
+	.word 0		| bits 15-0 of physical address
+	.byte 0		| bits 23-16 of physical address
+	.byte 0		| access rights byte
+	.word 0		| reserved
+					| stack segment descriptor
+	.word 0		| segment length (limit)
+	.word 0		| bits 15-0 of physical address
+	.byte 0		| bits 23-16 of physical address
+	.byte 0		| access rights byte
+	.word 0		| reserved
+
+|
+|
+|  Execute a transfer between user memory and extended memory.
+|
+|  status = em_xfer(source, dest, count);
+|
+|    Where:
+|       status => return code (0 => OK)
+|       source => Physical source address (32-bit)
+|       dest   => Physical destination address (32-bit)
+|       count  => Number of words to transfer
+|
+|
+|
+_em_xfer:
+
+	push	bp		| Save registers
+	mov	bp,sp
+	push	si
+	push	es
+	push	cx
+|
+|  Pick up source and destination addresses and update descriptor tables
+|
+	mov ax,4(bp)
+	seg cs
+	mov srcl,ax
+	mov ax,6(bp)
+	seg cs
+	movb srch,al
+	mov ax,8(bp)
+	seg cs
+	mov tgtl,ax
+	mov ax,10(bp)
+	seg cs
+	movb tgth,al
+|
+|  Update descriptor table segment limits
+|
+	mov cx,12(bp)
+	mov ax,cx
+	add ax,ax
+	seg cs
+	mov tgtsz,ax
+	seg cs
+	mov srcsz,ax
+|
+|  Now do actual DOS call
+|
+	push cs
+	pop es
+	seg cs
+	mov si,#gdt
+	movb ah,#0x87
+	pushf
+	int 0x15		| Do a far call to BIOS routine
+|
+|  All done, return to caller.
+|
+
+	pop	cx		| restore registers
+	pop	es
+	pop	si
+	mov	sp,bp
+	pop	bp
+	ret
 
 
 
@@ -493,7 +675,17 @@ _reboot:
 	mov ax,#0x20		| re-enable interrupt controller
 	out 0x20
 	call resvec		| restore the vectors in low core
-	int 0x19		| reboot the PC
+	mov ax,#0x40
+	mov ds,ax
+	mov ax,#0x1234
+	mov 0x72,ax
+	mov ax,#0xFFFF
+	mov ds,ax
+	mov ax,3
+	push ax
+	mov ax,1
+	push ax
+	reti
 
 _wreboot:
 	cli			| disable interrupts
@@ -502,7 +694,17 @@ _wreboot:
 	call resvec		| restore the vectors in low core
 	xor ax,ax		| wait for character before continuing
 	int 0x16		| get char
-	int 0x19		| reboot the PC
+	mov ax,#0x40
+	mov ds,ax
+	mov ax,#0x1234
+	mov 0x72,ax
+	mov ax,#0xFFFF
+	mov ds,ax
+	mov ax,3
+	push ax
+	mov ax,1
+	push ax
+	reti
 
 | Restore the interrupt vectors in low core.
 resvec:	cld
@@ -522,6 +724,7 @@ _exit:	sti
 
 .data
 lockvar:	.word 0		| place to store flags for lock()/restore()
+vidlock:	.word 0		| dummy variable for use with lock prefix
 splimit:	.word 0		| stack limit for current task (kernel only)
 tmp:		.word 0		| count of bytes already copied
 stkoverrun:	.asciz "Kernel stack overrun, task = "

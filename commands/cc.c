@@ -1,8 +1,9 @@
-/*	$Header: cc.c,v 1.2 86/08/26 09:40:10 erikb Locked $
-	Driver for the CEMCOM compiler: works like /bin/cc and accepts the
-	options accepted by /bin/cc and /usr/em/bin/ack.
+/*
+	Driver for the CEMCOM compiler.
 	Derived from: "cem.c,v 1.5 86/01/20 11:10:29 erikb Exp"
+	Author: Erik Baalbergen
 
+	Log:
 	Date written: Dec 4, 1985
 	Adapted for PC/IX on Jan 20, 1986
 	Strongly reduced (May 14, 1986)
@@ -11,7 +12,7 @@
 	Pass hint for optimization to cg (Aug 15, 1986)
 	Throw away intermediate files on interrupts (Aug 15, 1986)
 	Print file name if there are more than one source files (Sep 22, 1986)
-	Author: Erik Baalbergen
+	Various minor corrections for MINIX (Mar 18, 1987)
 */
 	
 #include <errno.h>
@@ -27,7 +28,7 @@ struct arglist {
 	char *al_argv[MAXARGC];
 };
 
-!!!!_SEE_BELOW_!!!
+!!!!_SEE_BELOW_!!! 
 /* This is not an error.  It is a dirty trick to force the user to read this
  * comment.  The program cc calls the various passes of the compiler.  To call
  * them, it must know where they are.  On the 640K PC MINIX, cpp and cem are
@@ -39,7 +40,7 @@ struct arglist {
  * be defined.  For 512K machines, MEM512K should be defined.
  */
 
-/* #define MEM640K */
+/* #define MEM640K  */
 /* #define MEM512K */
 
 #ifdef MEM640K
@@ -64,9 +65,6 @@ char *SHELL  = "/bin/sh";
 char *LIBDIR = "/usr/lib";
 #endif
 
-/* object sizes */
-char *V_FLAG = "-Vs2.2w2.2i2.2l4.2f4.2d8.2p2.2";
-
 struct arglist LD_HEAD = {
 	1,
 	{
@@ -81,6 +79,7 @@ struct arglist LD_TAIL = {
 		"/usr/lib/end.s"
 	}
 };
+
 
 char *o_FILE = "a.out"; /* default name for executable file */
 
@@ -187,12 +186,6 @@ main(argc, argv)
 		case 'S':
 			S_flag = 1;
 			break;
-		case 'L':
-			if (strcmp(&str[1], "LIB") == 0) {
-				append(&OPT_FLAGS, "-L");
-				break;
-			}
-			/*FALLTHROUGH*/
 		case 'v':
 			v_flag++;
 #ifdef DEBUG
@@ -202,20 +195,27 @@ main(argc, argv)
 			break;
 		case 'T':
 			tmpdir = &str[2];
+			append(&ASLD_FLAGS, str);
 			/*FALLTHROUGH*/
 		case 'R':
 		case 'p':
 		case 'w':
 			append(&CEM_FLAGS, str);
 			break;
-
-		default:
+		case 'L':
+			if (strcmp(&str[1], "LIB") == 0) {
+				append(&OPT_FLAGS, "-L");
+				break;
+			}
+			/*FALLTHROUGH*/
+		default:	/* -i goes here! */
 			append(&ASLD_FLAGS, str);
 			break;
 		}
 	}
 	mktempname(tmpname);
 
+	append(&CEM_FLAGS, "-L"); /* disable profiling */
 	count = SRCFILES.al_argc;
 	argvec = &(SRCFILES.al_argv[0]);
 
@@ -251,7 +251,6 @@ main(argc, argv)
 				init(call1);
 				append(call1, CEM);
 				concat(call1, &DEBUG_FLAGS);
-				append(call1, V_FLAG);
 				concat(call1, &CEM_FLAGS);
 				append(call1, "-"); /* use stdin */
 				f = mkstr(kfile, tmpdir, tmpname, ".k", 0);
@@ -271,7 +270,6 @@ main(argc, argv)
 			init(call);
 			append(call, CEM);
 			concat(call, &DEBUG_FLAGS);
-			append(call, V_FLAG);
 			concat(call, &CEM_FLAGS);
 			append(call, file);
 			f = mkstr(kfile, tmpdir, tmpname, ".k", 0);
@@ -414,10 +412,13 @@ basename(str, dst)
 		if (*p1++ == '/')
 			p2 = p1;
 	p1--;
-	if (*--p1 == '.')
+	if (*--p1 == '.') {
 		*p1 = '\0';
-	while (*dst++ = *p2++);
-	*p1 = '.';
+		while (*dst++ = *p2++);
+		*p1 = '.';
+	}
+	else
+		while (*dst++ = *p2++);
 }
 
 int

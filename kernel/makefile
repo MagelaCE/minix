@@ -1,17 +1,21 @@
-# The kernel directory contains files xt_wini.c and at_wini.c.  Before running
-# make you must copy one of these to wini.c, depending on whether you have a
-# PC or an AT.  You must do this even if you do not have a hard disk..
+# The kernel dir contains wd_wini.c, xt_wini.c and at_wini.c.  Before running
+# make you must copy one of these to wini.c, depending on which controller you
+# have.  If you do not have a hard disk, you MUST choose one of them at random.
+# On a PC, cpp and cem are in /lib and will be removed to make space while
+# linking the kernel.  On an AT, they are in /usr/lib are are not removed.
+# This is because they have to be in /lib on a PC; the diskette is too small
+# for them to be in /usr/lib.
 CFLAGS= -Di8088 -w -F -T.
 h=../h
 l=/usr/lib
 
-obj = mpx88.s main.s proc.s system.s tty.s clock.s memory.s floppy.s wini.s  \
+obj = mpx88.s main.s tty.s floppy.s wini.s system.s proc.s clock.s memory.s  \
       printer.s table.s klib88.s dmp.s 
 
 kernel:	makefile $(obj) $l/libc.a
 	@echo "Start linking Kernel."
 	@asld -o kernel  $(obj) $l/libc.a $l/end.s
-	@echo "Kernel done."
+	@echo "Kernel done."
 
 clock.s:	const.h type.h $h/const.h $h/type.h
 clock.s:	$h/callnr.h

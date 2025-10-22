@@ -356,7 +356,14 @@ struct file *fp;
   }
 
 	/* Print file name. */
-	fprintf(stdout, "%s\n",fp->name);
+	m = 0;
+	p1 = fp->name;
+	while (*p1 != 0 && (m < DIRNAMELEN || *p1 == '/') ) {
+		fprintf(stdout, "%c", *p1);
+		m = (*p1 == '/' ? 0 : m + 1);
+		p1++;
+	}
+	fprintf(stdout, "\n");
 }
 
 

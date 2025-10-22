@@ -1,7 +1,7 @@
-l=../../lib
-CFLAGS=-O -I../../include
+CFLAGS=-F
+l=/usr/lib
 
-shobj = sh1.o sh2.o sh3.o sh4.o sh5.o
+shobj = sh1.s sh2.s sh3.s sh4.s sh5.s sh6.s
 sh:	$(shobj) sh.h
-	@ld -s -i -o ../bin/sh $l/crtso.o $(shobj) $l/libc.a $l/end.o
-	@chmem =8000 ../bin/sh
+	@asld -i -o sh -T. $l/crtso.s $(shobj) $l/libc.a $l/end.s
+	@chmem =8000 sh

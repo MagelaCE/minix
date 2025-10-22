@@ -530,7 +530,7 @@ SH()
 			if (open("/dev/tty", 0) < 0)
 				exit (126);
 		}
-  		execl("/bin/sh", "sh", "-i", 0);
+  		execl("/bin/sh", "sh", "-i", (char *) 0);
   		exit(127);			/* Exit with 127 */
   	default :				/* This is the parent */
   		signal(SIGINT, SIG_IGN);

@@ -9,25 +9,24 @@ here and there.
     book may actually appear at X+3, or X-5, etc. on the disk version.
 
  2. HARD DISK
-       MINIX supports the use of the standard IBM hard disk.  To use a
-    hard disk with MINIX, you need one or more MINIX partitions.  You may
+       MINIX supports the use of the standard IBM hard disks.  To find out
+    if your hard disk is IBM compatible, give the command:
+         dd if=/dev/hd0 of=/dev/null count=1000
+    if this runs to the end without errors, the driver embedded in your
+    MINIX binary is appropriate for your controller and drive.  If it gives
+    errors, try powering up the system again, and doing a file system check of 
+    any hard disk partition from the initial menu. This action sometimes helps 
+    (especially on 8 MHz ATs), because fsck uses the BIOS to read the disk,
+    thus forcing a controlling initialization.
+       If this fails too, you can rebuild the MINIX kernel trying xt_wini.c,
+    or at_wini.c as kernel/wini.c until you find one that works.
+    You MUST copy one of xt_wini.c or at_wini.c to wini.c. If
+    none of them works, then your disk controller is not IBM compatible.
+    You will have to study these drivers and then write your own.
+      To use a hard disk with MINIX, you need a MINIX partition.  You may
     also have MS-DOS, PC-IX, XENIX, or other partitions as well if you like.
     If you have a version of FDISK that is able to make several partitions,
-    do so, reserving one for MINIX.  If not, you can make several partitions
-    as follows:
-	1. Backup all the files on the entire hard disk to floppies.
-	2. Run FDISK to delete all partitions and make a partition for MINIX.
-	3. Run diskfix (see below) to mark the new partition as type MINIX.
-	4. Run FDISK to make a new MS-DOS partition (optional).
-	5. Restore the files on the MS-DOS partition.
-	6. Boot MINIX and make a MINIX file system on its partition (see below).
-    The basic problem with MS-DOS FDISK is that it can only make one MS-DOS
-    partition and nothing else.  It is not very flexible.  Therefore diskfix
-    is needed to mark the one partition as non-DOS, so that FDISK will be
-    willing to make another one.  Diskfix.asm is a MASM (assembly code) program
-    located in the MINIX tools source directory.  Copy it to an MS-DOS disk
-    using doswrite, then assemble it.  When it runs, it reads in the partition
-    table, changes all partitions to non-DOS type, and writes it back.
+    use it. If not, use the MINIX fdisk program (on /user in the PC diskettes).
        Once you have a partition available for MINIX (the type does not matter
     as MINIX does not check), make a file system by booting MINIX from floppy
     the usual way and run mkfs.  If, for example, you have chosen partition 2,
@@ -58,7 +57,7 @@ here and there.
     The root device remains on the RAM disk, and the boot process still
     goes via floppy (for compatibility and to prevent disaster in the event
     that something goes wrong with the hard disk file system).  Hard disk
-    file systems can be checked using fsck by typing 'x' or 'a' when the 
+    file systems can be checked using fsck by typing 'h' when the
     initial menu is display.
        The special file /dev/hd0 refers to the whole disk, without regard to
     partitions, whereas /dev/hd1 ... /dev/hd4 refer to partitions 1 to 4.  If
@@ -96,53 +95,53 @@ here and there.
     size is 360K.  For /dev/at0 it is 1.2M.
 
   4. USING MS-DOS AS A DEVELOPMENT SYSTEM
-       The conversion of MINIX to make it possible to use MS-DOS as the
-     development system was done by Paul Ogilvie.  It was done in order to
-     to provide some assistance to people who wish to modify MINIX but
-     are unable to use MINIX or UNIX for that purpose. MS-DOS definitely should
-     be regarded as the method of last resort, only used if there is no other
-     alternative.  The assembly code files and batch files provided have all
-     been tested with the Computer Innovations C86 compiler, release 2.4, and
-     specific versions of the linker etc.  The use of any other compiler or
-     configuration is virtually guaranteed not to work the first time because
-     every MS-DOS C compiler is different, their libraries are different, etc.
-     MS-DOS users must approach this project with the expectation that minor
-     problems will arise and small patches to the code may be needed to work
-     around bugs and deficiencies that abound with MS-DOS compilers.  When
-     problems appear with files that are different for MS-DOS and MINIX, 
-     check the MINIX version, since these have been tested much more 
-     thoroughly than the MS-DOS versions.
+      The conversion of MINIX to make it possible to use MS-DOS as the
+    development system was done by Paul Ogilvie.  It was done in order to
+    to provide some assistance to people who wish to modify MINIX but     
+    are unable to use MINIX or UNIX for that purpose. MS-DOS definitely should
+    be regarded as the method of last resort, only used if there is no other
+    alternative.  The assembly code files and batch files provided have all
+    been tested with the Computer Innovations C86 compiler, release 2.4, and
+    specific versions of the linker etc.  The use of any other compiler or
+    configuration is virtually guaranteed not to work the first time because
+    every MS-DOS C compiler is different, their libraries are different, etc.
+    MS-DOS users must approach this project with the expectation that minor
+    problems will arise and small patches to the code may be needed to work
+    around bugs and deficiencies that abound with MS-DOS compilers.  When
+    problems appear with files that are different for MS-DOS and MINIX, 
+    check the MINIX version, since these have been tested much more 
+    thoroughly than the MS-DOS versions.
 
   5. BUGS in MS-DOS
         Some machines and/or versions of MS-DOS have a bug when doing absolute 
-     diskio, as used by mkfs and build. This bug will manifest itself by 
-     creating an unbootable disk, saying  a file-system is bad, or sometimes 
-     the program will just hang.  The primary remedy if your machine suffers 
-     from this bug is to first format the disk. A permanent remedy is to 
-     change the module "diskio.asm" to use bios I/O calls instead of using the 
-     DOS interrupts 25 and 26 (see fsck1.asm). Disadvantage of the latter is 
-     that you cannot extend these programs anymore to work on a hard disk (e.g. 
-     making a MINIX filesystem on a hard disk).
-        Though the cause is not clear, it is assumed that these DOS system calls 
-     don't know if they should read/write an 8 sector per track diskette or a 9
-     sector per track diskette. Formatting the disk will make clear to DOS that 
-     they should do 9 sectors per track.  MINIX does not support 8 sectors per
-     track at all.
+    diskio, as used by mkfs and build. This bug will manifest itself by 
+    creating an unbootable disk, saying  a file-system is bad, or sometimes 
+    the program will just hang.  The primary remedy if your machine suffers 
+    from this bug is to first format the disk. A permanent remedy is to 
+    change the module "diskio.asm" to use bios I/O calls instead of using the 
+    DOS interrupts 25 and 26 (see fsck1.asm). Disadvantage of the latter is 
+    that you cannot extend these programs anymore to work on a hard disk (e.g. 
+    making a MINIX filesystem on a hard disk).
+       Though the cause is not clear, it is assumed that these DOS system calls 
+    don't know if they should read/write an 8 sector per track diskette or a 9
+    sector per track diskette. Formatting the disk will make clear to DOS that 
+    they should do 9 sectors per track.  MINIX does not support 8 sectors per
+    track at all.
 
   6. BATCH FILES in MS-DOS
         The batch jobs are all made for a system with a hard disk. 
-     Depending on your floppy configuration you can modify them to ask for the 
-     necessary diskettes.  When linking, the jobs expect a directory \lib\c86
-     where they can find the DOS-library for C86 (the C86s2s library for small 
-     model, DOS-2, software floating point).  In any event, all MS-DOS users
-     should carefully inspect all the batch files before using them.
-        In DOS version 2.x, the 'echo'-command behaves somewhat different
-     than in DOS version 3.x.  The difference is is how to echo a new line to 
-     the screen. With Dos-2 you can do this by appending three spaces to the 
-     command, e.g. 'echo   ' and with Dos-3 you can do this by the command
-     'echo/'. Unfortunately both things aren't documented and are not compatible 
-     and will just say "ECHO is on" (or off).  Appart from clobbering your 
-     screen nothing is wrong. The batch files on this disk are for DOS version 3.
+    Depending on your floppy configuration you can modify them to ask for the 
+    necessary diskettes.  When linking, the jobs expect a directory \lib\c86
+    where they can find the DOS-library for C86 (the C86s2s library for small 
+    model, DOS-2, software floating point).  In any event, all MS-DOS users
+    should carefully inspect all the batch files before using them.
+       In DOS version 2.x, the 'echo'-command behaves somewhat different
+    than in DOS version 3.x.  The difference is is how to echo a new line to 
+    the screen. With Dos-2 you can do this by appending three spaces to the 
+    command, e.g. 'echo   ' and with Dos-3 you can do this by the command
+    'echo/'. Unfortunately both things aren't documented and are not compatible 
+    and will just say "ECHO is on" (or off).  Appart from clobbering your 
+    screen nothing is wrong. The batch files on this disk are for DOS version 3.
 
  7. MS-DOS ASSEMBLER
        The Microsoft masm manual is not very clear about when you must use 
@@ -198,12 +197,12 @@ here and there.
 
 11. EDITING LARGE PROGRAMS WITH MINED
        Mined has a limit on the size of programs it can edit.  To edit
-    larger ones, they must be broken up with split, edited separately and
-    recombined later.  If a file is too large, mined will issue an error
-    message and exit.
+     larger ones, they must be broken up with split, edited separately and
+     recombined later.  If a file is too large, mined will issue an error
+     message and exit.
 
 12. MKNOD
-       MINIX differs from UNIX in that block special files (and even some
+        MINIX differs from UNIX in that block special files (and even some
     character special files, such as /dev/kmem) can have sizes.  A 360K floppy
     disk special file, such as /dev/fd0 can have size 360K.  Unfortunately, the
     mknod system call (and mknod program) have no way to express the size,
@@ -213,7 +212,7 @@ here and there.
     return end-of-file (e.g., hard disk, RAM disk), but others (e.g., floppy
     disk) return an I/O error code.  Thus if you make a new block special file
     for 2/0 and 2/1 (floppy disk) with mknod (i.e., no size) the command
-	cp /dev/fd0 /dev/fd1
+ 	cp /dev/fd0 /dev/fd1
     will terminate with an error on block 360 (but it will copy the disk
     perfectly).  The only way to make a special file with a size is by making 
     a file system with mkfs.
@@ -231,31 +230,59 @@ here and there.
 
 14. PRINTER
        In order to accommodate buffered and unbuffered printers, the printer
-   driver uses a combination of delay loops and interrupts.  The net result
-   is that the driver consumes a fair number of CPU cyles when running.  If you
-   expect to do a lot of printing, you might want to consider rewriting the
-   printer interrupt handler, pr_char, in assembly code.
+    driver uses a combination of delay loops and interrupts.  The net result
+    is that the driver consumes a fair number of CPU cyles when running.  If you
+    expect to do a lot of printing, you might want to consider rewriting the
+    printer interrupt handler, pr_char, in assembly code.
 
 
 15. DISK SPACE
        The /usr disk as distributed is entirely full.  If you have two floppy
-   disk drives, be sure to mount /user on drive 1 and move your working
-   directory there.  If you have only 1 floppy disk drive, remove some files
-   from /usr/bin to make more space.
+    disk drives, be sure to mount /user on drive 1 and move your working
+    directory there.  If you have only 1 floppy disk drive, remove some files
+    from /usr/bin to make more space.
 
 16. RUNNING /USER TESTS
        Before running the tests in /user/test, remove the files in 
-   /user/commands to create some free space on the disk.
+    /user/commands to create some free space on the disk.
 
 17. COMMAND LINE LENGTH
        The maximum initial stack size is 1K.  Calls to EXEC which require a
-   larger stack will fail.  Thus if you try to do ls -l * in a large directory,
-   the shell may expand the * so that the command line exceeds 1K and the 
-   EXEC will fail, resulting in the message "Cannot execute ls".
+    larger stack will fail.  Thus if you try to do ls -l * in a large directory,
+    the shell may expand the * so that the command line exceeds 1K and the 
+    EXEC will fail, resulting in the message "Cannot execute ls".
 
-18. 8086 TIMING PROBLEMS
-       There may be some weird (timing?) problems on PC clones using 8086 chips.
-   This seems strange, because on the IBM PC-AT everything works perfectly.  If
-   anyone can find the cause of the problems (or for that matter, any other
-   problems) let me know via Prentice-Hall or comp.os.minix (news) or
-   minix@cs.vu.nl (mail).
+18. ARCHIVES IN DISTRIBUTION
+      There wasn't enough space on some of the distribution diskettes, so it
+    it was necessary to combine several files in archives to save space.  These
+    archives end with suffix ".a" and should be unpacked into the individual
+    files before using them.  Look in the tools directory and its subdirectories.
+
+20. RECOMPILING FSCK
+      If for some reason you don't like the tools/fsck binary and want to
+    recompile it, make sure you have plenty of free space for the compiler's
+    temporary files.  On a floppy disk system, this may mean putting fsck on
+    an almost empty diskette before compiling it.  When the disk is full, the
+    quality of the compiler's error messages deteriorates rapidly.  If you
+    are compiling fsck and getting strange results, check for disk space.
+
+21. NEWS GROUP
+      If you have access to USENET, you may be interested in knowing that
+    there is a news group, comp.os.minix devoted to discussions of MINIX.
+    This is one of the largest news groups, with well over 10,000 readers.
+    If you have access to the Arpanet or Bitnet, the USENET news group is
+    gatewayed there.  Contact info-minix-request@udel.edu to join.
+
+22. SYSTEM CRASHES
+      The IBM PC does not have any hardware for checking for stack overflow.
+    The user must allocate the amount of stack for each program with chmem
+    or use the compiler default (64K - program - data size).  Some programs
+    in the distribution have been set to a smaller value, and may, in rare
+    instances with certain arguments, hang.  If the system ever gets into a
+    situation where it echoes keystrokes, but ignores DEL and CTRL-\ and
+    appears otherwise to be hung up, hit F1 to see what is going on.  If
+    some process is running and there is no way to interrupt it, hit F9.
+    This key is equivalent to the super-user typing:  kill -1 9.  The result
+    of F9 is that every process in the system is killed, including update
+    and all the shells.  Although drastic, F9 will dehang the system
+    instantly.  Log in again and then type /etc/update & to restart update.

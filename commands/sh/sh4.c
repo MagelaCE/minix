@@ -1,3 +1,4 @@
+#define Extern extern
 #include "signal.h"
 #include "errno.h"
 #include "setjmp.h"
@@ -346,6 +347,10 @@ int quoted;
 	flag['v'] = 0;
 	flag['n'] = 0;
 	cp = strsave(e.iop->arg.aword, 0);
+	
+	/* jrp debug */
+	scraphere();
+
 	freearea(areanum = 1);	/* free old space */
 	e.oenv = NULL;
 	e.iop = (e.iobase = iostack) - 1;
@@ -451,7 +456,7 @@ register char *pp;
 	for (np = we; np != pp; pp--)
 		if (pp[-1] == '/')
 			break;
-	for (dp = cp = space(pp-np+3); np < pp;)
+	for (dp = cp = space((int)(pp-np)+3); np < pp;)
 		*cp++ = *np++;
 	*cp++ = '.';
 	*cp = '\0';
@@ -509,7 +514,7 @@ char *middle, *end;
 	char *p;
 	register char *op, *xp;
 
-	p = op = space(end1-start1+strlen(middle)+strlen(end)+2);
+	p = op = space((int)(end1-start1)+strlen(middle)+strlen(end)+2);
 	for (xp = start1; xp != end1;)
 		*op++ = *xp++;
 	for (xp = middle; (*op++ = *xp++) != '\0';)
@@ -628,7 +633,7 @@ char *base, *lim;
 	v2 = globv;
 
 top:
-	if ((n=lim-base) <= v2)
+	if ((n=(int)(lim-base)) <= v2)
 		return;
 	n = v2 * (n / (2*v2));
 	hptr = lptr = base+n;

@@ -24,7 +24,10 @@
 
 #define M64K     0xFFFF0000L	/* 16 bit mask for DMA check */
 #define INFO               2	/* where in data_org is info from build */
-#define MAX_RAM          512	/* maxium RAM disk size in blocks */
+#define MAX_RAM        16384	/* maximum RAM disk size in blocks */
+#define RAM_IMAGE (dev_nr)0x303	/* major-minor dev where root image is kept */
+#define EM_ORIGIN   0x100000	/* origin of extended memory RAM disk on AT */
+#define MAX_CRD           255	/* if root fs > MAX_CRD, use extended mem */
 
 /*===========================================================================*
  *				main					     *
@@ -126,7 +129,7 @@ PRIVATE fs_init()
   extern struct inode *get_inode();
 
   buf_pool();			/* initialize buffer pool */
-  load_ram();			/* Load RAM disk from root diskette. */
+  mk_ramdisk(200);
   load_super();			/* Load super block for root device */
 
   /* Initialize the 'fproc' fields for process 0 and process 2. */
@@ -222,7 +225,9 @@ PRIVATE load_ram()
   long k_loaded;
   struct super_block *sp;
   block_nr i;
+  dev_nr root_device;
   phys_clicks ram_clicks, init_org, init_text_clicks, init_data_clicks;
+  long base;
   extern phys_clicks data_org[INFO + 2];
   extern struct buf *get_block();
 
@@ -230,17 +235,40 @@ PRIVATE load_ram()
   init_org = data_org[INFO];
   init_text_clicks = data_org[INFO + 1];
   init_data_clicks = data_org[INFO + 2];
+  base = (long) init_org + (long) init_text_clicks + (long) init_data_clicks;
+  base = base << CLICK_SHIFT;
 
-  /* Get size of RAM disk by reading root file system's super block */
-  bp = get_block(BOOT_DEV, SUPER_BLOCK, NORMAL);  /* get RAM super block */
+  /* Get size of RAM disk by reading root file system's super block.
+   * First read block 0 from the floppy.  If this is a valid file system, use
+   * it as the root image, otherwise try the hard disk (RAM_IMAGE).  
+   */
+  root_device = BOOT_DEV;	/* try floppy disk first */
+  bp = get_block(root_device, SUPER_BLOCK, NORMAL);  /* get RAM super block */
   copy(super_block, bp->b_data, sizeof(struct super_block));
   sp = &super_block[0];
+  if (sp->s_magic != SUPER_MAGIC) {
+	root_device = RAM_IMAGE;
+	bp = get_block(root_device, SUPER_BLOCK, NORMAL);  /* get RAM super block */
+	copy(super_block, bp->b_data, sizeof(struct super_block));
+	sp = &super_block[0];
+  }
   if (sp->s_magic != SUPER_MAGIC)
-	panic("Diskette in drive 0 is not root file system", NO_NUM);
+	panic("Invalid root file system", NO_NUM);
   count = sp->s_nzones << sp->s_log_zone_size;	/* # blocks on root dev */
   if (count > MAX_RAM) panic("RAM disk is too big. # blocks = ", count);
   ram_clicks = count * (BLOCK_SIZE/CLICK_SIZE);
   put_block(bp, FULL_DATA_BLOCK);
+
+  /* There are two possibilities now (by convention):  
+   *    count < MAX_CRD  ==> RAM disk is in core
+   *    count >=MAX_CRD  ==> RAM disk is in extended memory (AT only)
+   * In the latter case, tell MM that RAM disk size is 0 and tell the ram disk
+   * driver than the device begins at 1MB.
+   */
+  if (count > MAX_CRD) {
+	ram_clicks = 0;		/* MM does not have to allocate any core */
+	base = EM_ORIGIN;	/* tell RAM disk driver RAM disk origin */
+  }
 
   /* Tell MM the origin and size of INIT, and the amount of memory used for the
    * system plus RAM disk combined, so it can remove all of it from the map.
@@ -255,25 +283,28 @@ PRIVATE load_ram()
   /* Tell RAM driver where RAM disk is and how big it is. */
   m1.m_type = DISK_IOCTL;
   m1.DEVICE = RAM_DEV;
-  m1.POSITION = (long) init_org + (long) init_text_clicks + init_data_clicks;
-  m1.POSITION = m1.POSITION << CLICK_SHIFT;
+  m1.POSITION = base;
   m1.COUNT = count;
   if (sendrec(MEM, &m1) != OK) panic("Can't report size to MEM", NO_NUM);
 
   /* Copy the blocks one at a time from the root diskette to the RAM */
-  printf("Loading RAM disk from root diskette.      Loaded:   0K ");
+  if (ram_clicks == 0) 	
+	printf("RAM disk of %d blocks is in extended memory\n\n", count);
+  printf("Loading RAM disk.                          Loaded:   0K ");
   for (i = 0; i < count; i++) {
-	bp = get_block(BOOT_DEV, (block_nr) i, NORMAL);
+	bp = get_block(root_device, (block_nr) i, NORMAL);
 	bp1 = get_block(ROOT_DEV, i, NO_READ);
 	copy(bp1->b_data, bp->b_data, BLOCK_SIZE);
 	bp1->b_dirt = DIRTY;
 	put_block(bp, I_MAP_BLOCK);
 	put_block(bp1, I_MAP_BLOCK);
 	k_loaded = ( (long) i * BLOCK_SIZE)/1024L;	/* K loaded so far */
-	if (k_loaded % 5 == 0) printf("\b\b\b\b\b%3DK %c", k_loaded, 0);
+	if (k_loaded % 5 == 0) printf("\b\b\b\b\b\b%4DK %c", k_loaded, 0);
   }
-
-  printf("\rRAM disk loaded.  Please remove root diskette.           \n\n");
+  if (root_device == BOOT_DEV)
+	printf("\rRAM disk loaded.    Please remove root diskette.           \n\n");
+  else
+	printf("\rRAM disk loaded.                                           \n\n");
 }
 
 
@@ -308,4 +339,49 @@ PRIVATE load_super()
   sp->s_rd_only = 0;
   if (load_bit_maps(ROOT_DEV) != OK)
 	panic("init: can't load root bit maps", NO_NUM);
+}
+
+/*======================================================================*
+ *                            mk_ramdisk                                *
+ *======================================================================*/
+PRIVATE mk_ramdisk(size)
+int size;
+{
+/* This function sets up the RAM-disk device to have the specified size.
+ * Note that no data is actually put on the RAM-disk -- not even
+ * filesystem information.  Therefore, if it is desired to use the RAM
+ * disk as a filesystem, one must do a mkfs first.  /etc/rc would be an
+ * ideal place to do this.
+ */
+
+  phys_clicks ram_clicks, init_org, init_text_clicks, init_data_clicks;
+  extern phys_clicks data_org[INFO + 2];
+
+  /* Get size of iINIT by reading block on diskette where 'build' put it */
+  init_org = data_org[INFO];
+  init_text_clicks = data_org[INFO + 1];
+  init_data_clicks = data_org[INFO + 2];
+
+  if (size > MAX_RAM) panic("RAM disk is too big. # blocks = ",size);
+  ram_clicks = size * (BLOCK_SIZE / CLICK_SIZE);
+
+  /* Tell MM the origin and size of INIT, and the amount of memory used for the
+   * system plus RAM disk combined, so it can remove all of it from the map.
+   */
+  m1.m_type = BRK2;
+  m1.m1_i1 = init_text_clicks;
+  m1.m1_i2 = init_data_clicks;
+  m1.m1_i3 = init_org + init_text_clicks + init_data_clicks + ram_clicks;
+  m1.m1_p1 = (char *)init_org;
+  if (sendrec(MM_PROC_NR, &m1) != OK) panic("FS Can't report to MM", NO_NUM);
+
+  /* Tell RAM driver where RAM disk is and how big it is */
+  m1.m_type = DISK_IOCTL;
+  m1.DEVICE = RAM_DEV;
+  m1.POSITION = (long) init_org + (long) init_text_clicks + init_data_clicks;
+  m1.POSITION = m1.POSITION << CLICK_SHIFT;
+  m1.COUNT = size;
+  if (sendrec(MEM, &m1) != OK) panic("Can't report size to MEM", NO_NUM);
+
+  printf("RAM disk set up.\n");
 }

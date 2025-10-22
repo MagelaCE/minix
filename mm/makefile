@@ -8,7 +8,7 @@ obj =	main.s forkexit.s break.s exec.s signal.s getset.s  \
 mm:	makefile    $l/head.s $(obj) $l/libc.a $l/end.s
 	@echo "Start linking MM."
 	@asld -o mm $l/head.s $(obj) $l/libc.a $l/end.s
-	@echo "MM done."
+	@echo "MM done."
 
 
 alloc.s:	const.h $h/const.h $h/type.h

@@ -59,8 +59,8 @@ start:
         mov     ds,dx           | set ds to cs
         xor     ax,ax
         mov     es,ax           | set es to 0
-        mov     ss,ax           | set ss to 0
-        mov     sp,#1024        | initialize sp (top of vector table)
+        mov     ss,dx           | set ss to cs i.e., stack in high core
+        mov     sp,#1536        | initialize sp to high core
 
 | initialize disk parameters
 	mov	ax,#atpar	| tenatively assume 1.2M diskette
@@ -219,7 +219,7 @@ pcpar:	.byte	0xDF, 0x02, 25, 2, 9, 0x2A, 0xFF, 0x50, 0xF6, 1, 3   | for PC
 atpar:	.byte	0xDF, 0x02, 25, 2,15, 0x1B, 0xFF, 0x54, 0xF6, 1, 8   | for AT
 
 fderr:	.asciz	"Read error.  Automatic reboot.\r\n"
-greet:	.asciz "\rBooting MINIX 1.1\r\n"
+greet:	.asciz "\rBooting MINIX 1.2.  Copyright 1987 Prentice-Hall, Inc.\r\n"
 
 
 
