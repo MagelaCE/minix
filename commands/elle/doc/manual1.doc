@@ -1,0 +1,1845 @@
+
+
+
+
+
+
+
+
+
+
+                    AN INTRODUCTION TO ELLE
+
+
+
+                    By:  Hal Huntley, Research Associate
+                         Ken Harrenstien, Systems Programmer
+
+                    Telecommunications Sciences Center
+                    Computer Science and Technology Division
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                            I.  INTRODUCTION
+
+
+     WELCOME to the world of ELLE!
+
+
+     ELLE is the name of the text editor program.  It stands for "ELLE
+Looks Like EMACS".  EMACS is a very advanced text editor developed at
+Massachusetts Institute of Technology, which has spread to many places
+using many different computer systems.  ELLE is not as powerful or as
+friendly as the real EMACS, but we hope you will like it.
+
+
+     ELLE is great for writing papers, reports, tables, and messages
+that need to be perfect.  It is capable of inserting, deleting, and mov-
+ing words or text anywhere you want.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 - 1 -
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                            II.  FIRST STEPS
+
+
+     Here we explain a few things to help you understand ELLE, and show
+you how easy it is to use.
+
+
+
+A.  _M_E_A_N_I_N_G__O_F__T_H_E__W_O_R_D_S__"_T_E_X_T_"__A_N_D__"_F_I_L_E_"
+
+
+     ELLE is a "text editor".  It allows you to "edit" (that is, change)
+stuff that we call TEXT.  Text is made of CHARACTERS such as the letters
+A to Z, the digits 0 to 9, and punctuation marks like :;"#().  Even
+things like space and carriage return are characters.  A book is made of
+text printed on paper, messages are made of text stored in the computer,
+and this whole paragraph is a bunch of text.  Text is anything you see
+printed in a book, except pictures.
+
+
+     A computer "book" is called a FILE.  The computer is like a
+library; it has many files, or "books", that you can read.  Every book
+has a title, and every FILE has a FILENAME.  If you forget the name of a
+file (or book), you will have a hard time asking the computer (or
+librarian) to find it for you!
+
+
+     Remember that a computer book is just a file of text, and ELLE is a
+text editor.  This means that you can write your own "books" with ELLE!
+It does not matter how big or how small they are; they can be one word
+long, or they can have thousands and thousands of characters.  Because
+you are the "author", you can name them anything you want.
+
+
+     From now on, we will mostly use the words "file" and "filename".
+But if you have trouble understanding those words, just remember that
+the computer is a "library", a file is a "book", a filename is the
+"title", and text (or characters) is "words" (or "letters").
+
+
+
+B.  _T_H_E__C_O_M_M_A_N_D_S
+
+
+     ELLE makes it very easy to write things.  Normally, anything that
+you type to ELLE becomes part of what you are writing.  But how do you
+tell ELLE to do something different, like correct a mistake?  You have
+to type a COMMAND.  Commands are special characters that you almost
+never want to appear in your writing, and we use these characters for
+telling ELLE to do special things.
+
+                                 - 2 -
+
+
+
+
+
+
+
+
+
+
+     The "commands" in ELLE are given with the CONTROL (CTRL) or ESCAPE
+(ESC) keys.  All CONTROL key commands require that you hold down the
+CTRL key while you type a letter.  This is just like using the SHIFT
+key.  For example, CTRL-B means to hold down the CTRL key while you hit
+the "B" key on the keyboard.  All ESCAPE key commands require that you
+hit the ESC key BEFORE you hit some other letter.  For example, ESC D
+means to first hit the ESC key and then type "D".  The command letters
+are shown in this manual as capital letters, but you do not have to
+shift and make the letter a capital; just type the letter normally,
+without using the SHIFT key.
+
+
+
+C.  _T_H_E__"_C_U_R_S_O_R_"
+
+
+     The CURSOR is the little "underline" on your screen that blinks and
+moves around.  (Some terminals may have a little "block" instead of an
+underline -- it is the same thing.)  It is important to remember that
+you are always working where the cursor is located, and many of the com-
+mands relate to the position of the cursor.  For example, when you are
+writing something, your typing will always be put on top of the cursor.
+
+
+
+
+
+D.  _M_A_K_I_N_G__Y_O_U_R__F_I_R_S_T__F_I_L_E
+
+
+     Now you are ready to start using ELLE!  Let us make one file with
+ELLE and you will see some of the things that can be done.
+
+
+--  Log on.
+--  Type "elle first" followed by hitting the RETURN key.
+
+
+
+     "elle" is the command to start ELLE; "first" is the name of the
+file that we want to write.  We could call it something else, but
+because this is our first file, "first" is a nice name.
+
+
+     You will see your screen go blank, and the following words appear
+at the bottom of your screen:
+
+        ELLE 2.6e (Fundamental) first: first
+
+
+-- Now you may begin typing some text.  Type "Hello...  this is a test
+sentence," or anything you like.
+
+
+
+                                 - 3 -
+
+
+
+
+
+
+
+
+
+
+     As you start typing some text, you will see the bottom of the
+screen change to:
+
+        ELLE 2.6e (Fundamental) first: first *
+
+
+
+     When you get to the end of a line, just type hit the RETURN key and
+continue typing whatever text you want on the next line.
+
+
+     o If you make a mistake while typing, push the "DELETE" key, and
+       the letter to the left of the cursor will disappear.
+
+     o Hitting CTRL-D will delete the character the cursor is under.
+
+     o If you wish to move backward, type CTRL-B until the cursor is
+       where you want it.
+
+     o If you wish to go forward, type CTRL-F until the cursor is where
+       you want it.
+
+
+
+     o (Deleting words or sentences is explained in Chapter III.)
+
+
+
+-- After you have finished typing text and you are ready to save the file,
+type: CTRL-X CTRL-S.  (Remember, hold down the CTRL key while you type "X".
+Then keep holding it down while you type "S".)
+
+You will see at the bottom of your screen:
+
+        ELLE 2.6e (Fundamental) first: first *
+        Writing...Written
+
+     What you wrote on the screen has now been stored in the computer
+"library".  You have just made your first file, and it has the filename
+"first".  It will stay there as long as you want, even after you log out
+or hang up.
+
+-- To get out of ELLE, type CTRL-X CTRL-Z.  You will see at the
+bottom of your screen:
+
+        ELLE 2.6e (Fundamental) first: first
+        Quit?
+
+--  Type "y" (for "yes") and RETURN.  (If you change your mind
+and want to continue editing, you can type "n" for "no")
+
+
+
+
+
+                                 - 4 -
+
+
+
+
+
+
+
+
+
+
+     You are now out of ELLE and can use your familiar again.  The next
+time you give the command "elle first", you will see everything in
+"first" that you saved from the last time.  You can change and save
+things in "first" as many times as you like!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 - 5 -
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          III.  BASIC EDITING
+
+
+
+A.  _G_E_T_T_I_N_G__I_N_T_O__E_L_L_E
+
+
+     To start ELLE give the command:
+
+        elle filename
+
+"Filename" can be the name of an old file that you already have, like
+"first", or a name for a new file you want to create.  A new filename
+should be a short word; do not use more than 13 letters, and do not use
+punctuation marks.
+
+
+     If it is a new file name, the screen will go blank and you will see
+the name of the file at the bottom of the screen.  You can now start
+typing text.
+
+
+     If it is an old file name, the screen will then be filled with the
+text of the old file, and the name of the file will appear at the bottom
+of the screen.  You can now start inserting and editing the text.
+
+
+
+B.  _G_E_T_T_I_N_G__O_U_T__O_F__E_L_L_E
+
+
+     When you want to finish an editing session, there are two things
+you will usually want to do:
+
+(1) Save your work by typing:
+
+        CTRL-X CTRL-S
+
+This will SAVE the file on the computer.  NOTE: You MUST do this if you want
+the computer to remember what you changed.  If you do not do this,
+the new "book" you have written will not be put away in the "library".
+
+(2) Exit by typing:
+
+        CTRL-X CTRL-Z
+
+This tells ELLE that you wish to quit.  The computer will ask "Quit?" to
+make sure you mean it.  You type "y" or "yes" (followed by RETURN) if
+you really want to quit.  If you type anything else, you will be put
+back into the text to continue editing.
+
+                                 - 6 -
+
+
+
+
+
+
+
+
+
+
+     Even if you forget to SAVE the file, you will get:
+
+        Buffer filename contains changes - write out?
+
+ELLE wants to be sure that you did not forget.  If you want to save your
+changes, answer "y" for "yes". Answering yes means to have the file
+written so that it is kept as you have changed it.  If you do not want
+the changes, answer "n" for "no".  Answering no means to keep the file
+as it was before you started ELLE.
+
+
+
+C.  _B_A_S_I_C__E_D_I_T_I_N_G__C_O_M_M_A_N_D_S
+
+
+     The following is a summary of the basic commands for ELLE.  Many of
+the commands are made so that you can remember what the command does by
+the first letter of the word.   For example, CTRL-K means to (K)ill
+everything to the right of the cursor on that line.
+
+
+
+     1.  _I_N_S_E_R_T_I_N_G
+
+
+     All normal characters you type will be "inserted" where the cursor
+is.  If there is already a character where the cursor is, that character
+(and everything else on the line) will be moved over to make room for
+the new character.
+
+
+     When your words get near the right edge of the screen, you should
+hit the RETURN key and start a new line.  If the line becomes longer
+than the video display allows, a "!" mark shows there is more on one
+line than will print on an 8 1/2 inch sheet of paper.  The extra text
+that you would normally not see on the 8 1/2 inch sheet will be contin-
+ued on the next line; that is, ELLE will show you what has "gone off the
+edge", but you must remember that the words will go off the paper if you
+try to print them on an 8 1/2 inch sheet of paper.  You may go to some
+word before the "!" mark and hit the RETURN key to get rid of the "!"
+mark.  (If you have a very long line with "!" marks on several consecu-
+tive lines, you may have to do this procedure several times.)
+
+See Chapter V on "filling text" for a way to remove the "!" mark.
+
+
+
+
+
+
+
+
+
+
+
+                                 - 7 -
+
+
+
+
+
+
+
+
+
+
+     2.  _M_O_V_I_N_G__T_H_E__C_U_R_S_O_R
+
+    CTRL-F    FORWARD one character
+    CTRL-B    BACKWARD one character
+
+    ESC F     FORWARD one word
+    ESC B     BACKWARD one word
+
+    CTRL-E    END of current line
+    CTRL-A    Beginning of current line (Well, "A" begins the alphabet)
+
+    CTRL-N    NEXT line (goes forward to next line)
+    CTRL-P    PREVIOUS line (goes backward to previous line)
+
+    CTRL-V    go forward to beginning of next screenful
+    ESC V     go backward to beginning of previous screenful
+
+    ESC <     go to beginning of whole file
+    ESC >     go to end of whole file
+
+    ESC [     forward a paragraph
+    ESC ]     backward a paragraph
+
+
+
+     Moving the cursor will never delete or insert any characters.
+
+
+
+     3.  _D_E_L_E_T_I_N_G
+
+    CTRL-D      DELETES the one character the cursor is under
+    DELETE      DELETES the one character to the left of cursor
+
+    ESC D       Kills forward one word from the cursor
+    ESC DELETE  Kills backward one word from the cursor
+    CTRL-K      KILLS rest of the line (to the right of the cursor)
+                If there is nothing there, the following lines move up.
+
+
+
+
+     4.  _C_H_A_N_G_I_N_G__Y_O_U_R__M_I_N_D
+
+
+     If you make a mistake and delete something by accident, you may get
+back the most recent deletion(s) by using:
+
+        CTRL-Y
+
+This means YANK back (bring back) what was most recently deleted. It
+will be inserted at the cursor.  Note:  Single character deletes (CTRL-D
+and DELETE) are not saved.  Only deletes of words or lines are saved.
+
+
+                                 - 8 -
+
+
+
+
+
+
+
+
+
+
+     5.  _I_F__T_H_E__S_C_R_E_E_N__G_E_T_S__M_E_S_S_E_D__U_P
+
+
+     If you get noise on the phone line or if someone links to you while
+you are in ELLE, you will need to clear the screen of the new, unwanted
+characters.  To make the screen show what you are really editing, type:
+
+        CTRL-L
+
+ELLE will clear the screen and recreate the picture.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 - 9 -
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                         IV.  ADVANCED EDITING
+
+
+     In this section we will be talking about some of the more sophisti-
+cated uses of ELLE.
+
+
+
+A.  _C_A_S_E__C_H_A_N_G_I_N_G
+
+
+     Here are some handy little commands to make words uppercase and
+lowercase, if they are not the way you want them.
+
+ESC L   Lowercase word.  The first word to the right is changed to
+        lower case.  If the cursor is in the middle of a word,
+        only the part to the right will be changed.
+
+ESC U   Uppercase word.  Just like ESC L, except it changes letters
+        of the word to upper case.
+
+ESC C   Capitalize word.  Just like ESC L, except the first letter
+        that is changed will become upper case.  The others will become
+        lower case.
+
+
+
+
+B.  _C_O_M_M_A_N_D_S__D_O_N_E__A__S_P_E_C_I_F_I_C__N_U_M_B_E_R__O_F__T_I_M_E_S
+
+
+     You may give a specific number of times you wish a specific command
+to be done.  For instance, you may go forward six words or backwards
+nine lines.  To define how many times you wish the next command to be
+done give the command:
+
+
+
+        ESC number
+
+     In place of the word "number" you type a number that you wish.  You
+then give the command that you want.
+
+
+
+
+
+
+
+
+
+                                - 10 -
+
+
+
+
+
+
+
+
+
+
+
+Examples:
+
+To move ahead three lines --
+                           ESC 3 CTRL-N
+
+To delete the next ten characters --
+                           ESC 10 CTRL-D
+
+To move ahead two screens --
+                           ESC 2 CTRL-V
+
+
+
+
+C.  _F_O_U_R__W_O_R_D_S_,__L_I_N_E_S_,__C_H_A_R_A_C_T_E_R_S__E_T_C_.
+
+
+     There is a special command that will let you do the commands we
+have learned so far, but in multiples of four.  This is:
+
+        CTRL-U
+
+
+
+     You type this before the command that you want to do four times.
+For example:
+
+
+Delete the next four letters --
+                           CTRL-U CTRL-D
+
+Move forward four lines --
+                           CTRL-U CTRL-N
+
+Move four words ahead --
+                           CTRL-U ESC F
+
+
+
+     If you do CTRL-U CTRL-U , then a command, the command will happen
+16 TIMES !!   So be careful of the number of CTRL-U's that you do.
+
+
+     Once you get used to using ELLE, this is faster for moving around
+generally than trying to set a specific number of times for a command.
+
+
+
+D.  _T_R_A_N_S_P_O_S_I_N_G__C_H_A_R_A_C_T_E_R_S__A_N_D__W_O_R_D_S
+
+
+
+
+
+                                - 11 -
+
+
+
+
+
+
+
+
+
+
+     Transpose means to switch or exchange.  If you transpose the
+letters "pn" you get the letters "np".  Many times we type fast and
+misspell a word by transposing letters.  You can switch the letters by
+using:
+
+        CTRL-T
+
+To do this, just put the cursor under the second letter that is placed
+wrong, and hit CTRL-T.
+
+
+     To transpose words use put the cursor on the second word of the two
+words that you want transposed and use:
+
+        ESC T
+
+
+
+
+E.  _F_I_L_L_I_N_G__T_E_X_T
+
+[ When you look at this section
+you see that the
+words
+do not fill in
+on the screen.  If you edit
+a lot, you may
+get paragraphs that look a little bit "rough".]
+
+
+
+     To fill in the paragraph use the command:
+
+        ESC Q
+
+
+
+     You may put the cursor anywhere in the paragraph and the whole
+paragraph will be adjusted.  This is how the paragraph looks after the
+ESC Q is done:
+
+[ When you look at this section you see that the words do not fill in
+on the screen.  If you edit a lot, you may get paragraphs that look a
+little bit "rough".]
+
+
+
+     The paragraph is filled in to look like a normal paragraph. It is
+important to remember that a paragraph starts from an indented line and
+ends just before a new line that also has indentation.
+
+
+
+
+
+                                - 12 -
+
+
+
+
+
+
+
+
+
+
+
+  In these two paragraphs,
+two of the sentences are indented.
+The indentation
+shows that a new paragraph begins.
+  If the cursor was put anywhere in one of the four
+lines above, only the two sentences before this one would
+be filled.  That is because the sentence beginning with
+"If the cursor..." is indented, and is the beginning of a
+new paragraph.
+
+
+
+     This command is very good when you see the "!" mark showing that
+there are too many characters to print on an 8 1/2 inch piece of paper.
+Just put the cursor at the beginning of the sentence where the "!" mark
+appears, and the line (and the whole paragraph it is in) will be filled
+so that the "!" will disappear.
+
+
+     Example:
+
+                         -----------------------
+                        |  The text in this scr!|
+                        |een will overflow.  Th!|
+                        |e "!" mark shows that !|
+                        |the lines need to be f!|
+                        |illed.                 |
+                        |                       |
+                         -----------------------
+
+The above screen shows that the lines must be fixed so that you can fit
+the whole text on an 8 /12 inch page.  Putting the cursor somewhere near
+the beginning of the sentence and hitting ESC Q will remove all the "!"
+marks and put in carriage returns where necessary.  Below is how the
+text might look if the cursor was put anywhere in the paragraph above
+and then hitting ESC Q.
+
+                         -----------------------
+                        |  The text in this     |
+                        |screen will overflow.  |
+                        |The "!" mark shows     |
+                        |that the lines need    |
+                        |to be filled.          |
+                        |                       |
+                         -----------------------
+
+
+
+
+F.  _S_E_T_T_I_N_G__L_I_N_E__L_E_N_G_T_H
+
+
+
+
+                                - 13 -
+
+
+
+
+
+
+
+
+
+
+     If you use the ESC Q command to fill without using this command,
+the text will be justified to 71 characters.
+
+
+     To set a special line length you should type:
+
+        ESC number
+
+where "number" is where you type the number of characters that you want
+to have on one line.  Immediately type:
+
+        CTRL-X F
+
+You will see at the bottom of your screen:
+
+        Fill column =
+
+followed by the number that you gave as the line length with the "ESC
+number" command.
+
+
+     This same procedure may be done a bit differently.  You may put the
+cursor in any column that you wish on the screen, and giving the "CTRL-X
+F" command will set the line length to width that the cursor is at.
+This does not fill the paragraph; it only sets the line length for when
+you give the command ESC Q.  To adjust your paragraphs to the length you
+set, you must use the ESC Q.
+
+
+
+G.  _S_E_A_R_C_H_I_N_G
+
+
+     Sometimes you know what you are looking for in a file, but it takes
+a long time to move there with CTRL-N or CTRL-V.  There is a much faster
+way to do this, which is good for other things too.  When you type the
+SEARCH command CTRL-S, you will see at the bottom of the screen:
+
+        Search:
+
+ELLE is asking you for a STRING to search for.  A string is just a small
+piece of text.  The letters "refab" are a string, for example.  Just
+type in some letters, and end the string with a RETURN.  ELLE will then
+look through the text to find the string and go to the first occurence
+of that string.  If you were looking for the word "Deafnet", you would
+hit CTRL-S and then type in those letters.  ELLE would go to the first
+place where the word Deafnet appeared.
+
+
+     It helps to not search for a string that is too short.  For exam-
+ple, you can ask ELLE to search for the string "he".  ELLE will start
+from where the cursor is and stop as soon as it finds anything with
+those letters in it; the words "here", "there", "she", and "father" all
+have the string "he" in them, and the cursor will stop at any one of
+
+                                - 14 -
+
+
+
+
+
+
+
+
+
+
+those places if the word "he" is searched for.  If ELLE cannot find any-
+thing that matches what you typed, you will see at the bottom:
+
+        Search failed
+
+You have to be sure that you type the string in the right case.  This
+means that you must be sure that you have your capital letters typed
+exactly as in the word you are searching for.  "He" will not match the
+"he" in "There", but it will match the "He" in "Here".
+
+
+     If you want to search again for other occurences of the same
+string, just type CTRL-S again and then a RETURN.  ELLE will understand
+that you want to look for the same string as last time.  If you want to
+search backwards instead, use the command CTRL-R for "Reverse search".
+It works exactly like CTRL-S except for the direction that it searches
+in.
+
+
+
+H.  _U_S_E__T_H_E__"_M_A_R_K_"__T_O__M_A_K_E__A__"_R_E_G_I_O_N_"
+
+
+     The MARK is like an "invisible cursor" that stays where you set it.
+Sometimes you will want to delete or move a lot of text at once.  You
+can do this by setting the mark at one end of the stuff you want to
+delete and by moving the cursor to the other end; everything between the
+mark and the cursor is called a REGION.
+
+
+     To set the mark, type CTRL-@ when the cursor is where you want the
+mark to be.  You cannot see the mark, but ELLE will remember where it
+is.  It does not hurt to type CTRL-@ several times, but there is only
+one mark, and ELLE only remembers where you last set it.
+
+
+     If you want to make sure you know where the mark is, type CTRL-X
+CTRL-X.  This will exchange the cursor and the mark; the cursor will
+move to where the mark was set, and the mark will be reset to the place
+the cursor was at.  Just type CTRL-X CTRL-X again to get back to the
+place you were at.  This is handy when you want to move somewhere else
+briefly, but come back to the same place.  Just set the mark, wander
+around, and then type CTRL-X CTRL-X to get back to your starting place.
+
+
+     To delete the region between the mark and the cursor, type CTRL-W
+(for Wipe-out).  All the text in the region will disappear.  Of course,
+typing CTRL-Y (for Yank-back) will bring back all the deleted text.
+
+
+     This makes it very easy to move whole paragraphs of text.  Just
+mark the beginning of the paragraph and then move the cursor to the end
+of the paragraph and wipe out that section (CTRL-Y).  Then move the cur-
+sor to the place that you wish to have the paragraph put; hit the CTRL-Y
+
+                                - 15 -
+
+
+
+
+
+
+
+
+
+
+and all the text comes back.  To make a copy of a region, which you can
+put somewhere else with CTRL-Y, use ESC W.
+
+
+
+I.  _T_H_E__"_K_I_L_L__R_I_N_G_"
+
+
+     By now you know that CTRL-Y will "yank back" the text you most
+recently deleted (or copied with ESC W).  But sometimes this is not what
+you want; you would like to get back things that were deleted before the
+most recent stuff.  ESC Y lets you do this!  ELLE keeps a KILL RING of
+deleted and copied text; any time you kill something, it is saved on the
+"ring".  It is called a ring because there is only room for 8 saved
+things, and if you try to save a 9th thing, the first thing will have to
+be kicked out.  So you can only save the 8 most recent things that you
+deleted or copied.
+
+
+     To use ESC Y, you must first use CTRL-Y.  If the text that is
+yanked back is not the stuff that you want, you can then type ESC Y.
+ELLE will then try to use the next most recent stuff from the kill ring.
+You can keep typing ESC Y as many times as you want, but after 8 times
+you will notice that the same things are being yanked back, and you have
+seen everything that was saved on the ring.  (Neither CTRL-Y nor ESC Y
+removes anything from the ring.) Remember that you cannot use ESC Y
+except right after CTRL-Y or another ESC Y.
+
+
+
+J.  _T_H_E__M_E_A_N_I_N_G__O_F__T_H_E__W_O_R_D__"_B_U_F_F_E_R_"
+
+
+
+         ------------
+        | Hi         |
+        |            |
+        |            |    Original(source) file
+        |            | (
+         ------------    (
+         ------------    )
+        | Hi         |  /
+        |            |<    Buffer (copy)
+        |            |
+        |            |
+         ------------
+
+
+
+     A BUFFER in ELLE is like a temporary "book".  When you are working
+on a file (a computer "book"), ELLE does not "check out" the book from
+the computer library; ELLE makes a copy, and this temporary copy is
+called a BUFFER.  This lets you work on your own copy, without bothering
+other people who might want to read the same file.
+
+                                - 16 -
+
+
+
+
+
+
+
+
+
+
+
+         ------------
+        | Hi         |
+        |            |
+        |            |    Original(source) file
+        |            | (
+         ------------    (
+         ------------    )
+        | Hi         |  /
+        | there      |<    Buffer (copy)
+        |            |
+        |            |
+         ------------
+
+
+
+     Nothing that you do with the temporary copy will have any effect,
+unless you ask ELLE to "save" or "write out" the buffer.  In the above
+example, the word "there" will not appear in the original file unless
+the buffer is saved.  The files or "books" always stay in the computer
+"library"; you cannot work on them there, but ELLE is like a "desk"
+where you can do anything you want with your copies of those books.  A
+buffer does not have to have something in it; if you were writing a new
+"book", you would start with an empty buffer.
+
+
+     It is very important to understand this idea.  If you do not know
+what a "buffer" is, you will be confused when you try to use the best
+features of ELLE.
+
+
+     ELLE will let you have many different buffers, all at the same
+time.  To tell them apart, each buffer must have a BUFFER NAME.  This
+can be anything you want, but two buffers cannot have the same name.  If
+a buffer is holding a "temporary copy" of a file, the buffer will also
+have a SOURCE FILENAME.  This tells you where the copy came from, and
+where your changes will go if you save them back in the computer
+"library".
+
+
+     This sounds complicated, but ELLE tries to show you what is going
+on.  Remember the line at the bottom of the screen?  Let's look at it
+again:
+
+Example:
+
+
+        ELLE 2.6e (Fundamental) draft: mail/draft
+                                ^       ^
+                                |       |
+                              buffer   source
+                              name     filename
+
+
+
+                                - 17 -
+
+
+
+
+
+
+
+
+
+
+     The screen will always show a buffer, and ELLE will always tell you
+what buffer it is.  (It is impossible to have no buffer at all).  If the
+contents of the buffer came from a file "book" in the "library", ELLE
+will also show you the source filename, so that you know where the text
+came from.  This also tells you where the text will be saved when you
+type CTRL-X CTRL-S to put your new "book" into the "library".
+
+
+     If you start ELLE without giving a filename, you will see at the
+bottom of the screen:
+
+        ELLE 2.6e (Fundamental) Main:
+
+It is impossible to not have any buffers, because ELLE will make one for
+you if necessary, and will name it "Main".
+
+
+     As soon as you start typing something you will see this at the bot-
+tom of your screen.
+
+        ELLE 2.6e (Fundamental) Main: *
+
+The character "*" shows that you have modified or changed the contents
+of the buffer.
+
+
+     After you have typed a lot of text, you will see on the right of
+the * something like:
+
+ELLE 2.6e (Fundamental) Main: * --50%--
+                                  ^
+                                  |
+This number means that the top line on the screen is 50% (or half-way)
+through the full file.  In other words, you are in the middle of the
+file.  If you are at the beginning of the file you will see   --TOP--.
+If you are at the bottom of the file you will see:   --BOT--.
+
+
+
+
+K.  _C_R_E_A_T_I_N_G__B_U_F_F_E_R_S
+
+
+     There are two ways to create a buffer.  One is the "buffer select"
+command, and the other is the "find file" command.  When you type the
+"buffer select" command,
+
+        CTRL-X B
+
+at the bottom of your screen, you will see:
+
+        Select buffer:
+
+Here you give the buffer a name.  It can be whatever you wish, but
+
+                                - 18 -
+
+
+
+
+
+
+
+
+
+
+should be less than 13 characters long, without any spaces.  Hit the
+RETURN key when you are finished with the buffer name.  You may use
+names that are easy like "a", "b", "1","2", etc.  Or you may use names
+that help you remember what you are doing like "letter.sam".
+
+
+     If there is not already a buffer with this name, ELLE will create
+an empty buffer with the name you have given it.  You will also see at
+the bottom of the screen the name of the buffer:
+
+ELLE 2.6e (Fundamental) buffername:
+                                     ^
+                                     |
+        Notice that there is no source filename here (after
+        the buffer name).  The buffer will be empty.
+
+
+Remember: A buffer is a TEMPORARY "book" in the editor.  You can start
+it from nothing; you do not have to start it with a "copy" of a file
+from the "library".
+
+
+     The other way to create a buffer is the "find file" command, and
+this is how you start it with a "copy".  This command is:
+
+        CTRL-X CTRL-F
+
+At the bottom of the screen you will see:
+
+        Find file:
+
+Then you type a filename and RETURN.  Remember how you use the command
+"elle filename" to start ELLE?  "Find file" does exactly the same
+things.  First ELLE makes a buffer for you which uses the last part of
+the filename for the buffer name.  Then, if the filename is already in
+the computer "library", ELLE will make a temporary copy for you and put
+it in the buffer.  The source filename will be exactly what you typed,
+and will remind you of where the copy came from.  Even if the filename
+is not in the "library", ELLE will set the source filename anyway,
+guessing that you will want to make a new file with that name.
+
+
+
+L.  _M_O_V_I_N_G__F_R_O_M__O_N_E__B_U_F_F_E_R__T_O__A_N_O_T_H_E_R
+
+
+     ELLE lets you have several buffers at the same time, but usually
+you are only working on one of them at a time.  (See Sections O. and P.
+about "Windows" to learn how to see two buffers at once.) In order to
+move from one buffer to another, you must use the "select buffer" com-
+mand.  That's right, CTRL-X B is used both to make new buffers and to
+move to buffers you already have.  When you type a buffer name in
+response to the "Select buffer:" question, ELLE looks to see if there is
+already a buffer with that name.  If there is one, you are moved there,
+
+                                - 19 -
+
+
+
+
+
+
+
+
+
+
+and the cursor is put at the same place that you originally left it.  If
+there is no buffer with that name, ELLE will make a new one.  If you
+happen to forget the name of a buffer, that is ok, because ELLE will
+remember the names of the buffers you have made.
+
+
+     To get a list of the buffers you have already used type:
+
+        CTRL-X CTRL-B
+
+NOTE:  That is CTRL-X and CTRL-B; NOT the command to find a buffer.
+
+
+
+M.  _G_E_T_T_I_N_G__A__F_I_L_E__I_N_T_O__A__B_U_F_F_E_R
+
+
+
+     1.  _R_E_A_D__F_I_L_E
+
+
+     Remember that when ELLE "gets a file", it is really making a tem-
+porary copy and putting that copy into a buffer.  There are three dif-
+ferent ways to do this.  One of them is "find file", which you have
+already seen.  Usually this is the easiest thing to do because it does a
+lot of the work for you.  The most similar command is "read file", which
+is:
+
+        CTRL-X CTRL-R
+
+At the bottom of your screen you will see:
+
+        Read file:
+
+Here you give the name of the file that you wish to edit.  Example:
+Suppose that you have a buffer named "contract".  You wish to work on a
+file named "check".  You may "read in" the file with the CTRL-X CTRL-R.
+After reading in the file called "check" you will see:
+
+        ELLE 2.6e (Fundamental) contract: check
+
+What you have done is put the file named "check" into the buffer named
+"contract".  If you give a file name that does not exist, you will get
+the error message:
+
+        Cannot open input file !
+
+The "read file" command is useful if you know that you want to read an
+old file, or if you already have a buffer and want to use that same
+buffer to edit the file with.  The command will not change the buffer
+name, but it will set the source filename, so that saving the buffer
+with CTRL-X CTRL-S will write the copy back to the place it came from.
+
+
+
+                                - 20 -
+
+
+
+
+
+
+
+
+
+
+     WARNING: when you do a "read file" command, any new information
+that you have put in the current buffer will be lost.
+
+
+
+     2.  _I_N_S_E_R_T__F_I_L_E
+
+
+     The last way of getting text from a file into a buffer is to use
+the "insert file" command:
+
+        CTRL-X CTRL-I
+
+which means to INSERT a file.  At the bottom of your screen you will
+see:
+
+        Insert file:
+
+Here you give the filename for the text you want to insert, and end with
+a RETURN.  A copy of the text from the file you specify will be put
+where the cursor is, sort of like a big "yank".  This command does not
+throw away the previous contents of the buffer (like "read file"), and
+it does not change the buffer name or the source filename.
+
+
+
+N.  _S_A_V_I_N_G__O_R__W_R_I_T_I_N_G__O_U_T__A__B_U_F_F_E_R
+
+
+     When you are done working on a buffer, or just want to stop for
+awhile, you should "put back" your temporary "book" into the computer
+"library".  If you do not do this before you get out of ELLE, your
+changes will not be saved.  There are three ways to do this.  The easi-
+est one, which you have been using up to now, is "save file", or CTRL-X
+CTRL-S.  This is fine if your buffer has a source filename, and you want
+to store your text using that filename.
+
+
+     But if your buffer does NOT have a source filename, you cannot use
+"save file", because it will not know what name you want to use.  Or
+maybe the buffer does have a source filename, but you do not want to
+save your "book" with that name.  For both of these cases you can use
+"write file":
+
+        CTRL-X CTRL-W
+
+You will see at the bottom of your screen:
+
+        Write File:
+
+You can now type in the name that you wish to give to the new file and
+end it with a RETURN.  Names should not be longer than 13 letters, and
+should not have punctuation marks or spaces.  This will create the file
+with the name that you have given.  You will see this at the bottom of
+
+                                - 21 -
+
+
+
+
+
+
+
+
+
+
+the screen:
+
+        Writing...Written
+
+When you use "write file" you will also set the buffer's source
+filename, even if it was already set.  Example:  Let us assume that you
+have a buffer named "1".  After writing the file called "todo" you will
+see...
+
+        ELLE 2.6e (Fundamental) 1: todo
+
+
+
+     After you have saved your buffer with "save file" or "write file"
+you can exit ELLE if you want, but you do not have to.  You can stay in
+ELLE and keep editing as long as you want.  You can make more changes to
+the same buffer, or select a new buffer to work on, or read in text from
+a different file, or anything you like.
+
+
+     The last way to write out a file is with the "write region" com-
+mand.  This is CTRL-X CTRL-E and acts just like the "write file" com-
+mand, but it does not change the source filename of the buffer, because
+you probably wrote out only a small part of the buffer.
+
+
+
+O.  _T_W_O__W_I_N_D_O_W__D_I_S_P_L_A_Y
+
+
+     Two window display can be helpful in several ways.  If you have a
+large file and you wish to compare information in two different sections
+of that file, splitting the display into 2 windows will allow easy com-
+parison.  When you first make two windows, the screen will be split in
+half horizontally, and the same file will be shown in both halves.  The
+command for making two windows is:
+
+        CTRL-X 2
+
+You may move between the two windows by using the command to go to the
+OTHER window:
+
+        CTRL-X O
+
+Your cursor will go to the window at the place where you last left off.
+REMEMBER: When you make the second window, you have the SAME buffer (and
+file) in BOTH windows.
+
+
+     If you are working on one screen, you will not see the changes hap-
+pen until you do the CTRL-X O command; then the changes will happen in
+that window also.
+
+
+
+                                - 22 -
+
+
+
+
+
+
+
+
+
+
+     If you would like your current window to be a little bigger:
+
+        CTRL-X G
+
+will "grow" the window you are in.
+
+
+     If you want to use just one window again so that the whole screen
+can be used to show the buffer:
+
+        CTRL-X 1
+
+This makes one window.  Use this when you have two windows and you want
+only one of them.  Put the cursor in the window that you want to expand,
+then do the command.  The other window will disappear.  If you had a
+separate buffer in the window that disappeared, it is still accessible
+with the CTRL-X B command.
+
+
+
+P.  _W_O_R_K_I_N_G__W_I_T_H__T_W_O__W_I_N_D_O_W_S__-_-__T_W_O__F_I_L_E_S
+
+
+     Another reason for working with two windows is to allow you to move
+information in one file into another file very easily.  You may create a
+buffer in one window and keep the original buffer in the other window.
+Once you have two separate buffers, you can read a different file into
+each one.
+
+
+     IMPORTANT:  With two windows, you MUST create a new buffer before
+reading another file into the second window.  Therefore, if you are
+going to work with two separate files in two windows, you should do one
+of the following commands (to make sure the buffer is set up):
+
+        CTRL-X CTRL-F
+           ^
+           |
+        This creates a buffer and FINDS the file for it.
+
+
+        CTRL-X B
+           ^
+           |
+        This creates a blank buffer.
+
+
+
+     To copy some text from one window to the other:
+
+
+
+
+
+
+                                - 23 -
+
+
+
+
+
+
+
+
+
+
+
+1)  Delete the words, sentences or area that you wish to transfer.
+    You can also use the ESC W command to copy a region.
+2)  Do CTRL-Y to put all that information just deleted back where you
+    found it.  (You don't need this if you used ESC W.)
+3)  Do CTRL-X O to move to the other window.
+4)  Move the cursor to where you want the "copied" information put.
+5)  Do another CTRL-Y to get back the information that you want.
+
+
+
+
+Q.  _Q_U_E_R_Y__R_E_P_L_A_C_E
+
+
+     ESC %
+
+
+     Give the ESC % command and you will see at the bottom of the screen
+"Replace string:".  Here you give a string that you wish to have
+replaced followed by a carriage return. Next you will see the words
+"with string:" and you type the new string you wish to have inserted.
+ELLE will then forward search and go to the first occurence of the
+string that you wish to replace.  You will also see (Query Replace) at
+the bottom of the screen instead of (Fundamental).  If you do not
+remember the choices, you may type "?" and you will be prompted with
+what can be done.
+
+        - Hitting the SPACE BAR at each point in the file will cause
+        that occurance of the string to be replaced with whatever you
+        typed after the "with string:" prompt.  ELLE will then go to the
+        next occurence of the string you wished replaced.
+
+        - Hitting the DELETE key will tell ELLE to not do the
+        replacement on this string (and will go to the next occurance).
+
+        - Hitting the ESCAPE key will indicate that you wish to stop the
+        process of query replace.
+
+        - If you are sure that you wish all occurances of the string to be
+        replaced, you may hit the "!" key and ALL occurances of that string
+        will be replaced by what ever you stated.  You should be careful
+        that you are not replacing a string that might occur in some other
+        word.  Example:  Replacing all occurances of "and" with "but" will
+        make the word "band" become "bbut" and the word "bland", "blbut".
+        Worse would be replacing all "nation"s with "country".  That would
+        make "SRI International" become "SRI Intercountryal".  Be careful.
+
+        -You may go back one previous occurance of the string by hitting
+        the "^" key.  You may then decide to replace the string if you wish.
+        ELLE will put the string that you wished to be "query replaced"
+        into the search buffer so you may later search or reverse search
+        for the same string if you wish.
+
+
+                                - 24 -
+
+
+
+
+
+
+
+
+
+
+R.  _S_U_M_M_A_R_Y__O_F__F_I_L_E__C_O_M_M_A_N_D_S
+
+CTRL-X CTRL-F
+     Find a file.  If the filename is already associated with
+     a buffer, this acts like a "buffer select" to that buffer.
+     Otherwise, a new buffer is created and associated with this
+     filename.  If the file exists, a copy is made, otherwise
+     the buffer is left empty.  The source filename is set to
+     the filename you typed.
+
+
+CTRL-X CTRL-S
+     Save the file.  This step is important to keep information for a
+     later time.  If there is a source filename, the text in the buffer
+     (including all your changes) will be stored under that filename.
+     If there is no source filename, ELLE will complain with
+     this error message:    No default file name.
+     This means you must write to a file (CTRL-X CTRL-W) first
+     and give a file name.
+
+
+CTRL-X CTRL-I
+     Insert a file.  This will copy file that you name into the buffer
+     you are working on.  This does nothing to the name of the buffer
+     you are working in or the source filename for the buffer.
+
+
+CTRL-X CTRL-R
+     Read a file.  This will copy a file into the buffer you are
+     working in.  The buffer name will stay the same but the
+     source filename will change.  Note: if you do not save the
+     changes you made in the buffer before you "Read in" the
+     new text, then those changes are lost.
+
+
+CTRL-X CTRL-W
+     Write a file.  You will be asked to give a name for the file.  When
+     you give the filename, the file will be created for you.  The
+     buffer name will not change, but the source filename will
+     be set to the filename you typed.
+
+
+CTRL-X CTRL-E
+     Just like CTRL-X CTRL-W, except that it writes out the
+     current region instead of the whole file.
+
+
+
+S.  _M_I_S_C_E_L_L_A_N_E_O_U_S__O_T_H_E_R__C_O_M_M_A_N_D_S
+
+CTRL-O
+     This "opens up" lines.  It is just like RETURN, except that the
+     cursor does not move.  If you are typing many lines, it is
+     often more efficient to first open up some blank lines with
+
+                                - 25 -
+
+
+
+
+
+
+
+
+
+
+     CTRL-O before you start typing, since ELLE will not have to move
+     things around so much while you type.
+
+CTRL-X CTRL-O
+     Deletes blank lines that surround the cursor.  This is
+     handy for use with CTRL-O; you first "open up" a lot
+     of lines, type in some text, and then give CTRL-X CTRL-O
+     to get rid of all the blank lines that you don't need.
+
+ESC-\
+     Deletes spaces that surround the cursor.
+
+CTRL-T
+     Transposes the previous character with the one the cursor is on.
+
+ESC T
+     Transposes the previous word with the one the cursor is at.
+
+CTRL-U
+     This will make the next command happen four times.  This will
+     work for many, but not all, commands.
+     For example: CTRL-U ESC D will delete the next four words.
+
+CTRL-U CTRL-L
+     The EXCEPTION to the "next command happen four times" rule.  This
+     will refresh only the line the cursor is on.  This is especially
+     helpful on 300 baud terminals when you wish to clean up only one
+     line and not refresh the whole screen because it would take too
+     long.
+
+ESC number CTRL-L
+     This adjusts the text on the screen by moving the cursor "number"
+     of lines away from the top of the screen.  The cursor will not
+     change its position within the text.  Thus, the command
+     "ESC 0 CTRL-L" will put the cursor at the top left of the screen.
+     Anything before the cursor will not be seen, so if you wish to
+     use this command to position full text on the screen at a certain
+     place, it would be good to put the cursor at the beginning of the
+     line.
+
+CTRL-Q
+     "Quotes" the next character literally, even if it is normally
+     an ELLE   command.  The character immediately after this command
+     will always be inserted into the text of your file.  This is
+     useful for things like ^L which is a "page break" when sent to a
+     printer. If this feature was not here, then ELLE would refresh the
+     screen every time that you wanted to insert a "page break".
+
+ESC Q
+     Fill the text in this paragraph.  It is important to know that
+     a paragraph is defined as the text between two indented (or
+     blank) lines.
+
+
+
+                                - 26 -
+
+
+
+
+
+
+
+
+
+
+CTRL-X F
+     Set the line length for filling a paragraph; you may give the length
+     by typing ESC followed by the number you wish the length to be.
+     ESC Q will use this line length when filling.  Example:
+     "ESC 55 CTRL-X F" would set the line length for filling a paragraph
+     at 55 characters.  You may also put the cursor in the column you
+     wish to set the length, and this command will set the line length
+     to that width.
+
+
+CTRL-X !
+     If you wish to do some command (e.g. look at
+     who is on the system or to get a list of your file names) you can
+     temporarily leave ELLE and come back to where you are editing later
+     on.  To get back to your original editing session at the same place
+     you left it,
+EOF character (often CTRL-D).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                - 27 -
+

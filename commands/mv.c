@@ -3,8 +3,9 @@
  * 4/25/87 - J. Paradis		Bug fixes for directory handling
  */
 
-#include "signal.h"
-#include "stat.h"
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 int     error = 0;
 struct stat st, st1;

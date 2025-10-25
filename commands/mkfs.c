@@ -13,42 +13,28 @@
  */
 
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../fs/const.h"
+#include <minix/const.h>
+#include <minix/type.h>
+#include <fs/const.h>
 #undef EXTERN
 #define EXTERN			/* get rid of EXTERN by making it null */
-#include "../fs/type.h"
-#include "../fs/super.h"
+#include <fs/type.h>
+#include <fs/super.h>
 
 #ifdef DOS
 #include "/lib/c86/stdio.h"
-#define COMPILERFLAG
-#endif
-
-#ifdef UNIX
+#else
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#undef major
-#undef minor
-#define COMPILERFLAG
-#endif
-
-#ifndef COMPILERFLAG
-#include "stdio.h"
-#include "stat.h"
 #endif
 
 
 #ifndef DOS
 #ifndef UNIX
+#undef printf		/* printf is a macro for printk */
 #define UNIX
 #endif
-#endif
-
-#ifdef UNIX
-#undef printf		/* printf is a macro for printk */
 #endif
 
 
@@ -72,6 +58,7 @@
 
 int next_zone, next_inode, zone_size, zone_shift=0, zoff, nrblocks,inode_offset,
     nrinodes, lct=1, disk, fd, print=0, file=0, override=0, simple=0, dflag;
+int donttest;			/* skip test if it fits on medium */
 
 long current_time, bin_time;
 char zero[BLOCK_SIZE], *lastp;
@@ -80,12 +67,7 @@ int zone_map = 3;		/* where is zone map? (depends on # inodes) */
 
 FILE *proto;
 long lseek();
-char *size_fmt = "%6D";
-char *ldfmt = "%6ld";
-char *mode_fmt = "%6o";
-char *ldmode = "%06o";
 char gwarning[] = {65,46,83,46,84,97,110,101,110,98,97,117,109,10};
-/* MS-DOS and PC-IX use %ld for longs, MINIX uses %D */
 
 
 
@@ -98,8 +80,7 @@ int argc;
 char *argv[];
 {
   int i, blocks, zones, inodes, mode, usrid, grpid, badusage = 0;
-  char *token[MAX_TOKENS], buf[BLOCK_SIZE];
-  int testb[2];
+  char *token[MAX_TOKENS], line[LINE_LEN];
   FILE *fopen();
   long time(), ls;
   struct stat statbuf;
@@ -121,23 +102,23 @@ char *argv[];
 	if ( (statbuf.st_mode&S_IFMT) != S_IFREG) badusage = 1;
   }
   if (badusage) {
-	write(2, "Usage: mkfs [-L] special proto\n", 31);
+	write(2, "Usage: mkfs [-ldt] special proto\n", 33);
 	exit(1);
   }
   while (--argc) {
     switch (argv[argc][0]) {
       case '-': while (*++argv[argc])
 		  switch (*argv[argc]) {
-		    case 'L' : print=1; break;
-		    case 'l' : print=1;
-			       size_fmt = ldfmt;
-			       mode_fmt = ldmode;
-			       break;
-		    case 'o' :
-		    case 'O' : override=1; break;
-		    case 'd' : current_time = bin_time; dflag=1; break;
-		    default  :
-		    printf ("Bad switch %c, ignored.\n",*argv[argc]);
+		    case 'l': case 'L':
+			print=1; break;
+		    case 'o': case 'O':
+			override=1; break;
+		    case 'd': case 'D':
+			current_time = bin_time; dflag=1; break;
+		    case 't': case 'T':
+			donttest=1; break;
+		    default:
+			printf ("Bad switch %c, ignored.\n",*argv[argc]);
 		  }
 		break;
 
@@ -147,16 +128,16 @@ char *argv[];
   	proto = fopen(argv[argc], "r" );
 	if (proto != NULL) {
 	   /* Prototype file is readable. */
-	   getline(buf, token);	/* skip boot block info. */
+	   getline(line, token);	/* skip boot block info. */
 
 	   /* Read the line with the block and inode counts. */
-	   getline(buf, token);
+	   getline(line, token);
 	   blocks = atoi(token[0]);
  	   if (blocks > N_BLOCKS) pexit("Block count too large");
 	   inodes = atoi(token[1]);
 
 	   /* Process mode line for root directory. */
-	   getline(buf, token);
+	   getline(line, token);
 	   mode = mode_con(token[0]);
 	   usrid = atoi(token[1]);
 	   grpid = atoi(token[2]);
@@ -187,6 +168,9 @@ char *argv[];
 
 
 #ifdef UNIX
+  if (!donttest) {
+  static short testb[BLOCK_SIZE/sizeof(short)];
+
   /* Try writing the last block of partition or diskette. */
   ls = lseek(fd,  ((long)blocks - 1L) * BLOCK_SIZE, 0);
   testb[0] = 0x3245;
@@ -199,7 +183,13 @@ char *argv[];
   i = read(fd, testb, BLOCK_SIZE);
   if (i != BLOCK_SIZE || testb[0] != 0x3245 || testb[1] != 0x11FF) 
 	pexit("File system is too big for minor device");
+  lseek(fd,  ((long)blocks - 1L) * BLOCK_SIZE, 0);
+  testb[0] = 0;
+  testb[1] = 0;
+  if (write(fd, testb, BLOCK_SIZE) != BLOCK_SIZE)
+	pexit("File system is too big for minor device");
   lseek(fd, 0L, 0);
+  }
 #endif
 
   /* make the file-system */
@@ -348,7 +338,7 @@ int parent;	/* parent's inode nr */
   /*Read prototype lines and set up directory. Recurse if need be. */
   char *token[MAX_TOKENS], *p;
   char line[LINE_LEN];
-  int mode, n, usrid, grpid, z, major, minor, f;
+  int mode, n, usrid, grpid, z, maj, min, f;
   long size;
 
   while (1) {
@@ -379,11 +369,13 @@ int parent;	/* parent's inode nr */
 		eat_dir(n);
 	} else if (*p == 'b' || *p == 'c') {
 		/* Special file. */
-		major = atoi(token[4]);
-		minor = atoi(token[5]);
-		size = atoi(token[6]);
+		maj = atoi(token[4]);
+		min = atoi(token[5]);
+		size = 0;
+		if (token[6])
+			size = atoi(token[6]);
 		size = BLOCK_SIZE * size;
-		add_zone(n, (major<<8)|minor, size, current_time);
+		add_zone(n, (maj<<8)|min, size, current_time);
 	} else {
 		/* Regular file. Go read it. */
 		if ((f=open(token[4],BREAD)) < 0) {
@@ -617,12 +609,12 @@ int block, bit, count;
 {
   /* insert 'count' bits in the bitmap */
   int w,s, i;
-  int buf[BLOCK_SIZE/sizeof(int)];
+  short buf[BLOCK_SIZE/sizeof(short)];
 
   get_block(block, buf);
   for (i = bit; i < bit + count; i++) {
-	w = i / (8*sizeof(int));
-	s = i % (8*sizeof(int));
+	w = i / (8*sizeof(short));
+	s = i % (8*sizeof(short));
 	buf[w] |= (1 << s);
   }
   put_block(block, buf);
@@ -769,10 +761,10 @@ print_fs()
 	if (k > nrinodes) break;
 	if (inode[i].i_mode != 0) {
 	   printf("Inode %2d:  mode=",k, inode[i].i_mode);
-	   printf(mode_fmt, inode[i].i_mode);
+	   printf("%06o", inode[i].i_mode);
 	   printf("  uid=%2d  gid=%2d  size=",
 				inode[i].i_uid, inode[i].i_gid);
-	   printf(size_fmt, inode[i].i_size);
+	   printf("%6ld", inode[i].i_size);
 	   printf("  zone[0]=%d\n", inode[i].i_zone[0]);
 	}
 

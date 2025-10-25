@@ -143,14 +143,7 @@ $@ or $* is attempted ( as in $* : a.obj )
 #define INMAXSH 80      /* length for short strings */
 
 
-#ifdef BSD4.2
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#define WAIT union wait
-
-#else
-/* sysV and MINIX  and LATTICE */
+#ifdef LC
 struct stat {
     short int st_dev;
     unsigned short st_ino;
@@ -164,10 +157,15 @@ struct stat {
     TIME st_mtime;
     TIME st_ctime;
 } ; 
-/*
+#else
 #include <sys/types.h>
 #include <sys/stat.h>
-*/
+#endif
+
+#ifdef BSD4.2
+#include <sys/wait.h>
+#define WAIT union wait
+#else
 #define WAIT int
 #endif
 
@@ -225,7 +223,7 @@ char *argv[],*envp[];
     if (tree_and_quit){
 	prtree();
 fprintf(stderr, "tree and quit\n");
-	done(0);
+	exit(0);
     }
 #endif DEBUG
 	
@@ -250,7 +248,7 @@ fprintf(stderr, "tree and quit\n");
     if (post_tree) prtree();
 #endif DEBUG
 
-    done( 0 );
+    exit( 0 );
 }
 
 
@@ -980,7 +978,7 @@ panicstop()
 
 mystop_err()
 {
-    done( -1 );
+    exit( -1 );
     /* NOTREACHED */
 }
 
@@ -1858,7 +1856,7 @@ char wholenam[INMAXSH];
 
     if ( (pid = fork()) == 0 ) {
 	execv(wholenam,vargs);
-	done( -1 );
+	exit( -1 );
     }
     free( (char *)vargs );
     free_list( largs );
@@ -1897,7 +1895,7 @@ char *cmd;
 
     if ( (pid = fork()) == 0 ) {
 	execl(SHELL, "sh", "-c", cmd, (char *) 0);
-	done( -1 );
+	exit( -1 );
     }
     if ( pid < 0 ) {  
 	perror(whoami);     /* say why we couldn't fork */
@@ -2236,13 +2234,6 @@ char *s1,*s2;
 }
 
 #endif
-
-done(n)
-int n;
-{
-  _cleanup();
-  exit(n);
-}
 
 my_strlen (src)
 char *src;

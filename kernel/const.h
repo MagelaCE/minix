@@ -22,6 +22,8 @@
 #define DIVIDE_VECTOR      0	/* divide interrupt vector */
 #define CLOCK_VECTOR       8	/* clock interrupt vector */
 #define KEYBOARD_VECTOR    9	/* keyboard interrupt vector */
+#define ETHER_VECTOR      11	/* ethernet interrupt vector */
+#define	RS232_VECTOR      12	/* rs232 interrupt vector */
 #define XT_WINI_VECTOR	  13	/* xt winchester interrupt vector */
 #define FLOPPY_VECTOR     14	/* floppy disk interrupt vector */
 #define PRINTER_VECTOR    15	/* line printer interrupt vector */
@@ -36,8 +38,7 @@
 #define ENABLE          0x20	/* code used to re-enable after an interrupt */
 #endif
 
-#define TASK_STACK_BYTES 256	/* how many bytes for each task stack */
-#define K_STACK_BYTES    256	/* how many bytes for the kernel stack */
+#define K_STACK_BYTES    512	/* how many bytes for the kernel stack */
 
 #define RET_REG            0	/* system call return codes go in this reg */
 #define IDLE            -999	/* 'cur_proc' = IDLE means nobody is running */

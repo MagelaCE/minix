@@ -28,7 +28,7 @@ struct arglist {
 	char *al_argv[MAXARGC];
 };
 
-!!!!_SEE_BELOW_!!! 
+!!! AH HA!  I HAVE YOUR ATTENTION!
 /* This is not an error.  It is a dirty trick to force the user to read this
  * comment.  The program cc calls the various passes of the compiler.  To call
  * them, it must know where they are.  On the 640K PC MINIX, cpp and cem are
@@ -40,7 +40,7 @@ struct arglist {
  * be defined.  For 512K machines, MEM512K should be defined.
  */
 
-/* #define MEM640K  */
+/* #define MEM640K */
 /* #define MEM512K */
 
 #ifdef MEM640K
@@ -135,6 +135,7 @@ trapcc(sig)
 	cleanup(sfile);
 	cleanup(mfile);
 	cleanup(ofile);
+	exit(1);
 }
 
 main(argc, argv)

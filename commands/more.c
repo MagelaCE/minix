@@ -6,9 +6,9 @@
  *	q	 quit
 */
 
-#define reverse()	write(1, "\033z\160", 3)	/* reverse video */
-#define normal()	write(1, "\033z\7", 3)		/* undo reverse() */
-#define clearln()	write(1, "\r\033~0", 4)		/* clear line */
+#define reverse()	write(1, "\033[7m", 4)		/* reverse video */
+#define normal()	write(1, "\033[m", 3)		/* undo reverse() */
+#define clearln()	write(1, "\r\033[J", 4)		/* clear line */
 
 #define LINES		23	/* lines/screen (- 1 to retain last line) */
 #define COLS		80	/* columns/line */

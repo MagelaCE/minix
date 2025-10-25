@@ -4,9 +4,10 @@
 
 /* hgm - June 9, 1987 - added code to handle short lines and tabs */
 
-#include "stdio.h"
-#include "pwd.h"
-#include "stat.h"
+#include <stdio.h>
+#include <pwd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 extern FILE *fopen();
 char *fgets();
@@ -29,7 +30,7 @@ char **argv;
 	if (argc > 1) {
 		if ((in = fopen(argv[1], "r")) == NULLF) {
 			perror(argv[1]);
-			xit(1);
+			exit(1);
 		}
 		argv++; argc--;
 	} else
@@ -37,14 +38,14 @@ char **argv;
 
 	if (argc != 1) {
 		printf("Usage: uudecode [infile]\n");
-		xit(2);
+		exit(2);
 	}
 
 	/* search for header line */
 	for (;;) {
 		if (fgets(buf, sizeof buf, in) == NULLP) {
 			fprintf(stderr, "No begin line\n");
-			xit(3);
+			exit(3);
 		}
 		if (strncmp(buf, "begin ", 6) == 0)
 			break;
@@ -62,13 +63,13 @@ char **argv;
 		sl = _index(dest, '/');
 		if (sl == NULLP) {
 			fprintf(stderr, "Illegal ~user\n");
-			xit(3);
+			exit(3);
 		}
 		*sl++ = 0;
 		user = getpwnam(dest+1);
 		if (user == NULL) {
 			fprintf(stderr, "No such user as %s\n", dest);
-			xit(4);
+			exit(4);
 		}
 		strcpy(dnbuf, user->pw_dir);
 		strcat(dnbuf, "/");
@@ -80,7 +81,7 @@ char **argv;
 	out = fopen(dest, "w");
 	if (out == NULLF) {
 		perror(dest);
-		xit(4);
+		exit(4);
 	}
 	chmod(dest, mode);
 
@@ -88,9 +89,9 @@ char **argv;
 
 	if (fgets(buf, sizeof buf, in) == NULLP || strcmp(buf, "end\n")) {
 		fprintf(stderr, "No end line\n");
-		xit(5);
+		exit(5);
 	}
-	xit(0);
+	exit(0);
 }
 
 /*
@@ -111,7 +112,7 @@ FILE *out;
 		/* for each input line */
 		if (fgets(tbuf, sizeof tbuf, in) == NULLP) {
 			printf("Short file\n");
-			xit(10);
+			exit(10);
 		}
 		n = tbuf[0] - ' ';
 		if (n <= 0)
@@ -200,11 +201,4 @@ register char *sp, c;
 			return(sp);
 	} while (*sp++);
 	return(NULL);
-}
-
-xit(n)
-int n;
-{
-  _cleanup();
-  exit(n);
 }

@@ -13,7 +13,7 @@
 
 #define WRITE_ERROR 1
 #define isdigit(c) (c >= '0' && c <= '9')
-#include "stdio.h"
+#include <stdio.h>
 
 
 FILE *fopen();

@@ -1,6 +1,6 @@
 /* mkdir - make a directory		Author: Adri Koppes */
 
-#include "signal.h"
+#include <signal.h>
 
 int error = 0;
 

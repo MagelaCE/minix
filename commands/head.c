@@ -1,27 +1,22 @@
 /* head - print the first few lines of a file	Author: Andy Tanenbaum */
-/* change to use putc() instead of prints()    --  Dean Long 3/7/87    */
 
-
-#include "stdio.h"
+#include <stdio.h>
 
 #define DEFAULT 10
-
-char buff[BUFSIZ];
 
 main(argc, argv)
 int argc;
 char *argv[];
 {
-
+  FILE *f;
   int n, k, nfiles;
   char *ptr;
 
   /* Check for flag.  Only flag is -n, to say how many lines to print. */
-  setbuf(stdout, buff);
   k = 1;
   ptr = argv[1];
   n = DEFAULT;
-  if (*ptr++ == '-') {
+  if (argc > 1 && *ptr++ == '-') {
   	k++;
 	n = atoi(ptr);
   	if (n <= 0) usage();
@@ -30,37 +25,36 @@ char *argv[];
 
   if (nfiles == 0) {
   	/* Print standard input only. */
-  	do_file(n);
-	fflush(stdout);
+  	do_file(n, stdin);
   	exit(0);
   }
 
   /* One or more files have been listed explicitly. */
   while (k < argc) {
-  	fclose(stdin);
-  	if (nfiles > 1) prints("==> %s <==\n", argv[k]);
-  	if (fopen(argv[k], "r") == NULL) 
-		prints("head: cannot open %s\n", argv[k]);
+  	if (nfiles > 1) printf("==> %s <==\n", argv[k]);
+  	if ((f = fopen(argv[k], "r")) == NULL) 
+		printf("head: cannot open %s\n", argv[k]);
 	else {
-		do_file(n);
-	 	fflush(stdout);
+		do_file(n, f);
+	 	fclose(f);
 	}
   	k++;
-  	if (k < argc) prints("\n");
+  	if (k < argc) printf("\n");
   }
   exit(0);
 }
 
 
 
-do_file(n)
+do_file(n, f)
 int n;
+FILE *f;
 {
   int c;
 
   /* Print the first 'n' lines of a file. */
   while(n)
-    switch (c = getc(stdin)) {
+    switch (c = getc(f)) {
       case EOF :
         return;
       case '\n':
@@ -73,7 +67,6 @@ int n;
 
 usage()
 {
-  std_err("Usage: head [-n] [file ...]\n");
+  fprintf(stderr, "Usage: head [-n] [file ...]\n");
   exit(1);
 }
-

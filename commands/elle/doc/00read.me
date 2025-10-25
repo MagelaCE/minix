@@ -1,0 +1,87 @@
+ELLE 4.1 distribution notes:				24-Dec-1987
+
+	This file (00read.me) describes how to get a copy of ELLE and
+	what the distribution policy is -- licensing, restrictions, and
+	that sort of thing.  If you're not sure how it applies to your
+	particular situation, just get in touch.
+
+TO GET:
+	ELLE is normally distributed as a single TAR file or tape which
+should contain all of the files you need to build your own copy of
+ELLE.  The canonical version is located in:
+
+	"~ftp/dist/elle/elle.tar" on Internet host BLACKJACK.SRI.COM
+
+If you can make an Internet TCP/IP FTP connection to BLACKJACK.SRI.COM,
+you can log in as "anonymous" and then retrieve the file
+"dist/elle/elle.tar".  You must use binary mode (TYPE I or TYPE L 8)
+rather than text mode.  UUCP transfers are not currently supported.
+Note that the file is at least 700K bytes long.
+
+Once you have the TAR file, you should extract the entire contents into
+an empty directory and then read the following files:
+
+	00read.me - This file can change; re-read for any new information.
+	elle.doc  - General doc, and instructions on building ELLE.
+
+
+POLICY:
+	First, note that the files are copyrighted, but called
+"quasi-public".  The problem is that true public-domain stuff can be
+acquired by private parties and modified slightly to produce a
+licensed, costly product.  This conflicts with my intent of keeping the
+sources freely available to everyone who is interested in using ELLE,
+hence the copyright.  This applies to all modifications as well,
+including anything written to support ELLE on a non-11 or non-UNIX
+system (except for the standard V7 C system/library routines).
+
+The SB library routines can be used by other software which may or may
+not be quasi-public (although this is encouraged), but note that any
+modifications or improvements to the SB code must also be kept
+available.
+
+The situation with respect to including ELLE as a minor component of
+commercial software packages or "unix box" systems is fuzzy.  My
+current inclination is to allow this as a convenience to the end users.
+However, certain cirumstances may force re-assessment of this position;
+e.g. extensive modifications, huge numbers of users, time-consuming
+maintenance requirements...  people with such applications in mind
+should contact me.
+
+
+MODIFICATIONS:
+	Users will of course be tempted to modify and extend the
+program.  This is natural and desirable, but can lead to chaos unless
+the rules below (similar to those governing distribution of the
+original EMACS) are followed:
+
+    [1] Retain the history & copyright notice for each module.
+    [2] Relay your improvements to the maintainer of the canonical version,
+	so that they can be incorporated into new releases.  Even if not
+	made part of the standard release, all modifications must be
+	available to any other ELLE users who want them.
+    [3] People who want copies of ELLE should ideally get it from the
+	canonical source.  If this is not possible, please keep all of
+	the original distribution intact so that the baseline is constant.
+	This also allows sending diffs for updates, rather than
+	resending the entire TAR file.
+    [4] Finally, keep in mind that the primary goal of ELLE was to provide
+	a simple EMACS-like editor for small systems, particularly
+	non-split PDP-11s, and there is VERY LITTLE room left.
+	For more guidelines, see the "Modifying" chapter in
+	the elle.doc file.
+
+
+	ELLE is quite stable from the user's viewpoint, but new
+releases (with all accumulated bug fixes, improvements, or new
+features) can be expected at least once a year.
+
+	Good luck.  Feel free to contact me about any problems you
+have, but note that I although I can receive long-distance telephone
+calls, I cannot return them.
+
+Ken Harrenstien		Internet: <KLH@SRI-NIC.ARPA>
+Room EJ200		Phone: (415) 859-6552
+SRI International
+333 Ravenswood Ave.
+Menlo Park, CA  94025

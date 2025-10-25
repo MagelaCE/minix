@@ -5,10 +5,10 @@
  *
  */
 
-#include "pwd.h"
-#include "../h/type.h"
-#include "stat.h"
-#include "stdio.h"
+#include <pwd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
 
 main (argc, argv)
 int   argc;

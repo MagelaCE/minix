@@ -1,6 +1,6 @@
 /* date - print or set the date		Author: Adri Koppes */
 
-#include "stdio.h"
+#include <stdio.h>
 
 int qflag;
 
@@ -20,6 +20,7 @@ long s_p_min;
 long s_p_hour;
 long s_p_day;
 long s_p_year;
+char time_buf[15];
 
 main(argc, argv)
 int argc;
@@ -35,21 +36,20 @@ char **argv;
   if (argc == 2) {
 	if (*argv[1] == '-' && (argv[1][1] | 0x60) == 'q') {
 		/* Query option. */
-		char time_buf[15];
-
 		qflag = 1;
 		freopen(stdin, "/dev/tty0", "r");
 		printf("\nPlease enter date (MMDDYYhhmmss).  Then hit RETURN.\n");
 		gets(time_buf);
-		set_time(time_buf);
-		exit(0);
 	}
-	set_time(argv[1]);
-  } else {
-	time(&t);
-	cv_time(t);
-	printf("%s %s %d %02d:%02d:%02d %d\n", days[(t / s_p_day) % 7], months[tm.month], tm.day, tm.hour, tm.min, tm.sec, tm.year); 
+	if (qflag)
+		set_time(time_buf);
+	else
+		set_time(argv[1]);
   }
+  time(&t);
+  cv_time(t);
+  printf("%s %s %d %02d:%02d:%02d %d\n", days[(int) (t / s_p_day) % 7], 
+		months[tm.month], tm.day, tm.hour, tm.min, tm.sec, tm.year); 
   exit(0);
 }
 
@@ -69,7 +69,7 @@ long t;
 	t -= s_p_year;
   }
   if (((tm.year + 2) % 4) == 0)
-	days_per_month[1]++;
+	days_per_month[1] = 29;
   tm.year += 1970;
   while ( t >= (days_per_month[tm.month] * s_p_day))
 	t -= days_per_month[tm.month++] * s_p_day;
@@ -114,11 +114,13 @@ char *t;
   	tm.day = conv(&tp, 31);
   	tm.month = conv(&tp, 12);
   	tm.year -= 70;
+	if (tm.year < 0)
+		tm.year += 100;
   }
   ct = tm.year * s_p_year;
   ct += ((tm.year + 1) / 4) * s_p_day;
   if (((tm.year + 2) % 4) == 0)
-	days_per_month[1]++;
+	days_per_month[1] = 29;
   len = 0;
   tm.month--;
   while (len < tm.month)

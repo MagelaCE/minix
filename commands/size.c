@@ -46,7 +46,7 @@ char *name;
 	return;
   }
 
-  if ( (head[0] & 0xFFFF) != MAGIC) {
+  if ( (head[0] & 0xFFFFL) != MAGIC) {
 	stderr3("size: ", name, " not an object file\n");
 	close(fd);
 	return;

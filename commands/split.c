@@ -1,6 +1,6 @@
 /* split - split a file		Author: Michiel Huisjes */
 
-#include "blocksize.h"
+#include <minix/blocksize.h>
 
 int cut_line = 1000;
 int infile;
@@ -57,19 +57,25 @@ split()
   int fd;
   long lines = 0L;
 
-  fd = newfile();
+  fd = -1;
   while ((n = read(infile, buf, BLOCK_SIZE)) > 0) {
   	base = index = buf;
   	while (--n >= 0) {
   		if (*index++ == '\n')
   			if (++lines % cut_line == 0)  {
+				if (fd == -1)
+					fd = newfile();
   				if (write(fd,base,(int)(index-base)) != (int)(index-base))
 					quit();
   				base = index;
   				close(fd);
-  				fd = newfile();
+  				fd = -1;
   			}
   	}
+	if (index == base)
+		continue;
+	if (fd == -1)
+		fd = newfile();
   	if (write(fd, base, (int) (index-base)) != (int) (index-base)) quit();
   }
 }

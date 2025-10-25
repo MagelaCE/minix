@@ -122,17 +122,20 @@ c_list()
 
 	t = andor();
 	if (t != NULL) {
+		if((peeksym = yylex(0)) == '&')
+			t = block(TASYNC, t, NOBLOCK, NOWORDS);
 		while ((c = yylex(0)) == ';' || c == '&' || multiline && c == '\n') {
-			if (c == '&')
-				t = block(TASYNC, t, NOBLOCK, NOWORDS);
 			if ((p = andor()) == NULL)
 				return(t);
+			if((peeksym = yylex(0)) == '&')
+				p = block(TASYNC, p, NOBLOCK, NOWORDS);
 			t = list(t, p);
 		}
 		peeksym = c;
 	}
 	return(t);
 }
+
 
 static int
 synio(cf)
@@ -556,7 +559,7 @@ char *cp;
 	iop = (struct ioword *) tree(sizeof(*iop));
 	iop->io_unit = u;
 	iop->io_flag = f;
-	iop->io_un.io_name = cp;
+	iop->io_name = cp;
 	iolist = addword((char *)iop, iolist);
 	return(iop);
 }

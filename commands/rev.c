@@ -1,6 +1,6 @@
 /* rev - reverse an ASCII line	  Authors: Paul Polderman & Michiel Huisjes */
 
-#include "blocksize.h"
+#include <minix/blocksize.h>
 
 #ifndef NULL
 #define	NULL	0

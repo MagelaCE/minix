@@ -27,12 +27,12 @@ enables mkfs to restore them to original.
 
 #include <stdio.h>
 
-#include "../fs/const.h"
-#include "../h/type.h"
-#include "../h/const.h"
-#include "../fs/type.h"
-#include "../fs/buf.h"
-#include "../fs/super.h"
+#include <fs/const.h>
+#include <minix/type.h>
+#include <minix/const.h>
+#include <fs/type.h>
+#include <fs/buf.h>
+#include <fs/super.h>
 
 #undef printf		/* Definition used only in the kernel */
 

@@ -10,13 +10,14 @@
 | The external entry points into this file are:
 |   s_call:	process or task wants to send or receive a message
 |   tty_int:	interrupt routine for each key depression and release
+|   rs232_int:	interrupt routine for each rs232 interrupt
 |   lpr_int:	interrupt routine for each line printer interrupt
 |   disk_int:	disk interrupt routine
 |   wini_int:	winchester interrupt routine
 |   clock_int:	clock interrupt routine (HZ times per second)
-|   surprise:	all other interrupts < 16 are vectored here
+|   eth_int:	ethernet interrupt routine
+|   int00-int15:handlers for unused interrupt vectors < 16
 |   trp:	all traps with vector >= 16 are vectored here
-|   divide:	divide overflow traps are vectored here
 |   restart:	start running a task or process
 
 | These symbols MUST agree with the values in ../h/com.h to avoid disaster.
@@ -29,12 +30,14 @@ DISKINT		=    1
 CLOCK_TICK	=    2
 
 | The following procedures are defined in this file and called from outside it.
-.globl _tty_int, _lpr_int, _clock_int, _disk_int, _wini_int
-.globl _s_call, _surprise, _trp, _divide, _restart
+.globl _tty_int, _rs232_int, _lpr_int, _clock_int, _disk_int, _wini_int
+.globl _eth_int, _s_call, _trp, _restart
+.globl _int00, _int01, _int02, _int03, _int04, _int05, _int06, _int07
+.globl _int08, _int09, _int10, _int11, _int12, _int13, _int14, _int15
 
 | The following external procedures are called in this file.
 .globl _main, _sys_call, _interrupt, _keyboard, _panic, _unexpected_int, _trap
-.globl _pr_char, _div_trap
+.globl _pr_char, _rs232
 
 | Variables, data structures and miscellaneous.
 .globl _cur_proc, _proc_ptr, _scan_code, _int_mess, _k_stack, splimit
@@ -97,6 +100,17 @@ _tty_int:			| Interrupt routine for terminal input.
 	jmp _restart		| continue execution
 
 
+|*============================================================================
+|*				rs232_int				     *
+|*============================================================================
+_rs232_int:			| Interrupt routine for rs232 I/O.
+	call save		| save the machine state
+	mov ax,#1		| which unit caused the interrupt
+	push ax			| pass it as a parameter
+	call _rs232		| process a rs232 interrupt
+	jmp _restart		| continue execution
+
+
 |*===========================================================================*
 |*				lpr_int					     *
 |*===========================================================================*
@@ -149,10 +163,83 @@ _clock_int:			| Interrupt routine for the clock.
 
 
 |*===========================================================================*
-|*				surprise				     *
+|*				eth_int					     *
 |*===========================================================================*
-_surprise:			| This is where unexpected interrupts come.
+_eth_int:			| Interrupt routine for ethernet input
 	call save		| save the machine state
+	call _dp8390_int	| call the handler
+	jmp _restart		| continue execution
+
+
+|*===========================================================================*
+|*				int00-15				     *
+|*===========================================================================*
+_int00:	call save		| interrupt through vector 0
+	mov ax,#0		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int01:	call save		| interrupt through vector 1
+	mov ax,#1		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int02:	call save		| interrupt through vector 1
+	mov ax,#2		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int03:	call save		| interrupt through vector 3
+	mov ax,#3		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int04:	call save		| interrupt through vector 4
+	mov ax,#4		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int05:	call save		| interrupt through vector 5
+	mov ax,#5		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int06:	call save		| interrupt through vector 6
+	mov ax,#6		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int07:	call save		| interrupt through vector 7
+	mov ax,#7		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int08:	call save		| interrupt through vector 8
+	mov ax,#8		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int09:	call save		| interrupt through vector 9
+	mov ax,#9		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int10:	call save		| interrupt through vector 10
+	mov ax,#10		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int11:	call save		| interrupt through vector 11
+	mov ax,#11		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int12:	call save		| interrupt through vector 12
+	mov ax,#12		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int13:	call save		| interrupt through vector 13
+	mov ax,#13		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int14:	call save		| interrupt through vector 14
+	mov ax,#14		| save vector number in ax
+	jmp vec_mess		| print message
+	
+_int15:	call save		| interrupt through vector 15
+	mov ax,#15		| save vector number in ax
+	jmp vec_mess		| print message
+	
+vec_mess:			| this is where unexpected interrupts come.
+	push ax			| push the vector number
 	call _unexpected_int	| go panic
 	jmp _restart		| never executed
 
@@ -160,18 +247,9 @@ _surprise:			| This is where unexpected interrupts come.
 |*===========================================================================*
 |*				trp					     *
 |*===========================================================================*
-_trp:				| This is where unexpected traps come.
+_trp:				| this is where unexpected traps come.
 	call save		| save the machine state
 	call _trap		| print a message
-	jmp _restart		| this error is not fatal
-
-
-|*===========================================================================*
-|*				divide					     *
-|*===========================================================================*
-_divide:			| This is where divide overflow traps come.
-	call save		| save the machine state
-	call _div_trap		| print a message
 	jmp _restart		| this error is not fatal
 
 
@@ -267,6 +345,5 @@ ds_save: .word 0		| storage for ds
 ret_save:.word 0		| storage for return address
 lds_low: .word 0,0		| storage used for restoring bx
 ttyomess: .asciz "RS232 interrupt"
-
 .bss
 begbss:

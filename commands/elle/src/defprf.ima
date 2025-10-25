@@ -1,0 +1,216 @@
+; ELLE default ASCII profile
+
+; IMAGEN VERSION
+
+(keyallunbind)
+
+(keybind ^@ "Set/Pop Mark")
+(keybind ^A "Beginning of Line")
+(keybind ^B "Backward Character")
+(keybind ^C "Return to Superior")	; IMAGEN
+(keybind ^D "Delete Character")
+(keybind ^E "End of Line")
+(keybind ^F "Forward Character")
+(keybind ^H "Backward Delete Character")	; IMAGEN
+(keybind ^I "Insert Self")
+(keybind ^J "Indent New Line")
+(keybind ^K "Kill Line")
+(keybind ^L "New Window")
+(keybind ^M "CRLF")
+(keybind ^N "Down Real Line")
+(keybind ^O "Open Line")
+(keybind ^P "Up Real Line")
+(keybind ^Q "Quoted Insert")
+(keybind ^R "Reverse Search")
+(keybind ^S "Incremental Search")
+(keybind ^T "Transpose Characters")
+(keybind ^U "Universal Arg")
+(keybind ^V "Next Screen")
+(keybind ^W "Kill Region")
+(keybind ^X "Prefix Extend")
+(keybind ^Y "Un-kill")
+(keybind ^Z "Scroll Window Up")		; IMAGEN
+(keybind ^[ "Prefix Meta")
+; (keybind "^\" "Debug Mode")		; IMAGEN
+; (keybind ^^ "Hit Breakpoint")		; IMAGEN
+(keybind ^_ "Describe")
+(keybind " " "Insert Self")
+(keybind ! "Insert Self")
+(keybind """" "Insert Self")
+(keybind # "Insert Self")
+(keybind $ "Insert Self")
+(keybind % "Insert Self")
+(keybind & "Insert Self")
+(keybind ' "Insert Self")
+(keybind "(" "Insert Self")
+(keybind ")" "Insert Self")
+(keybind * "Insert Self")
+(keybind + "Insert Self")
+(keybind , "Insert Self")
+(keybind - "Insert Self")
+(keybind . "Insert Self")
+(keybind / "Insert Self")
+(keybind 0 "Insert Self")
+(keybind 1 "Insert Self")
+(keybind 2 "Insert Self")
+(keybind 3 "Insert Self")
+(keybind 4 "Insert Self")
+(keybind 5 "Insert Self")
+(keybind 6 "Insert Self")
+(keybind 7 "Insert Self")
+(keybind 8 "Insert Self")
+(keybind 9 "Insert Self")
+(keybind : "Insert Self")
+(keybind ";" "Insert Self")
+(keybind < "Insert Self")
+(keybind = "Insert Self")
+(keybind > "Insert Self")
+(keybind ? "Insert Self")
+(keybind @ "Insert Self")
+(keybind A "Insert Self")
+(keybind B "Insert Self")
+(keybind C "Insert Self")
+(keybind D "Insert Self")
+(keybind E "Insert Self")
+(keybind F "Insert Self")
+(keybind G "Insert Self")
+(keybind H "Insert Self")
+(keybind I "Insert Self")
+(keybind J "Insert Self")
+(keybind K "Insert Self")
+(keybind L "Insert Self")
+(keybind M "Insert Self")
+(keybind N "Insert Self")
+(keybind O "Insert Self")
+(keybind P "Insert Self")
+(keybind Q "Insert Self")
+(keybind R "Insert Self")
+(keybind S "Insert Self")
+(keybind T "Insert Self")
+(keybind U "Insert Self")
+(keybind V "Insert Self")
+(keybind W "Insert Self")
+(keybind X "Insert Self")
+(keybind Y "Insert Self")
+(keybind Z "Insert Self")
+(keybind [ "Insert Self")
+(keybind "\" "Insert Self")
+(keybind ] "Insert Self")
+(keybind ^ "Insert Self")
+(keybind _ "Insert Self")
+(keybind ` "Insert Self")
+(keybind a "Insert Self")
+(keybind b "Insert Self")
+(keybind c "Insert Self")
+(keybind d "Insert Self")
+(keybind e "Insert Self")
+(keybind f "Insert Self")
+(keybind g "Insert Self")
+(keybind h "Insert Self")
+(keybind i "Insert Self")
+(keybind j "Insert Self")
+(keybind k "Insert Self")
+(keybind l "Insert Self")
+(keybind m "Insert Self")
+(keybind n "Insert Self")
+(keybind o "Insert Self")
+(keybind p "Insert Self")
+(keybind q "Insert Self")
+(keybind r "Insert Self")
+(keybind s "Insert Self")
+(keybind t "Insert Self")
+(keybind u "Insert Self")
+(keybind v "Insert Self")
+(keybind w "Insert Self")
+(keybind x "Insert Self")
+(keybind y "Insert Self")
+(keybind z "Insert Self")
+(keybind { "Insert Self")
+(keybind | "Insert Self")
+(keybind } "Insert Self")
+(keybind ~ "Insert Self")
+(keybind DEL "Backward Delete Character")
+
+; Meta chars
+
+(keybind M-- "Negative Argument")
+(keybind M-0 "Argument Digit")
+(keybind M-1 "Argument Digit")
+(keybind M-2 "Argument Digit")
+(keybind M-3 "Argument Digit")
+(keybind M-4 "Argument Digit")
+(keybind M-5 "Argument Digit")
+(keybind M-6 "Argument Digit")
+(keybind M-7 "Argument Digit")
+(keybind M-8 "Argument Digit")
+(keybind M-9 "Argument Digit")
+(keybind M-J "Fill Paragraph")			; IMAGEN
+(keybind M-> "Goto End")
+(keybind M-< "Goto Beginning")
+(keybind "M-;" "Indent for Comment")
+(keybind M-~ "Buffer Not Modified")
+(keybind M-I "Indent Under")
+; (keybind M-M "Back to Indentation")		; IMAGEN
+; (keybind M-O "VT100 button hack")		; IMAGEN
+(keybind M-F "Forward Word")
+(keybind M-B "Backward Word")
+(keybind M-D "Kill Word")
+; (keybind M-DEL "Backward Kill Word")		; IMAGEN
+(keybind M-Y "Un-kill Pop")
+(keybind M-U "Uppercase Word")
+(keybind M-L "Lowercase Word")
+(keybind M-C "Uppercase Initial")
+(keybind M-W "Copy Region")
+(keybind M-V "Previous Screen")
+(keybind "M-\" "Delete Horizontal Space")
+(keybind M-Q "Query Replace")			; IMAGEN
+(keybind M-R "Query Replace")			; IMAGEN
+(keybind M-[ "Backward Paragraph")
+(keybind M-] "Forward Paragraph")
+(keybind M-H "Backward Kill Word")		; IMAGEN
+(keybind M-^W "Append Next Kill")
+(keybind M-T "Transpose Words")
+(keybind "M-)" "Match Bracket")			; IMAGEN
+(keybind M-! "Line to Window Border")		; IMAGEN
+(keybind M-Z "Scroll Window Down")		; IMAGEN
+(keybind M-^V "Other New Screen")		; IMAGEN
+(keybind M-^C "Return to Superior")		; IMAGEN
+(keybind M-, "Move to Window Top")		; IMAGEN
+(keybind M-. "Move to Window Bottom")		; IMAGEN
+(keybind M-G "Fill Region")
+
+; Extended commands
+
+(keybind X-^O "Select Existing Buffer")		; IMAGEN
+(keybind X-^P "Set Profile")
+(keybind X-F "Set Fill Column")
+(keybind X-^B "List Buffers")
+(keybind X-B "Select Buffer")
+(keybind X-^I "Insert File")
+(keybind X-^R "Read File")
+(keybind X-^F "Write File Exit")		; IMAGEN
+(keybind X-^V "Find File")			; IMAGEN
+(keybind X-^W "Write File")
+(keybind X-^S "Save File")
+(keybind X-^M "Save Modified Files")		; IMAGEN
+(keybind X-^N "Next Error")			; IMAGEN
+(keybind X-^E "Make")				; IMAGEN
+(keybind X-^X "Exchange Point and Mark")
+(keybind "X-\" "Delete Blank Lines")		; IMAGEN
+(keybind X-^U "Uppercase Region")
+(keybind X-^L "Lowercase Region")
+(keybind X-^Z "Shrink Window")			; IMAGEN
+(keybind X-Z "Grow Window")			; IMAGEN
+(keybind X-D "Delete Window")			; IMAGEN
+(keybind X-^C "Return to Superior")
+(keybind X-2 "Two Windows")
+(keybind X-1 "One Window")
+(keybind X-O "Other Window")
+(keybind X-P "Other Window")			; IMAGEN
+(keybind X-N "Other Window")			; IMAGEN
+; (keybind X-^ "Grow Window")			; IMAGEN
+; (keybind X-! "Push to Inferior")		; IMAGEN
+(keybind X-! "Execute Unix Command")		; IMAGEN
+(keybind X-T "Text Mode Toggle")		; IMAGEN
+(keybind X-K "Kill Buffer")
+(keybind X-% "Replace String")

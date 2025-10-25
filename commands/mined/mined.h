@@ -11,7 +11,7 @@
 #undef EOF
 extern int _putchar();
 extern char *CE, *VS, *SO, *SE, *CL, *AL, *CM;
-#define YMAX		23
+#define YMAX		49
 #else
 #define YMAX		24		/* Maximum y coordinate starting at 0 */
 /* Escape sequences. */
@@ -47,37 +47,35 @@ extern char *pos_string;	/* Absolute cursor positioning */
 
 #define STD_OUT	 	1		/* Filedescriptor for terminal */
 #define FILE_LENGTH	14		/* Length of filename in minix */
+#ifdef i8088
 #define MEMORY_SIZE	(50 * 1024)	/* Size of data space to malloc */
+#endif
 
 #define REPORT	2			/* Report change of lines on # lines */
 
-/*
- * To avoid #define XXX 0 #define !XXX 1 an enum type is used for all flags used
- * in mined.
- */
-typedef enum {
+typedef int FLAG;
+
 /* General flags */
-  FALSE,
-  TRUE,
-  NOT_VALID,
-  VALID,
-  OFF,
-  ON,
+#define	FALSE		0
+#define	TRUE		1
+#define	NOT_VALID	2
+#define	VALID		3
+#define	OFF		4
+#define	ON		5
 
 /* Expression flags */
-  FORWARD,
-  REVERSE,
+#define	FORWARD		6
+#define	REVERSE		7
 
 /* Yank flags */
-  SMALLER,
-  BIGGER,
-  SAME,
-  EMPTY,
-  NO_DELETE,
-  DELETE,
-  READ,
-  WRITE
-} FLAG;
+#define	SMALLER		8
+#define	BIGGER		9
+#define	SAME		10
+#define	EMPTY		11
+#define	NO_DELETE	12
+#define	DELETE		13
+#define	READ		14
+#define	WRITE		15
 
 /*
  * The Line structure.  Each line entry contains a pointer to the next line,
@@ -139,6 +137,8 @@ extern LINE *bot_line;		/* Last line of screen */
 extern LINE *cur_line;		/* Current line in use */
 extern char *cur_text;		/* Pointer to char on current line in use */
 extern int last_y;		/* Last y of screen. Usually SCREENMAX */
+extern int ymax;
+extern int screenmax;
 extern char screen[SCREEN_SIZE];/* Output buffer for "writes" and "reads" */
 
 extern int x, y;			/* x, y coordinates on screen */

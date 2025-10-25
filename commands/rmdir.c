@@ -2,13 +2,11 @@
  * (modified by Paul Polderman)
  */
 
-#include "../include/signal.h"
-#include "../include/stat.h"
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/dir.h>
 
-struct direct {
-    unsigned short  d_ino;
-    char    d_name[14];
-};
 int     error = 0;
 
 main (argc, argv)

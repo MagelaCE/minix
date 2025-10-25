@@ -2,8 +2,9 @@
 
 extern int errno; /*DEBUG*/
 
-#include "blocksize.h"
-#include "stat.h"
+#include <minix/blocksize.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #define BUF_SIZE      512
 int unbuffered;

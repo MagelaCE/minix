@@ -1,6 +1,6 @@
 /* od - octal dump	   Author: Andy Tanenbaum */
 
-#include "stdio.h"
+#include <stdio.h>
 
 
 int bflag, cflag, dflag, oflag, xflag, hflag, linenr, width, state, ever;
@@ -63,7 +63,6 @@ char *argv[];
 		std_err("od: cannot open ");
 		std_err(argv[k]);
 		std_err("\n");
-		fflush(stdout);
 		exit(1);
 	}
 	k++;
@@ -80,7 +79,6 @@ char *argv[];
   dumpfile();
   addrout(off);
   printf("\n");
-  fflush(stdout);
   exit(0);
 }
 
@@ -108,7 +106,6 @@ int k;
 	c = *p++;
 	if (c < '0' || c > '9') {
 		printf("Bad character in offset: %c\n", c);
-		fflush(stdout);
 		exit(1);
 	}
 	val = radix * val + c - '0';
@@ -279,9 +276,9 @@ long l;
   int i;
 
   if (hflag == 0) {
-	for (i = 0; i < 7; i++) printf("%c",  ((l>>(18-3*i)) & 07) + '0');
+	for (i = 0; i < 7; i++) printf("%c", (int)((l>>(18-3*i)) & 07) + '0');
   } else {
-	for (i = 0; i < 7; i++) printf("%c", hexit( ((l>>(24-4*i)) & 0x0F)) );
+	for (i = 0; i < 7; i++) printf("%c", hexit( (int)((l>>(24-4*i)) & 0x0F)) );
   }
 }
 

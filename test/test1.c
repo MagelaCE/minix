@@ -3,8 +3,8 @@
 int glov, gct;
 extern int errno;
 int errct;
-extern long lseek();
-char initstack[2048];
+#define SIGNUM 10
+
 
 
 main()
@@ -58,10 +58,11 @@ int i;
 
 test11()
 {
-  int i, k;
+  int i, k, func();
 
   for (i = 0; i < 4; i++)  {
 	glov = 0;
+	signal(SIGNUM, func);
 	if ( (k=fork())) {
 		if (k < 0){printf("Test 1 fork failed\n"); exit(1);}
 		parent1(k);
@@ -75,10 +76,10 @@ parent1(childpid)
 int childpid;
 {
 
-  int func(), n;
+  int n;
 
   for (n = 0; n < 5000; n++) ;
-  while (kill(childpid, 2) < 0) /* null statement */ ;
+  while (kill(childpid, SIGNUM) < 0) /* null statement */ ;
   wait(&n);
 }
 
@@ -90,7 +91,6 @@ func()
 child1(k)
 int k;
 {
-  signal(2, func);
   while (glov == 0) ;
   exit(gct);
 }

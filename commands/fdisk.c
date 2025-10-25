@@ -14,7 +14,7 @@
  *	cl -DDOS fdisk.c			(DOS with MS C compiler)
  */
  
-#include "stdio.h"
+#include <stdio.h>
 #define UNIX		/* for MINIX */
 
 #ifdef DOS

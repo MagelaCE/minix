@@ -110,10 +110,7 @@ Extern	int	isbreak;
 struct ioword {
 	short	io_unit;	/* unit affected */
 	short	io_flag;	/* action (below) */
-	union {
-		char	*io_name;	/* file name */
-		struct block *io_here;	/* here structure pointer */
-	} io_un;
+	char	*io_name;	/* file name */
 };
 #define	IOREAD	1	/* < */
 #define	IOHERE	2	/* << (here file) */
@@ -258,12 +255,10 @@ Extern	struct	io	iostack[NPUSH];
 #define	XOTHER	0	/* none of the below */
 #define	XDOLL	1	/* expanding ${} */
 #define	XGRAVE	2	/* expanding `'s */
-#define	XIO	4	/* file IO */
-#define XHERE	0x80	/* Any of the above inside a here document */
-#define XMASK	0x7f	/* Get the actual task */
+#define	XIO	3	/* file IO */
 
 /* in substitution */
-#define	INSUB()	((e.iop->task&XMASK)==XGRAVE||(e.iop->task&XMASK)==XDOLL)
+#define	INSUB()	(e.iop->task == XGRAVE || e.iop->task == XDOLL)
 
 /*
  * input generators for IO structure
@@ -271,6 +266,7 @@ Extern	struct	io	iostack[NPUSH];
 int	nlchar();
 int	strchar();
 int	filechar();
+int	herechar();
 int	linechar();
 int	nextchar();
 int	gravechar();
@@ -298,7 +294,7 @@ void	pushio(/* struct ioarg arg, int (*gen)() */);
 int	remap();
 int	openpipe();
 void	closepipe();
-struct	io	*setbase(/* struct io * */);
+struct io *setbase(/* struct io * */);
 
 Extern	struct	ioarg	temparg;	/* temporary for PUSHIO */
 #define	PUSHIO(what,arg,gen) ((temparg.what = (arg)),pushio(temparg,(gen)))
@@ -327,6 +323,7 @@ char	**getwords();
 char	*getcell(/* unsigned size */);
 void	garbage();
 void	setarea(/* char *obj, int to */);
+int	getarea(/* char *obj */);
 void	freearea(/* int area */);
 void	freecell(/* char *obj */);
 

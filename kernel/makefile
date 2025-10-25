@@ -1,21 +1,42 @@
-# The kernel dir contains wd_wini.c, xt_wini.c and at_wini.c.  Before running
-# make you must copy one of these to wini.c, depending on which controller you
+# The kernel dir contains xt_wini.c and at_wini.c.  Before running make
+# you must copy one of these to wini.c, depending on which controller you
 # have.  If you do not have a hard disk, you MUST choose one of them at random.
 # On a PC, cpp and cem are in /lib and will be removed to make space while
 # linking the kernel.  On an AT, they are in /usr/lib are are not removed.
 # This is because they have to be in /lib on a PC; the diskette is too small
-# for them to be in /usr/lib.
-CFLAGS= -Di8088 -w -F -T.
+# for them to be in /usr/lib.  You can change this by editing commands/cc.c.
+#
+# Normally, MINIX scrolls the screen using the 6845's registers.  However,
+# on some EGA cards (those that are not IBM compatible), the 6845 is not
+# properly emulated.  On these machines, it is necessary to scroll in
+# software by copying. This is much slower, but it works. The CFLAGS flags are:
+#
+#  -Di8088	- required on an 8088/80286/80386 CPU; forbidden on a 68000
+#  -F		- run cpp and cem sequentially (used when memory is tight)
+#  -T.		- put temporaries in working directory (when RAM disk is small)
+#
+# In the standard distribution, the following defaults are set
+#  PC:		CFLAGS = -Di8088 -F -T.
+#  AT:		CFLAGS = -Di8088 -F 
+#
+CFLAGS= -Di8088 -F
 h=../h
 l=/usr/lib
 
-obj = mpx88.s main.s tty.s floppy.s wini.s system.s proc.s clock.s memory.s  \
-      printer.s table.s klib88.s dmp.s 
+obj =	mpx88.s main.s tty.s floppy.s wini.s system.s proc.s clock.s memory.s \
+	printer.s table.s klib88.s dmp.s
+
+cobjs =	main.s tty.s floppy.s wini.s system.s proc.s clock.s memory.s \
+	printer.s table.s dmp.s
+
 
 kernel:	makefile $(obj) $l/libc.a
 	@echo "Start linking Kernel."
-	@asld -o kernel  $(obj) $l/libc.a $l/end.s
-	@echo "Kernel done."
+	@asld -o kernel $(obj) $l/libc.a $l/end.s
+	@echo "Kernel done.  "
+
+clean:
+	rm -f $(cobjs)
 
 clock.s:	const.h type.h $h/const.h $h/type.h
 clock.s:	$h/callnr.h
@@ -57,6 +78,8 @@ printer.s:	const.h type.h $h/const.h $h/type.h
 printer.s:	$h/callnr.h
 printer.s:	$h/com.h
 printer.s:	$h/error.h
+printer.s:	proc.h
+printer.s:	glo.h
 
 proc.s:		const.h type.h $h/const.h $h/type.h
 proc.s:		$h/callnr.h
@@ -73,7 +96,7 @@ system.s:	$h/signal.h
 system.s:	glo.h
 system.s:	proc.h
 
-table.s:	const.h type.h $h/const.h $h/type.h
+table.s:	const.h type.h $h/const.h $h/type.h $h/com.h
 table.s:	glo.h
 table.s:	proc.h
 

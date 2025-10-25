@@ -11,8 +11,10 @@
 |   build_sig:	build 4 word structure pushed onto stack for signals
 |   csv:	procedure prolog to save the registers
 |   cret:	procedure epilog to restore the registers
-|   get_chrome:	returns 0 is display is monochrome, 1 if it is color
+|   get_chrome:	returns 0 if display is monochrome, 1 if it is color
 |   vid_copy:	copy data to video ram (on color display during retrace only)
+|   scr_up:	scroll screen a line up (in software, by copying)
+|   scr_down:	scroll screen a line down (in software, by copying)
 |   get_byte:	reads a byte from a user program and returns it as value
 |   reboot:	reboot for CTRL-ALT-DEL
 |   wreboot:	wait for character then reboot 
@@ -23,8 +25,7 @@
 | The following procedures are defined in this file and called from outside it.
 .globl _phys_copy, _cp_mess, _port_out, _port_in, _lock, _unlock, _restore
 .globl _build_sig, csv, cret, _get_chrome, _vid_copy, _get_byte, _reboot
-.globl _wreboot, _dma_read, _dma_write, _em_xfer
-.globl _portw_in, _portw_out
+.globl _wreboot, _dma_read, _dma_write, _em_xfer, _scr_up, _scr_down
 
 | The following external procedure is called in this file.
 .globl _panic
@@ -42,6 +43,7 @@
 _phys_copy:
 	pushf			| save flags
 	cli			| disable interrupts
+	cld			| clear direction flag
 	push bp			| save the registers
 	push ax			| save ax
 	push bx			| save bx
@@ -129,7 +131,7 @@ L7:	mov 32(bp),dx		| store decremented byte count back in mem
 |*===========================================================================*
 |*				cp_mess					     *
 |*===========================================================================*
-| This routine is makes a fast copy of a message from anywhere in the address
+| This routine makes a fast copy of a message from anywhere in the address
 | space to anywhere else.  It also copies the source address provided as a
 | parameter to the call into the first word of the destination message.
 | It is called by:
@@ -137,7 +139,7 @@ L7:	mov 32(bp),dx		| store decremented byte count back in mem
 | where all 5 parameters are shorts (16-bits).
 |
 | Note that the message size, 'Msize' is in WORDS (not bytes) and must be set
-| correctly.  Changing the definition of message the type file and not changing
+| correctly.  Changing the definition of message in type file and not changing
 | it here will lead to total disaster.
 | This routine destroys ax.  It preserves the other registers.
 
@@ -149,6 +151,7 @@ _cp_mess:
 	mov bp,sp		| index off bp because machine can't use sp
 	pushf			| save flags
 	cli			| disable interrupts
+	cld			| clear direction flag
 	push cx			| save cx
 	push si			| save si
 	push di			| save di
@@ -214,44 +217,6 @@ _port_in:
 	pop bx			| restore bx
 	ret			| return to caller
 
-
-|*===========================================================================*
-|*				portw_out				     *
-|*===========================================================================*
-| portw_out(port, value) writes 'value' on the I/O port 'port'.
-
-_portw_out:
-	push bx			| save bx
-	mov bx,sp		| index off bx
-	push ax			| save ax
-	push dx			| save dx
-	mov dx,4(bx)		| dx = port
-	mov ax,6(bx)		| ax = value
-	outw			| output 1 word
-	pop dx			| restore dx
-	pop ax			| restore ax
-	pop bx			| restore bx
-	ret			| return to caller
-
-
-|*===========================================================================*
-|*				portw_in				     *
-|*===========================================================================*
-| portw_in(port, &value) reads from port 'port' and puts the result in 'value'.
-_portw_in:
-	push bx			| save bx
-	mov bx,sp		| index off bx
-	push ax			| save ax
-	push dx			| save dx
-	mov dx,4(bx)		| dx = port
-	inw			| input 1 word
-	mov bx,6(bx)		| fetch address where byte is to go
-	mov (bx),ax		| return byte to caller in param
-	pop dx			| restore dx
-	pop ax			| restore ax
-	pop bx			| restore bx
-	ret			| return to caller
-	
 
 |*===========================================================================*
 |*				lock					     *
@@ -392,7 +357,7 @@ _dma_read:
 	pop	es
 	pop	di
 	pop	dx
-	pop	dx
+	pop	cx
 	mov	sp,bp
 	pop	bp
 	ret
@@ -416,7 +381,7 @@ _dma_write:
 	pop	ds
 	pop	si
 	pop	dx
-	pop	dx
+	pop	cx
 	mov	sp,bp
 	pop	bp
 	ret
@@ -475,6 +440,7 @@ vid.3:	in			| 0x3DA is set during retrace.  First wait
 
 vid.4:	pushf			| copying may now start; save flags
 	cli			| interrupts just get in the way: disable them
+	cld			| clear direction flag
 	mov es,6(bp)		| load es now: int routines may ruin it
 
 	cmp si,#0		| si = 0 means blank the screen
@@ -509,6 +475,88 @@ vid.7:	mov ax,#BLANK		| ax = blanking character
 	rep			| copy loop
 	stow			| blank screen
 	jmp vid.5		| done
+
+|*===========================================================================*
+|*				scr_up  				     *
+|*===========================================================================*
+| This routine scrolls the screen up one line on an EGA display 
+| 
+| The call is:
+|     scr_up(org)
+| where
+|     'org'       is the video segment origin of the desired page
+
+_scr_up:
+	push bp			| we need bp to access the parameters
+	mov bp,sp		| set bp to sp for indexing
+	push si			| save the registers
+	push di			| save di
+	push cx			| save cx
+	push es			| save es
+	push ds			| save ds
+	mov si,#160		| si = pointer to data to be copied
+	mov di,#0		| di = offset within video ram
+	mov cx,#1920		| cx = word count for copy loop
+
+	pushf			| copying may now start; save flags
+	cli			| interrupts just get in the way: disable them
+	cld			| clear diretion flag
+	mov ax,4(bp)
+	mov es,ax		| load es now: int routines may ruin it
+	mov ds,ax
+
+	rep			| this is the copy loop
+	movw			| ditto
+
+	popf			| restore flags
+	pop ds			| restore ds
+	pop es			| restore es
+	pop cx			| restore cx
+	pop di			| restore di
+	pop si			| restore si
+	pop bp			| restore bp
+	ret			| return to caller
+
+|*===========================================================================*
+|*				  scr_down				     *
+|*===========================================================================*
+| This routine scrolls the screen down one line on an EGA display 
+| 
+| The call is:
+|     scr_down(org)
+| where
+|     'org'       is the video segment origin of the desired page
+
+_scr_down:
+	push bp			| we need bp to access the parameters
+	mov bp,sp		| set bp to sp for indexing
+	push si			| save the registers
+	push di			| save di
+	push cx			| save cx
+	push es			| save es
+	push ds			| save ds
+	mov si,#3838		| si = pointer to data to be copied
+	mov di,#3998		| di = offset within video ram
+	mov cx,#1920		| cx = word count for copy loop
+
+	pushf			| copying may now start; save flags
+	cli			| interrupts just get in the way: disable them
+	mov ax,4(bp)
+	mov es,ax		| load es now: int routines may ruin it
+	mov ds,ax
+
+	std
+	rep			| this is the copy loop
+	movw			| ditto
+
+	popf			| restore flags
+	pop ds			| restore ds
+	pop es			| restore es
+	pop cx			| restore cx
+	pop di			| restore di
+	pop si			| restore si
+	pop bp			| restore bp
+	ret			| return to caller
 
 |*===========================================================================*
 |*				get_byte				     *
@@ -674,6 +722,7 @@ _reboot:
 	cli			| disable interrupts
 	mov ax,#0x20		| re-enable interrupt controller
 	out 0x20
+	call _eth_stp		| stop the ethernet chip
 	call resvec		| restore the vectors in low core
 	mov ax,#0x40
 	mov ds,ax
@@ -691,6 +740,7 @@ _wreboot:
 	cli			| disable interrupts
 	mov ax,#0x20		| re-enable interrupt controller
 	out 0x20
+	call _eth_stp		| stop the ethernet chip
 	call resvec		| restore the vectors in low core
 	xor ax,ax		| wait for character before continuing
 	int 0x16		| get char

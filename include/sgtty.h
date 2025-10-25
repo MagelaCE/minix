@@ -17,7 +17,7 @@ struct tchars {
   char t_brkc;			/* input delimiter (like nl) */
 };
 
-/* Fields in t_flags. */
+/* Field names */
 #define XTABS	     0006000	/* do tab expansion */
 #define RAW	     0000040	/* enable raw mode */
 #define CRMOD	     0000020	/* map lf to cr + lf */

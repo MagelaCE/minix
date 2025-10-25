@@ -1,7 +1,6 @@
 /* wc - count lines, words and characters	Author: David Messer */
 
-#include "stdio.h"
-#define isdigit(c) (c >= '0' && c <= '9)
+#include <stdio.h>
 #define isspace(c) (c == ' ' || c == '\t' || c == '\n' || c == '\f' || c == '\r')
 
 /*
@@ -127,7 +126,7 @@ count()
 	wcount = 0;
 	ccount = 0L;
 
-  while((c = getc(stdin)) > 0) {
+  while((c = getc(stdin)) >= 0) {
 	ccount++;
 
 	if(isspace(c)) {

@@ -1,4 +1,5 @@
-#include "signal.h"
+#include <signal.h>
+int is, array[4];
 int parsigs, parpid, parcum;
 int sigct, cumsig, errct;
 
@@ -89,13 +90,17 @@ test92()
 {
   int pid, n;
 
-  signal(SIGQUIT, SIG_DFL);
-  if (fork()) {
-	if (fork()) {
-		if (fork()) {
-			if (fork()) {
-				signal(SIGQUIT, SIG_IGN);
-				kill(0, SIGQUIT);
+  signal(SIGINT, SIG_DFL);
+  is = 0;
+  if ((array[is++]=fork()) > 0) {
+	if ((array[is++]=fork()) > 0) {
+		if ((array[is++]=fork()) > 0) {
+			if ((array[is++]=fork()) > 0) {
+				signal(SIGINT, SIG_IGN);
+				kill(array[0], SIGINT);
+				kill(array[1], SIGINT);
+				kill(array[2], SIGINT);
+				kill(array[3], SIGINT);
 				wait(&n);
 				wait(&n);
 				wait(&n);

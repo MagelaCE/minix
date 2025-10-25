@@ -5,8 +5,9 @@
  * 4 bytes in the encoded file.  Uudecode decodes encoded files.
  */
 
-#include "stdio.h"
-#include "stat.h"
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 extern FILE *fopen();
 
@@ -24,7 +25,7 @@ char **argv;
 	if (argc > 2) {
 		if ((in = fopen(argv[1], "r")) == (FILE *) NULL) {
 			perror(argv[1]);
-			xit(1);
+			exit(1);
 		}
 		argv++; argc--;
 	} else
@@ -32,7 +33,7 @@ char **argv;
 
 	if (argc != 2) {
 		printf("Usage: uuencode infile <infile >outfile\n");
-		xit(2);
+		exit(2);
 	}
 
 	/* figure out the input file mode */
@@ -43,7 +44,7 @@ char **argv;
 	encode(in, stdout);
 
 	printf("end\n");
-	xit(0);
+	exit(0);
 }
 
 /*
@@ -105,11 +106,4 @@ int cnt;
 		buf[i] = c;
 	}
 	return (cnt);
-}
-
-xit(n)
-int n;
-{
-  _cleanup();
-  exit(n);
 }

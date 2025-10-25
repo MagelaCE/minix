@@ -122,7 +122,7 @@ register message *m_ptr;	/* pointer to read or write message */
 		phys_copy(user_phys, mem_phys, (long) count);
   } else {
 	/* AT with RAM disk in extended memory (above 1 MB). */
-	if (count & 1) panic("RAM disk got odd byte count\n", m_ptr);
+	if (count & 1) panic("RAM disk got odd byte count\n", NO_NUM);
 	words = count >> 1;	/* # words is half # bytes */
 	if (m_ptr->m_type == DISK_READ) {
 		status = em_xfer(mem_phys, user_phys, words);
@@ -130,7 +130,7 @@ register message *m_ptr;	/* pointer to read or write message */
 		status = em_xfer(user_phys, mem_phys, words);
 	}
 	if (status != 0) count = -1;
-  }	
+  }		
   return(count);
 }
 
@@ -146,7 +146,7 @@ message *m_ptr;			/* pointer to read or write message */
   int device;
 
   device = m_ptr->DEVICE;
-  if (device < 0 || device >= NR_RAMS) return(ENXIO);	/* bad minor device */
+  if (device != RAM_DEV) return(ENXIO);	/* bad minor device */
   ram_origin[device] = m_ptr->POSITION;
   ram_limit[device] = m_ptr->POSITION + (long) m_ptr->COUNT * BLOCK_SIZE;
   return(OK);

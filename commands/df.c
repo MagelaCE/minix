@@ -1,26 +1,26 @@
 /* df - disk free block printout	Author: Andy Tanenbaum */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../fs/const.h"
-#include "../fs/type.h"
-#include "../fs/super.h"
-#include "stat.h"
+#include <minix/const.h>
+#include <minix/type.h>
+#include <fs/const.h>
+#include <fs/type.h>
+#include <fs/super.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+
+char *mtab = "/etc/mtab";
 
   
 main(argc, argv)
 int argc;
 char *argv[];
 {
-
   register int i;
 
-  if (argc <= 1) {
-	std_err("Usage: df special ...\n");
-	exit(1);
-  }
-
   sync();			/* have to make sure disk is up-to-date */
+  if (argc == 1) defaults();
+
   for (i = 1; i < argc; i++) df(argv[i]);
   exit(0);
 }
@@ -83,18 +83,18 @@ char *name;
   busyblocks = z_count << sp->s_log_zone_size;
 
   /* Print results. */
-  prints("%s ",name);
+  prints("%s",name);
   s0 = name;
   while (*s0) s0++;
   i = 12 - (s0 - name);
   while (i--) prints(" ");
   prints("i-nodes: ");
   num3(i_count - 1);
-  prints(" used  ");
+  prints(" used ");
   num3(sp->s_ninodes + 1 - i_count);
   prints(" free      blocks: ");
   num3(busyblocks);
-  prints(" used  ");
+  prints(" used ");
   num3(totblocks - busyblocks);
   prints(" free\n");
   close(fd);
@@ -145,8 +145,45 @@ num3(n)
 int n;
 {
   extern char *itoa();
-  if (n < 10) prints("   %s", itoa(n));
-  else if (n < 100) prints("  %s", itoa(n));
-  else if (n < 1000) prints(" %s", itoa(n));
+  if (n < 10)      prints("    %s", itoa(n));
+  else if (n < 100) prints("   %s", itoa(n));
+  else if (n < 1000) prints("  %s", itoa(n));
+  else if (n < 10000) prints(" %s", itoa(n));
   else prints("%s", itoa(n));
+}
+
+defaults()
+{
+/* Use the root file system and all mounted file systems. */
+
+  char buf[256];
+
+  close(0);
+  if (open(mtab, 0) < 0) {
+	std_err("df: cannot open ");
+	std_err(mtab);
+	std_err("\n");
+	exit(1);
+  }
+
+  /* Read /etc/mtab and iterate on the lines. */
+  while (1) {
+	getname(buf);		/* getname exits upon hitting EOF */
+	df(buf);
+  }
+
+}
+
+getname(p)
+char *p;
+{
+  char c;
+
+  while (1) {
+	c = getchar();
+	if (c < 0) exit(0);
+	if (c == ' ') c = 0;
+	*p++ = c;
+	if (c == '\n') return;
+  }
 }

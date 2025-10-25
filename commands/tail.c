@@ -1,6 +1,6 @@
 /* tail - print the end of a file */
 
-#include "stdio.h"
+#include <stdio.h>
 #define TRUE 1
 #define FALSE 0
 #define BLANK ' '
@@ -27,7 +27,7 @@ char *argv[] ;
 
         if (argc == 0 ) {
                 tail(stdin, count);
-                done(0) ;
+                exit(0) ;
         }
 
         s = *argv ;
@@ -52,7 +52,7 @@ char *argv[] ;
 
         if (argc < 0 ) {
                 fprintf(stderr, "Usage: tail [+/-[number][lc]] [files]\n");
-                done(1) ;
+                exit(1) ;
         }
 
         if (argc == 0 )
@@ -60,14 +60,14 @@ char *argv[] ;
 
         else if ((input=fopen(*argv,"r")) == NULL ) {
                 fprintf(stderr, "tail: can't open %s\n", *argv) ;
-                done(1) ;
+                exit(1) ;
         }
         else {
                 tail(input, count);
                 fclose(input);
         }
 
-        done(0) ;
+        exit(0) ;
 }
 
 /* stoi - convert string to integer */
@@ -109,8 +109,8 @@ int goal ;
         count = 0 ;
 
         if (goal > 0 ) {        /* skip */
-
-                if (lines )             /* lines */
+		count++;	/* start counting at 1 */
+                if (lines )     /* lines */
                         while ((c=getc(in)) != EOF ) {
                                 if (c == NEWL )
                                         count++ ; 
@@ -161,12 +161,3 @@ int goal ;
         } /* end else */
 
 } /* end tail */
-
-
-
-done(n)
-int n;
-{
-  _cleanup();			/* flush stdio's internal buffers */
-  exit(n);
-}

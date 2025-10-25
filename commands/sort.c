@@ -31,8 +31,9 @@
  * 	A missing -a.b means the rest of the line.
  */
 
-#include "stat.h"
-#include "signal.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <signal.h>
 
 #define OPEN_FILES	16		/* Nr of open files per process */
 
@@ -60,10 +61,10 @@
 #define DIGIT		0x008		/* 0-9 */
 #define UPPER		0x010		/* A-Z */
 
-typedef enum {				/* Boolean types */
-  FALSE = 0,
-  TRUE
-} BOOL;
+typedef int BOOL;
+
+#define	FALSE	0
+#define	TRUE	1
 
 typedef struct {
   int fd;				/* Fd of file */
@@ -277,7 +278,7 @@ BOOL beg_fl;				/* Assign beg or end of field */
 
   if (beg_fl) {			/* Check for end pos */
 	ptr = argptr[*offset];
-	if (*ptr == '-' && table[*(ptr + 1)] & DIGIT) {
+	if (ptr && *ptr == '-' && table[*(ptr + 1)] & DIGIT) {
 		new_field(field, offset, FALSE);
 		if (field->beg_field > field->end_field)
 			error(TRUE, "End field is before start field!",NIL_PTR);
@@ -311,7 +312,7 @@ char *argv[];
   argptr = argv;
   cur_pos = mem_top = msbrk(MEMORY_SIZE);	/* Find lowest mem. location */
 
-  while (argc > 1 && ((ptr = argv[arg_count])[0] == '-' || *ptr == '+')) {
+  while (arg_count < argc && ((ptr = argv[arg_count])[0] == '-' || *ptr == '+')) {
 	if (*ptr == '-' && *(ptr + 1) == '\0')	/* "-" means stdin */
 		break;
 	if (*ptr == '+') {		/* Assign field. */
@@ -464,8 +465,9 @@ int fd;				/* Fd of file to read */
 register long size;		/* Size of file */
 {
   register int i;
-  long rest;		/* Rest in memory */
+  int rest;		/* Rest in memory */
   char save_ch;		/* Used in stdin readings */
+  long lseek();
 
   rest = MEMORY_SIZE - (cur_pos - mem_top);
   if (fd == 0) {		/* We're reding stdin */
@@ -478,10 +480,10 @@ register long size;		/* Size of file */
 			sort ();		/* Sort core */
 			mem_top[i] = save_ch;	/* Restore erased char */
 				/* Restore last (half read) line */
-			for (size = 0; i + size != MEMORY_SIZE; size++)
-				mem_top[size] = mem_top[i + size];
+			for (rest = 0; i + rest != MEMORY_SIZE; rest++)
+				mem_top[rest] = mem_top[i + rest];
 				/* Assign current pos. in memory */
-			cur_pos = &mem_top[size];
+			cur_pos = &mem_top[rest];
 		}
 		else {	/* Fits, just assign position in mem. */
 			cur_pos = cur_pos + i;
@@ -496,15 +498,16 @@ register long size;		/* Size of file */
 	in_core = FALSE;
 	i = last_line();		/* Get pos. of last line */
 	mem_top[i] = '\0';		/* Truncate */
-	(void) lseek(fd, i - MEMORY_SIZE, 1);	/* Do this next time */
-	rest = size - rest - i + MEMORY_SIZE;/* Calculate rest */
+	(void) lseek(fd, (long)(i - MEMORY_SIZE), 1);	/* Do this next time */
+	size = size - rest - i + MEMORY_SIZE;/* Calculate rest */
 	cur_pos = mem_top;		/* Reset mem */
 	sort();				/* Sort core */
-	get_file(fd, rest);		/* Get rest of file */
+	get_file(fd, size);		/* Get rest of file */
   }
   else {					/* Fits. Just read in */
-	mread(fd, cur_pos, size);
-	cur_pos = cur_pos + size;	/* Reassign cur_pos */
+	rest = size;
+	mread(fd, cur_pos, rest);
+	cur_pos = cur_pos + rest;	/* Reassign cur_pos */
 	*cur_pos = '\0';
 	(void)close (fd);		/* File completed */
   }
@@ -1237,7 +1240,7 @@ register char *dest, *src;
  * Msbrk() does a sbrk() and checks the return value.
  */
 char *msbrk(size)
-register unsigned size;
+register size;
 {
   extern char *sbrk();
   register char *address;
@@ -1250,13 +1253,12 @@ register unsigned size;
 /*
  * Mbrk() does a brk() and checks the return value.
  */
-char *mbrk(size)
-register unsigned size;
+char *mbrk(address)
+char *address;
 {
   extern char *brk();
-  register char *address;
 
-  if ((address = brk(size)) < 0)
+  if ((address = brk(address)) < 0)
 	error(TRUE, "Cannot reset memory", NIL_PTR);
   return address;
 }

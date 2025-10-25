@@ -2,6 +2,7 @@
  * dosdir - list MS-DOS directories.
  * doswrite - write stdin to DOS-file
  * dosread - read DOS-file to stdout
+ * This program uses the DOS 2.0 format and those compatible with it
  *
  * Author: Michiel Huisjes.
  * 
@@ -11,7 +12,7 @@
  *	  a: Set ASCII bit.
  */
 
-#include "stat.h"
+#include <sys/stat.h>
 
 #define DRIVE		"/dev/atX"
 #define DRIVE_NR	7

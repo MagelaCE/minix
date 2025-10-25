@@ -7,7 +7,7 @@
  * 
  * 1. General remarks.
  * 
- *    Mined is a screen editor designed for the minix operating system.
+ *    Mined is a screen editor designed for the MINIX operating system.
  *    It is meant to be used on files not larger than 50K and to be fast.
  *    When mined starts up, it reads the file into its memory to minimize
  *    disk access. The only time that disk access is needed is when certain
@@ -405,15 +405,14 @@
  *  ========================================================================  */
 
 #include "mined.h"
-#include "signal.h"
-#include "sgtty.h"
-#ifdef UNIX
+#include <signal.h>
+#include <sgtty.h>
 #include <errno.h>
-#else
-#include "errno.h"
-#endif UNIX
 
 extern int errno;
+int ymax = YMAX;
+int screenmax = SCREENMAX;
+
 
 /*
  * Print file status.
@@ -521,7 +520,7 @@ SH()
   		error("Cannot fork.", NIL_PTR);
   		return;
   	case 0:				/* This is the child */
-  		set_cursor(0, YMAX);
+  		set_cursor(0, ymax);
   		putchar('\n');
   		flush();
   		raw_mode(OFF);
@@ -579,10 +578,22 @@ char *inbuf;
 FLAG statfl;
 {
   int ret = FINE;
+  char buf[LINE_LEN];
+  register char *p = buf;
+
+  *p++ = ' ';
+  if (s1 != NIL_PTR)
+	while (*p = *s1++)
+		p++;
+  if (s2 != NIL_PTR)
+	while (*p = *s2++)
+		p++;
+  *p++ = ' ';
+  *p++ = 0;
 
   if (revfl == ON && stat_visible == TRUE)
 	clear_status ();
-  set_cursor(0, YMAX);
+  set_cursor(0, ymax);
   if (revfl == ON) {		/* Print rev. start sequence */
 #ifdef UNIX
   	tputs(SO, 0, _putchar);
@@ -594,13 +605,7 @@ FLAG statfl;
   else				/* Used as clear_status() */
   	stat_visible = FALSE;
 
-  putchar(' ');
-  if (s1 != NIL_PTR)
-  	string_print(s1);
-
-  if (s2 != NIL_PTR)
-  	string_print(s2);
-  putchar(' ');
+  string_print(buf);
   
   if (inbuf != NIL_PTR)
   	ret = input(inbuf, statfl);
@@ -614,7 +619,7 @@ FLAG statfl;
   string_print(blank_line);	/* Clear the rest of the line */
 #endif UNIX
   if (inbuf != NIL_PTR)
-  	set_cursor(0, YMAX);
+  	set_cursor(0, ymax);
   else
   	set_cursor(x, y);	/* Set cursor back to old position */
   flush();			/* Perform the actual write */
@@ -815,7 +820,7 @@ int screen_y;
   top_line = line = head_line;
 
 /* Search for bot_line (might be last line in file) */
-  for (last_y = 0; last_y < nlines - 1 && last_y < SCREENMAX
+  for (last_y = 0; last_y < nlines - 1 && last_y < screenmax
 						&& line->next != tail; last_y++)
   	line = line->next;
 
@@ -837,9 +842,10 @@ int nx, ny;
 
   tputs(tgoto(CM, nx, ny), 0, _putchar);
 #else
-  string_print(pos_string);
-  putchar(X_PLUS + nx);
-  putchar(Y_PLUS + YMAX - ny);/* Driver has (0,0) at lower left corner */
+  char text_buffer[10];
+
+  build_string(text_buffer, pos_string, ny+1, nx+1);
+  string_print(text_buffer);
 #endif UNIX
 }
 
@@ -1067,7 +1073,7 @@ abort_mined()
 
 /* Reset terminal */
   raw_mode(OFF);
-  set_cursor(0, YMAX);
+  set_cursor(0, ymax);
   putchar('\n');
   flush();
 #ifdef UNIX
@@ -1090,17 +1096,17 @@ FLAG state;
   static struct sgttyb new_tty;
   static struct tchars old_tchars;
   static struct tchars new_tchars = {UNDEF, '\034', UNDEF, UNDEF, UNDEF, UNDEF};
-#ifdef UNIX
+#ifdef NTTYDISC
   int ldisc;
-#endif UNIX
+#endif NTTYDISC
 
   if (state == OFF) {
   	ioctl(input_fd, TIOCSETP, &old_tty);
   	ioctl(input_fd, TIOCSETC, &old_tchars);
-#ifdef UNIX
+#ifdef NTTYDISC
   	ldisc = NTTYDISC;
   	ioctl(input_fd, TIOCSETD, &ldisc);
-#endif UNIX
+#endif NTTYDISC
   	return;
   }
 
@@ -1108,10 +1114,10 @@ FLAG state;
   ioctl(input_fd, TIOCGETC, &old_tchars);
   ioctl(input_fd, TIOCGETP, &old_tty);
 
-#ifdef UNIX
+#ifdef NTTYDISC
   ldisc = OTTYDISC;
   ioctl(input_fd, TIOCSETD, &ldisc);
-#endif UNIX
+#endif NTTYDISC
 
 /* Set tty to CBREAK mode */
   ioctl(input_fd, TIOCGETP, &new_tty);
@@ -1156,94 +1162,19 @@ register char *message;
 #endif UNIX
 }
 
-#ifndef lint
-
-typedef unsigned	vir_bytes;
-
-#define POINTER_SIZE	(sizeof(char *))
-#define cast(x)		((vir_bytes) (x))
-#define align(x, a)	(((x) + (a - 1)) & ~(a - 1))
-#define BUSY		1
-#define succ(p)		(* (char **) (p))
-#define is_busy(p)	(cast(p) & BUSY)
-#define set_busy(p)	((char *) (cast(p) | BUSY))
-
-char *free_list;
-
-/*
- * Init_alloc() sets up the free list. The free list initially consists of 
- * MEMORY_SIZE bytes.
- */
-init_alloc()
-{
-  register char *ptr, *top;
-  extern char *sbrk();
-
-/* Get data space for free list */
-  free_list = sbrk(POINTER_SIZE);
-  if ((ptr = sbrk(MEMORY_SIZE)) < 0)
-  	panic("Bad memory allocation in startup");
-  top = sbrk(POINTER_SIZE);
-
-/* Set up list */
-  succ(free_list) = ptr;
-  succ(ptr) = top;
-  succ(top) = NIL_PTR;
-}
-
-/*
- * Allocate size bytes of memory.
- */
-char *alloc(size)
-unsigned size;
-{
-  register char *p = free_list;
-  register char *next;
-  char *new;
-  unsigned len = align(size, POINTER_SIZE) + POINTER_SIZE;
-
-  p = free_list;
-  while ((next = succ(p)) != NIL_PTR) {
-  	if (is_busy(next))	/* Already in use */
-  		p = (char *) (cast(next) & ~BUSY);
-  	else {
-  		while ((new = succ(next)) != NIL_PTR && !is_busy(new))
-  			next = new;
-  		if (next - p >= len) {	/* fits */
-  			if ((new = p + len) < next) {	/* too big */
-  				succ(new) = next;
-  				succ(p) = set_busy(new);
-  			}
-  			else
-  				succ(p) = set_busy(next);
-  			free_list = p;
-  			return (p + POINTER_SIZE);
-  		}
-  		p = next;
-  	}
-  }
-  if (loading == TRUE)
-  	panic("File too big.");
-  panic("Out of memory.");
-}
-
-free_space(p)
-register char *p;
-{
-  p = (char *) (cast(p) - POINTER_SIZE);
-  *(vir_bytes *) (p) &= ~BUSY;
-
-/* Pointer to free list should point to lowest address freed. */
-  if (free_list > p)
-  	free_list = p;
-}
-#else
 char *alloc(bytes)
 int bytes;
 {
+  char *p;
   extern char *malloc();
 
-  return malloc((unsigned) bytes);
+  p = malloc((unsigned) bytes);
+  if (p == NIL_PTR) {
+	if (loading == TRUE)
+		panic("File too big.");
+	panic("Out of memory.");
+  }
+  return(p);
 }
 
 free_space(p)
@@ -1251,7 +1182,6 @@ char *p;
 {
   free(p);
 }
-#endif lint
 
 /*  ========================================================================  *
  *				Main loops				      *
@@ -1261,7 +1191,7 @@ char *p;
 
 extern  UP(), DN(), LF(), RT(), MN(), MP(), GOTO();
 extern  SD(), SU(), PD(), PU(), HO(), EF(), BL(), EL(), HIGH(), LOW();
-extern  S(), LIB(), DPC(), DCC(), DLN(), DNW(), DPW(), CTRL();
+extern  S(), LIB(), DPC(), DCC(), DLN(), DNW(), DPW(), CTL();
 extern  XT(), WT(), VI(), RD(), SH(), I(), FS(), ESC();
 extern  SF(), SR(), LR(), GR();
 extern  MA(), YA(), DT(), PT(), WB(), IF();
@@ -1273,14 +1203,14 @@ int     (*key_map[128])() = {	       /* map ASCII characters to functions */
 		 HIGH, LOW,
    /* 040-057 */ S, S, S, S, S, S, S, S, S, S, S, PD, S, PU, S, S,
    /* 060-077 */ S, S, DN, S, LF, FS, RT, S, UP, S, S, S, S, S, S, S,
-   /* 100-117 */ S, S, S, CTRL, S, EF, SF, S, HO, S, S, S, S, S, S, S,
+   /* 100-117 */ S, S, S, CTL, S, EF, SF, S, HO, S, S, S, S, S, S, S,
    /* 120-137 */ S, S, SR, S, S, S, S, S, S, S, S, S, S, S, S, S,
    /* 140-157 */ S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S,
    /* 160-177 */ S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, DCC
 };
 #else
 int     (*key_map[256])() = {	       /* map ASCII characters to functions */
-   /* 000-017 */ I, BL, MP, YA, SD, RD, MN, IF, DPC, S, S, DT, LR, S, DNW, LIB,
+   /* 000-017 */ MA, BL, MP, YA, SD, RD, MN, IF, DPC, S, S, DT, LR, S, DNW, LIB,
    /* 020-037 */ DPW, WB, GR, SH, DLN, SU, VI, WT, XT, PT, EL, ESC, I, GOTO,
 		 HIGH, LOW,
    /* 040-057 */ S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S,
@@ -1290,7 +1220,7 @@ int     (*key_map[256])() = {	       /* map ASCII characters to functions */
    /* 140-157 */ S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S,
    /* 160-177 */ S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, DCC,
    /* 200-217 */ I, I, I, I, I, I, I, I, I, SR, I, I, SF, I, I, I,
-   /* 220-237 */ MA, I, I, I, I, I, I, I, I, I, I, CTRL, I, I, I, I,
+   /* 220-237 */ MA, I, I, I, I, I, I, I, I, I, I, CTL, I, I, I, I,
    /* 240-257 */ I, I, I, I, I, I, I, I, I, I, I, I, I, I, I, I,
    /* 260-277 */ I, EF, DN, PD, LF, FS, RT, HO, UP, PU, I, I, I, I, I, I,
    /* 300-317 */ I, I, I, I, I, I, I, I, I, I, I, I, I, I, I, I,
@@ -1327,11 +1257,11 @@ char blank_line[LINE_LEN];	/* Line filled with spaces */
 #ifdef UNIX
 char *CE, *VS, *SO, *SE, *CL, *AL, *CM;
 #else
-char   *enter_string = "\033 8\033~0";	/* String printed on entering mined */
-char   *pos_string = "\033";		/* Absolute cursor position */
-char   *rev_scroll = "\033~1";		/* String for reverse scrolling */
-char   *rev_video = "\033z\160";	/* String for starting reverse video */
-char   *normal_video = "\033z\007";	/* String for leaving reverse video */
+char   *enter_string = "\033[H\033[J";	/* String printed on entering mined */
+char   *pos_string = "\033[%d;%dH";	/* Absolute cursor position */
+char   *rev_scroll = "\033M";		/* String for reverse scrolling */
+char   *rev_video = "\033[7m";		/* String for starting reverse video */
+char   *normal_video = "\033[m";	/* String for leaving reverse video */
 #endif UNIX
 
 /* 
@@ -1540,7 +1470,6 @@ char *argv[];
 
   raw_mode(ON);			/* Set tty to appropriate mode */
 
-  init_alloc();
   header = tail = (LINE *) alloc(sizeof(LINE));	/* Make header of list*/
   header->text = NIL_PTR;
   header->next = tail->prev = header;
@@ -1591,7 +1520,7 @@ RD()
   display(0, 0, top_line, last_y);
 
 /* Clear last line */
-  set_cursor(0, YMAX);
+  set_cursor(0, ymax);
 #ifdef UNIX
   tputs(CE, 0, _putchar);
 #else
@@ -1616,34 +1545,84 @@ XT()
   	return;
 
   raw_mode(OFF);
-  set_cursor(0, YMAX);
+  set_cursor(0, ymax);
   putchar('\n');
   flush();
   (void) unlink(yank_file);		/* Might not be necessary */
   exit(0);
 }
 
+(*escfunc(c))()
+{
+  if (c == '[') {
+	/* Start of ASCII escape sequence. */
+	switch (getchar()) {
+	case 'H': return(HO);
+	case 'A': return(UP);
+	case 'B': return(DN);
+	case 'C': return(RT);
+	case 'D': return(LF);
+#ifdef i8088
+	case 'G': return(FS);
+	case 'S': return(SR);
+	case 'T': return(SF);
+	case 'U': return(PD);
+	case 'V': return(PU);
+	case 'Y': return(EF);
+#endif
+	}
+	return(I);
+  }
+#ifdef ATARI_ST
+  if (c == 'O') {
+	/* Start of ASCII function key escape sequence. */
+	switch (getchar()) {
+	case 'P': return(SF);
+	case 'Q': return(SR);
+	case 'R': return(PD);
+	case 'S': return(PU);
+	case 'T': return(FS);
+	case 'U': return(EF);
+	case 'V': return(MA);
+	case 'W': return(CTL);
+	}
+	return(I);
+  }
+#endif
+  return(I);
+}
+
 /*
- * ESC() prompts for a count and wants a command after that. It repeats the 
+ * ESC() wants a count and a command after that. It repeats the 
  * command count times. If a ^\ is given during repeating, stop looping and
  * return to main loop.
  */
 ESC()
 {
-  register int count;
+  register int count = 0;
   register int (*func)();
-  int index, number;
+  int index;
   extern int (*key_map[])(), I();
 
-  if ((index = get_number("Please enter repeat count.", &number)) == ERRORS)
-  	return;
+  index = getchar();
+  while (index >= '0' && index <= '9' && quit == FALSE) {
+  	count *= 10;
+  	count += index - '0';
+  	index = getchar();
+  }
+  if (count == 0) {
+	count = 1;
+	func = escfunc(index);
+  } else {
+	func = key_map[index];
+	if (func == ESC)
+		func = escfunc(getchar());
+  }
 
-  if ((func = key_map[index]) == I) {	/* Function assigned? */
+  if (func == I) {	/* Function assigned? */
   	clear_status();
   	return;
   }
-
-  count = number;
 
   while (count-- > 0 && quit == FALSE) {
   	if (stat_visible == TRUE)
@@ -1654,8 +1633,6 @@ ESC()
 
   if (quit == TRUE)		/* Abort has been given */
   	error("Aborted", NIL_PTR);
-  else
-  	clear_status();
 }
 
 /*
@@ -1750,7 +1727,7 @@ build_string(buf, fmt, args)
 register char *buf, *fmt;
 int args;
 {
-  int *argptr = &args;
+  char *argptr = (char *) &args;
   char *scanp;
 
   while (*fmt) {
@@ -1758,26 +1735,23 @@ int args;
   		fmt++;
   		switch (*fmt++) {
   		case 's' :
-  			scanp = (char *) *argptr;
+  			scanp = (char *) *((char **)argptr);
+			argptr += sizeof(char *);
   			break;
   		case 'd' :
-  			scanp = num_out((long) *argptr);
+  			scanp = num_out((long) *((int *)argptr));
+			argptr += sizeof(int);
   			break;
   		case 'D' :
-  			scanp = num_out((long) *((long *)
-#ifdef UNIX
-  						       argptr));
-#else
-  						     argptr++));
-#endif UNIX
-  			  break;
+  			scanp = num_out((long) *((long *) argptr));
+			argptr += sizeof(long);
+  			break;
   		default :
   			scanp = "";
   		}
   		while (*buf++ = *scanp++)
   			;
   		buf--;
-  		argptr++;
   	}
   	else
   		*buf++ = *fmt++;
@@ -1974,6 +1948,8 @@ get_term()
   SO = tgetstr("so", &loc);
   SE = tgetstr("se", &loc);
   CM = tgetstr("cm", &loc);
+  ymax = tgetnum("li") - 1;
+  screenmax = ymax - 1;
 
   if (!CE || !SO || !SE || !CL || !AL || !CM) {
   	printf("Sorry, no mined on this type of terminal\n");

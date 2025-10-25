@@ -1,0 +1,861 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+                            V.  COMMAND LIST
+
+
+     This is a complete summary of all ELLE commands.  They are grouped
+according to function.  For detailed explanations of each command, see
+the other sections of the manual.
+
+
+
+A.  _C_U_R_S_O_R__M_O_V_E_M_E_N_T
+
+CTRL-F          Forward one character.
+CTRL-B          Backward one character.
+
+ESC F           Forward one word.
+ESC B           Backward one word.
+
+CTRL-A          Beginning of current line.
+CTRL-E          End of current line.
+
+CTRL-N          Next line (goes to the next line).
+CTRL-P          Previous line (goes to the previous line).
+
+ESC ]           Forward paragraph.
+ESC [           Backward paragraph.
+
+CTRL-V          Beginning of next screenful.
+ESC V           Beginning of previous screenful.
+
+ESC <           Beginning of whole buffer.
+ESC >           End of whole buffer.
+
+
+
+B.  _D_E_L_E_T_I_N_G
+
+CTRL-D          DELETES the one character the cursor is under.
+DELETE          DELETES the one character to the left of cursor.
+ESC D           Kills forward one word from the cursor.
+ESC DELETE      Kills backward one word from the cursor.
+CTRL-K          Kills the rest of the line (to the right of the cursor).
+ESC \              Deletes spaces around the cursor.
+CTRL-X CTRL-O   Deletes blank lines around the cursor.
+
+
+
+C.  _C_A_S_E__C_H_A_N_G_E
+
+ESC C           Capitalizes word : first letter becomes uppercase
+                and the rest becomes lowercase.
+
+                                - 28 -
+
+
+
+
+
+
+
+
+
+
+ESC L           Makes the whole next word lowercase.
+ESC U           Makes the whole next word uppercase.
+CTRL-X CTRL-L   Makes whole region lowercase.
+CTRL-X CTRL-U   Makes whole region uppercase.
+
+
+
+D.  _S_E_A_R_C_H_I_N_G
+
+CTRL-S          Search forward for string (ELLE will ask for string).
+CTRL-R          Reverse search for string (ELLE will ask for string).
+ESC %           Query replace.
+
+(if you don't give a string, ELLE will search for last string you gave
+ in the previous search)
+
+
+
+E.  _M_A_R_K_I_N_G__A_R_E_A_S
+
+CTRL-@          Set (invisible) mark where cursor is.
+ESC H           Mark paragraph.
+CTRL-SPACE      Same character as CTRL-@, on most terminals.
+CTRL-X CTRL-X   Exchange cursor and mark.
+CTRL-W          Wipe-out -- kills a "region":
+                A region is the text between the cursor and the last
+                place "marked".  You can specify a phrase, several
+                lines of text, or a whole section of text as a region.
+ESC W           Copy region.  Like CTRL-W then CTRL-Y but does
+                not modify the buffer.
+CTRL-Y          Yanks-back (un-kills) whatever you have most recently killed.
+ESC Y           Yanks-back (un-kills) the next most recently killed text.
+                Only works after CTRL-Y or ESC Y.
+
+
+
+F.  _W_I_N_D_O_W_S
+
+CTRL-X 2        Make two windows (split screen).
+CTRL-X 1        Make one window (delete window) (make one screen).
+CTRL-X O        Go to Other window.
+CTRL-X ^        Grow window: makes current window bigger.
+
+
+
+G.  _B_U_F_F_E_R_S
+
+CTRL-X CTRL-F   Find a file and make a buffer for it.
+CTRL-X B        Select Buffer: goes to specified buffer or makes new one
+                if it doesn't exist.
+CTRL-X CTRL-B   Show the names of the buffers used in this editing session.
+CTRL-X K        Kill buffer.
+
+
+
+                                - 29 -
+
+
+
+
+
+
+
+
+
+
+H.  _F_I_L_E_S
+
+CTRL-X CTRL-I   Insert a file where cursor is.
+CTRL-X CTRL-R   Read a new file.
+CTRL-X CTRL-W   Write buffer out to new file name.
+CTRL-X CTRL-S   Save file: write out buffer to its file name.
+CTRL-X CTRL-E   Write region out to new file name.
+
+
+
+I.  _M_I_S_C_E_L_L_A_N_E_O_U_S
+
+CTRL-X CTRL-Z   Exit from ELLE.
+CTRL-L          Refreshes current screen.
+TAB             Inserts tab: cursor moves to next tab stop (every 8 columns).
+RETURN          Inserts carriage return: moves cursor to new line.
+CTRL-O          Inserts carriage return: leaves cursor on same line.
+LINEFEED        Same as typing RETURN and TAB.
+CTRL-T          Transposes characters.
+ESC T           Transposes words.
+CTRL-U          Makes the next command happen four times.
+                (Example: CTRL-U ESC F will move forward four words)
+CTRL-U CTRL-L   Refresh only the line cursor is on.
+ESC number      Makes the next command happen "number" of times given.  Put
+                any digit in place of "number".
+ESC nmbr CTRL-L Move cursor "number" of lines away from the top of the screen.
+CTRL-Q          Quote: insert the next character no matter what it is.
+CTRL-G          Quit: use to avoid answering a question.
+CTRL-H          Same as CTRL-B: move backward one character.
+
+ESC Q           Fill the paragraph to the set line length.
+CTRL-X F        Set line length for filling to current cursor position.
+ESC nmber \
+CTRL-X F  /     Sets line length for filling to number given.
+CTRL-X !        Allows you to temporarily leave ELLE and come back later to
+                the same location.
+ESC %           Query Replace.
+ESC CTRL-W      Append next kill.
+
+ESC ;           Inserts comment (for writing C programs).
+ESC I           Inserts indentation equal to previous line.
+ESC ;           Inserts comment (for writing C programs).
+ESC ~           Say buffer is not modified.
+
+
+
+J.  _U_N_U_S_E_D__C_O_N_T_R_O_L_S
+
+CTRL-_          Ask for help.  Not implemented.
+CTRL-\          Special debugging command.  Don't use.
+CTRL-^          Special debugging command.  Don't use.
+CTRL-C          Not used.
+CTRL-Z          Not used.
+CTRL-]          Not used.
+
+                                - 30 -
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                             VI.  GLOSSARY
+
+
+
+ASCII
+     The American Standard Code for Information Interchange.
+     This is the "8-level code" and is like an alphabet.  There
+     are 128 possible characters in the ASCII alphabet, and the
+     standard says what each character looks like.  For example,
+     character #65 is "A", character #13 is RETURN, etc.
+     Most computers today are using ASCII so that they can agree
+     on what each character means.
+
+BUFFER
+     A temporary "book" made by ELLE which you can work on.
+     It becomes a permanent file in the computer "library"
+     only when you ask for it to be "saved" or "written out".
+     ELLE lets you have many buffers (each with its own name),
+     and any time you want you can select a different buffer to
+     work on.
+
+BUFFER NAME
+     Just like a real file or "book", each buffer must have
+     a buffer name.  If you created the buffer yourself you
+     can use any name you like.  When ELLE makes the buffer for
+     you (like when you use CTRL-X CTRL-F for "Find File"), it
+     will normally give the buffer the same name as the file.
+     Two buffers cannot have the same name.
+
+CHARACTER
+     A letter, digit, punctuation mark, or formatting control
+     such as space or tab.  Everything you see on the screen is
+     a character.  Anything you send to the computer is a character.
+
+CONTROL CHARACTERS
+     These are characters that you make by holding down the CONTROL
+     key while you type a letter.  We talk about them as CONTROL-X or
+     CTRL-X.  On the screen they look like ^X.
+
+CURSOR
+     The blinking "underline" or "block" on the screen.  It shows
+     where characters will be inserted or deleted.  "Moving" in
+     ELLE means moving the cursor to the place where you want to
+     do something.
+
+EMACS
+     The very powerful text editor developed at Massachusetts Institute
+     of Technology that is used for the basis of ELLE.
+
+FILE
+
+                                - 31 -
+
+
+
+
+
+
+
+
+
+
+     Like a computer "book".  A file contains text; it can be empty
+     (no text at all) or it can hold hundreds of thousands of characters.
+
+FILENAME
+     The name of a file.  Exactly like the "title" of a book.
+     You can use any names you want as long as you follow
+     certain rules.  The name should not be longer than 13 letters,
+     and should not have any punctuation marks or spaces in it.
+
+FILLING
+     Adjusting the lines to a specific length.
+
+MARK
+     An "invisible cursor" that stays where you set it (with
+     CTRL-@).  The mark is used to define a "region" of text.
+
+PARAGRAPH
+     Text from one indented line to the next indented line.
+     This is important for the ESC Q command.
+
+REGION
+     All the text between the cursor and the last "mark" that you set.
+     A region is what CTRL-W wipes out.
+
+SCREEN
+     The full picture on the tv screen of the terminal.
+
+SEARCH
+     To look for a given place in the text.  ELLE will search either
+     backward or forward for a particular string.  If you ask ELLE
+     to search for the string "he", you may be moved to the "he" in
+     the word "here" or the word "there" or the word "she"....
+
+STRING
+     Just like "text", a series of characters.  "String" usually
+     implies a specific short piece of text.
+     See SEARCH.
+
+TEXT
+     Any group of characters (letters).  A file is made of text;
+     a book is made of printed text; this paragraph is an
+     example of text.  On the computer, text can only be composed
+     of ASCII characters.
+
+TEXT EDITOR
+     A computer program that lets you change (modify, edit) text.
+     ELLE is a text editor that lets you work with text in buffers,
+     files, and messages.
+
+WINDOW
+     A part of the screen that shows you what is in a buffer.
+     The screen is not very big, so usually you cannot see
+     all of the buffer.  A real window does not let you see
+     everything outside; an ELLE window does not let you see
+
+                                - 32 -
+
+
+
+
+
+
+
+
+
+
+     everything in a buffer, unless the buffer is small enough
+     to all fit inside the window.
+     You can have one or two windows.  With two windows, you
+     can either look at two buffers at the same time, or
+     at two different places in the same buffer.
+
+WORD PROCESSOR
+     What a salesman calls a text editor.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                - 33 -
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          ELLE KEYBOARD LAYOUT
+
+
+
+        Conventions:
+                ^ = beginning of
+                - = previous
+                + = next
+                v = end of
+
+        Control keys (hold down CTRL while pressing) :
+
+   ----- -----------------------------------------------------------
+  |     |     |MARK |     |     |     |     |     |     |     |     |
+  |     |     |REGN |     |     |     |     |     |     |     |     |
+  |     |     |     |     |     |     |     |     |     |     |     |
+  |     |     |     |     |     |     |     |     |     |     |     |
+  | ESC |     |  @  |     |     |     |     |     |     |     |     |
+   --------------------------------------------------------------------
+  |        |QUOTD| del |LINE |SRCH |TNSPO|UNDEL|FOUR |     |insrt|  -  |
+  |        |contl|REGN |  v  |  -  |adjnt| last|times|     |LINE |LINE |
+  |        |char |     |     |     |chars| del | cmd |     |     |     |
+  |        |fllws|     |     |     |     |     |     |     |     |     |
+  |  TAB   |  Q  |  W  |  E  |  R  |  T  |  Y  |  U  |  I  |  O  |  P  |
+  ------------------------------------------------------------------------
+ |      |     |  ^  |SRCH | del |  +  | cmd |  -  |     | del | re- |     |
+ |      |     |LINE |  +  |CHAR |CHAR |quit |CHAR |     | to  |draw |     |
+ |      |     |     |     |     |     |     |     |     |vLINE|SCRN |     |
+ |      |     |     |     |     |     |     |     |     |     |     |     |
+ | CTRL |     |  A  |  S  |  D  |  F  |  G  |  H  |  J  |  K  |  L  |     |
+  ---------------------------------------------------------------------------
+                 |scrol| cmd |     | ^ + |  -  | ^ + |     |     |     | del |
+                 | up  |XTND |     |SCRN |CHAR |LINE |     |     |     |  -  |
+                 |     | see |     |     |     |     |     |     |     |CHAR |
+                 |     |below|     |     |     |     |     |     |     |     |
+                 |  Z  |  X  |  C  |  V  |  B  |  N  |  M  |     |     | DEL |
+                  ------------------------------------------------------------
+                    |            mark REGN  (same as CTRL-@)            |
+                    |                       SPACE                       |
+                     ---------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+                                - 34 -
+
+
+
+
+
+
+
+
+
+
+
+
+        Extended keys (preceed each key with CTRL-X) :
+        [the  (c) indicates control character.]
+   ----- -----------------------------------------------------------
+  |     |make |make |     |     |     |     |     |     |     |     |
+  |     | one | two |     |     |     |     |     |     |     |     |
+  |     |WNDOW|WNDOW|     |     |     |     |     |     |     |     |
+  |     |     |     |     |     |     |     |     |     |     |     |
+  | ESC |  1  |  2  |     |     |     |     |     |     |     |     |
+   --------------------------------------------------------------------
+  |        |     |WRITE|WRITE|READ |     |     |make |insrt| del |     |
+  |        |     | to  |REGN | new |     |     |REGN |FILE |adjnt|     |
+  |        |     |named|named| FILE|     |     |upper| at  |blank|     |
+  |        |     |FILE |FILE |     |     |     |case |cursr|lines|     |
+  |  TAB   |  Q  |(c)W |(c)E |(c)R |  T  |  Y  |(c)U |(c)I |(c)O |  P  |
+  ------------------------------------------------------------------------
+ |      |     |     |SAVE |     |make |     |     |     |kill |make |     |
+ |      |     |     |curnt|     | new |     |     |     |buffr|REGN |     |
+ |      |     |     |FILE |     |BUFFR|     |     |     |     |lower|     |
+ |      |     |     |     |     |     |     |     |     |     |case |     |
+ | CTRL |     |  A  |(c)S |  D  |(c)F |  G  |  H  |  J  |  K  |(c)L |     |
+  ---------------------------------------------------------------------------
+                 |EXIT |SWAP |     |     |show |     |     |     |     |     |
+                 |elle |MARK |     |     |BFRS |     |     |     |     |     |
+                 |     | and |     |     |used |     |     |     |     |     |
+                 |     |cursr|     |     |     |     |     |     |     |     |
+                 |(c)Z |(c)X |  C  |  V  |(c)B |  N  |  M  |     |     |     |
+                  ------------------------------------------------------------
+                    |                                                   |
+                    |                       SPACE                       |
+                     ---------------------------------------------------
+
+
+        others: CTRL-X B  =  select buffer
+                CTRL-X F  =  set justification length to cursor position
+                CTRL-X O  =  go to other window
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                - 35 -
+
+
+
+
+
+
+
+
+
+
+
+        Escape keys (preceed each key with ESC) :
+
+   ----- -----------------------------------------------------------
+  |     |     |     |     |     |query|     |bkwd |fwd  | say | del |
+  |     |     |     |     |     |rplce|     |prgph|prgph| not |adjnt|
+  |     |     |     |     |     |     |     |     |     |chngd|blnks|
+  |     |     |     |     |     |     |     |     |     |     |     |
+  | ESC |     |     |     |     |  %  |     |  [  |  ]  |  ~  |    |
+   --------------------------------------------------------------------
+  |        |fill |copy |     |     |TRNPO|UNDEL|upper|indnt|insrt|     |
+  |        |PARAG|REGN |     |     |words|prev |case | as  |LINE |     |
+  |        |     |markd|     |     |     | del |  +  |  -  |     |     |
+  |        |     |     |     |     |     |     |WORD |LINE |     |     |
+  |  TAB   |  Q  |  W  |  E  |  R  |  T  |  Y  |  U  |  I  |  O  |  P  |
+  ------------------------------------------------------------------------
+ |      |     |     |     | del |  +  |     |mark |     |     |upper|insrt|
+ |      |     |     |     |  +  |WORD |     |prgph|     |     |case | 'C' |
+ |      |     |     |     |WORD |     |     |     |     |     |  +  |cmmnt|
+ |      |     |     |     |     |     |     |     |     |     |WORD |     |
+ | CTRL |     |  A  |  S  |  D  |  F  |  G  |  H  |  J  |  K  |  L  |  ;  |
+  ---------------------------------------------------------------------------
+                 |     |     |caplz| ^ - |  -  |     |     |  ^  |  v  |     |
+                 |     |     |  +  |SCRN |WORD |     |     |BUFFR|BUFFR|     |
+                 |     |     |WORD |     |     |     |     |     |     |     |
+                 |     |     |     |     |     |     |     |     |     |     |
+                 |  Z  |  X  |  C  |  V  |  B  |  N  |  M  |  <  |  >  |     |
+                  ------------------------------------------------------------
+                    |                                                   |
+                    |                       SPACE                       |
+                     ---------------------------------------------------
+
+        others:  ESC CTRL-W  Append next kill.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                - 36 -
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                CONTENTS
+
+
+
+
+I. INTRODUCTION                                                       1
+
+
+II. HOW TO USE THIS MANUAL                                            0
+
+
+III. FIRST STEPS                                                      2
+
+
+   A. MEANING OF THE WORDS "TEXT" AND "FILE"                          2
+
+
+   B. THE COMMANDS                                                    2
+
+
+   C. THE "CURSOR"                                                    3
+
+
+   D. MAKING YOUR FIRST FILE                                          3
+
+
+IV. BASIC EDITING                                                     6
+
+
+   A. GETTING INTO ELLE                                               6
+
+
+   B. GETTING OUT OF ELLE                                             6
+
+
+   C. BASIC EDITING COMMANDS                                          7
+
+
+      1. INSERTING                                                    7
+
+
+      2. MOVING THE CURSOR                                            8
+
+
+      3. DELETING                                                     8
+
+
+      4. CHANGING YOUR MIND                                           8
+
+
+
+                                 - i -
+
+
+
+
+
+
+
+
+
+
+      5. IF THE SCREEN GETS MESSED UP                                 9
+
+
+V. ELLE AND THE DEAFNET MAIL SYSTEM                                   0
+
+
+   A. SENDING MAIL WITH ELLE                                          0
+
+
+   B. EDITING A MESSAGE ALREADY IN YOUR MAILBOX                       0
+
+
+   C. USING OTHER MAIL COMMANDS WITH ELLE                             0
+
+
+   D. EDITING A MESSAGE AFTER YOU HAVE SAID "NO" TO THE "SEND?" QUESTION
+      0
+
+
+VI. ADVANCED EDITING                                                 10
+
+
+   A. CASE CHANGING                                                  10
+
+
+   B. COMMANDS DONE A SPECIFIC NUMBER OF TIMES                       10
+
+
+   C. FOUR WORDS, LINES, CHARACTERS ETC.                             11
+
+
+   D. TRANSPOSING CHARACTERS AND WORDS                               11
+
+
+   E. FILLING TEXT                                                   12
+
+
+   F. SETTING LINE LENGTH                                            13
+
+
+   G. SEARCHING                                                      14
+
+
+   H. USE THE "MARK" TO MAKE A "REGION"                              15
+
+
+   I. THE "KILL RING"                                                16
+
+
+   J. THE MEANING OF THE WORD "BUFFER"                               16
+
+
+   K. CREATING BUFFERS                                               18
+
+
+                                - ii -
+
+
+
+
+
+
+
+
+
+
+   L. MOVING FROM ONE BUFFER TO ANOTHER                              19
+
+
+   M. GETTING A FILE INTO A BUFFER                                   20
+
+
+      1. READ FILE                                                   20
+
+
+      2. INSERT FILE                                                 21
+
+
+   N. SAVING OR WRITING OUT A BUFFER                                 21
+
+
+   O. TWO WINDOW DISPLAY                                             22
+
+
+   P. WORKING WITH TWO WINDOWS -- TWO FILES                          23
+
+
+   Q. QUERY REPLACE                                                  24
+
+
+   R. SUMMARY OF FILE COMMANDS                                       25
+
+
+   S. MISCELLANEOUS OTHER COMMANDS                                   25
+
+
+VII. COMMAND LIST                                                    28
+
+
+   A. CURSOR MOVEMENT                                                28
+
+
+   B. DELETING                                                       28
+
+
+   C. CASE CHANGE                                                    28
+
+
+   D. SEARCHING                                                      29
+
+
+   E. MARKING AREAS                                                  29
+
+
+   F. WINDOWS                                                        29
+
+
+   G. BUFFERS                                                        29
+
+
+
+                                - iii -
+
+
+
+
+
+
+
+
+
+
+   H. FILES                                                          30
+
+
+   I. MISCELLANEOUS                                                  30
+
+
+   J. UNUSED CONTROLS                                                30
+
+
+VIII. GLOSSARY                                                       31
+
+APPENDIX 1 SOME PRACTICAL HINTS ON HOW TO USE ELLE                    0
+
+
+   A. MAKING "MERGED MESSAGES"                                        0
+
+
+   B. WINDOWS                                                         0
+
+
+   C. BUFFERS                                                         0
+
+
+   D. RIGHT-MARGIN JUSTIFICATION                                      0
+
+
+   E. FORMATTING ON DEAFNET                                           0
+
+APPENDIX 2  MORE ON "PERCENT" AND SOME NEW DEAFNET COMMANDS           0
+
+
+   A. PERCENT                                                          0
+
+
+   B. FULL COMMAND NAMES REQUIRED AT THE PERCENT LEVEL                0
+
+
+   C. ENDING A MESSAGE USING A TERMINAL                               0
+
+
+   D. SOME CONTROL CHARACTERS TO HELP YOU ON A COMPUTER TERMINAL      0
+
+
+   E. SOME PERCENT COMMANDS                                           0
+
+INDEX                                                                 0
+
+ELLE KEYBOARD LAYOUT                                                 34
+
+
+
+
+
+
+
+                                - iv -
+
+
+
+

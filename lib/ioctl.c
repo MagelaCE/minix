@@ -1,6 +1,6 @@
-#include "../include/lib.h"
-#include "../h/com.h"
-#include "../include/sgtty.h"
+#include "lib.h"
+#include <minix/com.h>
+#include <sgtty.h>
 
 PUBLIC int ioctl(fd, request, u)
 int fd;
@@ -23,6 +23,7 @@ union {
 	kill = u.argp->sg_kill & 0377;
 	M.TTY_SPEK = (erase << 8) | kill;
 	M.TTY_FLAGS = u.argp->sg_flags;
+	M.TTY_SPEED = (u.argp->sg_ospeed << 8) | u.argp->sg_ispeed;
 	n = callx(FS, IOCTL);
   	return(n);
  

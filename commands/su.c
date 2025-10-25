@@ -1,8 +1,8 @@
 /* su - become super-user		Author: Patrick van Kleef */
 
-#include "sgtty.h"
-#include "stdio.h"
-#include "pwd.h"
+#include <sgtty.h>
+#include <stdio.h>
+#include <pwd.h>
 
 main (argc, argv)
 int   argc;
@@ -48,7 +48,7 @@ char *argv[];
 	setuid (pwd->pw_uid);
 	if (pwd->pw_shell[0])
 		shell = pwd->pw_shell;
-	execn (shell);
+	execl (shell, 0);
 	std_err("No shell\n");
 	exit (3);
 }

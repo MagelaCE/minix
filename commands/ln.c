@@ -1,7 +1,9 @@
 /* ln - link a file		Author: Andy Tanenbaum */
 
-#include "stat.h"
-char name[17];
+#include <sys/types.h>
+#include <sys/stat.h>
+
+char name[256];
 struct stat stb;
 
 main(argc, argv)

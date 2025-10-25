@@ -1,4 +1,4 @@
-#include "../h/sgtty.h"
+#include <sgtty.h>
 
 static char pwdbuf[9];
 

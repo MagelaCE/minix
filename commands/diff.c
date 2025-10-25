@@ -9,7 +9,7 @@
  
  Please report bugs and suggestions to erikb@cs.vu.nl
 */
-#include "stdio.h"
+#include <stdio.h>
 FILE *fopen();
 
 #define LINELEN 128
@@ -105,7 +105,7 @@ read_line(fp)
 		free_line(l);
 		return 0;
 	}
-	if ((p[1] & 0377) != '\377' && *p != '\n') {
+	if ((p[1] & 0377) != 0377 && *p != '\n') {
 		while ((c = fgetc(fp)) != '\n' && c != EOF) {}
 		*p++ = '\n';
 		*p = '\0';

@@ -1,5 +1,5 @@
 CFLAGS=-F
-l=../../lib
+l=/usr/lib
 
 obj = mined1.s mined2.s
 sh:	$(obj) mined.h

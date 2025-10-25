@@ -175,6 +175,7 @@ int act;
 broken:
 	t->words = wp2;
 	isbreak = 0;
+	freehere(areanum);
 	freearea(areanum);
 	areanum = a;
 	if (intr) {
@@ -213,7 +214,7 @@ int *pforked;
 		wp--;
 		if (cp == NULL && t->ioact == NULL)
 			return(setstatus(0));
-		else
+		else if (cp != NULL)
 			shcom = inbuilt(cp);
 	}
 	t->words = wp;
@@ -267,12 +268,12 @@ int *pforked;
 	/* should use FIOCEXCL */
 	for (i=FDBASE; i<NOFILE; i++)
 		close(i);
-	if (t->type == TPAREN)
-		exit(execute(t->left, NOPIPE, NOPIPE, FEXEC));
 	if (resetsig) {
 		signal(SIGINT, SIG_DFL);
 		signal(SIGQUIT, SIG_DFL);
 	}
+	if (t->type == TPAREN)
+		exit(execute(t->left, NOPIPE, NOPIPE, FEXEC));
 	if (wp[0] == NULL)
 		exit(0);
 	cp = rexecve(wp[0], wp, makenv(wp));
@@ -319,7 +320,7 @@ int pipein, pipeout;
 		return(0);
 	msg = iop->io_flag&(IOREAD|IOHERE)? "open": "create";
 	if ((iop->io_flag & IOHERE) == 0) {
-		cp = iop->io_un.io_name;
+		cp = iop->io_name;
 		if ((cp = evalstr(cp, DOSUB|DOTRIM)) == NULL)
 			return(1);
 	}
@@ -340,7 +341,7 @@ int pipein, pipeout;
 
 	case IOHERE:
 	case IOHERE|IOXHERE:
-		u = herein(iop->io_un.io_here, iop->io_flag&IOXHERE);
+		u = herein(iop->io_name, iop->io_flag&IOXHERE);
 		cp = "here file";
 		break;
 

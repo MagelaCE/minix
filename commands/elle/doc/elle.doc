@@ -1,0 +1,507 @@
+ELLE.DOC contents:						24-Dec-87
+
+	1. ABOUT ELLE	- Background
+	2. INSIDE ELLE	- Features and non-features
+	3. MAKING ELLE	- Putting it all together
+	4. CUSTOMIZING ELLE - User Profiles
+	5. MODIFYING ELLE - Advice on local "improvements"
+	6. SUN ELLE	- Using ELLE on a SUN workstation
+
+ABOUT ELLE
+
+	"ELLE" stands for "ELLE Looks Like EMACS".  By EMACS is meant,
+of course, the original TECO-based EMACS on the MIT ITS PDP-10 systems,
+largely the work of Richard Stallman.  All other programs calling
+themselves "EMACS" are at best clones and at worst misleading
+counterfeits which should be known by other names; ELLE is nowhere as
+good as EMACS, but is honest about its masquerade.
+
+	ELLE's ancient ancestor was TORES (Text ORiented Editing
+System) written in January 1979 by Jeff Schiller (MIT).  This was
+hacked further by Dan Weinreb (while at LLL), and then extensively in
+March 1980 by Mike Kraley (BBN).  Ken Harrenstien (SRI) picked up TORES
+for use in developing the SRI Deafnet system on an old PDP-11/40, where
+the limitations of TORES and the 11/40 address space finally forced a
+complete redesign by October 1981, and the new program was christened
+ELLE.
+
+	ELLE's purpose in life is to provide basic EMACS-like editing
+for small 16-bit machines.  It does not try to be anything more than
+this, and is not intended to compete with editors developed for more
+powerful 32-bit systems, although it can certainly be used on them.
+
+	This file ("elle.doc") contains the essential information needed
+to build and run ELLE.  Other sources of information are:
+	"00read.me"	- distribution policy & notes
+	"chnges.doc"	- a list of recent changes
+	"cmdsum.doc"	- a simple user command summary
+	"manual.doc"	- naive user tutorial (old)
+	"gnumax.doc"	- information about GNU Emacs
+	TECO EMACS manual - see below
+
+	"manual.doc" is a large (about 50 pages) document which was
+intended to allow very naive users to start using ELLE; it was written
+for DEAFNET and SRI-TSC users, and includes a command summary and much
+explanation of how to use the editor.  This manual is quite old and
+somewhat outdated, but is included just in case it turns out to be
+of use elsewhere.
+
+	"gnumax.doc" is a copy of the GNU Emacs DISTRIB file.  It
+explains how to obtain the documentation for GNU Emacs, which can be
+considered the rightful successor to TECO EMACS.  Because ELLE is
+modelled after EMACS, much of this manual is useful even though ELLE
+only supports a fraction of the commands described therein; people who
+have a technical background but no previous experience with EMACS will
+find that it explains many mysteries.  Also, users who have large
+enough machines may wish to obtain the source and use the real thing
+instead.
+
+	Prior to the GNU Emacs manual, the major reference work was
+a hardcopy document describing TECO EMACS, "MIT AI Memo 555: EMACS
+Manual for TWENEX Users", written by Richard M. Stallman.  It may
+still be ordered from:
+		Publications
+		MIT Artificial Intelligence Lab
+		545 Technology Square
+		Cambridge, MA 02139
+
+	Alternatively, this Internet mail address may work:
+		PUBLICATIONS%MIT-OZ@MC.LCS.MIT.EDU
+
+INSIDE ELLE - Features and Non-features
+
+	Many editors (including the old TORES) structure a buffer as a
+linked list of lines, some of which may be swapped out to disk.  ELLE is
+built around a completely different mechanism for handling buffers, the
+SB (String-Buffer) package.  Conceptually each buffer looks just like
+an EMACS buffer, i.e.  a single amorphous mass of characters.  (Note
+that the UNIX file system presents the same concept, as files are
+considered to be continuous streams of bytes.) Internally, a buffer is
+a linked list of characters wherein the chunk divisions are made
+without regard to the logical meaning of the character text; chunks are
+created or split only as needed for ease of modification, swapping, or
+garbage collecting.  ELLE can be used to read binary files as well as
+text files, since line lengths are irrelevant except for display
+purposes.
+
+	ELLE can handle two windows and many buffers (the exact number
+depends on storage compaction efficiency), with files of up to 2**31
+bytes in length (that is, as large a file as "lseek" will handle).  The
+only difference between small and large files is that small files are
+more apt to fit entirely within memory and thus processing will be
+faster.
+
+	Normally ELLE is not able to read the entire file into memory
+and must leave some of it "swapped out" on disk; unlike some editors
+which copy the entire file to a temporary location, ELLE retains an
+open file descriptor to the original file and whenever possible swaps
+in new text from this original.  This considerably reduces the startup
+time, so that it is very convenient to use ELLE for casual reading.
+This does imply, however, that if any modifications are made "in place"
+to that same file by some other program while ELLE is reading it,
+confusion is apt to result.  However, such in-place modification (other
+than appending) is a bad practice for a number of reasons and good
+software will avoid doing this.
+	ELLE, for example, never writes over an existing file when
+making updates; it writes out the complete new file to a temporary
+name, renames the old file to a backup name, and then renames the new file
+to the desired final name.
+
+[More details as time permits]
+
+MAKING ELLE - Putting it all together
+
+The following steps should lead you through.  Note that for the most
+common case (standard V7-type Unix) there is very little you have to do.
+
+[1] DO YOU HAVE "MAKE"?
+	If you have the "make" program, skip this and go to the next step!
+
+	For V6 systems, which normally do not have "make", you
+	will need to use the V6 shell runfiles, listed below for reference:
+
+	v6init.sh	- Initial once-over to establish library order
+	v6cc.sh		- Per-module compilation
+	v6load.sh	- Build ELLE from library
+	sbv6mk.sh	- Compile SB library
+
+	If you have neither "make" nor a V6 system, you will have to
+	look at the runfiles and muddle along by hand.  TOPS-20 systems
+	are provided with two .MIC files.
+
+[2] CHECK THE "SB" SETUP
+	Normally you should not need to do anything about compile-time
+	switches or settings for the SB library package.
+	There is only one exception.
+
+	IF you are on a PDP-11 system, AND using "make",
+	THEN edit "sbmake":
+		(1) Change BCOPYSUF from ".c" to ".s".
+		(2) If your system is V6, add "-DV6" to the CFLAGS definition.
+
+	Note that if not using "make", the runfile "sbv6mk.sh" is already
+	set up to assume PDP-11 and V6.
+
+	Explanation for the curious:
+		The V6 compile-time switch is the only essential thing
+	needed by the SB package.  However, since much of ELLE's work
+	involves moving strings around, the Makefile attempts to optimize
+	the string-moving routine ("bcopy").  This is part of the standard
+	library for BSD systems and is normally written in assembler.
+		The file "bcopy.s" is a PDP-11 assembler version and is
+	preferable on all PDP-11 systems since it is more efficient than
+	both the C version and the 2.9BSD assembler version.  PDP-11 users
+	may wish to install it in their C library.
+		If the Makefile determines that your system's library does
+	not furnish "bcopy", it will substitute its own version, in C.
+
+	Additional notes:
+		The SB package contains some machine-dependent definitions
+	which normally do NOT need to be changed; they are known to work for
+	all of the following machines:
+
+	DEC PDP-11, DEC VAX-11, DEC PDP-10 (!), Zilog Z8000,
+	Motorola MC68000, Intel 8086 (IBM-PC), HP-9000, Pyramid
+
+	Problems should only arise if your machine is VERY unusual.  If you
+	really think this is the case, get in touch with the ELLE maintainer
+	and meanwhile check the macros and typedefs in sb.h.
+
+
+[3] THE FUN STARTS HERE - EESITE.H
+	Now look at the file "eesite.h" which is where you should set
+	all of the compile-time switches and parameters for your version of
+	ELLE.  The following substeps attempt to cover the important ones.
+
+(3.1) V6:
+	The V6 switch should be defined as 1 only if you are using a V6
+system.  Otherwise, leave it set to zero.
+
+(3.2) System:
+	Only one system should be selected (one of UCB, BSD4_2, SUN,
+BBN, DNTTY, ONYX, COHERENT, VENIX86, PCIX, APOLLO, HPUX, SYSV, TOPS20),
+whichever is most specific.  If your system does not correspond to any
+of these, leave them all set to zero; the default assumes you have a
+"vanilla" V7 UNIX.
+	However, in the latter case, you should examine the file
+"eesite.c" and attempt to provide your own code for the function
+ts_inp(), if at all possible.  It is worth hacking your kernel if you
+can do so!  Otherwise redisplay will be somewhat more repetitious and
+annoying.
+	The ICONOGRAPHICS configuration definition is reserved for
+Chris Tavares.  The IMAGEN configuration definition has slightly more
+utility, but is also best left turned off except at Imagen.  At this
+point they should replace "defprf.e" with "defprf.ico" or "defprf.ima"
+respectively (saving the original defprf.e as defprf.def).
+	If you are using a SUN system, replace "defprf.e" with
+"defprf.sun".  But see the additional documentation about SUN ELLE
+farther on in this file; you may have to settle for BSD4_2 instead.
+
+(3.3) TX_TERMCAP:
+	Normally the TERMCAP library is included so that ELLE can
+support more terminals than just the ones "hard-wired" into the
+program.  However, if you decide not to use TERMCAP, either because you
+don't have it, or because it is too large (see the next step [4]), do the
+following:
+	- Change the setting of TX_TERMCAP to zero.
+	- Enable the appropriate hard-wired terminal types (or add your
+		own to eeterm.c).
+	- Edit "Makefile" or "v6load.sh" to remove the string "-ltermlib".
+
+(3.4) STKMEM:
+	The STKMEM definition is very important for PDP-11s, especially
+those without split I/D.  Otherwise, it should probably be left
+commented out.
+
+(3.5) EVHELPFILE:
+	You should copy the file "help.dat" to some publicly readable
+(but not writeable!) location, and define EVHELPFILE to point at this
+location.  The default location is "/usr/src/elle/help.dat".
+
+(3.6) Other stuff:
+	There are many additional parameters which can be set to modify
+things for your particular configuration.  See the definitions at the
+start of the files "elle.h" and "eevini.c" for a list of these.  Try
+the defaults first, however; and please refrain from editing anything
+but "eesite.h" if possible.
+
+
+[4] SPACE WAR AND DEFPRF.E
+	Does your system have a limited address space?  If you are on a
+32-bit machine such as the VAX, or the "-i" switch works for your CC
+and LD, you don't have this problem.  However, if you are using a
+16-bit machine without "split I/D" -- separate address spaces for
+instructions and data -- then you do.  Currently the only machines
+known to have this problem are certain PDP-11 models such as the 11/23,
+11/34, 11/40, and 11/60.  (Note: the 11/24, 11/44, 11/45, 11/50, and
+11/70 do have split I/D and are okay!) If you have one of these problem
+machines then you should do the following:
+	- Substitute "-n" for the "-i" switch in "Makefile".
+	- Enable the STKMEM definition in eesite.h (change "0" to "1")
+	- Consider setting TX_TERMCAP to zero in eesite.h, especially
+		if you only use ELLE with terminal types that
+		are already hardwired in eeterm.c.
+	- Edit a new version of defprf.e to remove some functions.  One of the
+		largest and least needed functions is "Debug Mode"
+		and you should start by commenting that one out, as well
+		as "Hit Breakpoint".
+		Other possibilities are "Describe", "Query Replace" and
+		"Replace String", "Set Fill Prefix" and "Auto Fill Mode",
+		the "Keyboard Macro" functions, and so on.
+
+[5] LET'S DO IT...
+	A. To build everything with "make", just invoke "make".
+		NOTE: for an APOLLO system, say "make apolloelle" instead!
+		NOTE: for a  SUN      "   ,  "  "make sunelle"       "
+		NOTE: for a  PC/IX    "   ,  "  "make pcixelle"      "
+
+		If you modify any modules, invoke "make" again.
+
+	B. To build everything with V6 runfiles, do:
+		v6init.sh
+		v6load.sh -i   (or "v6load.sh -n" if you don't have split I/D)
+
+		If you modify any modules, re-build with:
+			v6cc.sh <module1> <module2> ...
+			v6load.sh <-i or -n>
+
+	C. To build everything on TOPS-20, do:
+		[@]DO eeconf.mic
+		[@]DO ee.mic
+
+If any errors happen, fix them as best as you can.  All compilation
+errors and their fixes should be reported back to the maintainer so
+your solutions need not be re-discovered independently.  Any errors in
+the SB library routines have the potential for great and subtle
+lossage so be careful there.
+
+The resulting binary will normally be called "xelle".  Test it out
+there before installing it as "elle".
+
+
+[6] DEFAULT PROFILE - THE PROFILE COMPILER
+	The ELLEC (ELLE profile compiler) program is built as a side
+	effect of the "make" or "v6init.sh".  It is only needed to generate a
+	non-standard configuration or to change the default user profile.  It
+	can be installed publicly if you wish to allow users to define their
+	own user profiles (see next section).
+
+
+[7] A LAST WORD ON FILE MODS
+	The intent of the current file setup is that the ONLY source
+	files which may need editing are "eesite.h" and "defprf.e".
+	If you find it necessary to modify other files besides these,
+	you should definitely relay your changes back to the maintainer.
+
+
+CUSTOMIZING ELLE - User Profiles (default and otherwise)
+
+	ELLE supports a crude form of "user profile" that currently
+only allows specification of key bindings (SUN users may also specify a
+mouse menu).  Normally when ELLE starts up, it uses a default built-in
+"profile" which is defined by the file "defprf.c" at compile time
+(itself derived from "defprf.e").  This file defines all of the ELLE
+commands by binding functions to specific keys; for example, all
+printable ASCII chars are normally bound to the function "Insert Self".
+
+	A user can specify changes in the default bindings by creating
+a file called ".ellepro.e" in the $HOME directory.  This is an ASCII text
+file containing binding definitions; see ELLEC.C for a description of
+the format.  Running ELLEC with the command "ellec -Profile" causes the
+user's profile to be "compiled" into a binary format file.  When ELLE starts
+up, it will look for this binary file and if found it will be loaded.
+
+	You cannot create new functions with profile specifications;
+you can only map keyboard commands to functions which ELLE already
+contains.  The file "deffun.e" describes all of the functions that ELLE
+knows about; note that not all of them may have been compiled into your
+version of ELLE.  Which are included is decided by "defprf.e".
+
+FILE DEPENDENCIES
+
+When considering any changes to the default user profile, or to the
+functions ELLE knows about, you must take note of certain file
+dependencies.  The following diagram shows how things are
+interconnected:
+
+			   /---<-----------------<--|-->-------->---\
+			   |			    |               |
+			   |	   /--> eefdef.h -->|               |
+        deffun.e >-->|	   |	   |--> eefidx.h -->|               |
+        defprf.e >-->|     |       |--> defprf.c -->|               |
+		     |--> ELLEC >->|                          |--> ELLE
+$HOME/.ellepro.e >-->|             |--> $HOME/.ellepro.b1 >-->|
+
+    Data files (input to ELLEC)		  #include files (both ELLE and ELLEC)
+deffun.e   = Master (defines functs)	eefdef.h = defines funct names/addrs
+defprf.e   = Default Profile map	eefidx.h = defines FN_ and FX_ values
+.ellepro.e = User Profile map		defprf.c = default profile data
+
+					  Data file for ELLE runtime use
+					.ellepro.b1 = binary user profile
+
+The most crucial file is deffun.e, which establishes the correspondence
+between function names, function indices, and ELLE routines; this file
+is the ultimate master reference.  defprf.e specifies the default user
+profile.  If either of these is changed, ELLEC must be run in order to
+generate new versions of the .h files, which can then be directly
+compiled into ELLE (and ELLEC as well).  The Makefile attempts to
+enforce this dependency; you should avoid hand-editing the .h files
+unless a truly vicious circularity seems to be present.
+
+To change the default profile (defprf.e) that ELLE uses:
+	Edit defprf.e to get the desired default profile.
+	Say "make".  This should cause ELLEC to be invoked,
+		re-generating the necessary .h files and rebuilding ELLE.
+	Recompile ELLEC with "make ellec" so it knows about the
+		new defaults.
+
+Additions to deffun.e (new functions) just require re-MAKEing ELLE
+and ELLEC, in that order.  Actual changes to function names, or changes in the
+existing function ordering, are NOT recommended.  However, if it becomes
+necessary, this is what needs to be done:
+	Change deffun.e as desired.
+	Re-make ELLE and ELLEC with "make" and "make ellec".
+		Do not install either yet.
+	Disable all use of ELLE and ELLEC for the next step.
+	Run the new ELLEC over all profiles on your system.
+		If function names were changed, you may have to edit
+		each user profile to change the names therein.
+	Install new ELLE and ELLEC and allow use.
+
+Also note that any changes to deffun.e will usually require some
+changes to the file "help.dat" if the "Describe" command is to know
+about new functions or whatever.
+
+MODIFYING ELLE - advice on making local "improvements"
+
+	In general, be cautious; bugs introduced into an editor have the
+	potential to corrupt any file that the editor touches!
+
+	Remember that ELLE was intended to furnish EMACS-like editing
+for small systems, particularly non-split PDP-11s.  It is
+extraordinarily easy to run wild with new features and extensions and
+completely blow the program out of its original 16-bit address space
+bounds.  Note that this address space must include both instructions
+and data!  Those people who live on larger machines should be
+especially careful about thoughtless additions -- if they screw the
+non-split 16-bit version I will just have to take them out or remove
+something else.  If you are too frustrated, perhaps you really want to
+use some other editors whose authors live on 32-bit machines.  There
+are many features which I have not added, for just this reason.
+
+	To really extend things farther will require that someone
+develop a compact and efficient "macro-language" which ELLE can
+interpret at run-time.  Adding this extensibility is non-trivial since
+it must support basic programming constructs.
+
+	It is much better to write new command-key (f_) functions than
+to modify existing ones, and it is MUCH better to change functions than
+to change the core routines of ELLE.  This is because new functions can
+be selectively compiled, but the core routines must always be included.
+As of ELLE 3.0, it is now possible to provide functions which are only
+compiled and loaded if the default user profile requires them.  This
+allows ELLE to be built in different ways depending on your system; you
+can include all known functions if you have no space problems, or
+specify just the essential ones if you need a small version of ELLE.  I
+expect that future releases will continue the trend of increasing
+modularity and ease of customization.
+
+	In general any questions as to default command key mappings,
+and the actions of specific functions, are resolved by trying to do
+what the original ITS TECO EMACS does.  A few things may be slightly
+different for compelling efficiency reasons.  Future releases may
+begin to emulate GNU Emacs rather than TECO EMACS.
+
+	The SB library package is the single most important key to
+ELLE's operation and performance.  Don't even THINK about hacking this
+package unless you are very, very, very certain you understand how
+things work.  It is too easy for subtle errors to cause file damage
+months later.  Although the performance can doubtless be improved,
+these modules weren't really meant to be hackable, and many of the
+comments in the code remain speculative.
+
+	Lastly, please relay your bug fixes and improvements back to me
+for inclusion in new versions.  (See the contact information in the
+"00read.me" file).  ELLE is reasonably stable from the user's
+viewpoint, but I am still tweaking it occasionally in response to
+suggestions, complaints, or daydreams.
+
+SUN ELLE - Differences & Notes
+
+	[NOTE: When SunView was introduced, the SUN version of ELLE
+	stopped working.  Until this is fixed, users of new SUNs will have
+	to use the BSD4_2 compilation flag rather than the SUN flag,
+	and no mouse capabilities are available.]
+
+	When ELLE is built for a SUN workstation system, code will
+be included which interacts with the SUN window system to make text
+editing a bit more efficient.  Outside the window system, it functions
+just like normal ELLE; inside the window system, the user can perform
+some functions with the mouse alone.  Andy Poggio of SRI is responsible
+for these additions.
+
+BUILDING NOTES:
+	SUN ELLE has a specially patched "tool_select" procedure that
+calls "my_select" instead of "select".  "my_select" clears the input
+flag bit for the tty subwindow and then calls "select".  This should
+all be handled by specifying "make sunelle" when you build ELLE (ADB is
+invoked to perform the patch).  Of course this hack will break if a new
+library version of "tool_select" is distributed from SUN.
+	Prior to invoking "make", you should copy "defprf.sun" to
+"defprf.e" in order to get the default SUN configuration.
+	Finally, the ELLEC program needs to be installed in order for
+menus to work.
+
+
+Cursors:
+	With SUN ELLE there are two cursors: the familiar rectangular
+ELLE cursor and the new, hexagonal mouse cursor.  The ELLE cursor works
+as it always has; the mouse cursor tracks the mouse position.
+
+Mouse buttons:
+	Mouse buttons may be used singly or in combination and, with
+one exception, take effect on release.
+
+	Left   - Go there.  Puts ELLE cursor where mouse cursor is.
+	Middle - Set mark there.  Sets ELLE mark where mouse cursor is.
+	Right  - Menu display.  This is just like other Sun window tools
+		and displays the menu when the button is pressed.  Releasing
+		the button selects a menu item.  For setting up your ELLE
+		menu, see below.
+	Left and middle - Backward Delete Character.  Deletes the character
+		to the left of the ELLE cursor.
+	Middle and right - no operation
+	Left, middle, and right - no operation
+
+Setting Up your ELLE Menu:
+
+	To set up your own menu, you must create a "profile" file
+called ".ellepro.e" in your home directory, if it does not already exist.
+Add one line for each menu item you wish, in the format:
+		(menuitem "Name")
+where "Name" can be any official ELLE function name, such as "Query
+Replace".  All of the possible official function names are listed in
+the file "deffun.e"; their names are the same as their EMACS
+counterparts.  They must be spelled exactly as they are in this file.
+
+An example of an ELLE menu profile is:
+
+	(menuitem "Goto Beginning")
+	(menuitem "Goto End")
+	(menuitem "Next Screen")
+	(menuitem "Previous Screen")
+	(menuitem "Query Replace")
+	(menuitem "Previous Screen")
+	(menuitem "Return to Superior")
+
+	After creating or modifying your .ellepro.e file, you should run
+the program "ellec -Profile" in order to compile it into a fast-load
+format for ELLE.  When you next start ELLE, you can invoke your menu at
+any time by using the right mouse button.  To be able to quit ELLE from
+your menu, include "Return to Superior" as a menu item.  The menu
+length is currently limited to ten items.
+
+Bugs:
+	Menu length should not be so limited.
+	Andy claims Push to Inferior does not work.

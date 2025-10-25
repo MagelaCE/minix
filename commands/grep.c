@@ -19,8 +19,8 @@
  *	The program was modified by Andy Tanenbaum.
  */
 
-#include "regexp.h"
-#include "stdio.h"
+#include <regexp.h>
+#include <stdio.h>
 
 #define MAXLINE (1024)
 int status = 1;
@@ -67,7 +67,7 @@ out:
 
   if((exp = regcomp(*argp++)) == NULL) {
   	std_err("grep: regcomp failed\n");
-	done(2);
+	exit(2);
   }
   if(*argp == 0)
 	match((char *)0,exp);
@@ -91,7 +91,7 @@ out:
 		}
 		argp++;
 	}
-  done(status);
+  exit(status);
 }
 
 /*
@@ -127,7 +127,7 @@ char *s;
   std_err("grep: ");
   std_err(s);
   std_err("\n");
-  done(2);
+  exit(2);
 
 }
 
@@ -145,14 +145,15 @@ char buf[];
 usage()
 {
   std_err("Usage: grep [-v] [-n] [-s] [-e expr] expression [file ...]\n");
-  done(2);
+  exit(2);
 }
 
 getline(buf, size)
 char *buf;
 int size;
 {
-  char *initbuf = buf, c;
+  char *initbuf = buf;
+  int c;
 
   while (1) {
 	c = getc(stdin);
@@ -161,11 +162,4 @@ int size;
   	if (buf - initbuf == size - 1) return(buf - initbuf);
   	if (c == '\n') return(buf - initbuf);
   }
-}
-
-done(n)
-int n;
-{
-  fflush(stdout);
-  exit(n);
 }

@@ -25,6 +25,7 @@
  *   TTY_READ:     a process wants to read from a terminal
  *   TTY_WRITE:    a process wants to write on a terminal
  *   TTY_IOCTL:    a process wants to change a terminal's parameters
+ *   TTY_SETPGRP:  indicate a change in a control terminal
  *   CANCEL:       terminate a previous incomplete system call immediately
  *
  *    m_type      TTY_LINE   PROC_NR    COUNT   TTY_SPEK  TTY_FLAGS  ADDRESS
@@ -39,6 +40,8 @@
  * |-------------+---------+---------+---------+---------+---------+---------|
  * | TTY_IOCTL   |minor dev| proc nr |func code|erase etc|  flags  |         |
  * |-------------+---------+---------+---------+---------+---------+---------|
+ * | TTY_SETPGRP |minor dev| proc nr |         |         |         |         |
+ * |-------------+---------+---------+---------+---------+---------+---------
  * | CANCEL      |minor dev| proc nr |         |         |         |         |
  * ---------------------------------------------------------------------------
  */
@@ -54,14 +57,28 @@
 #include "type.h"
 #include "glo.h"
 #include "proc.h"
+/*------------------------------------------------------------------------*/
+/* DEBUG*/
+#define LOGSIZE 32
+int log[LOGSIZE], logpt = 0;
+int ct_rs232, ct_rd, ct_wt, ct_wb, ct_ser, ct_o_done, ct_out_char;
+int ct_ser1, ct_ser2;
 
-#define NR_TTYS            1	/* how many terminals can system handle */
+#define Count(x) x++; if (rs_struct[0].rs_base > 0x3F8){ printf("Count %d hit\n",x); prlog(); while(1);}
+
+/* DEBUG*/
+/*------------------------------------------------------------------------*/
+
+
+#define NR_CONS            1	/* how many consoles can system handle */
+#define	NR_RS_LINES	   1	/* how many rs232 terminals can system handle*/
 #define TTY_IN_BYTES     200	/* input queue size */
 #define TTY_RAM_WORDS    320	/* ram buffer size */
 #define TTY_BUF_SIZE     256	/* unit for copying to/from queues */
 #define TAB_SIZE           8	/* distance between tabs */
 #define TAB_MASK          07	/* mask for tty_column when tabbing */
-#define MAX_OVERRUN       16	/* size of overrun input buffer */
+#define MAX_OVERRUN      100	/* size of overrun input buffer */
+#define MAX_ESC_PARMS      2	/* number of escape sequence parameters allowed */
 
 #define ERASE_CHAR      '\b'	/* default erase character */
 #define KILL_CHAR        '@'	/* default kill character */
@@ -71,11 +88,18 @@
 #define XON_CHAR  (char) 021	/* default x-on character (CTRL-Q) */
 #define EOT_CHAR  (char) 004	/* CTRL-D */
 #define MARKER    (char) 000	/* non-escaped CTRL-D stored as MARKER */
-#define DEL_CODE   (char) 83	/* DEL for use in CTRL-ALT-DEL reboot */
 #define AT_SIGN         0220	/* code to yield for CTRL-@ */
+#define SCODE1            71	/* scan code for Home on numeric pad */
+#define SCODE2            81	/* scan code for PgDn on numeric pad */
+#define DEL_CODE   (char) 83	/* DEL for use in CTRL-ALT-DEL reboot */
+#define ESC       (char) 033	/* escape */
+#define BRACKET          '['	/* Part of the ESC [ letter escape seq */
 
 #define F1                59	/* scan code for function key F1 */
 #define F2                60	/* scan code for function key F2 */
+#define F3                61	/* scan code for function key F3 */
+#define F4                62	/* scan code for function key F4 */
+#define F5                63	/* scan code for function key F5 */
 #define F9                67	/* scan code for function key F9 */
 #define F10               68	/* scan code for function key F10 */
 #define TOP_ROW           14	/* codes below this are shifted if CTRL */
@@ -93,15 +117,18 @@ PRIVATE struct tty_struct {
   int tty_rwords;		/* number of WORDS (not bytes) in outqueue */
   int tty_org;			/* location in RAM where 6845 base points */
   int tty_vid;			/* current position of cursor in video RAM */
-  char tty_esc_state;		/* 0=normal, 1 = ESC seen, 2 = ESC + x seen */
-  char tty_echar;		/* first character following an ESC */
+  char tty_esc_state;		/* 0=normal, 1=ESC, 2=ESC[ */
+  char tty_esc_intro;		/* Distinguishing character following ESC */
+  int tty_esc_parmv[MAX_ESC_PARMS];	/* list of escape parameters */
+  int *tty_esc_parmp;		/* pointer to current escape parameter */
   int tty_attribute;		/* current attribute byte << 8 */
   int (*tty_devstart)();	/* routine to start actual device output */
 
   /* Terminal parameters and status. */
   int tty_mode;			/* terminal mode set by IOCTL */
+  int tty_speed;		/* terminal speed set by IOCTL */
   int tty_column;		/* current column number (0-origin) */
-  int tty_row;			/* current row (0 at bottom of screen) */
+  int tty_row;			/* current row (0 at top of screen) */
   char tty_busy;		/* 1 when output in progress, else 0 */
   char tty_escaped;		/* 1 when '\' just seen, else 0 */
   char tty_inhibited;		/* 1 when CTRL-S just seen (stops output) */
@@ -128,10 +155,11 @@ PRIVATE struct tty_struct {
   phys_bytes tty_phys;		/* physical address where data comes from */
   int tty_outleft;		/* # chars yet to be copied to tty_outqueue */
   int tty_cum;			/* # chars copied to tty_outqueue so far */
+  int tty_pgrp;			/* slot number of controlling process */
 
   /* Miscellaneous. */
   int tty_ioport;		/* I/O port number for this terminal */
-} tty_struct[NR_TTYS];
+} tty_struct[NR_CONS+NR_RS_LINES];
 
 /* Values for the fields. */
 #define NOT_ESCAPED        0	/* previous character on this line not '\' */
@@ -152,7 +180,8 @@ PRIVATE int shift1, shift2, capslock, numlock;	/* keep track of shift keys */
 PRIVATE int control, alt;	/* keep track of key statii */
 PRIVATE caps_off = 1;		/* 1 = normal position, 0 = depressed */
 PRIVATE num_off = 1;		/* 1 = normal position, 0 = depressed */
-PUBLIC  int color;		/* 1 if console is color, 0 if it is mono */
+PRIVATE softscroll = 0;		/* 1 = software scrolling, 0 = hardware */
+PUBLIC int color;		/* 1 if console is color, 0 if it is mono */
 PUBLIC scan_code;		/* scan code for '=' saved by bootstrap */
 
 
@@ -199,6 +228,7 @@ PRIVATE char m24[] = {
  0233,0234,0235,0236,0237,0275,0276,0277
 };
 
+char scode_map[] = {'H', 'A', 'V', 'S', 'D', 'G', 'C', 'T', 'Y', 'B', 'U'};
 
 /*===========================================================================*
  *				tty_task				     *
@@ -211,6 +241,8 @@ PUBLIC tty_task()
   register struct tty_struct *tp;
 
   tty_init();			/* initialize */
+  init_rs232();
+
   while (TRUE) {
 	receive(ANY, &tty_mess);
 	tp = &tty_struct[tty_mess.TTY_LINE];
@@ -219,8 +251,9 @@ PUBLIC tty_task()
 	    case TTY_READ:	do_read(tp, &tty_mess);		break;
 	    case TTY_WRITE:	do_write(tp, &tty_mess);	break;
 	    case TTY_IOCTL:	do_ioctl(tp, &tty_mess);	break;
+	    case TTY_SETPGRP:   do_setpgrp(tp, &tty_mess);	break;
 	    case CANCEL   :	do_cancel(tp, &tty_mess);	break;
-	    case TTY_O_DONE:	/* reserved for future use (RS-232 terminals)*/
+	    case TTY_O_DONE:	do_tty_o_done(tp, &tty_mess);	break;
 	    default:		tty_reply(TASK_REPLY, tty_mess.m_source, 
 					tty_mess.PROC_NR, EINVAL, 0L, 0L);
 	}
@@ -291,17 +324,20 @@ char ch;			/* scan code for character that arrived */
 /* A character has just been typed in.  Process, save, and echo it. */
 
   register struct tty_struct *tp;
-  int mode, sig;
+  int mode, sig, scode;
   char make_break();
+
+  scode = ch;			/* save the scan code */
   tp = &tty_struct[line];	/* set 'tp' to point to proper struct */
+
   /* Function keys are temporarily being used for debug dumps. */
-  if (ch >= F1 && ch <= F10) {	/* Check for function keys F1, F2, ... F10 */
+  if (line == 0 && ch >= F1 && ch <= F10) {	/* Check for function keys */
 	func_key(ch);		/* process function key */
 	return;
   }
   if (tp->tty_incount >= TTY_IN_BYTES) return;	/* no room, discard char */
   mode = tp->tty_mode & (RAW | CBREAK);
-  if (tp->tty_makebreak)
+  if (tp->tty_makebreak == TWO_INTS)
 	ch = make_break(ch);	/* console give 2 ints/ch */
   else
 	if (mode != RAW) ch &= 0177;	/* 7-bit chars except in raw mode */
@@ -364,7 +400,7 @@ char ch;			/* scan code for character that arrived */
 	/* Check for interrupt and quit characters. */
 	if (ch == tp->tty_intr || ch == tp->tty_quit) {
 		sig = (ch == tp->tty_intr ? SIGINT : SIGQUIT);
-		sigchar(tp, line, sig);
+		sigchar(tp, sig);
 		return;
 	}
 
@@ -375,7 +411,7 @@ char ch;			/* scan code for character that arrived */
 	}
 
 	/* Check for and process CTRL-Q (terminal start). */
-	if (ch == tp->tty_xon) {
+	if (tp->tty_inhibited == STOPPED) {
 		tp->tty_inhibited = RUNNING;
 		(*tp->tty_devstart)(tp);	/* resume output */
 		return;
@@ -384,6 +420,24 @@ char ch;			/* scan code for character that arrived */
 
   /* All 3 modes come here. */
   if (ch == '\n' || ch == MARKER) tp->tty_lfct++;	/* count line feeds */
+
+  /* The numeric pad generates ASCII escape sequences: ESC [ letter */
+  if (line == 0 &&scode >= SCODE1 && scode <= SCODE2 && 
+		shift1 == 0 && shift2 == 0 && numlock == 0) {
+	/* This key is to generate a three-character escape sequence. */
+	*tp->tty_inhead++ = ESC; /* put ESC in the input queue */
+	if (tp->tty_inhead == &tp->tty_inqueue[TTY_IN_BYTES])
+		tp->tty_inhead = tp->tty_inqueue;      /* handle wraparound */
+	tp->tty_incount++;
+	echo(tp, 'E');
+	*tp->tty_inhead++ = BRACKET; /* put ESC in the input queue */
+	if (tp->tty_inhead == &tp->tty_inqueue[TTY_IN_BYTES])
+		tp->tty_inhead = tp->tty_inqueue;      /* handle wraparound */
+	tp->tty_incount++;
+	echo(tp, BRACKET);
+	ch = scode_map[scode-SCODE1];	/* generate the letter */
+  }
+
   *tp->tty_inhead++ = ch;	/* save the character in the input queue */
   if (tp->tty_inhead == &tp->tty_inqueue[TTY_IN_BYTES])
 	tp->tty_inhead = tp->tty_inqueue;	/* handle wraparound */
@@ -443,10 +497,16 @@ char ch;			/* scan code of key just struck or released */
     case 1:	shift2 = make;		break;	/* shift key on right */
     case 2:	control = make;		break;	/* control */
     case 3:	alt = make;		break;	/* alt key */
-    case 4:	if (make && caps_off) capslock = 1 - capslock; 
+    case 4:	if (make && caps_off) {
+			capslock = 1 - capslock;
+			set_leds();
+		}
 		caps_off = 1 - make;
 		break;	/* caps lock */
-    case 5:	if (make && num_off) numlock  = 1 - numlock;  
+    case 5:	if (make && num_off) {
+			numlock  = 1 - numlock;
+			set_leds();
+		}
 		num_off = 1 - make;
 		break;	/* num lock */
   }
@@ -465,7 +525,12 @@ register char c;		/* character to echo */
 /* Echo a character on the terminal. */
 
   if ( (tp->tty_mode & ECHO) == 0) return;	/* if no echoing, don't echo */
-  if (c != MARKER) out_char(tp, c);
+  if (c != MARKER) {
+	if (tp - tty_struct < NR_CONS)
+		out_char(tp, c);	/* echo to console */
+	else
+		rs_out_char(tp, c);	/* echo to RS232 line */
+  }
   flush(tp);			/* force character out onto the screen */
 }
 
@@ -504,6 +569,7 @@ message *m_ptr;			/* pointer to message sent to the task */
 
   int code, caller;
 
+
   if (tp->tty_inleft > 0) {	/* if someone else is hanging, give up */
 	tty_reply(TASK_REPLY,m_ptr->m_source,m_ptr->PROC_NR, E_TRY_AGAIN,0L,0L);
 	return;
@@ -517,6 +583,7 @@ message *m_ptr;			/* pointer to message sent to the task */
 
   /* Try to get chars.  This call either gets enough, or gets nothing. */
   code = rd_chars(tp);
+
   caller = (int) tp->tty_inproc;
   tty_reply(TASK_REPLY, m_ptr->m_source, caller, code, 0L, 0L);
 }
@@ -626,6 +693,7 @@ message *m_ptr;			/* pointer to message sent to the task */
   vir_bytes out_vir, out_left;
   struct proc *rp;
   extern phys_bytes umap();
+  int caller,replyee;
 
   /* Copy message parameters to the tty structure. */
   tp->tty_otcaller = m_ptr->m_source;
@@ -647,6 +715,17 @@ message *m_ptr;			/* pointer to message sent to the task */
 
   /* Copy characters from the user process to the terminal. */
   (*tp->tty_devstart)(tp);	/* copy data to queue and start I/O */
+
+  /* If output is for a bitmapped terminal as the IBM-PC console, the output-
+   * routine will return at once so there is no need to suspend the caller,
+   * on ascii terminals however, the call is suspended and later revived by
+   * tty_o_done.
+   */
+  if (m_ptr->TTY_LINE != 0) {
+	caller = (int) tp->tty_outproc;
+	replyee = (int) tp->tty_otcaller;
+	tty_reply(TASK_REPLY, replyee, caller, SUSPEND, 0L, 0L);
+  }
 }
 
 
@@ -671,6 +750,9 @@ message *m_ptr;			/* pointer to message sent to task */
 	tp->tty_erase = (char) ((m_ptr->TTY_SPEK >> 8) & BYTE);	/* erase  */
 	tp->tty_kill  = (char) ((m_ptr->TTY_SPEK >> 0) & BYTE);	/* kill  */
 	tp->tty_mode  = (int) m_ptr->TTY_FLAGS;	/* mode word */
+	if (m_ptr->TTY_SPEED != 0) tp->tty_speed = m_ptr->TTY_SPEED & BYTE;
+	if (tp-tty_struct >= NR_CONS)
+		set_uart(tp - tty_struct, tp->tty_mode, tp->tty_speed);
 	break;
 
      case TIOCSETC:
@@ -707,6 +789,20 @@ message *m_ptr;			/* pointer to message sent to task */
 
   /* Send the reply. */
   tty_reply(TASK_REPLY, m_ptr->m_source, m_ptr->PROC_NR, r, flags, erki);
+}
+
+
+/*===========================================================================*
+ *				do_setpgrp				     *
+ *===========================================================================*/
+PRIVATE do_setpgrp(tp, m_ptr)
+register struct tty_struct *tp; /* pointer to tty struct */
+message *m_ptr;			/* pointer to message sent to task */
+{
+/* A control process group has changed */
+
+   tp->tty_pgrp = m_ptr->TTY_PGRP;
+   tty_reply(TASK_REPLY, m_ptr->m_source, m_ptr->PROC_NR, OK, 0L, 0L);
 }
 
 
@@ -766,9 +862,8 @@ long other;			/* used for IOCTL replies */
 /*===========================================================================*
  *				sigchar					     *
  *===========================================================================*/
-PRIVATE sigchar(tp, line, sig)
+PRIVATE sigchar(tp, sig)
 register struct tty_struct *tp;	/* pointer to tty_struct */
-int line;			/* line on which signal arrived */
 int sig;			/* SIGINT, SIGQUIT, or SIGKILL */
 {
 /* Process a SIGINT, SIGQUIT or SIGKILL char from the keyboard */
@@ -779,8 +874,11 @@ int sig;			/* SIGINT, SIGQUIT, or SIGKILL */
   tp->tty_intail = tp->tty_inqueue;
   tp->tty_incount = 0;
   tp->tty_lfct = 0;
-  cause_sig(LOW_USER + 1 + line, sig);
+  if (tp->tty_pgrp)
+	cause_sig(tp->tty_pgrp, sig);
 }
+
+
 
 
 /*****************************************************************************/
@@ -816,6 +914,8 @@ int sig;			/* SIGINT, SIGQUIT, or SIGKILL */
 #define KEYBD           0x60	/* I/O port for keyboard data */
 #define PORT_B          0x61	/* I/O port for 8255 port B */
 #define KBIT            0x80	/* bit used to ack characters to keyboard */
+#define LED_CODE        0xED	/* command to keyboard to set LEDs */
+#define LED_DELAY       0x80	/* device dependent delay needed */
 
 /* Constants relating to the video RAM and 6845. */
 #define M_6845         0x3B0	/* port for 6845 mono */
@@ -898,6 +998,8 @@ PUBLIC keyboard()
 	tty_driver_buf[0]++;		/* increment counter */
 
 	/* Build and send the interrupt message. */
+
+
 	keybd_mess.m_type = TTY_CHAR_INT;
 	keybd_mess.ADDRESS = tty_driver_buf;
 	interrupt(TTY, &keybd_mess);	/* send a message to the tty task */
@@ -919,6 +1021,7 @@ register struct tty_struct *tp;	/* tells which terminal is to be used */
  * finished, and the counts updated.  Keep repeating until all I/O done.
  */
 
+  extern char get_byte();
   int count;
   char c;
   unsigned segment, offset, offset1;
@@ -954,23 +1057,10 @@ PRIVATE out_char(tp, c)
 register struct tty_struct *tp;	/* pointer to tty struct */
 char c;				/* character to be output */
 {
-/* Output a character on the console. Check for escape sequences, including
- *   ESC 32+x 32+y to move cursor to (x, y)
- *   ESC ~ 0       to clear from cursor to end of screen
- *   ESC ~ 1       to reverse scroll the screen 1 line
- *   ESC z x       to set the attribute byte to x (z is a literal here)
- */
+/* Output a character on the console.  Check for escape sequences first. */
 
-  /* Check to see if we are part way through an escape sequence. */
-  if (tp->tty_esc_state == 1) {
-	tp->tty_echar = c;
-	tp->tty_esc_state = 2;
-	return;
-  }
-
-  if (tp->tty_esc_state == 2) {
-	escape(tp, tp->tty_echar, c);
-	tp->tty_esc_state = 0;
+  if (tp->tty_esc_state > 0) {
+	parse_escape(tp, c);
 	return;
   }
 
@@ -981,7 +1071,7 @@ char c;				/* character to be output */
 		return;
 
 	case 013:		/* CTRL-K */
-		move_to(tp, tp->tty_column, tp->tty_row + 1);
+		move_to(tp, tp->tty_column, tp->tty_row - 1);
 		return;
 
 	case 014:		/* CTRL-L */
@@ -998,10 +1088,10 @@ char c;				/* character to be output */
 
 	case '\n':		/* line feed */
 		if (tp->tty_mode & CRMOD) out_char(tp, '\r');
-		if (tp->tty_row == 0) 
+		if (tp->tty_row == SCR_LINES-1) 
 			scroll_screen(tp, GO_FORWARD);
 		else
-			tp->tty_row--;
+			tp->tty_row++;
 		move_to(tp, tp->tty_column, tp->tty_row);
 		return;
 
@@ -1016,7 +1106,7 @@ char c;				/* character to be output */
 			} while (tp->tty_column & TAB_MASK);
 			return;
 		}
-		/* Ignore tab is XTABS is off--video RAM has no hardware tab */
+		/* Ignore tab if XTABS is off--video RAM has no hardware tab */
 		return;
 
 	case 033:		/* ESC - start of an escape sequence */
@@ -1027,12 +1117,11 @@ char c;				/* character to be output */
 	default:		/* printable chars are stored in ramqueue */
 		if (tp->tty_column >= LINE_WIDTH) return;	/* long line */
 		if (tp->tty_rwords == TTY_RAM_WORDS) flush(tp);
-		tp->tty_ramqueue[tp->tty_rwords++] = tp->tty_attribute | c;
+		tp->tty_ramqueue[tp->tty_rwords++]=tp->tty_attribute|(c & BYTE);
 		tp->tty_column++;	/* next column */
 		return;
   }
 }
-
 
 /*===========================================================================*
  *				scroll_screen				     *
@@ -1041,18 +1130,36 @@ PRIVATE scroll_screen(tp, dir)
 register struct tty_struct *tp;	/* pointer to tty struct */
 int dir;			/* GO_FORWARD or GO_BACKWARD */
 {
-  int amount, offset;
+  int amount, offset, bytes;
 
-  amount = (dir == GO_FORWARD ? 2 * LINE_WIDTH : -2 * LINE_WIDTH);
-  tp->tty_org = (tp->tty_org + amount) & vid_mask;
-  if (dir == GO_FORWARD)
-	offset = (tp->tty_org + 2 * (SCR_LINES - 1) * LINE_WIDTH) & vid_mask;
-  else
-	offset = tp->tty_org;
+  bytes = 2 * (SCR_LINES - 1) * LINE_WIDTH;	/* 2 * 24 * 80 bytes */
 
-  /* Blank the new line at top or bottom. */
-  vid_copy(NIL_PTR, vid_base, offset, LINE_WIDTH);
-  set_6845(VID_ORG, tp->tty_org >> 1);	/* 6845 thinks in words */
+  /* Scrolling the screen is a real nuisance due to the various incompatible
+   * video cards.  This driver supports hardware scrolling (mono and CGA cards)
+   * and software scrolling (EGA cards).
+   */
+  if (softscroll) {
+	/* Software scrolling for non-IBM compatible EGA cards. */
+	if (dir == GO_FORWARD) {
+		scr_up(vid_base);
+		vid_copy(NIL_PTR, vid_base, tp->tty_org+bytes, LINE_WIDTH);
+	} else {
+		scr_down(vid_base);
+		vid_copy(NIL_PTR, vid_base, tp->tty_org, LINE_WIDTH);
+	}
+  } else {
+	/* Normal scrolling using the 6845 registers. */
+	amount = (dir == GO_FORWARD ? 2 * LINE_WIDTH : -2 * LINE_WIDTH);
+	tp->tty_org = (tp->tty_org + amount) & vid_mask;
+	if (dir == GO_FORWARD)
+		offset = (tp->tty_org + bytes) & vid_mask;
+	else
+		offset = tp->tty_org;
+
+	/* Blank the new line at top or bottom. */
+	vid_copy(NIL_PTR, vid_base, offset, LINE_WIDTH);
+	set_6845(VID_ORG, tp->tty_org >> 1);	/* 6845 thinks in words */
+  }
 }
 
 
@@ -1065,7 +1172,7 @@ register struct tty_struct *tp;	/* pointer to tty struct */
 /* Have the characters in 'ramqueue' transferred to the screen. */
 
   if (tp->tty_rwords == 0) return;
-  vid_copy(tp->tty_ramqueue, vid_base, tp->tty_vid, tp->tty_rwords);
+  vid_copy((char *)tp->tty_ramqueue, vid_base, tp->tty_vid, tp->tty_rwords);
 
   /* Update the video parameters and cursor. */
   tp->tty_vid = (tp->tty_vid + 2 * tp->tty_rwords);
@@ -1080,7 +1187,7 @@ register struct tty_struct *tp;	/* pointer to tty struct */
 PRIVATE move_to(tp, x, y)
 struct tty_struct *tp;		/* pointer to tty struct */
 int x;				/* column (0 <= x <= 79) */
-int y;				/* row (0 <= y <= 24, 0 at bottom) */
+int y;				/* row (0 <= y <= 24, 0 at top) */
 {
 /* Move the cursor to (x, y). */
 
@@ -1088,7 +1195,7 @@ int y;				/* row (0 <= y <= 24, 0 at bottom) */
   if (x < 0 || x >= LINE_WIDTH || y < 0 || y >= SCR_LINES) return;
   tp->tty_column = x;		/* set x co-ordinate */
   tp->tty_row = y;		/* set y co-ordinate */
-  tp->tty_vid = (tp->tty_org + 2*(SCR_LINES-1-y)*LINE_WIDTH + 2*x);
+  tp->tty_vid = (tp->tty_org + 2*y*LINE_WIDTH + 2*x);
   set_6845(CURSOR, tp->tty_vid >> 1);	/* cursor counts in words */
 }
 
@@ -1096,43 +1203,134 @@ int y;				/* row (0 <= y <= 24, 0 at bottom) */
 /*===========================================================================*
  *				escape					     *
  *===========================================================================*/
-PRIVATE escape(tp, x, y)
+PRIVATE parse_escape(tp, c)
 register struct tty_struct *tp;	/* pointer to tty struct */
-char x;				/* escape sequence is ESC x y; this is x */
-char y;				/* escape sequence is ESC x y; this is y */
+char c;				/* next character in escape sequence */
 {
-/* Handle an escape sequence. */
+/* The following ANSI escape sequences are currently supported:
+ *   ESC M         to reverse index the screen
+ *   ESC [ y ; x H to move cursor to (x, y) [default (1,1)]
+ *   ESC [ 0 J     to clear from cursor to end of screen
+ *   ESC [ n m     to set the screen rendition
+ *			n: 0 = normal [default]
+ *			   7 = reverse
+ */
 
+  switch (tp->tty_esc_state) {
+	case 1: 		/* ESC seen */
+		tp->tty_esc_intro = '\0';
+		tp->tty_esc_parmp = tp->tty_esc_parmv;
+		tp->tty_esc_parmv[0] = tp->tty_esc_parmv[1] = 0;
+		switch (c) {
+		  case '[': 	/* Control Sequence Introducer */
+			tp->tty_esc_intro = c;
+			tp->tty_esc_state = 2; 
+			break;
+		  case 'M': 	/* Reverse Index */
+			do_escape(tp, c);
+			break;
+		  default: 
+			tp->tty_esc_state = 0; 
+			break;
+		}
+		break;
+
+	case 2: 		/* ESC [ seen */
+		if (c >= '0' && c <= '9') {
+			if (tp->tty_esc_parmp 
+					< tp->tty_esc_parmv + MAX_ESC_PARMS)
+				*tp->tty_esc_parmp =
+				  *tp->tty_esc_parmp * 10 + (c - '0');
+			break;
+		}
+		else if (c == ';') {
+			if (++tp->tty_esc_parmp 
+					< tp->tty_esc_parmv + MAX_ESC_PARMS)
+				*tp->tty_esc_parmp = 0;
+			break;
+		}
+		else {
+			do_escape(tp, c);
+		}
+		break;
+	default:		/* illegal state */
+		tp->tty_esc_state = 0;
+		break;
+  }
+}
+
+
+/*===========================================================================*
+ *				do_escape				     *
+ *===========================================================================*/
+PRIVATE do_escape(tp, c)
+register struct tty_struct *tp;	/* pointer to tty struct */
+char c;				/* next character in escape sequence */
+{
   int n, ct, vx;
 
-
-  /* Check for ESC z attribute - used to change attribute byte. */
-  if (x == 'z') {
-	/* Set attribute byte */
-	tp->tty_attribute = y << 8;
-	return;
+  /* Handle a sequence beginning with just ESC */
+  if (tp->tty_esc_intro == '\0') {
+    switch (c) {
+	case 'M':		/* Reverse Index */
+		if (tp->tty_row == 0)
+			scroll_screen(tp, GO_BACKWARD);
+		else
+			tp->tty_row--;
+		move_to(tp, tp->tty_column, tp->tty_row);
+		break;
+	default: break;
+    }
   }
-  /* Check for ESC ~ n -  used for clear screen, reverse scroll. */
-  if (x == '~') {
-	if (y == '0') {
-		/* Clear from cursor to end of screen */
-		n = 2 * LINE_WIDTH * (tp->tty_row + 1) - 2 * tp->tty_column;
-		vx = tp->tty_vid;
-		while (n > 0) {
-			ct = MIN(n, vid_retrace);
-			vid_copy(NIL_PTR, vid_base, vx, ct/2);
-			vx += ct;
-			n -= ct;
+  else
+  /* Handle a sequence beginning with ESC [ and parameters */
+  if (tp->tty_esc_intro == '[') {
+    switch (c) {
+	case 'H':		/* Position cursor */
+		move_to(tp, 
+			MAX(1, MIN(LINE_WIDTH, tp->tty_esc_parmv[1])) - 1,
+			MAX(1, MIN(SCR_LINES, tp->tty_esc_parmv[0])) - 1 );
+		break;
+	case 'J':		/* Clear from cursor to end of screen */
+		if (tp->tty_esc_parmv[0] == 0) {
+			n = 2 * ((SCR_LINES - (tp->tty_row + 1)) * LINE_WIDTH
+				+ LINE_WIDTH - (tp->tty_column));
+			vx = tp->tty_vid;
+			while (n > 0) {
+				ct = MIN(n, vid_retrace);
+				vid_copy(NIL_PTR, vid_base, vx, ct/2);
+				vx += ct;
+				n -= ct;
+			}
 		}
-	} else if (y == '1') {
-		/* Reverse scroll. */
-		scroll_screen(tp, GO_BACKWARD);
-	}
-	return;
-  }
+		break;
+	case 'm':		/* Set graphic rendition */
+ 		switch (tp->tty_esc_parmv[0]) {
+ 			case 1: /*  BOLD  (light green on black)  */
+ 				tp->tty_attribute = 0x0A << 8;
+ 				break;
+ 
+ 			case 4: /*  UNDERLINE  (blue on red)  */
+ 				tp->tty_attribute = 0x41 << 8;
+ 				break;
+ 
+ 			case 5: /*  BLINKING  (light grey on black)  */
+				tp->tty_attribute = 0x87 << 8;
+ 				break;
+ 
+ 			case 7: /*  REVERSE  (black on light grey)  */
+ 				tp->tty_attribute = 0x70 << 8;
+  				break;
 
-  /* Must be cursor movement (or invalid). */
-  move_to(tp, x - 32, y - 32);
+ 			default: tp->tty_attribute = 0007 << 8;
+ 				break;
+ 		}
+		break;
+	default:
+		break;
+    }
+  }
+  tp->tty_esc_state = 0;
 }
 
 
@@ -1187,6 +1385,25 @@ int f;				/* this value determines beep frequency */
 
 
 /*===========================================================================*
+ *				set_leds				     *
+ *===========================================================================*/
+PRIVATE set_leds()
+{
+/* Set the LEDs on the caps lock and num lock keys */
+
+  int leds, dummy, i;
+
+  if (pc_at == 0) return;	/* PC/XT doesn't have LEDs */
+  leds = (numlock<<1) | (capslock<<2);	/* encode LED bits */
+  port_out(KEYBD, LED_CODE);	/* prepare keyboard to accept LED values */
+  port_in(KEYBD, &dummy);	/* keyboard sends ack; accept it */
+  for (i = 0; i < LED_DELAY; i++) ;	/* delay needed */
+  port_out(KEYBD, leds);	/* give keyboard LED values */
+  port_in(KEYBD, &dummy);	/* keyboard sends ack; accept it */
+}
+
+
+/*===========================================================================*
  *				tty_init				     *
  *===========================================================================*/
 PRIVATE tty_init()
@@ -1194,18 +1411,18 @@ PRIVATE tty_init()
 /* Initialize the tty tables. */
 
   register struct tty_struct *tp;
-  int i;
-  phys_bytes phy1, phy2, vram;
 
   /* Tell the EGA card, if any, to simulate a 16K CGA card. */
   port_out(EGA + INDEX, 4);	/* register select */
   port_out(EGA + DATA, 1);	/* no extended memory to be used */
 
-  for (tp = &tty_struct[0]; tp < &tty_struct[NR_TTYS]; tp++) {
+  for (tp = &tty_struct[0]; tp < &tty_struct[NR_CONS]; tp++) {
 	tp->tty_inhead = tp->tty_inqueue;
 	tp->tty_intail = tp->tty_inqueue;
 	tp->tty_mode = CRMOD | XTABS | ECHO;
 	tp->tty_devstart = console;
+	tp->tty_makebreak = TWO_INTS;
+	tp->tty_attribute = BLANK;
 	tp->tty_erase = ERASE_CHAR;
 	tp->tty_kill  = KILL_CHAR;
 	tp->tty_intr  = INTR_CHAR;
@@ -1215,7 +1432,6 @@ PRIVATE tty_init()
 	tp->tty_eof   = EOT_CHAR;
   }
 
-  tty_struct[0].tty_makebreak = TWO_INTS;	/* tty 0 is console */
   if (color) {
 	vid_base = COLOR_BASE;
 	vid_mask = C_VID_MASK;
@@ -1227,11 +1443,10 @@ PRIVATE tty_init()
 	vid_port = M_6845;
 	vid_retrace = M_RETRACE;
   }
-  tty_struct[0].tty_attribute = BLANK;
   tty_driver_buf[1] = MAX_OVERRUN;	/* set up limit on keyboard buffering */
   set_6845(CUR_SIZE, 31);		/* set cursor shape */
   set_6845(VID_ORG, 0);			/* use page 0 of video ram */
-  move_to(&tty_struct[0], 0, 0);	/* move cursor to lower left corner */
+  move_to(&tty_struct[0], 0, SCR_LINES-1); /* move cursor to lower left */
 
   /* Determine which keyboard type is attached.  The bootstrap program asks 
    * the user to type an '='.  The scan codes for '=' differ depending on the
@@ -1269,7 +1484,475 @@ char ch;			/* scan code for a function key */
 
   if (ch == F1) p_dmp();	/* print process table */
   if (ch == F2) map_dmp();	/* print memory map */
-  if (ch == F9) sigchar(&tty_struct[0], 0, SIGKILL);	/* issue SIGKILL */
+  if (ch == F3) {		/* hardware vs. software scrolling */
+	softscroll = 1 - softscroll;	/* toggle scroll mode */
+	tty_struct[0].tty_org = 0;
+	move_to(&tty_struct[0], 0, SCR_LINES-1); /* cursor to lower left */
+	set_6845(VID_ORG, 0);
+	if (softscroll)
+		printf("\033[H\033[JSoftware scrolling enabled.\n");
+	else
+		printf("\033[H\033[JHardware scrolling enabled.\n");
+  }
+if(ch == F5)prlog(); if (ch==F5+1) init_rs232();/*DEBUG*/
+#ifdef AM_KERNEL
+#ifndef NONET
+  if (ch == F4) net_init();	/* re-initialise the ethernet card */
+#endif NONET
+#endif AM_KERNEL
+  if (ch == F9) sigchar(&tty_struct[0], SIGKILL);	/* issue SIGKILL */
 }
 #endif
 
+
+/****************************************************************************
+ ****************************************************************************
+ ****************************************************************************
+ ****************************************************************************/
+
+
+#ifdef i8088
+/* Now begins the code and data for the device RS232 drivers. */
+
+/* Definitions used by the RS232 driver. */
+#define	RS_BUF_SIZE		 256	/* output buffer per serial line */
+#define PRIMARY                0x3F8	/* I/O port of primary RS232 */
+#define SECONDARY              0x2F8	/* I/O port of secondary RS232 */
+
+/* Constants relating to the 8250. */
+#define	RS232_INTERRUPT_ID_REG	   2	/* address of interrupt id register */
+#define	RS232_LINE_CONTROL	   3	/* address of line control register */
+#define	RS232_MODEM_CONTROL	   4	/* address of modem control register */
+#define	RS232_LINE_STATUS	   5	/* address of line status register */
+#define	RS232_RATE_DIVISOR	   0	/* address of baud rate divisor reg */
+#define	RS232_TRANSMIT_HOLDING	   0	/* address of transmitter holding reg*/
+#define	RS232_RECEIVER_DATA_REG	   0	/* address of receiver data register */
+#define	RS232_INTERRUPTS	   1	/* address of interrupt enable reg */
+#define	LINE_CONTROLS		0x0B	/* odd parity,1 stop bit,8 data bits */
+#define	MODEM_CONTROLS		0x0B	/* RTS & DTR */
+#define	ADDRESS_DIVISOR		0x80	/* value to address divisor */
+#define	RS232_INTERRUPT_CLASSES	0x03	/* receiver Data Ready & xmt empty */
+#define	UART_FREQ  	     115200L	/* UART timer frequency */
+
+/* Line control setting related constants. */
+#define ODD			   0
+#define	EVEN			   1
+#define NONE			  -1
+#define	PARITY_ON_OFF		0x08	/* position of parity bit in line reg*/
+#define	PARITY_TYPE_SHIFT	   4	/* shift count for parity_type bit */
+#define	STOP_BITS_SHIFT		   2	/* shift count for # stop_bits */
+#define DATA_LEN                   8	/* how much to shift sg_mode for len */
+
+/* RS232 interrupt types. */
+#define TRANSMITTER_READY	0x02	/* transmitter ready to accept data */
+#define RECEIVER_READY		0x04	/* data received interrupt */
+#define INT_TYPE_MASK		0x06	/* mask to mask out interrupt type */
+#define	INT_PENDING		0x01	/* position of interrupt-pending bit */
+
+/* Status register values */
+#define DATA_REGISTER_EMPTY	0x20	/* mask to see if data reg is empty */
+#define DATA_RECEIVED		0x01	/* mask to see if data has arrived */
+
+/* Global variables used by the RS232 driver */
+PUBLIC	message	rs232_mess;
+PRIVATE	int	first_rs_write_int_seen = FALSE;
+PRIVATE	struct rs_struct{
+	int	rs_base;		/* 0x3F8 for primary, 0x2F8 secondary*/
+	int	rs_busy;		/* line is idle or not */
+	int	rs_left;		/* # chars left in buffer to output */
+	char	*rs_next;		/* pointer to next char to output */
+	char	rs_buf[RS_BUF_SIZE];	/* output buffer */
+} rs_struct[NR_RS_LINES];
+
+
+/*===========================================================================*
+ *				rs232				 	     *
+ *===========================================================================*/
+PUBLIC rs232(unit)
+int unit;				/* which unit caused the interrupt */
+{
+  int interrupt_type, t;
+  struct rs_struct *rs;
+
+  /* When an RS232 interrupt occurs, mpx88.s catches it and calls rs232().
+   * Because more than one interrupt condition can occur at the same
+   * time, the conditions are presented in the interrupt-identification
+   * register in priority order, we have to keep scanning until the 
+   * interrupt-pending bit goes down.  Only one communications port is really
+   * supported here because the other vector is used by the Ethernet.
+   */
+
+Event(1); /*DEBUG*/ 
+Count(ct_rs232);  /*DEBUG*/
+  rs = &rs_struct[unit - NR_CONS];
+  do {
+	port_in(rs->rs_base + RS232_INTERRUPT_ID_REG, & interrupt_type); 
+	t = interrupt_type & INT_TYPE_MASK;
+	switch(t) {
+	    case RECEIVER_READY:	/* a character has arrived */
+Event(2); /*DEBUG*/
+		rs_read_int(unit);
+		break;
+
+	    case TRANSMITTER_READY:	/* a character has been output */
+Event(3); /*DEBUG*/
+		rs_write_int(unit);
+		break;
+
+	    default:			/* something unexpected has happened */
+		panic("RS232_task got illegal interrupt. Type: ", t);
+	}
+  }
+  while(interrupt_type & INT_PENDING);	/* multiple interrupts are possible */
+Event(4); /*DEBUG*/
+}
+
+
+/*===========================================================================*
+ *				rs_read_int			 	     *
+ *===========================================================================*/
+PRIVATE	rs_read_int(line)
+int line;
+{
+  int val, k, base;
+
+Event(5); /*DEBUG*/
+Count(ct_rd); /*DEBUG*/
+  base = rs_struct[line - NR_CONS].rs_base;
+
+  /* Fetch the character from the RS232 hardware. */
+  port_in(base + RS232_RECEIVER_DATA_REG, &val);
+
+Event(6); /*DEBUG*/
+  /* Store the character in memory so the task can get at it later */
+  if ((k = tty_driver_buf[0]) < tty_driver_buf[1]) {
+	/* There is room to store this character, do it */
+	k = k + k;			/* each entry contains two bytes */
+	tty_driver_buf[k + 2] = val;	/* store the ascii code */
+	tty_driver_buf[k + 3] = line;	/* tell wich line it came from */ 
+	tty_driver_buf[0]++;		/* increment counter */
+
+	/* Build and send the interrupt message */
+	rs232_mess.m_type = TTY_CHAR_INT;
+	rs232_mess.ADDRESS = tty_driver_buf;
+	interrupt(TTY, &rs232_mess);	/* send a message to the tty task */
+  } else {
+	/* Too many character have been buffered. Discard excess */
+	port_out(INT_CTL, ENABLE);	/* re-enable 8259A controller */
+  }
+Event(7); /*DEBUG*/
+}
+
+
+/*===========================================================================*
+ *				rs_write_int	  		 	     *
+ *===========================================================================*/
+PRIVATE	rs_write_int(line)
+int line;
+{
+/* An output ready interrupt has occurred, or a write has been done to an idle
+ * line.  In both cases, start the output.
+ */
+
+  char byte;
+  struct rs_struct *rs;
+
+Event(8); /*DEBUG*/
+Count(ct_wt); /*DEBUG*/
+  if (!first_rs_write_int_seen) {
+	first_rs_write_int_seen = TRUE;
+	port_out(INT_CTL, ENABLE);	/* re-enable 8259A controller */
+	return;
+  }
+
+Event(9); /*DEBUG*/
+  rs = &rs_struct[line-NR_CONS];
+
+  /* If there is more output queued, output the next character. */
+  if (rs->rs_left > 0) {
+	byte = *rs->rs_next;
+	putc(byte);		/* DEBUG print to screen!!!!! */
+Event(24); /*DEBUG*/
+	write_byte(rs, byte);	/* Write next char to UART */
+Event(25); /*DEBUG*/
+	rs->rs_next++;
+	rs->rs_left--;			/* One char done */
+	port_out(INT_CTL, ENABLE);	/* re-enable 8259A controller */
+	return;
+  }
+Event(10); /*DEBUG*/
+  /* The current output buffer is finished.  Send a message to the tty task. */
+  rs->rs_busy = FALSE;
+  rs->rs_next = &rs->rs_buf[0];
+  rs->rs_left = 0;
+  rs232_mess.m_type = TTY_O_DONE;	/* build the message */
+  rs232_mess.TTY_LINE = line;		/* which line is finished */
+  interrupt(TTY, &rs232_mess);		/* send the message to the tty task */
+Event(11); /*DEBUG*/
+}
+
+
+/*===========================================================================*
+ *				write_byte			 	     *
+ *===========================================================================*/
+PRIVATE	write_byte(rs, byte)
+struct rs_struct *rs;			/* which tty */
+char byte;				/* byte to write */
+{
+Event(12); /*DEBUG*/
+Count(ct_wb); /*DEBUG*/
+  port_out(rs->rs_base + RS232_TRANSMIT_HOLDING, (int) byte);
+}
+
+
+/*===========================================================================*
+ *				serial_out				     * 
+ *===========================================================================*/
+PRIVATE	serial_out(tp)
+register struct tty_struct *tp;	/* tells which terminal is to be used */
+{
+/* Copy as much data as possible to the output queue, then start I/O if
+ * necessary.
+ */
+  int room, bytes, line;
+  phys_bytes tty_phys;
+  struct rs_struct *rs;
+
+Event(13); /*DEBUG*/
+Count(ct_ser); /*DEBUG*/
+  if (tp->tty_inhibited != RUNNING) return;
+
+  line = tp - &tty_struct[0];		/* line is index into tty_struct */
+  rs = &rs_struct[line - NR_CONS];	/* 0 to NR_CONS - 1 are consoles */
+	
+  /* Compute how many bytes can be copied to rs_buf and copy them. */
+  lock();
+  room = &rs->rs_buf[RS_BUF_SIZE] - (rs->rs_next + rs->rs_left);
+  bytes = MIN(room, tp->tty_outleft);	/* # bytes to copy */
+  tty_phys = umap(proc_addr(TTY), D, (vir_bytes) rs->rs_next + rs->rs_left, 1);
+  phys_copy(tp->tty_phys, tty_phys, (long) bytes);
+  rs->rs_left += bytes;			/* more bytes are now in rs_buf */
+  tp->tty_cum += bytes;			/* update cumulative total */
+  tp->tty_phys += bytes;		/* next time, take different bytes */
+  tp->tty_outleft -= bytes;		/* fewer bytes still pending */
+  unlock();
+Event(14); /*DEBUG*/
+Count(ct_ser1);/*DEBUG*/	
+  if (!rs->rs_busy) {			/* is the line idle? */
+	rs->rs_busy = TRUE;		/* if so, mark it as busy */
+	rs_write_int(line);		/* and start it going */
+  }
+Event(23); /*DEBUG*/
+Count(ct_ser2); /*DEBUG*/
+}
+
+
+/*===========================================================================*
+ *				do_tty_o_done				     *
+ *===========================================================================*/
+PRIVATE do_tty_o_done(tp, m_ptr)
+register struct tty_struct *tp;	/* pointer to tty_struct */
+message *m_ptr;			/* pointer to message sent to task */
+{
+/* The current block of characters has been output.  See if there are more. */
+
+  int count, replyee, caller, line;
+  register struct rs_struct *rs;
+
+Event(15); /*DEBUG*/
+Count(ct_o_done); /*DEBUG*/
+  /* Mark rs_buf as empty */
+  lock();
+  line = tp - tty_struct;
+  rs = &rs_struct[line - NR_CONS];
+  rs->rs_left = 0;
+  rs->rs_busy = FALSE;
+  rs->rs_next = &rs->rs_buf[0];
+  unlock();
+
+  /* See if more characters are pending. */
+  if (tp->tty_outleft > 0) {
+	/* The output is not yet completed.  Transmit another chunk. */
+	serial_out(tp);
+	return;
+  }
+
+Event(16); /*DEBUG*/
+  /* There is nothing more to send.  Return status. */
+  tp->tty_rwords = 0;
+  count = tp->tty_cum;
+
+  /* Tell hanging writer that chars have been sent */
+  replyee = (int) tp->tty_otcaller;
+  caller = (int) tp->tty_outproc;
+  tty_reply(REVIVE, replyee, caller, count, 0L, 0L);
+Event(17); /*DEBUG*/
+}
+
+
+/*===========================================================================*
+ *				rs_out_char				     *
+ *===========================================================================*/
+PRIVATE rs_out_char(tp, c)
+register struct tty_struct *tp;	/* pointer to tty struct */
+char c;				/* character to be output */
+{
+/* Output a character on an RS232 line. */
+
+  int line;
+  register struct rs_struct *rs;
+
+  /* See if there is room to store a character, and if so, do it. */
+Event(18); /*DEBUG*/
+Count(ct_out_char); /*DEBUG*/
+  lock();
+  line = tp - tty_struct;
+  rs = &rs_struct[line - NR_CONS];
+  if (rs->rs_next == &rs->rs_buf[RS_BUF_SIZE]) return;	/* full, tough luck */
+  *rs->rs_next++ = c;		/* store the character */
+  rs->rs_left++;
+  unlock();
+
+  if (!rs->rs_busy) {		/* if terminal line is idle, start it */
+	rs->rs_busy = TRUE;
+	rs_write_int(line);
+  }
+Event(19); /*DEBUG*/
+}
+
+
+/*===========================================================================*
+ *				init_rs232				     * 
+ *===========================================================================*/
+PRIVATE	init_rs232()
+{
+  register struct tty_struct *tp;
+  register struct rs_struct *rs;
+  int line;
+
+Event(20); /*DEBUG*/
+  for (tp = &tty_struct[NR_CONS]; tp < &tty_struct[NR_CONS+NR_RS_LINES]; tp++){
+	tp->tty_inhead = tp->tty_inqueue;
+	tp->tty_intail = tp->tty_inqueue;
+	tp->tty_mode = CRMOD | XTABS /* | ECHO */;
+	tp->tty_devstart = serial_out;
+	tp->tty_erase	= ERASE_CHAR;
+	tp->tty_kill	= KILL_CHAR;
+	tp->tty_intr	= INTR_CHAR;
+	tp->tty_quit	= QUIT_CHAR;
+	tp->tty_xon	= XON_CHAR;
+	tp->tty_xoff	= XOFF_CHAR;
+	tp->tty_eof	= EOT_CHAR;
+	tp->tty_makebreak = ONE_INT;	/* RS232 only interrupts once/char */
+  }
+
+  rs_struct[0].rs_base = PRIMARY;
+  rs_struct[1].rs_base = SECONDARY;
+
+  for (rs = &rs_struct[0]; rs < &rs_struct[NR_RS_LINES]; rs++) {
+	line = rs - rs_struct;
+	rs->rs_next = & rs->rs_buf[0];
+	rs->rs_left = 0;
+	rs->rs_busy = FALSE;
+	config_rs232(line, 1200, EVEN, 1, 7);	/* set line ctl and baudrate */
+	port_out(rs->rs_base + RS232_MODEM_CONTROL, MODEM_CONTROLS);
+	port_out(rs->rs_base + RS232_INTERRUPTS, RS232_INTERRUPT_CLASSES);
+  }
+}
+
+
+/*===========================================================================*
+ *				set_uart			 	     *
+ *===========================================================================*/
+PRIVATE set_uart(line, mode, speeds)
+int line;			/* which line number (>= NR_CONS) */
+int mode;			/* sgtty.h sg_mode word */
+int speeds;			/* low byte is input speed, next is output */
+{
+/* Set the UART parameters. */
+  int baudrate, parity, stop_bits, data_bits;
+
+Event(21); /*DEBUG*/
+  baudrate = 100 * (speeds & BYTE);
+  if (baudrate == 100) baudrate = 110;
+  parity = NONE;
+  if (mode & ODDP) parity = ODD;
+  if (mode & EVENP) parity = EVEN;
+  stop_bits = (baudrate == 110 ? 2 : 1);
+  data_bits = 5 + ((mode >> DATA_LEN) & 03);
+  config_rs232(line, baudrate, parity, stop_bits, data_bits);
+}
+
+
+/*===========================================================================*
+ *				config_rs232			 	     *
+ *===========================================================================*/
+PRIVATE	config_rs232(line, baud_rate, parity, stop_bits, data_bits)
+int line, baud_rate, parity, stop_bits, data_bits;
+{
+  /* Set various line control parameters for RS232 I/O.
+   * Parity may be any of ODD, EVEN or NONE.
+   * StopBits may be 1 or 2.
+   * DataBits may be 5 to 8.
+   *
+   * If DataBits == 5 and StopBits == 2, UART will generate 1.5 stop bits
+   */
+
+  int line_controls = 0, base, freq;
+
+Event(22); /*DEBUG*/
+  base = rs_struct[line - NR_CONS].rs_base;
+
+  /* First tell line control register to address baud rate divisor */
+  port_out(base + RS232_LINE_CONTROL, ADDRESS_DIVISOR);
+
+  /* Now set the baud rate. */
+  freq = (int) (UART_FREQ / baud_rate);
+  port_out(base + RS232_RATE_DIVISOR, freq & BYTE);
+  port_out(base + RS232_RATE_DIVISOR+1, (freq >> 8) & BYTE);
+
+
+  /* Put parity_type bits in line_controls */
+  if (parity != NONE) {
+	line_controls |= PARITY_ON_OFF;
+	line_controls |= (parity << PARITY_TYPE_SHIFT);
+  }
+
+  /* Put #stop_bits bits in line_controls */
+  if (stop_bits == 1 || stop_bits == 2)
+	line_controls |= (stop_bits - 1) << STOP_BITS_SHIFT;
+
+  /* Put #data_bits bits in line_controls */
+  if (data_bits >=5 && data_bits <= 8)
+	line_controls |= (data_bits - 5);
+
+  port_out(base + RS232_LINE_CONTROL, line_controls);
+}
+
+#endif
+
+/*________________________________________________________________________*/
+
+Event(x)
+{  log[logpt++] = x;  if (logpt >= LOGSIZE) logpt = 0;
+   if (rs_struct[0].rs_base > 0x3F8){
+	printf("Event %d hit\n",x); prlog();   while(1);
+    }
+}
+
+prlog()
+{
+  int i, j;
+  i = logpt; j = 0;
+  printf("\n\nEvents: ");
+  while(j < LOGSIZE) { printf("%d ", log[i]); i++; if (i == LOGSIZE) i=0; j++;}
+  printf("\n\nCounts: rs232=%u  serial_out=%u   ",ct_rs232, ct_ser);
+  printf("(serial1=%u  serial2=%u)\n", ct_ser1, ct_ser2);
+  printf("  rs_read_int=%u  rs_write_int=%u  write_byte=%u",ct_rd,ct_wt,ct_wb);
+  printf("  do_tty_o_done=%u  rs_out_char=%u\n", ct_o_done, ct_out_char);
+
+  printf("\nrs_struct[0].  rs_base=%x  rs_busy=%d rs_left=%d rs_next=%d\n",
+        rs_struct[0].rs_base, rs_struct[0].rs_busy, rs_struct[0].rs_left,
+        rs_struct[0].rs_next - &rs_struct[0].rs_buf[0]);
+  printf("rs_buf = %o %o %o %o %o\n", rs_struct[0].rs_buf[0], rs_struct[0].rs_buf[1], rs_struct[0].rs_buf[2],rs_struct[0].rs_buf[3], rs_struct[0].rs_buf[4]);
+}

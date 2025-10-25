@@ -149,7 +149,7 @@ message *m_ptr;			/* pointer to request message */
  *===========================================================================*/
 PRIVATE do_clocktick()
 {
-/* This routine called on every clock tick. */
+/* This routine is called on every clock tick. */
 
   register struct proc *rp;
   register int t, proc_nr;

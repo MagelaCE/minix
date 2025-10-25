@@ -4,6 +4,6 @@ main()
 {
 /* Clear the screen. */
 
-  prints("\033 8\033~0");
+  prints("\033[H\033[J");
   exit(0);
 }

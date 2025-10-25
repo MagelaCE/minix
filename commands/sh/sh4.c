@@ -1,8 +1,10 @@
 #define Extern extern
-#include "signal.h"
-#include "errno.h"
-#include "setjmp.h"
-#include "stat.h"
+#include <signal.h>
+#include <errno.h>
+#include <setjmp.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/dir.h>
 #include "sh.h"
 
 /* -------- eval.c -------- */
@@ -347,11 +349,9 @@ int quoted;
 	flag['v'] = 0;
 	flag['n'] = 0;
 	cp = strsave(e.iop->arg.aword, 0);
-	
-	/* jrp debug */
-	scraphere();
-
-	freearea(areanum = 1);	/* free old space */
+	areanum = 1;
+	freehere(areanum);
+	freearea(areanum);	/* free old space */
 	e.oenv = NULL;
 	e.iop = (e.iobase = iostack) - 1;
 	unquote(cp);
@@ -376,12 +376,6 @@ register char *as;
 /* -------- glob.c -------- */
 /* #include "sh.h" */
 
-#define	DIRSIZ	14
-struct	direct
-{
-	unsigned short	d_ino;
-	char	d_name[DIRSIZ];
-};
 /*
  * glob
  */
@@ -723,4 +717,17 @@ char *i, *j, *k;
 		*index3++ = *index2;
 		*index2++ = c;
 	} while(--m);
+}
+
+char *
+memcpy(ato, from, nb)
+register char *ato, *from;
+register int nb;
+{
+	register char *to;
+
+	to = ato;
+	while (--nb >= 0)
+		*to++ = *from++;
+	return(ato);
 }

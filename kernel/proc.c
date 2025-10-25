@@ -151,9 +151,19 @@ message *m_ptr;			/* pointer to message buffer */
   vhi = (vb + MESS_SIZE - 1) >> CLICK_SHIFT;	/* vir click for top of message */
   if (vhi < vlo || vhi - caller_ptr->p_map[D].mem_vir >= len)return(E_BAD_ADDR);
 
+  /* Check for deadlock by 'caller' and 'dest' sending to each other. */
+  if (dest_ptr->p_flags & SENDING) {
+	next_ptr = caller_ptr->p_callerq;
+	while (next_ptr) {
+		if (next_ptr == dest_ptr)
+			return(E_LOCKED);
+		next_ptr = next_ptr->p_sendlink;
+	}
+  }
+
   /* Check to see if 'dest' is blocked waiting for this message. */
-  if ( (dest_ptr->p_flags & RECEIVING) &&
-		(dest_ptr->p_getfrom == ANY || dest_ptr->p_getfrom == caller) ) {
+  if ( (dest_ptr->p_flags & RECEIVING) && (dest_ptr->p_flags & SENDING) == 0 &&
+		(dest_ptr->p_getfrom == ANY || dest_ptr->p_getfrom == caller)){
 	/* Destination is indeed waiting for this message. */
 	cp_mess(caller, caller_ptr->p_map[D].mem_phys, m_ptr, 
 				dest_ptr->p_map[D].mem_phys, dest_ptr->p_messbuf);
@@ -163,8 +173,8 @@ message *m_ptr;			/* pointer to message buffer */
 	/* Destination is not waiting.  Block and queue caller. */
 	if (caller == HARDWARE) return(E_OVERRUN);
 	caller_ptr->p_messbuf = m_ptr;
+	if (caller_ptr->p_flags == 0) unready(caller_ptr);
 	caller_ptr->p_flags |= SENDING;
-	unready(caller_ptr);
 
 	/* Process is now blocked.  Put in on the destination's queue. */
 	if ( (next_ptr = dest_ptr->p_callerq) == NIL_PROC) {
@@ -202,7 +212,8 @@ message *m_ptr;			/* pointer to message buffer */
 
   /* Check to see if a message from desired source is already available. */
   sender_ptr = caller_ptr->p_callerq;
-  while (sender_ptr != NIL_PROC) {
+  if ((caller_ptr->p_flags & SENDING) == 0) {
+     while (sender_ptr != NIL_PROC) {
 	sender = sender_ptr - proc - NR_TASKS;
 	if (src == ANY || src == sender) {
 		/* An acceptable message has been found. */
@@ -218,18 +229,19 @@ message *m_ptr;			/* pointer to message buffer */
 	}
 	prev_ptr = sender_ptr;
 	sender_ptr = sender_ptr->p_sendlink;
+     }
   }
 
   /* No suitable message is available.  Block the process trying to receive. */
   caller_ptr->p_getfrom = src;
   caller_ptr->p_messbuf = m_ptr;
+  if (caller_ptr->p_flags == 0) unready(caller_ptr);
   caller_ptr->p_flags |= RECEIVING;
-  unready(caller_ptr);
 
   /* If MM has just blocked and there are kernel signals pending, now is the
    * time to tell MM about them, since it will be able to accept the message.
    */
-  if (sig_procs > 0 && caller == MM_PROC_NR && src == ANY) inform(MM_PROC_NR);
+  if (sig_procs > 0 && caller == MM_PROC_NR && src == ANY) inform();
   return(OK);
 }
 
@@ -250,10 +262,10 @@ PUBLIC pick_proc()
   /* Set 'cur_proc' and 'proc_ptr'. If system is idle, set 'cur_proc' to a
    * special value (IDLE), and set 'proc_ptr' to point to an unused proc table
    * slot, namely, that of task -1 (HARDWARE), so save() will have somewhere to
-   * deposit the registers when a interrupt occurs on an idle machine.
+   * deposit the registers when an interrupt occurs on an idle machine.
    * Record previous process so that when clock tick happens, the clock task
    * can find out who was running just before it began to run.  (While the
-   * clock task is running, 'cur_proc' = CLOCKTASK. In addition, set 'bill_ptr'
+   * clock task is running, 'cur_proc' = CLOCKTASK.) In addition, set 'bill_ptr'
    * to always point to the process to be billed for CPU time.
    */
   prev_proc = cur_proc;
@@ -315,17 +327,23 @@ register struct proc *rp;	/* this process is no longer runnable */
   lock();			/* disable interrupts */
   r = rp - proc - NR_TASKS;
   q = (r < 0 ? TASK_Q : r < LOW_USER ? SERVER_Q : USER_Q);
-  if ( (xp = rdy_head[q]) == NIL_PROC) return;
+  if ( (xp = rdy_head[q]) == NIL_PROC) {
+	restore();
+	return;
+  }
   if (xp == rp) {
 	/* Remove head of queue */
 	rdy_head[q] = xp->p_nextready;
-	pick_proc();
+	if (rp == proc_ptr) pick_proc();
   } else {
 	/* Search body of queue.  A process can be made unready even if it is
 	 * not running by being sent a signal that kills it.
 	 */
 	while (xp->p_nextready != rp)
-		if ( (xp = xp->p_nextready) == NIL_PROC) return;
+		if ( (xp = xp->p_nextready) == NIL_PROC) {
+			restore();
+			return;
+		}
 	xp->p_nextready = xp->p_nextready->p_nextready;
 	while (xp->p_nextready != NIL_PROC) xp = xp->p_nextready;
 	rdy_tail[q] = xp;

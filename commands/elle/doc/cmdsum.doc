@@ -1,0 +1,199 @@
+			ELLE COMMAND SUMMARY
+
+     This is a complete summary of all ELLE commands as of ELLE 4.0.
+They are grouped according to function.  For detailed explanations of
+each command, see the manual or the help for that command.
+	The keyboard characters typed to invoke a command are shown as
+"CTRL-x" to indicate a control character, "ESC" to indicate ESCAPE (or
+ALTMODE), or simply "x" to indicate that character.  It is possible
+for an installation or user to define a different mapping for the
+keys; the ones shown assume the default mapping.
+
+---- HELP
+
+CTRL-_		Describes a command.  Asks user to type a command and
+		then shows a brief description of what it does.
+
+---- CURSOR MOVEMENT
+
+CTRL-F          Forward one character.
+CTRL-B          Backward one character.
+CTRL-H          Same as CTRL-B: move backward one character.
+ESC F           Forward one word.
+ESC B           Backward one word.
+CTRL-A          Beginning of current line.
+CTRL-E          End of current line.
+CTRL-N          Next line (goes to the next line).
+CTRL-P          Previous line (goes to the previous line).
+CTRL-V          Beginning of next screenful.
+ESC V           Beginning of previous screenful.
+ESC ]		Forward Paragraph.
+ESC [		Backward Paragraph.
+ESC <           Beginning of whole buffer.
+ESC >           End of whole buffer.
+
+
+---- DELETING
+
+CTRL-D          Deletes forward one character (the one the cursor is under).
+DELETE          Deletes backward one character (the one to left of cursor).
+ESC D           Kills forward one word.
+ESC DELETE      Kills backward one word.
+CTRL-K          Kills the rest of the line (to the right of the cursor).
+ESC \           Deletes spaces around the cursor.
+CTRL-X CTRL-O   Deletes blank lines around the cursor.
+
+
+---- CASE CHANGE
+
+ESC C           Capitalizes word : first letter becomes uppercase
+                and the rest becomes lowercase.
+ESC L           Makes the whole next word lowercase.
+ESC U           Makes the whole next word uppercase.
+CTRL-X CTRL-L   Makes whole region lowercase.
+CTRL-X CTRL-U   Makes whole region uppercase.
+
+
+---- SEARCHING
+
+CTRL-S		Incremental Search forward; prompts "I-search:"
+CTRL-R		Reverse Incremental Search; prompts "R-search:"
+	During an incremental search, the following characters
+	have special effects:
+		"normal" chars	- Begin searching immediately.
+		^G		- Cancel I-search, return to start.
+		DEL		- Erase last char, return to last match.
+		^S, ^R		- Repeat search (or change direction).
+				If string empty, uses previous search string.
+		ESC or CR	- Exit I-search at current point.
+			If string empty, turns into String Search, which
+			prompts "Search:" or "Reverse Search:" and waits
+			for a complete string to be typed.
+			A CR or ESC ends the string and starts the search.
+
+ESC %           Query Replace.  Asks for a search string, then
+			for the replacement string, and begins searching.
+			Stops at each match and waits for a command.
+			Type "?" to see your options.
+CTRL-X %	Replace String.  Like Query Replace, but simply
+			replaces all matches, without stopping to ask.
+
+(If you don't give a string, ELLE will use the string you gave
+ in the previous search.)
+
+
+---- MARKING AREAS
+
+CTRL-@          Set (invisible) mark where cursor is.
+CTRL-SPACE      Same character as CTRL-@, on most terminals.  This is
+                easier to type.
+CTRL-X CTRL-X   Exchange cursor and mark.
+ESC H		Mark Paragraph.  Sets mark and cursor to surround a
+		paragraph (prior to giving some region command).
+CTRL-W          Wipe-out -- kills a "region":
+                A region is the text between the cursor and the last
+                place "marked".  You can specify a phrase, several
+                lines of text, or a whole section of text as a region.
+ESC W           Copy region.  Like CTRL-W then CTRL-Y but does
+                not modify the buffer.
+CTRL-Y          Yanks-back (un-kills) whatever you have most recently killed.
+ESC Y           Yanks-back (un-kills) the next most recently killed text.
+                Only works after CTRL-Y or ESC Y.
+ESC CTRL-W	Append Next Kill.  Useful when collecting stuff from several
+		places in order to yank it all back somewhere else.
+
+---- FILLING TEXT
+
+ESC Q           Fill the paragraph to the size of the Fill Column.
+ESC G		Fill the region.
+CTRL-X F        Set Fill Column.  ESC Q will use this line size.
+CTRL-X .	Set Fill Prefix.  Asks for a string that will be prefixed
+		onto filled lines.
+CTRL-X T	Toggles Auto Fill Mode.
+
+
+---- WINDOWS
+
+CTRL-X 2        Make two windows (split screen).
+CTRL-X 1        Make one window (delete window) (make one screen).
+CTRL-X O        Go to Other window.
+CTRL-X ^        Grow window: makes current window bigger.
+
+
+
+---- BUFFERS
+
+CTRL-X CTRL-F   Find a file and make a buffer for it.
+CTRL-X B        Select Buffer: goes to specified buffer or makes new one
+                if it doesn't exist.
+CTRL-X CTRL-B   Show the names of the buffers used in this editing session.
+CTRL-X K	Kill Buffer.
+ESC ~           Say buffer is not modified.
+CTRL-X CTRL-M	Toggle EOL mode (per-buffer flag).
+
+
+---- KEYBOARD MACROS
+
+	Currently there can only be one keyboard macro.
+CTRL-X (	to start collecting a keyboard macro.
+CTRL-X )	to stop collecting.
+CTRL-X E	to execute the collected macro.
+CTRL-X *	to display the collected macro.
+
+
+---- FILES
+
+CTRL-X CTRL-I   Insert a file where cursor is.
+CTRL-X CTRL-R   Read a new file into current buffer.
+CTRL-X CTRL-V   Same as ^X ^R above (reads a file).
+CTRL-X CTRL-W   Write buffer out to new file name.
+CTRL-X CTRL-S   Save file: write out buffer to its file name.
+CTRL-X CTRL-E   Write region out to new file name.
+
+
+---- MISCELLANEOUS
+
+CTRL-X CTRL-Z   Exit from ELLE.  If system supports pausing, will pause job.
+		If prefixed with CTRL-U, will always ask for confirmation.
+CTRL-X !        Go to inferior shell.
+
+TAB             Inserts tab: cursor moves to next tab stop (every 8 columns).
+RETURN          Inserts carriage return: moves to the new line.
+			If at end of line and next 3 lines are blank,
+			just moves.
+CTRL-O          Inserts carriage return: leaves cursor on same line.
+LINEFEED        Same as typing RETURN and TAB.
+CTRL-T          Transposes characters.
+ESC T		Transposes words.
+
+CTRL-U          Makes the next command happen four times.
+                (Example: CTRL-U ESC F will move forward four words)
+CTRL-U number	Makes the next command happen "number" times.  For example,
+			CTRL-U 2 5 CTRL-N
+		will move forward 25 lines.
+ESC number      Same as CTRL-U number.
+
+CTRL-L          Refreshes screen.
+CTRL-U CTRL-L   Refresh only the line cursor is on.
+CTRL-U nmbr CTRL-L Change window so the cursor is "number" lines
+			away from the top of the screen.
+
+CTRL-Q          Quote: insert the next character no matter what it is.
+CTRL-G          Quit: use to avoid answering a question.
+ESC ;           Inserts comment (for writing C programs).
+ESC I           Inserts indentation equal to previous line.
+ESC M           Move to end of this line's indentation.
+ESC R		Select Region (SUN only)
+ESC S		Stuff Selection (SUN only)
+
+---- UNUSED CONTROLS
+
+CTRL-\          Special debugging command.  Not for normal users!
+		With no arg, toggles self-checking on and off.
+		With arg of 4 (^U), enters special debug/diagnostic mode as if
+		an error had occurred (but you can continue).
+CTRL-^          Special debugging command.  Not for normal users!
+		Calls routine "bpt" - convenient place to set ADB breakpoint.
+CTRL-C          Not used.
+CTRL-Z          Not used.
+CTRL-]          Not used.

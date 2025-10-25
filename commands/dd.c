@@ -1,5 +1,5 @@
-#include "stdio.h"
-#include "signal.h"
+#include <stdio.h>
+#include <signal.h>
 
 #define EOS '\0'
 #define BOOLEAN int
@@ -46,7 +46,7 @@ int num()
 	 case EOS:   if ((ans >= BIGNUM) || (ans < 0)) {
 		       fprintf(stderr, "dd: argument %s out of range\n",
 				       errorp);
-		       done(1);
+		       exit(1);
 		     }
 		     return((int) ans);
 	}
@@ -89,7 +89,7 @@ puto()
   else    nopartial++;
   if ((n = write(ofd, obuf, obc)) != obc) {
 	fprintf(stderr, "dd: write error\n");
-	done(1);
+	exit(1);
   }
   obc = 0;
 }
@@ -105,7 +105,7 @@ statistics()
 over()
 {
   statistics();
-  done(0);
+  exit(0);
 }
 
 main(argc, argv)
@@ -196,26 +196,26 @@ char *argv[];
 				continue;
 			fprintf(stderr, "dd: bad argument: %s\n",
 					pch);
-			done(1);
+			exit(1);
 		}
 		if (*pch == EOS)
 			continue;
 	}
 	fprintf(stderr, "dd: bad argument: %s \n",
 			pch);
-	done(1);
+	exit(1);
   }
   if ((convert == null) && (convflag & (UCASE | LCASE)))
 	convert = cnull;
   if ((ifd = ((ifilename) ? open(ifilename, 0) : dup(0))) < 0) {
 	fprintf(stderr, "dd: cannot open %s\n",
 			 (ifilename) ? ifilename : "stdin");
-	done(1);
+	exit(1);
   }
   if ((ofd = ((ofilename) ? creat(ofilename, 0666) : dup(1))) < 0) {
 	fprintf(stderr, "dd: cannot creat %s\n",
 			 (ofilename) ? ofilename : "stdout");
-	done(1);
+	exit(1);
   }
   if (bs) {
 	ibs = obs = bs;
@@ -224,19 +224,19 @@ char *argv[];
   }
   if (ibs == 0) {
 	fprintf(stderr, "dd: ibs cannot be zero\n");
-	done(1);
+	exit(1);
   }
   if (obs == 0) {
 	fprintf(stderr, "dd: obs cannot be zero\n");
-	done(1);
+	exit(1);
   }
   if ((ibuf = sbrk(ibs)) == (char *) -1) {
 	fprintf(stderr, "dd: not enough memory\n");
-	done(1);
+	exit(1);
   }
   if ((obuf = (flag) ? ibuf : sbrk(obs)) == (char *) -1) {
 	fprintf(stderr, "dd: not enough memory\n");
-	done(1);
+	exit(1);
   }
   ibc = obc = cbc = 0;
   op = obuf;
@@ -336,11 +336,4 @@ extra()
 	cbc = 0;
 	ns = 0;
   }
-}
-
-done(n)
-int n;
-{
-  _cleanup();			/* flush stdio's internal buffers */
-  exit(n);
 }
