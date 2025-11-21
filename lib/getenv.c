@@ -1,14 +1,21 @@
+#define NULL  (char *) 0
+
 char *getenv(name)
 register char *name;
 {
   extern char **environ;
   register char **v = environ, *p, *q;
 
-  while ((p = *v++) != 0) {
-	q = name;
-	while (*q && *q++ == *p++) /* nothing */ ;
-	if (*q || *p != '=') continue;
-	return(p+1);
+  if (v && name) {			/* added if statement */
+	while ((p = *v++) != NULL) {	/* was, while((p = *v) != NULL */
+	  q = name;
+	  while (*p++ == *q)
+		if (*q++ == 0)
+		  continue;
+	  if (*(p - 1) != '=')
+		continue;
+	  return(p);
+	}
   }
   return(0);
 }

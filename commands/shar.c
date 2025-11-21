@@ -1,13 +1,13 @@
 /* shar - make a shell archive		Author: Michiel Husijes */
 
-
+#include <stdio.h>
 #include <minix/blocksize.h>
 
 #define IO_SIZE		(10 * BLOCK_SIZE)
 
 char input[IO_SIZE];
 char output[IO_SIZE];
-int index = 0;
+int ind = 0;
 
 main(argc, argv)
 int argc;
@@ -25,13 +25,13 @@ register char *argv[];
   	else {
   		print("echo x - ");
   		print(argv[i]);
-  		print("\ngres '^X' '' > ");
+  		print("\nsed '/^X/s///' > ");
   		print(argv[i]);
   		print(" << '/'\n");
   		cat(fd);
   	}
   }
-  if (index) write(1, output, index);
+  if (ind) write(1, output, ind);
   exit(0);
 }
 
@@ -64,14 +64,4 @@ register char *str;
 {
   while (*str)
   	putchar(*str++);
-}
-
-putchar(c)
-register char c;
-{
-  output[index++] = c;
-  if (index == IO_SIZE) {
-  	write(1, output, index);
-  	index = 0;
-  }
 }

@@ -28,31 +28,31 @@
  * An area returned by malloc() is called a slot. Each slot
  * contains the number of bytes requested, but preceeded by
  * an extra pointer to the next the slot in memory.
- * 'bottom' and 'top' point to the first/last slot.
+ * '_bottom' and '_top' point to the first/last slot.
  * More memory is asked for using brk() and appended to top.
  * The list of free slots is maintained to keep malloc() fast.
- * 'empty' points the the first free slot. Free slots are
+ * '_empty' points the the first free slot. Free slots are
  * linked together by a pointer at the start of the
  * user visable part, so just after the next-slot pointer.
  * Free slots are merged together by free().
  */
 
 extern char *sbrk(), *brk();
-static char *bottom, *top, *empty;
+static char *_bottom, *_top, *_empty;
 
 static grow(len)
 unsigned len;
 {
   register char *p;
 
-  ASSERT(NextSlot(top) == 0);
-  p = (char *) Align((ptrint)top + len, BRKSIZE);
-  if (p < top || brk(p) != 0)
+  ASSERT(NextSlot(_top) == 0);
+  p = (char *) Align((ptrint)_top + len, BRKSIZE);
+  if (p < _top || brk(p) != 0)
 	return(0);
-  NextSlot(top) = p;
+  NextSlot(_top) = p;
   NextSlot(p) = 0;
-  free(top);
-  top = p;
+  free(_top);
+  _top = p;
   return(1);
 }
 
@@ -66,19 +66,19 @@ unsigned size;
 	size = PTRSIZE;		/* avoid slots less that 2*PTRSIZE */
   for (ntries = 0; ntries < 2; ntries++) {
 	len = Align(size, PTRSIZE) + PTRSIZE;
-	if (bottom == 0) {
+	if (_bottom == 0) {
 		p = sbrk(2 * PTRSIZE);
 		p = (char *) Align((ptrint)p, PTRSIZE);
 		p += PTRSIZE;
-		top = bottom = p;
+		_top = _bottom = p;
 		NextSlot(p) = 0;
 	}
 #ifdef SLOWDEBUG
-	for (p = bottom; (next = NextSlot(p)) != 0; p = next)
+	for (p = _bottom; (next = NextSlot(p)) != 0; p = next)
 		ASSERT(next > p);
-	ASSERT(p == top);
+	ASSERT(p == _top);
 #endif
-	for (prev = 0, p = empty; p != 0; prev = p, p = NextFree(p)) {
+	for (prev = 0, p = _empty; p != 0; prev = p, p = NextFree(p)) {
 		next = NextSlot(p);
 		new = p + len;
 		if (new > next)
@@ -93,7 +93,7 @@ unsigned size;
 		if (prev)
 			NextFree(prev) = NextFree(p);
 		else
-			empty = NextFree(p);
+			_empty = NextFree(p);
 		return(p);
 	}
 	if (grow(len) == 0)
@@ -116,7 +116,7 @@ unsigned size;
   /*
    * extend old if there is any free space just behind it
    */
-  for (prev = 0, p = empty; p != 0; prev = p, p = NextFree(p)) {
+  for (prev = 0, p = _empty; p != 0; prev = p, p = NextFree(p)) {
 	if (p > next)
 		break;
 	if (p == next) {	/* 'next' is a free slot: merge */
@@ -124,7 +124,7 @@ unsigned size;
 		if (prev)
 			NextFree(prev) = NextFree(p);
 		else
-			empty = NextFree(p);
+			_empty = NextFree(p);
 		next = NextSlot(old);
 		break;
 	}
@@ -177,14 +177,14 @@ char *p;
   register char *prev, *next;
 
   ASSERT(NextSlot(p) > p);
-  for (prev = 0, next = empty; next != 0; prev = next, next = NextFree(next))
+  for (prev = 0, next = _empty; next != 0; prev = next, next = NextFree(next))
 	if (p < next)
 		break;
   NextFree(p) = next;
   if (prev)
 	NextFree(prev) = p;
   else
-	empty = p;
+	_empty = p;
   if (next) {
 	ASSERT(NextSlot(p) <= next);
 	if (NextSlot(p) == next) {		/* merge p and next */

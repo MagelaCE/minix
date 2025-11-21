@@ -132,7 +132,7 @@ struct mov_list {
 /* forward declarations and external references */
 extern char *malloc();
 extern char *mktemp(), *rindex();
-extern int strcmp();
+extern int strncmp();
 extern print_date();
 extern user_abort(), usage();
 extern long lseek();
@@ -473,15 +473,15 @@ struct ar_hdr *member;
 
 	if (major & EXTRACT) {
 		if ((outfd = creat(member->ar_name,0666)) < 0) {
-			fprintf(stderr,"Error: %s could not creat %s\n",progname, member->ar_name);
+			fprintf(stderr,"Error: %s could not creat %-14.14s\n",progname, member->ar_name);
 			quit(mypid,SIGINT);
 		}
 		if (verbose)
-			fprintf(stdout,"x - %s\n",member->ar_name);
+			fprintf(stdout,"x - %-14.14s\n",member->ar_name);
 	}
 	else {
 		if (verbose) {
-			fprintf(stdout,"p - %s\n",member->ar_name);
+			fprintf(stdout,"p - %-14.14s\n",member->ar_name);
 			fflush(stdout);
 		}
 		outfd = fileno(stdout);
@@ -521,7 +521,7 @@ struct ar_hdr *member;
 	for (; m > 0; m -= n) {
 		cnt = (m < BUFFERSIZE ? m : BUFFERSIZE);
 		if ((n = read(infd, buffer, cnt)) != cnt) {
-			fprintf(stderr,"Error: %s - read error on %s\n",progname, member->ar_name);
+			fprintf(stderr,"Error: %s - read error on %-14.14s\n",progname, member->ar_name);
 			quit(mypid, SIGINT);
 		}
 		mwrite(outfd, buffer, n);
@@ -550,7 +550,7 @@ struct ar_hdr *oldmember;
 		fprintf(stderr,"Error: %s cannot open file %s\n",progname,name);
 		quit(mypid,SIGINT);
 	}
-	strcpy(member.ar_name, basename(name));
+	strncpy(member.ar_name, basename(name),14);
 	member.ar_uid = status.st_uid;
 	member.ar_gid = status.st_gid;
 	member.ar_mode = status.st_mode & 07777;
@@ -560,13 +560,13 @@ struct ar_hdr *oldmember;
 		if (oldmember != (struct ar_hdr *)NULL)  
 			if (member.ar_date <= oldmember->ar_date) {
 				close(in_fd);
-				if (verbose) fprintf(stdout, "not %s - %s\n",mess, name);
+				if (verbose) fprintf(stdout, "not %-14.14s - %-14.14s\n",mess, name);
 				return (-1);
 			}
 		
 	copy_member(in_fd, fd, &member); 
 	if (verbose) 
-		fprintf(stdout, "%s - %s\n",mess, name);
+		fprintf(stdout, "%s - %-14.14s\n",mess, name);
 	close(in_fd);
 	return (1);
 }
@@ -607,7 +607,7 @@ struct mov_list *mov;
 		if ((member = get_member(arfd)) != NULL)
 			copy_member(arfd, newfd, member);
 		mov = mov->next;
-		if (verbose) fprintf(stdout, "m - %s\n", member->ar_name);
+		if (verbose) fprintf(stdout, "m - %-14.14s\n", member->ar_name);
 	}
 
 	/* copy rest of library into new tmp file */
@@ -687,7 +687,7 @@ char **argv;
 		did_print = 0;
 		if (ac < argc) {
 			for (a = ac+1; a <= argc; ++a) {
-				if (strcmp(basename(argv[a-1]),member->ar_name) == 0) {
+				if (strncmp(basename(argv[a-1]),member->ar_name,14) == 0) {
 					if (major & TABLE)
 						print_header(member);
 					else if (major & (PRINT | EXTRACT)) {
@@ -729,12 +729,12 @@ char **argv;
 
 		/* if posname specified check for our member */
 		/* if our member save his starting pos in our working file*/
-		if (posname && strcmp(posname, member->ar_name) == 0)
+		if (posname && strncmp(posname, member->ar_name, 14) == 0)
 			pos_offset = tell(tempfd) - MAGICSIZE;
 
 		if (ac < argc) { /* we have a list of members to check */
 			for (a = ac+1; a <= argc; ++a)
-				if (strcmp(basename(argv[a-1]),member->ar_name) == 0) {
+				if (strncmp(basename(argv[a-1]),member->ar_name,14) == 0) {
 					if (major & REPLACE) {
 						if (insert(tempfd,argv[a-1],"r", member) < 0)
 							copy_member(fd, tempfd, member);
@@ -753,7 +753,7 @@ char **argv;
 		if (ac >= argc || a > argc) 	/*nomatch on a member name */
 			copy_member(fd, tempfd, member);
 		else if (major & DELETE) {
-			if (verbose) fprintf(stdout,"d - %s\n",member->ar_name);
+			if (verbose) fprintf(stdout,"d - %-14.14s\n",member->ar_name);
 			lseek(fd, (long)even(member->ar_size), 1);
 		}
 	}
@@ -761,7 +761,7 @@ char **argv;
 		if (posname == NULL) 
 			pos_offset = lseek(fd, 0l, 2);
 		else if (pos_offset == (-1)) {
-			fprintf(stderr,"Error: %s cannot find file %s\n",progname,posname);
+			fprintf(stderr,"Error: %s cannot find file %-14.14s\n",progname,posname);
 			quit(mypid,SIGINT);
 		}
 		tempfd = ar_move(tempfd, fd, moves);

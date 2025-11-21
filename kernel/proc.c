@@ -114,7 +114,7 @@ message *m_ptr;			/* pointer to message */
   }
 
   if (function & RECEIVE) {
-	n = mini_rec(caller, src_dest, m_ptr);      /* func = RECEIVE or BOTH */
+	n = mini_rec(caller, src_dest, m_ptr);      /* func = RECEIVE or BOTH*/
 	rp->p_reg[RET_REG] = n;
   }
 }
@@ -148,8 +148,8 @@ message *m_ptr;			/* pointer to message buffer */
   len = caller_ptr->p_map[D].mem_len;
   vb = (vir_bytes) m_ptr;
   vlo = vb >> CLICK_SHIFT;	/* vir click for bottom of message */
-  vhi = (vb + MESS_SIZE - 1) >> CLICK_SHIFT;	/* vir click for top of message */
-  if (vhi < vlo || vhi - caller_ptr->p_map[D].mem_vir >= len)return(E_BAD_ADDR);
+  vhi = (vb + MESS_SIZE - 1) >> CLICK_SHIFT;	/* vir click for top of msg */
+  if (vhi < vlo || vhi - caller_ptr->p_map[D].mem_vir >=len)return(E_BAD_ADDR);
 
   /* Check for deadlock by 'caller' and 'dest' sending to each other. */
   if (dest_ptr->p_flags & SENDING) {
@@ -166,7 +166,7 @@ message *m_ptr;			/* pointer to message buffer */
 		(dest_ptr->p_getfrom == ANY || dest_ptr->p_getfrom == caller)){
 	/* Destination is indeed waiting for this message. */
 	cp_mess(caller, caller_ptr->p_map[D].mem_phys, m_ptr, 
-				dest_ptr->p_map[D].mem_phys, dest_ptr->p_messbuf);
+			   dest_ptr->p_map[D].mem_phys, dest_ptr->p_messbuf);
 	dest_ptr->p_flags &= ~RECEIVING;	/* deblock destination */
 	if (dest_ptr->p_flags == 0) ready(dest_ptr);
   } else {
@@ -205,10 +205,10 @@ message *m_ptr;			/* pointer to message buffer */
  * Calls from the tasks, MM, and FS are trusted.
  */
 
-  register struct proc *caller_ptr, *sender_ptr, *prev_ptr;
+  register struct proc *caller_ptr, *sender_ptr, *previous_ptr;
   int sender;
 
-  caller_ptr = proc_addr(caller);	/* pointer to caller's proc structure */
+  caller_ptr = proc_addr(caller);	/* pointer to caller's proc struct */
 
   /* Check to see if a message from desired source is already available. */
   sender_ptr = caller_ptr->p_callerq;
@@ -217,17 +217,17 @@ message *m_ptr;			/* pointer to message buffer */
 	sender = sender_ptr - proc - NR_TASKS;
 	if (src == ANY || src == sender) {
 		/* An acceptable message has been found. */
-		cp_mess(sender, sender_ptr->p_map[D].mem_phys, sender_ptr->p_messbuf,
-					caller_ptr->p_map[D].mem_phys, m_ptr);
+		cp_mess(sender, sender_ptr->p_map[D].mem_phys, 
+		  sender_ptr->p_messbuf, caller_ptr->p_map[D].mem_phys, m_ptr);
 		sender_ptr->p_flags &= ~SENDING;	/* deblock sender */
 		if (sender_ptr->p_flags == 0) ready(sender_ptr);
 		if (sender_ptr == caller_ptr->p_callerq)
 			caller_ptr->p_callerq = sender_ptr->p_sendlink;
 		else
-			prev_ptr->p_sendlink = sender_ptr->p_sendlink;
+			previous_ptr->p_sendlink = sender_ptr->p_sendlink;
 		return(OK);
 	}
-	prev_ptr = sender_ptr;
+	previous_ptr = sender_ptr;
 	sender_ptr = sender_ptr->p_sendlink;
      }
   }
@@ -264,8 +264,8 @@ PUBLIC pick_proc()
    * slot, namely, that of task -1 (HARDWARE), so save() will have somewhere to
    * deposit the registers when an interrupt occurs on an idle machine.
    * Record previous process so that when clock tick happens, the clock task
-   * can find out who was running just before it began to run.  (While the
-   * clock task is running, 'cur_proc' = CLOCKTASK.) In addition, set 'bill_ptr'
+   * can find out who was running just before it began to run. (While the clock
+   * task is running, 'cur_proc' = CLOCKTASK.) In addition, set 'bill_ptr'
    * to always point to the process to be billed for CPU time.
    */
   prev_proc = cur_proc;
@@ -296,9 +296,9 @@ register struct proc *rp;	/* this process is now runnable */
  */
 
   register int q;		/* TASK_Q, SERVER_Q, or USER_Q */
-  int r;
+  int r, old_state;
 
-  lock();			/* disable interrupts */
+  old_state = lock();		/* disable interrupts */
   r = (rp - proc) - NR_TASKS;	/* task or proc number */
   q = (r < 0 ? TASK_Q : r < LOW_USER ? SERVER_Q : USER_Q);
 
@@ -309,7 +309,7 @@ register struct proc *rp;	/* this process is now runnable */
 	rdy_tail[q]->p_nextready = rp;	/* add to tail of nonempty queue */
   rdy_tail[q] = rp;		/* new entry has no successor */
   rp->p_nextready = NIL_PROC;
-  restore();			/* restore interrupts to previous state */
+  restore(old_state);		/* restore interrupts to previous state */
 }
 
 
@@ -322,13 +322,13 @@ register struct proc *rp;	/* this process is no longer runnable */
 /* A process has blocked. */
 
   register struct proc *xp;
-  int r, q;
+  int r, q, old_state;
 
-  lock();			/* disable interrupts */
+  old_state = lock();			/* disable interrupts */
   r = rp - proc - NR_TASKS;
   q = (r < 0 ? TASK_Q : r < LOW_USER ? SERVER_Q : USER_Q);
   if ( (xp = rdy_head[q]) == NIL_PROC) {
-	restore();
+	restore(old_state);
 	return;
   }
   if (xp == rp) {
@@ -341,14 +341,14 @@ register struct proc *rp;	/* this process is no longer runnable */
 	 */
 	while (xp->p_nextready != rp)
 		if ( (xp = xp->p_nextready) == NIL_PROC) {
-			restore();
+			restore(old_state);
 			return;
 		}
 	xp->p_nextready = xp->p_nextready->p_nextready;
 	while (xp->p_nextready != NIL_PROC) xp = xp->p_nextready;
 	rdy_tail[q] = xp;
   }
-  restore();			/* restore interrupts to previous state */
+  restore(old_state);			/* restore interrupts to prev state */
 }
 
 
@@ -362,9 +362,11 @@ PUBLIC sched()
  * possibly promoting another user to head of the queue.
  */
 
-  lock();			/* disable interrupts */
+  int old_state;
+
+  old_state = lock();			/* disable interrupts */
   if (rdy_head[USER_Q] == NIL_PROC) {
-	restore();		/* restore interrupts to previous state */
+	restore(old_state);		/* restore interrupts to prev state */
 	return;
   }
 
@@ -374,5 +376,5 @@ PUBLIC sched()
   rdy_head[USER_Q] = rdy_head[USER_Q]->p_nextready;
   rdy_tail[USER_Q]->p_nextready = NIL_PROC;
   pick_proc();
-  restore();			/* restore interrupts to previous state */
+  restore(old_state);			/* restore interrupts to prev state */
 }

@@ -32,9 +32,10 @@ FILE *iop;
 			iop->_ptr = iop->_buf;
 	}
 
+	iop->_count--;		/* account one char */
 	if (testflag(iop,UNBUFF))
 		return (ch & CMASK);
 	else
-		return (--iop->_count, *iop->_ptr++ & CMASK);
+		return (*iop->_ptr++ & CMASK);
 }
 

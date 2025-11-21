@@ -245,6 +245,7 @@ PUBLIC int do_unpause()
 	dev = f->filp_ino->i_zone[0];	/* device on which proc is hanging */
 	mess.TTY_LINE = (dev >> MINOR) & BYTE;
 	mess.PROC_NR = proc_nr;
+	mess.COUNT = f->filp_mode;	/* tell kernel whether R or W */
 	mess.m_type = CANCEL;
 	rw_dev(task, &mess);
 	revive(proc_nr, EINTR);	/* signal interrupted call */

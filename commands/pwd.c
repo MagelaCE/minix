@@ -58,6 +58,7 @@ main()
 		prints("/");
 	else
 		while (n = last_index(name, '/')) {
+			*(n+14) = 0;
 			prints(n);
 			*n = 0;
 		}

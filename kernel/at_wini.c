@@ -189,7 +189,7 @@ register struct wini *wn;	/* pointer to the drive struct */
 {
   extern phys_bytes umap();
   phys_bytes usr_buf = umap(proc_addr(wn->wn_procnr), D, wn->wn_address, BLOCK_SIZE);
-  register int i;
+  register int i, old_state;
   int r = 0;
 
   /* The command is issued by outputing 7 bytes to the controller chip. */
@@ -212,9 +212,9 @@ register struct wini *wn;	/* pointer to the drive struct */
   if (wn->wn_opcode == DISK_READ) {
 	for (i=0; i<BLOCK_SIZE/SECTOR_SIZE; i++) {
 		receive(HARDWARE, &w_mess);
-		lock();
+		old_state = lock();
 		dma_read((unsigned)(usr_buf >> 4), (unsigned)(usr_buf & 0x0F));
-		unlock();
+		restore(old_state);
 		usr_buf += 0x200;
 		if (win_results() != OK) {
 			w_need_reset = TRUE;
@@ -230,9 +230,9 @@ register struct wini *wn;	/* pointer to the drive struct */
 		return(ERR);
 	}
 	for (i=0; i<BLOCK_SIZE/SECTOR_SIZE; i++) {
-		lock();
-		dma_write((unsigned)(usr_buf >> 4), (unsigned)(usr_buf & 0x0F));
-		unlock();
+		old_state = lock();
+		dma_write((unsigned)(usr_buf >> 4), (unsigned)(usr_buf&0x0F));
+		restore(old_state);
 		usr_buf += 0x200;
 		receive(HARDWARE, &w_mess);
 		if (win_results() != OK) {
@@ -257,15 +257,15 @@ PRIVATE w_reset()
  * like the controller refusing to respond.
  */
 
-  int i, r;
+  int i, r, old_state;
 
   /* Strobe reset bit low. */
-  lock();
+  old_state = lock();
   port_out(WIN_REG9, 4);
   for (i = 0; i < 10; i++)
 	 ;
   port_out(WIN_REG9, wini[0].wn_ctlbyte & 0x0F);
-  unlock();
+  restore(old_state);
   for (i = 0; i < MAX_WIN_RETRY && drive_busy(); i++)
 	;
   if (drive_busy()) {
@@ -385,7 +385,7 @@ PRIVATE com_out()
 {
 /* Output the command block to the winchester controller and return status */
 
-	register int i;
+	register int i, old_state;
 	int r;
 
 	if (drive_busy()) {
@@ -393,11 +393,11 @@ PRIVATE com_out()
 		return(ERR);
 	}
 	r = WIN_REG2;
-	lock();
+	old_state = lock();
 	port_out(WIN_REG9, command[0]);
 	for (i=1; i<8; i++, r++)
 		port_out(r, command[i]);
-	unlock();
+	restore(old_state);
 	return(OK);
 }
 

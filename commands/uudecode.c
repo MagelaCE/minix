@@ -56,11 +56,11 @@ char **argv;
 	if (dest[0] == '~') {
 		char *sl;
 		struct passwd *getpwnam();
-		char *_index();
+		char *index();
 		struct passwd *user;
 		char dnbuf[100];
 
-		sl = _index(dest, '/');
+		sl = index(dest, '/');
 		if (sl == NULLP) {
 			fprintf(stderr, "Illegal ~user\n");
 			exit(3);
@@ -184,21 +184,4 @@ int cnt;
 		buf[i] = c;
 	}
 	return (cnt);
-}
-
-/*
- * Return the ptr in sp at which the character c appears;
- * NULL if not found
- */
-
-
-char *
-_index(sp, c)
-register char *sp, c;
-{
-	do {
-		if (*sp == c)
-			return(sp);
-	} while (*sp++);
-	return(NULL);
 }

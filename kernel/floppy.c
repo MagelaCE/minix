@@ -283,7 +283,7 @@ struct floppy *fp;		/* pointer to the drive struct */
  * 512-byte block starting at physical address 65520).
  */
 
-  int mode, low_addr, high_addr, top_addr, low_ct, high_ct, top_end;
+  int mode, low_addr, high_addr, top_addr, low_ct, high_ct, top_end, s;
   vir_bytes vir, ct;
   phys_bytes user_phys;
   extern phys_bytes umap();
@@ -308,7 +308,7 @@ struct floppy *fp;		/* pointer to the drive struct */
   if (top_end != top_addr) panic("Trying to DMA across 64K boundary", top_addr);
 
   /* Now set up the DMA registers. */
-  lock();
+  s = lock();
   port_out(DMA_M2, mode);	/* set the DMA mode */
   port_out(DMA_M1, mode);	/* set it again */
   port_out(DMA_ADDR, low_addr);	/* output low-order 8 bits */
@@ -316,7 +316,7 @@ struct floppy *fp;		/* pointer to the drive struct */
   port_out(DMA_TOP, top_addr);	/* output highest 4 bits */
   port_out(DMA_COUNT, low_ct);	/* output low 8 bits of count - 1 */
   port_out(DMA_COUNT, high_ct);	/* output high 8 bits of count - 1 */
-  unlock();
+  restore(s);
   port_out(DMA_INIT, 2);	/* initialize DMA */
 }
 
@@ -339,9 +339,9 @@ struct floppy *fp;		/* pointer to the drive struct */
  * turning off motors while we are testing the bits.
  */
 
-  int motor_bit, running, send_mess();
+  int motor_bit, running, send_mess(), old_state;
 
-  lock();			/* no interrupts while checking out motor */
+  old_state = lock();		/* no interrupts while checking out motor */
   motor_bit = 1 << (fp->fl_drive + 4);	/* bit mask for this drive */
   motor_goal = motor_bit | ENABLE_INT | fp->fl_drive;
   if (motor_status & prev_motor) motor_goal |= prev_motor;
@@ -349,7 +349,7 @@ struct floppy *fp;		/* pointer to the drive struct */
   port_out(DOR, motor_goal);
   motor_status = motor_goal;
   prev_motor = motor_bit;	/* record motor started for next time */
-  unlock();
+  restore(old_state);
 
   /* If the motor was already running, we don't have to wait for it. */
   if (running) return;			/* motor was already running */
@@ -581,16 +581,17 @@ PRIVATE reset()
  * like the controller refusing to respond.
  */
 
-  int i, r, status;
+  int i, r, status, old_state;
   register struct floppy *fp;
+
   /* Disable interrupts and strobe reset bit low. */
   need_reset = FALSE;
-  lock();
+  old_state = lock();
   motor_status = 0;
   motor_goal = 0;
   port_out(DOR, 0);		/* strobe reset bit low */
   port_out(DOR, ENABLE_INT);	/* strobe it high again */
-  unlock();			/* interrupts allowed again */
+  restore(old_state);		/* interrupts allowed again */
   receive(HARDWARE, &mess);	/* collect the RESET interrupt */
 
   /* Interrupt from the reset has been received.  Continue resetting. */

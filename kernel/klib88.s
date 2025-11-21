@@ -6,7 +6,6 @@
 |   port_out:	outputs data on an I/O port
 |   port_in:	inputs data from an I/O port
 |   lock:	disable interrupts
-|   unlock:	enable interrupts
 |   restore:	restore interrupts (enable/disabled) as they were before lock()
 |   build_sig:	build 4 word structure pushed onto stack for signals
 |   csv:	procedure prolog to save the registers
@@ -23,7 +22,7 @@
 |   em_xfer:	read or write AT extended memory using the BIOS
 
 | The following procedures are defined in this file and called from outside it.
-.globl _phys_copy, _cp_mess, _port_out, _port_in, _lock, _unlock, _restore
+.globl _phys_copy, _cp_mess, _port_out, _port_in, _lock, _restore
 .globl _build_sig, csv, cret, _get_chrome, _vid_copy, _get_byte, _reboot
 .globl _wreboot, _dma_read, _dma_write, _em_xfer, _scr_up, _scr_down
 
@@ -221,30 +220,24 @@ _port_in:
 |*===========================================================================*
 |*				lock					     *
 |*===========================================================================*
-| Disable CPU interrupts.
+| Disable CPU interrupts.  Return old psw as function value.
 _lock:  
 	pushf			| save flags on stack
 	cli			| disable interrupts
-	pop lockvar		| save flags for possible restoration later
-	ret			| return to caller
-
-
-|*===========================================================================*
-|*				unlock					     *
-|*===========================================================================*
-| Enable CPU interrupts.
-_unlock:
-	sti			| enable interrupts
+	pop ax	 		| return flags for restoration later
 	ret			| return to caller
 
 
 |*===========================================================================*
 |*				restore					     *
 |*===========================================================================*
-| Restore enable/disable bit to the value it had before last lock.
+| restore enable/disable bit to the value it had before last lock.
 _restore:
-	push lockvar		| push flags as they were before previous lock
+	push bp			| save it
+	mov bp,sp		| set up base for indexing
+	push 4(bp)		| bp is the psw to be restored
 	popf			| restore flags
+	pop bp			| restore bp
 	ret			| return to caller
 
 
@@ -773,7 +766,6 @@ _exit:	sti
 	jmp _exit
 
 .data
-lockvar:	.word 0		| place to store flags for lock()/restore()
 vidlock:	.word 0		| dummy variable for use with lock prefix
 splimit:	.word 0		| stack limit for current task (kernel only)
 tmp:		.word 0		| count of bytes already copied

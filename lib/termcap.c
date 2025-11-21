@@ -7,17 +7,20 @@
  *
  *	A public domain implementation of the termcap(3) routines.
  */
+
+/*    efth      1988-Apr-29
+
+    - Correct when TERM != name and TERMCAP is defined   [tgetent]
+    - Correct the comparison for the terminal name       [tgetent]
+    - Correct the value of ^x escapes                    [tgetstr]
+*/
+
 #include <stdio.h>
 
 #define CAPABLEN	2
 
 #define ISSPACE(c)	((c) == ' ' || (c) == '\t' || (c) == '\r' || (c) == '\n')
 #define ISDIGIT(x)	((x) >= '0' && (x) <= '9')
-
-extern short	ospeed;		/* output speed */
-extern char	PC;		/* padding character */
-extern char	*BC;		/* back cursor movement */
-extern char	*UP;		/* up cursor movement */
 
 char		*capab;		/* the capability itself */
 int		incr;		/* set by %i flag */
@@ -41,25 +44,36 @@ char	*name;
 	short	len = strlen(name);
 
 	capab = bp;
-	if ((file = getenv("TERMCAP")) != (char *) NULL) {
-		if (*file != '/' &&
-		    (cp = getenv("TERM")) != NULL && strcmp(name, cp) == 0) {
-			(void) strcpy(bp, file);
-			return(1);
-		}
-	} else
+
+	/* Fixed problem: If TERM != name and TERMCAP was defined,  */
+	/* then should look in /etc/termcap, but didn't.  (efth)    */
+
+	if ( (file = getenv("TERMCAP")) == NULL )
+	    file = "/etc/termcap";
+	else if ( *file != '/' )
+	    if ( (cp = getenv("TERM")) != NULL && strcmp( name, cp ) == 0 ) {
+		strcpy( bp, file );
+		return( 1 );
+	    } else
 		file = "/etc/termcap";
+
+
 	if ((fp = fopen(file, "r")) == (FILE *) NULL)
 		return(-1); 
+
 	while (fgets(bp, 1024, fp) != NULL) {
+		/*  Read in the rest of the definition now  (efth)  */
+		while (*(cp = &bp[strlen(bp) - 2]) == '\\')
+			fgets(cp, 1024, fp);
+		
 		/* skip V6 two letter name */
 		for (cp = bp ; *cp != '|' ; cp++)
 			;
 		for (++cp ; ISSPACE(*cp) ; cp++)
 			;
-		if (strncmp(name, cp, len) == 0) {
-			while (*(cp = &bp[strlen(bp) - 2]) == '\\')
-				fgets(cp, 1024, fp);
+
+		/*  Make sure "name" matches exactly  (efth)  */
+		if (strncmp(name, cp, len) == 0  &&  cp[len] == '|') {
 			fclose(fp);
 			return(1);
 		}
@@ -157,7 +171,7 @@ char	**area;
 			for (ret = *area, cp++; *cp && *cp != ':' ; (*area)++, cp++)
 				switch(*cp) {
 				case '^' :
-					**area = *++cp - 'A';
+					**area = *++cp - '@'; /* fix (efth)*/
 					break;
 				case '\\' :
 					switch(*++cp) {

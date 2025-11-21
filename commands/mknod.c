@@ -19,20 +19,6 @@ char *argv[];
   exit(0);
 }
 
-int atoi(p)
-char *p;
-{
-/* Ascii to integer conversion. */
-  int c, n;
-
-  n = 0;
-  while (c = *p++) {
-	if (c < '0' || c > '9') return (-1);
-	n = 10 * n + (c - '0');
-  }
-  return(n);
-}
-
 badcomm()
 {
   std_err("Usage: mknod name b/c major minor\n");

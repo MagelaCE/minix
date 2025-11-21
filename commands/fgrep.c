@@ -272,23 +272,27 @@ int maxlen;
 
     } /* exhausted buffer or found \n */
 
-    if (endline) break;     /* don't continue if \n found */
+    /* don't continue if \n found */
+    if (endline)
+    {
+      *(p-1)='\0';
+      return (p-buf-1);
+    }
+
     status=read(infile,mybuf,2048);
-    if (status==0) break;
+    if (status<=0) break;
 
     low=mybuf;
     high= &mybuf[status];
 
   }
 
-  if (endline)
-  {
-    *(p-1)='\0';
-    return (p-buf-1);
-  }
-
   /* empty line or a bit filled ? */
   *p='\0';
+  if (status<0){
+    perror("read error");
+    return(EOF);
+  }
   if (p-buf) return(p-buf);
   return(EOF);
 
