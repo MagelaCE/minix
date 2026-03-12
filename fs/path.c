@@ -150,8 +150,9 @@ char string[NAME_SIZE];		/* component name to look for */
  */
 
   register struct inode *rip;
+  struct inode *rip2;
   register struct super_block *sp;
-  register int r;
+  int r;
   dev_nr mnt_dev;
   inode_nr numb;
   extern struct inode *get_inode();
@@ -178,8 +179,9 @@ char string[NAME_SIZE];		/* component name to look for */
 				 */
 				put_inode(rip);
 				mnt_dev = sp->s_imount->i_dev;
-					rip = get_inode(mnt_dev, sp->s_imount->i_num);
-					rip = advance(rip, string);
+				rip2 = get_inode(mnt_dev, sp->s_imount->i_num);
+				rip = advance(rip2, string);
+				put_inode(rip2);
 				break;
 			}
 		}

@@ -153,6 +153,7 @@ PRIVATE do_clocktick()
 
   register struct proc *rp;
   register int t, proc_nr;
+  extern int pr_busy, pcount, cum_count, prev_ct;
 
   /* To guard against race conditions, first copy 'lost_ticks' to a local
    * variable, add this to 'realtime', and then subtract it from 'lost_ticks'.
@@ -194,6 +195,10 @@ PRIVATE do_clocktick()
 	if (bill_ptr == prev_ptr) sched();	/* process has run too long */
 	sched_ticks = SCHED_RATE;		/* reset quantum */
 	prev_ptr = bill_ptr;			/* new previous process */
+
+	/* Check if printer is hung up, and if so, restart it. */
+	if (pr_busy && pcount > 0 && cum_count == prev_ct) pr_char(); 
+	prev_ct = cum_count;	/* record # characters printed so far */
   }
 
 }

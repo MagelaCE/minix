@@ -24,6 +24,9 @@
 #define VERY_BIG       39328	/* must be bigger than kernel size (clicks) */
 #define BASE            1536	/* address where MINIX starts in memory */
 #define SIZES              8	/* sizes array has 8 entries */
+#define CPU_TY1       0xFFFF	/* BIOS segment that tells CPU type */
+#define CPU_TY2       0x000E	/* BIOS offset that tells CPU type */
+#define PC_AT           0xFC	/* IBM code for PC-AT (in BIOS at 0xFFFFE) */
 
 /*===========================================================================*
  *                                   main                                    * 
@@ -40,7 +43,7 @@ PUBLIC main()
   extern unsigned sizes[8];	/* table filled in by build */
   extern int color, vec_table[], get_chrome(), (*task[])();
   extern int s_call(), disk_int(), tty_int(), clock_int(), disk_int();
-  extern int lpr_int(), surprise(), trp();
+  extern int wini_int(), lpr_int(), surprise(), trp(), divide();
   extern phys_bytes umap();
 
   /* Set up proc table entry for user processes.  Be very careful about
@@ -56,7 +59,7 @@ PUBLIC main()
   mm_base = base_click + size;	/* place where MM starts (in clicks) */
 
   for (rp = &proc[0]; rp <= &proc[NR_TASKS+LOW_USER]; rp++) {
-	for (t=0; t< NR_REGS; t++) rp->p_reg[t] = 0100*t;	/* DEBUG */
+	for (t=0; t< NR_REGS; t++) rp->p_reg[t] = 0100*t;	/* debugging */
 	t = rp - proc - NR_TASKS;	/* task number */
 	rp->p_sp = (rp < &proc[NR_TASKS] ? t_stack[NR_TASKS+t+1].stk : INIT_SP);
 	rp->p_splimit = rp->p_sp;
@@ -106,6 +109,8 @@ PUBLIC main()
 
   /* Determine if display is color or monochrome and CPU type (from BIOS). */
   color = get_chrome();		/* 0 = mono, 1 = color */
+  t = get_byte(CPU_TY1, CPU_TY2);	/* is this PC, XT, AT ... ? */
+  if (t == PC_AT) pc_at = TRUE;
 
   /* Save the old interrupt vectors. */
   phys_b = umap(proc_addr(HARDWARE), D, (vir_bytes) vec_table, VECTOR_BYTES);
@@ -114,11 +119,16 @@ PUBLIC main()
   /* Set up the new interrupt vectors. */
   for (t = 0; t < 16; t++) set_vec(t, surprise, base_click);
   for (t = 16; t < 256; t++) set_vec(t, trp, base_click);
+  set_vec(DIVIDE_VECTOR, divide, base_click);
   set_vec(SYS_VECTOR, s_call, base_click);
   set_vec(CLOCK_VECTOR, clock_int, base_click);
   set_vec(KEYBOARD_VECTOR, tty_int, base_click);
   set_vec(FLOPPY_VECTOR, disk_int, base_click);
   set_vec(PRINTER_VECTOR, lpr_int, base_click);
+  if (pc_at)
+	  set_vec(AT_WINI_VECTOR, wini_int, base_click);
+  else
+	  set_vec(XT_WINI_VECTOR, wini_int, base_click);
 
   /* Put a ptr to proc table in a known place so it can be found in /dev/mem */
   set_vec( (BASE - 4)/4, proc, (phys_clicks) 0);
@@ -128,6 +138,7 @@ PUBLIC main()
 
   /* Now go to the assembly code to start running the current process. */
   port_out(INT_CTLMASK, 0);	/* do not mask out any interrupts in 8259A */
+  port_out(INT2_MASK, 0);	/* same for second interrupt controller */
   restart();
 }
 
@@ -138,7 +149,10 @@ PUBLIC main()
 PUBLIC unexpected_int()
 {
 /* A trap or interrupt has occurred that was not expected. */
-  panic("Unexpected trap or interrupt.  cur_proc = ", cur_proc);
+
+  printf("Unexpected trap: vector < 16\n");
+  printf("pc = 0x%x    text+data+bss = 0x%x\n",proc_ptr->p_pcpsw.pc,
+					proc_ptr->p_map[D].mem_len<<4);
 }
 
 
@@ -149,10 +163,23 @@ PUBLIC trap()
 {
 /* A trap (vector >= 16) has occurred.  It was not expected. */
 
-  printf("\nUnexpected trap. ");
-  printf("This may be due to accidentally including in your program\n");
+  printf("\nUnexpected trap: vector >= 16 ");
+  printf("This may be due to accidentally including\n");
   printf("a non-MINIX library routine that is trying to make a system call.\n");
-  printf("pc = 0x%x    size of program = 0x%x\n",proc_ptr->p_pcpsw.pc,
+  printf("pc = 0x%x    text+data+bss = 0x%x\n",proc_ptr->p_pcpsw.pc,
+					proc_ptr->p_map[D].mem_len<<4);
+}
+
+
+/*===========================================================================*
+ *                                   div_trap                                * 
+ *===========================================================================*/
+PUBLIC div_trap()
+{
+/* The divide intruction traps to vector 0 upon overflow. */
+
+  printf("Trap to vector 0: divide overflow.  ");
+  printf("pc = 0x%x    text+data+bss = 0x%x\n",proc_ptr->p_pcpsw.pc,
 					proc_ptr->p_map[D].mem_len<<4);
 }
 

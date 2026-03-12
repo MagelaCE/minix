@@ -1,10 +1,10 @@
-/* Copyright (C) 1987 by Prentice-Hall, Inc.  The author and publisher
- * of this software make no warranty of any king, express or implied,
- * with regard to this software or its documentation.  Nor shall they
- * be liable for incidental or consequential damages in connection
- * with the furnishing, performance, or use of this  software or
- * documentation.  Permission is granted to make a limited number of
- * copies of this sofware for educational or research purposes only.
+/* Copyright (C) 1987 by Prentice-Hall, Inc.  Permission is hereby granted to
+ * private individuals and educational institutions to modify and
+ * redistribute the binary and source programs of this system to other
+ * private individuals and educational institutions for educational and
+ * research purposes.  For corporate or commercial use, permission from
+ * Prentice-Hall is required.  In general, such permission will be granted,
+ * subject to a few conditions.
  */
 
 #define EXTERN        extern	/* used in *.h files */

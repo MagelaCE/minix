@@ -160,9 +160,10 @@ bit_nr bit_returned;		/* number of bit to insert into the map */
   w = r/INT_BITS;		/* 'w' tells which word it is in */
   bit = r % INT_BITS;
   bp = map_ptr[b];
+  if (bp == NIL_BUF) return;
   if (((bp->b_int[w] >> bit)& 1)== 0)
-       panic("trying to free unused block--check file sys",(int)bit_returned);
-  bp->b_int[w] &= ~(1 << bit);	/* turn the bit off */
+       panic("freeing unused block or inode--check file sys",(int)bit_returned);
+  bp->b_int[w] &= ~(1 << bit);	/* turn the bit on */
   bp->b_dirt = DIRTY;
 }
 
@@ -181,7 +182,7 @@ dev_nr dev;			/* device number whose super_block is sought */
 	if (sp->s_dev == dev) return(sp);
 
   /* Search failed.  Something wrong. */
-  panic("can't find superblock for device", (int) dev);
+  panic("can't find superblock for device (in decimal)", (int) dev);
 }
 
 
@@ -196,7 +197,7 @@ register struct inode *rip;	/* pointer to inode */
   register struct super_block *sp;
   register dev_nr dev;
 
-  dev = rip->i_dev;
+  dev = (dev_nr) rip->i_zone[0];
   if (dev == ROOT_DEV) return(TRUE);	/* inode is on root file system */
 
   for (sp = &super_block[0]; sp < &super_block[NR_SUPERS]; sp++)
