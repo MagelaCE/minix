@@ -34,7 +34,6 @@ char *name;
   char buf[BLOCK_SIZE], *s0;
   struct super_block super, *sp;
   struct stat statbuf;
-  extern char *itoa();
 
   if ( (fd = open(name,0)) < 0) {
 	perror(name);
@@ -131,6 +130,7 @@ int fd;
 		}
 	}
   }
+  return(0);
 }
 
 
@@ -144,6 +144,7 @@ char *s1, *s2;
 num3(n)
 int n;
 {
+  extern char *itoa();
   if (n < 10) prints("   %s", itoa(n));
   else if (n < 100) prints("  %s", itoa(n));
   else if (n < 1000) prints(" %s", itoa(n));

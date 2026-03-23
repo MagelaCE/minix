@@ -1,3 +1,4 @@
+#define Extern extern
 #include "signal.h"
 #include "errno.h"
 #include "setjmp.h"
@@ -25,7 +26,7 @@ register int ec;
 		return(c);
 	}
 	c = readc();
-	if (ec != '\'') {
+	if ((ec != '"') && (ec != '\'')) {
 		if(c == '\\') {
 			c = readc();
 			if (c == '\n' && ec != '\"')
@@ -399,7 +400,6 @@ register int *pv;
 
 /* -------- here.c -------- */
 /* #include "sh.h" */
-char *memcpy();
 
 /*
  * here documents
@@ -413,15 +413,15 @@ struct	here {
 } *herelist;
 
 struct	block {
-	char	*b_start;
+	char	*b_linebuf;
 	char	*b_next;
-	char	*b_line;
-	int	b_size;
+	char	b_tmpfile[50];
+	int	b_fd;
 };
 
 static	struct block *readhere();
 
-#define	NCPB	100	/* here text block allocation unit */
+#define	NCPB	2048		/* here text block allocation unit */
 
 markhere(s, iop)
 register char *s;
@@ -436,6 +436,7 @@ struct ioword *iop;
 	if (h->h_tag == 0)
 		return;
 	h->h_iop = iop;
+	h->h_iop->io_un.io_here = NULL;
 	h->h_next = NULL;
 	if (herelist == 0)
 		herelist = h;
@@ -458,13 +459,16 @@ gethere()
 {
 	register struct here *h;
 
-	for (h = herelist; h != NULL; h = h->h_next)
-		h->h_iop->io_un.io_here = readhere(h->h_tag, h->h_dosub? 0: '\'');
+	for (h = herelist; h != NULL; h = h->h_next) {
+		h->h_iop->io_un.io_here = 
+			readhere(h->h_tag, h->h_dosub? 0: '\'',
+				h->h_iop->io_flag & IOXHERE);
+	}
 	herelist = NULL;
 }
 
 static struct block *
-readhere(s, ec)
+readhere(s, ec, nolit)
 register char *s;
 {
 	register struct block *bp;
@@ -474,31 +478,37 @@ register char *s;
 	bp = (struct block *) space(sizeof(*bp));
 	if (bp == 0)
 		return(0);
+	bp->b_linebuf = (char *)space(NCPB);
+	if (bp->b_linebuf == 0) {
+		/* jrp - should release bp here... */
+		return(0);
+	}
 	if (newenv(setjmp(errpt = ev)) == 0) {
 		if (e.iop == iostack && e.iop->iofn == filechar) {
 			pushio(e.iop->arg, filechar);
 			e.iobase = e.iop;
 		}
-		bp->b_size = 0;
-		bp->b_line = 0;
-		bp->b_next = 0;
-		bp->b_start = 0;
+
+		/* jrp changes */
+		bp->b_linebuf[0] = 0;
+		bp->b_next = bp->b_linebuf;
+		bp->b_tmpfile[0] = 0;
+		bp->b_fd = -1;
 		for (;;) {
 			while ((c = getc(ec)) != '\n' && c) {
 				if (ec == '\'')
 					c &= ~ QUOTE;
-				if (savec(c, bp) == 0) {
+				if (savec(c, bp, nolit) == 0) {
 					c = 0;
 					break;
 				}
 			}
-			savec(0, bp);
-			if (strcmp(s, bp->b_line) == 0 || c == 0)
+			savec(0, bp, nolit);
+			if (strcmp(s, bp->b_linebuf) == 0 || c == 0)
 				break;
-			bp->b_next[-1] = '\n';
-			bp->b_line = bp->b_next;
+			savec('\n', bp, nolit);
 		}
-		*bp->b_line = 0;
+		*bp->b_linebuf = 0;
 		if (c == 0) {
 			prs("here document `"); prs(s); err("' unclosed");
 		}
@@ -508,67 +518,152 @@ register char *s;
 }
 
 static
-savec(c, bp)
+savec(c, bp, nolit)
 register struct block *bp;
 {
-	register char *np;
+	/* jrp - gutted routine completely, modified to use temp file. */
+	
+	/* If the file is not open, see if a filename needs to be
+	 * created.  If so, create one.  Then create the file.
+	 */
+	char *	lp;
+	char *	cp;
+	static int inc;
+	int	len;
 
-	if (bp->b_start == NULL || bp->b_next+1 >= bp->b_start+bp->b_size) {
-		np = space(bp->b_size + NCPB);
-		if (np == 0)
-			return(0);
-		memcpy(np, bp->b_start, bp->b_size);
-		bp->b_size += NCPB;
-		bp->b_line = np + (bp->b_line-bp->b_start);
-		bp->b_next = np + (bp->b_next-bp->b_start);
-		xfree(bp->b_start);
-		bp->b_start = np;
+	if(bp->b_fd < 0) {
+	    if(bp->b_tmpfile[0] == 0) {
+		/* Key this by the PID plus a tag... */
+		for (cp = bp->b_tmpfile, lp = "/tmp/shtm"; 
+		     (*cp = *lp++) != '\0'; cp++)
+			;
+
+		inc = (inc + 1) % 100;
+		lp = putn(getpid()*100 + inc);
+		for (; (*cp = *lp++) != '\0'; cp++)
+			;
+	    }
+
+	    /* Create the file, then open it for
+	     * read/write access.  After opening the
+	     * file, unlink it to it'll go away when
+	     * we're through using it.
+	     */
+	    bp->b_fd = creat(bp->b_tmpfile, 0600);
+	    close(bp->b_fd);
+	    bp->b_fd = open(bp->b_tmpfile, 2);
+	    unlink(bp->b_tmpfile);
+	    if(bp->b_fd < 0) {
+	        return(0);
+	    }
 	}
-	*bp->b_next++ = c;
-	return(1);
+
+	/* Stuff the character into the line buffer.  If it's a
+	 * newline, then insert it before the trailing null, write
+	 * out the line, and reset the line buffer.
+	 */
+	if(c == '\n') {
+	    bp->b_next[-1] = '\n';
+	    bp->b_next[0] = '\0';
+	    len = strlen(bp->b_linebuf);
+
+	    /* Write this out, unless the line ended
+	     * with a backslash...
+	     */
+	    if((len > 1) && (bp->b_next[-2] != '\\')) {
+		write_linebuf(bp, nolit);
+	    }
+
+	    return(1);
+	}
+	else {
+	    if(bp->b_next == &(bp->b_linebuf[NCPB - 1])) {
+		prs("here: line buffer full\n");
+		return(0);
+	    }
+	    *(bp->b_next++) = c;
+	    return(1);
+	}
+}
+
+write_linebuf(bp, nolit)
+struct block * bp;
+{
+
+	char c;
+	jmp_buf ev;
+
+	if(nolit) {
+		if (newenv(setjmp(errpt = ev)) == 0) {
+			PUSHIO(aword, bp->b_linebuf, strchar);
+			setbase(e.iop);
+			e.iop->task |= XHERE;
+			while ((c = subgetc(0, 0)) != 0) {
+				c &= ~ QUOTE;
+				write(bp->b_fd, &c, sizeof c);
+			}
+			quitenv();
+		
+		}
+	}
+	else {
+		write(bp->b_fd, bp->b_linebuf, strlen(bp->b_linebuf));
+	}
+
+	/* Zap the line buffer for next time... */
+	bp->b_next = bp->b_linebuf;
+	bp->b_linebuf[0] = 0;
 }
 
 herein(bp, xdoll)
 struct block *bp;
 {
-	register tf;
-	char tname[50];
-	static int inc;
-	register char *cp, *lp;
+	int	ret_fd;
 
 	if (bp == 0)
 		return(-1);
-	for (cp = tname, lp = "/tmp/shtm"; (*cp = *lp++) != '\0'; cp++)
-		;
-	lp = putn(getpid()*100 + inc++);
-	for (; (*cp = *lp++) != '\0'; cp++)
-		;
-	if ((tf = creat(tname, 0666)) >= 0) {
-		if (xdoll) {
-			char c;
-			jmp_buf ev;
 
-			if (newenv(setjmp(errpt = ev)) == 0) {
-				PUSHIO(aword, bp->b_start, strchar);
-				setbase(e.iop);
-				while ((c = subgetc(0, 0)) != 0) {
-					c &= ~ QUOTE;
-					write(tf, &c, sizeof c);
-				}
-				quitenv();
-			} else
-				unlink(tname);
-		} else
-			write(tf, bp->b_start, bp->b_line-bp->b_start);
-		close(tf);
-		tf = open(tname, 0);
-		unlink(tname);
+	/* If we have a temp file, then rewind it to the beginning */
+	if(bp->b_fd < 0) {
+		return(-1);
 	}
-	return(tf);
+
+	lseek(bp->b_fd, 0L, 0);
+
+	/* Free up this block pointer, as we're
+	 * not going to need it anymore.
+	 */
+	xfree(bp->b_linebuf);
+	xfree(bp);
+
+	return(bp->b_fd);
 }
 
 scraphere()
 {
+	struct here * h;
+	struct here * nexth;
+	struct block * bp;
+
+
+	/* Close and unlink any files associated with
+	 * heres in progress, and free up all the
+	 * associated structures. 
+	 */
+	h = herelist;
+	while(h != NULL) {
+		nexth = h->h_next;
+		bp = (struct block *)h->h_iop->io_un.io_here;
+		if(bp != NULL) {
+			if(bp->b_fd >= 0) { close(bp->b_fd); }
+			if(*bp->b_tmpfile) { unlink(bp->b_tmpfile); }
+			xfree(bp->b_linebuf);
+			xfree(bp);
+		}
+		xfree(h);
+		h = nexth;
+	}
+
 	herelist = NULL;
 }
 

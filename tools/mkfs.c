@@ -619,7 +619,7 @@ char line[LINE_LEN];
   int k;
   char c, *p;
 
-  for (k = 0; k < MAX_TOKEN; k++) parse[k] = 0;
+  for (k = 0; k < MAX_TOKENS; k++) parse[k] = 0;
   for (k = 0; k < LINE_LEN; k++) line[k] = 0;
   k = 0;
   parse[0] = 0;

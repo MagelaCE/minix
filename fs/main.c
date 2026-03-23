@@ -126,7 +126,7 @@ PRIVATE fs_init()
   extern struct inode *get_inode();
 
   buf_pool();			/* initialize buffer pool */
-  load_ram();			/* Load RAM disk from root diskette. */
+  mk_ramdisk(0);/*load_ram();			 Load RAM disk from root diskette. */
   load_super();			/* Load super block for root device */
 
   /* Initialize the 'fproc' fields for process 0 and process 2. */
@@ -308,4 +308,49 @@ PRIVATE load_super()
   sp->s_rd_only = 0;
   if (load_bit_maps(ROOT_DEV) != OK)
 	panic("init: can't load root bit maps", NO_NUM);
+}
+
+/*======================================================================*
+ *                            mk_ramdisk                                *
+ *======================================================================*/
+PRIVATE mk_ramdisk(size)
+int size;
+{
+/* This function sets up the RAM-disk device to have the specified size.
+ * Note that no data is actually put on the RAM-disk -- not even
+ * filesystem information.  Therefore, if it is desired to use the RAM
+ * disk as a filesystem, one must do a mkfs first.  /etc/rc would be an
+ * ideal place to do this.
+ */
+
+  phys_clicks ram_clicks, init_org, init_text_clicks, init_data_clicks;
+  extern phys_clicks data_org[INFO + 2];
+
+  /* Get size of iINIT by reading block on diskette where 'build' put it */
+  init_org = data_org[INFO];
+  init_text_clicks = data_org[INFO + 1];
+  init_data_clicks = data_org[INFO + 2];
+
+  if (size > MAX_RAM) panic("RAM disk is too big. # blocks = ",size);
+  ram_clicks = size * (BLOCK_SIZE / CLICK_SIZE);
+
+  /* Tell MM the origin and size of INIT, and the amount of memory used for the
+   * system plus RAM disk combined, so it can remove all of it from the map.
+   */
+  m1.m_type = BRK2;
+  m1.m1_i1 = init_text_clicks;
+  m1.m1_i2 = init_data_clicks;
+  m1.m1_i3 = init_org + init_text_clicks + init_data_clicks + ram_clicks;
+  m1.m1_p1 = (char *)init_org;
+  if (sendrec(MM_PROC_NR, &m1) != OK) panic("FS Can't report to MM", NO_NUM);
+
+  /* Tell RAM driver where RAM disk is and how big it is */
+  m1.m_type = DISK_IOCTL;
+  m1.DEVICE = RAM_DEV;
+  m1.POSITION = (long) init_org + (long) init_text_clicks + init_data_clicks;
+  m1.POSITION = m1.POSITION << CLICK_SHIFT;
+  m1.COUNT = size;
+  if (sendrec(MEM, &m1) != OK) panic("Can't report size to MEM", NO_NUM);
+
+  printf("RAM disk set up.\n");
 }

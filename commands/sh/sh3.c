@@ -1,3 +1,4 @@
+#define Extern extern
 #include "signal.h"
 #include "errno.h"
 #include "setjmp.h"
@@ -526,8 +527,8 @@ char *c, **v, **envp;
 		case ENOEXEC:
 			*v = e.linep;
 			tp = *--v;
-			*v = "/bin/sh";
-			execve(*v, v, envp);
+			*v = e.linep;
+			execve("/bin/sh", v, envp);
 			*v = tp;
 			return("no Shell");
 

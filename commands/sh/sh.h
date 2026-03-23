@@ -85,23 +85,24 @@ struct op {
 
 #define	DOALL	(DOSUB|DOBLANK|DOGLOB|DOKEY|DOTRIM)
 
-char	**dolv;
-int	dolc;
-int	exstat;
-char	gflg;
-int	talking;	/* interactive (talking-type wireless) */
-int	execflg;
-int	multiline;	/* \n changed to ; */
-struct	op	*outtree;	/* result from parser */
+Extern	char	**dolv;
+Extern	int	dolc;
+Extern	int	exstat;
+Extern  char	gflg;
+Extern  int	talking;	/* interactive (talking-type wireless) */
+Extern  int	execflg;
+Extern  int	multiline;	/* \n changed to ; */
+Extern  struct	op	*outtree;	/* result from parser */
 
-xint	*failpt;
-xint	*errpt;
+Extern	xint	*failpt;
+Extern	xint	*errpt;
 
 struct	brkcon {
 	jmp_buf	brkpt;
 	struct	brkcon	*nextlev;
-} *brklist;
-int	isbreak;
+} ;
+Extern	struct brkcon	*brklist;
+Extern	int	isbreak;
 
 /*
  * redirection
@@ -124,8 +125,8 @@ struct ioword {
 
 #define	IODEFAULT (-1)	/* token for default IO unit */
 
-struct	wdblock	*wdlist;
-struct	wdblock	*iolist;
+Extern	struct	wdblock	*wdlist;
+Extern	struct	wdblock	*iolist;
 
 /*
  * parsing & execution environment
@@ -149,21 +150,21 @@ extern struct	env {
  * -x: trace
  * -u: unset variables net diagnostic
  */
-char	*flag;
+extern	char	*flag;
 
-char	*null;	/* null value for variable */
-int	intr;	/* interrupt pending */
+extern	char	*null;	/* null value for variable */
+extern	int	intr;	/* interrupt pending */
 
-char	*trap[NSIG];
-char	ourtrap[NSIG];
-int	trapset;	/* trap pending */
+Extern	char	*trap[NSIG];
+Extern	char	ourtrap[NSIG];
+Extern	int	trapset;	/* trap pending */
 
-int	inword;	/* defer traps and interrupts */
+extern	int	inword;	/* defer traps and interrupts */
 
-int	yynerrs;	/* yacc */
+Extern	int	yynerrs;	/* yacc */
 
-char	line[LINELIM];
-char	*elinep;
+Extern	char	line[LINELIM];
+extern	char	*elinep;
 
 /*
  * other functions
@@ -216,14 +217,14 @@ struct	var {
 #define	EXPORT	02	/* variable is to be exported */
 #define	GETCELL	04	/* name & value space was got with getcell */
 
-struct	var	*vlist;		/* dictionary */
+Extern	struct	var	*vlist;		/* dictionary */
 
-struct	var	*homedir;	/* home directory */
-struct	var	*prompt;	/* main prompt */
-struct	var	*cprompt;	/* continuation prompt */
-struct	var	*path;		/* search path for commands */
-struct	var	*shell;		/* shell to interpret command files */
-struct	var	*ifs;		/* field separators */
+Extern	struct	var	*homedir;	/* home directory */
+Extern	struct	var	*prompt;	/* main prompt */
+Extern	struct	var	*cprompt;	/* continuation prompt */
+Extern	struct	var	*path;		/* search path for commands */
+Extern	struct	var	*shell;		/* shell to interpret command files */
+Extern	struct	var	*ifs;		/* field separators */
 
 struct	var	*lookup(/* char *s */);
 void	setval(/* struct var *, char * */);
@@ -253,14 +254,16 @@ struct	io {
 	char	xchar;		/* for `'s */
 	char	task;		/* reason for pushed IO */
 };
-struct	io	iostack[NPUSH];
+Extern	struct	io	iostack[NPUSH];
 #define	XOTHER	0	/* none of the below */
 #define	XDOLL	1	/* expanding ${} */
 #define	XGRAVE	2	/* expanding `'s */
-#define	XIO	3	/* file IO */
+#define	XIO	4	/* file IO */
+#define XHERE	0x80	/* Any of the above inside a here document */
+#define XMASK	0x7f	/* Get the actual task */
 
 /* in substitution */
-#define	INSUB()	(e.iop->task == XGRAVE || e.iop->task == XDOLL)
+#define	INSUB()	((e.iop->task&XMASK)==XGRAVE||(e.iop->task&XMASK)==XDOLL)
 
 /*
  * input generators for IO structure
@@ -297,7 +300,7 @@ int	openpipe();
 void	closepipe();
 struct	io	*setbase(/* struct io * */);
 
-struct	ioarg	temparg;	/* temporary for PUSHIO */
+Extern	struct	ioarg	temparg;	/* temporary for PUSHIO */
 #define	PUSHIO(what,arg,gen) ((temparg.what = (arg)),pushio(temparg,(gen)))
 #define	RUN(what,arg,gen) ((temparg.what = (arg)), run(temparg,(gen)))
 
@@ -327,7 +330,7 @@ void	setarea(/* char *obj, int to */);
 void	freearea(/* int area */);
 void	freecell(/* char *obj */);
 
-int	areanum;	/* current allocation area */
+Extern	int	areanum;	/* current allocation area */
 
 #define	NEW(type) (type *)getcell(sizeof(type))
 #define	DELETE(obj)	freecell((char *)obj)
