@@ -32,7 +32,7 @@
 #include "type.h"
 #include "proc.h"
 
-#define AU  TO_BIOS     TRUE	/* TRUE: use Western's autoconfig BIOS */
+/*#define AUTO_BIOS       TRUE	/* TRUE: use Western's autoconfig BIOS */
 #define DEBUG	       FALSE	/* TRUE: enable debug messages */
 #define MONITOR		TRUE	/* TRUE: monitor performance of busy loops */
 #define MAX_DRIVES         1
@@ -768,8 +768,10 @@ PRIVATE init_params()
 	w_mess.ADDRESS = (char *) buf;
 	w_mess.PROC_NR = WINCHESTER;
 	w_mess.m_type = DISK_READ;
-	if (w_do_rdwt(&w_mess) != BLOCK_SIZE)
-		panic("Can't read partition table of winchester ", i);
+	if (w_do_rdwt(&w_mess) != BLOCK_SIZE) {
+		printf("Can't read partition table of winchester %d ", i);
+		continue;
+	}
 	copy_prt(i * DEV_PER_DRIVE);
   }
 }

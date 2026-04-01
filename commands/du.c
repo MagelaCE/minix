@@ -12,10 +12,10 @@
  */
 
 
-#include "stdio.h"
-
-#include "stat.h"
-#include "blocksize.h"
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <minix/blocksize.h>
 
 char *prog;				/* program name */
 char *optstr = "as";			/* -a and -s arguments */

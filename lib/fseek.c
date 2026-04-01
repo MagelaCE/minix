@@ -1,4 +1,4 @@
-#include "../include/stdio.h"
+#include <stdio.h>
 
 
 fseek(iop, offset, where)
@@ -18,9 +18,7 @@ long offset;
 			pos = offset;
 
 			if ( where == 0 )
-				pos += count - lseek(fileno(iop), 0L,1) - 1;
-				/*^^^ This caused the problem : - 1 corrected
-				      it */
+				pos += count - lseek(fileno(iop), 0L, 1);
 			else
 				offset -= count;
 

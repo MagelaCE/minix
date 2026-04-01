@@ -25,7 +25,7 @@
  *===========================================================================*/
 PUBLIC int do_link()
 {
-/* Perform the link(name, name2) system call. */
+/* Perform the link(name1, name2) system call. */
 
   register struct inode *ip, *rip;
   register int r;

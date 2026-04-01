@@ -1,6 +1,6 @@
-l=../lib
-i=../include
-CFLAGS=-O -I../include
+l=/usr/lib
+i=/usr/include
+CFLAGS=-F
 
-mined:	mined1.o mined2.o $i/mined.h
-	@ld -s -i -o bin/mined $l/crtso.o mined1.o mined2.o $l/libc.a $l/end.o
+mined:	mined1.s mined2.s $i/mined.h
+	@asld -i -o mined $l/crtso.s mined1.s mined2.s $l/libc.a $l/end.s

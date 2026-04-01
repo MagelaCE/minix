@@ -142,7 +142,7 @@ register char **argv;
 			talking++;
 	}
 	signal(SIGQUIT, qflag);
-	if (name[0] == '-') {
+	if (name && name[0] == '-') {
 		talking++;
 		if ((f = open("/etc/profile", 0)) >= 0)
 			next(remap(f));
@@ -210,7 +210,9 @@ onecommand()
 	inword++;
 	while (e.oenv)
 		quitenv();
-	freearea(areanum = 1);
+	areanum = 1;
+	freehere(areanum);
+	freearea(areanum);
 	garbage();
 	wdlist = 0;
 	iolist = 0;
@@ -219,6 +221,7 @@ onecommand()
 	yynerrs = 0;
 	multiline = 0;
 	inparse = 1;
+	setjmp(failpt = m1);	/* Bruce Evans' fix */
 	if (talking)
 		signal(SIGINT, onintr);
 	if (setjmp(failpt = m1) || yyparse() || intr) {
@@ -903,6 +906,13 @@ int a;
 
 	if ((p = (struct region *)cp) != NULL)
 		(p-1)->area = a;
+}
+
+int
+getarea(cp)
+char *cp;
+{
+	return ((struct region*)cp-1)->area;
 }
 
 void

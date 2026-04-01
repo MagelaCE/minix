@@ -1,6 +1,6 @@
 /* lpr - line printer front end		Author: Andy Tanenbaum */
 
-#include "errno.h"
+#include <errno.h>
 
 #define BLOCK 1024
 

@@ -15,10 +15,11 @@
  *	Fix to centering valve with long input lines, 4 May 1987.
  */
 
-#include "sgtty.h"
-#include "signal.h"
-#include "stdio.h"
-#include "stat.h"
+#include <sgtty.h>
+#include <signal.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #define SUFTAB	"/usr/lib/suftab"
 #define TXTLEN	(o_pl-o_m1-o_m2-o_m3-o_m4-2)
@@ -121,7 +122,7 @@ endargs:
 		File=fopen(*argv,"r");
 		if (NULL==File) {
 			fprintf(stderr,"roff: cannot read %s\n",*argv);
-			done(1);
+			exit(1);
 		}
 		readfile();
 		fclose(File);
@@ -131,7 +132,7 @@ endargs:
 	endpage();
 	for (; o_sk; o_sk--) blankpage();
 	mesg(1);	/* ALLOW MESSAGES */
-	done(0);
+	exit(0);
 }
 
 mesg(f)
@@ -680,7 +681,7 @@ openmac()
 {
 	if (NULL==(Macwrite=fopen(mktemp(mfilnam),"w"))) {
 		fprintf(stderr,"roff: cannot open temp file\n");
-		done(1);
+		exit(1);
 	}
 	Macread=fopen(mfilnam,"r");
 	unlink(mfilnam);
@@ -782,7 +783,7 @@ got_nx:
 	*f = '\0';
 	if (!(File=fopen(fname,"r"))) {
 		fprintf(stderr,"roff: cannot read %s\n",fname);
-		done(1);
+		exit(1);
 	}
 }
 
@@ -884,7 +885,7 @@ fillline()
 	if (!(excess = o_ll - IDTLEN - assylen)) return;
 	if (excess < 0) {
 		fprintf(stderr,"roff: internal error #2 [%d]\n",excess);
-		done(1);
+		exit(1);
 	}
 	for (j=2;; j++) {
 		if (adjtoggle) {
@@ -1211,13 +1212,5 @@ int c;
 bomb()
 {
 	fprintf(stderr,"Usage: roff [+00] [-00] [-s] [-h] file ...\n");
-	done(1);
-}
-
-done(n)
-int n;
-{
-  fflush(stdout);
-  _cleanup();
-  exit(n);
+	exit(1);
 }

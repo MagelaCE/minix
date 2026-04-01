@@ -1,6 +1,6 @@
 /* kill - send a signal to a process	Author: Adri Koppes  */
 
-#include "../h/signal.h"
+#include <signal.h>
 
 main(argc,argv)
 int argc;
@@ -9,14 +9,15 @@ char **argv;
   int proc, signal = SIGTERM;
 
   if (argc < 2) usage();
-  if (*argv[1] == '-') {
+  if (argc > 1 && *argv[1] == '-') {
 	signal = atoi(&argv[1][1]);
-	*argv++;
+	if (!signal)
+		usage();
+	argv++;
 	argc--;
   }
-  if (!signal) signal = SIGTERM;
   while(--argc) {
-	*argv++;
+	argv++;
 	proc = atoi(*argv);
 	if (!proc && strcmp(*argv, "0"))
 		usage();
@@ -30,6 +31,6 @@ char **argv;
 
 usage()
 {
-  prints("Usage: kill pid\n");
+  prints("Usage: kill [-sig] pid\n");
   exit(1);
 }

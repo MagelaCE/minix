@@ -6,7 +6,7 @@
 #define BSS              4	/* where is bss size in header */
 #define TOT              6	/* where in header is total allocation */
 #define TOTPOS          24	/* where is total in header */
-#define SEPBIT   0x00200000	/* this bit is set for separate I/D */
+#define SEPBIT  0x00200000	/* this bit is set for separate I/D */
 #define MAGIC       0x0301	/* magic number for executable progs */
 #define MAX         65536L	/* maximum allocation size */
 
@@ -43,7 +43,7 @@ char *argv[];
 
   if (read(fd, header, sizeof(header)) != sizeof(header))
 	stderr3("chmem: ", argv[2], "bad header\n");
-  if ( (header[0] & 0xFFFF) != MAGIC)
+  if ( (header[0] & 0xFFFFL) != MAGIC)
 	stderr3("chmem: ", argv[2], " not executable\n");
   separate = (header[0] & SEPBIT ? 1 : 0);
   olddynam = header[TOT] - header[DATA] - header[BSS];
@@ -52,11 +52,12 @@ char *argv[];
   if (*p == '=') newdynam = lsize;
   else if (*p == '+') newdynam = olddynam + lsize;
   else if (*p == '-') newdynam = olddynam - lsize;
+
   newtot = header[DATA] + header[BSS] + newdynam;
+  if (separate == 0) newtot += header[TEXT];
   overflow = (newtot > MAX ? newtot - MAX : 0);	/* 64K max */
   newdynam -= overflow;
   newtot -= overflow;
-  if (separate == 0) newtot += header[TEXT];
   lseek(fd, (long) TOTPOS, 0);
   if (write(fd, &newtot, 4) < 0)
 	stderr3("chmem: can't modify ", argv[2], "\n");

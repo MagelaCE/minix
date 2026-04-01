@@ -17,8 +17,8 @@
  *	that this comment is always included without alteration.
  */
 
-#include "stdio.h"
-#include "regexp.h"
+#include <stdio.h>
+#include <regexp.h>
 
 #define MAXLINE (1024)
 
@@ -44,15 +44,15 @@ char *argv[];
 	}
 	if(argc < 3) {
 		std_err(usagemsg);
-		done(2);
+		exit(2);
 	}
 	if(argp[0][0] == '\0') {
 		std_err("gres: null match string is silly\n");
-		done(2);
+		exit(2);
 	}
 	if((exp = regcomp(*argp++)) == NULL) {
 		std_err("gres: regcomp failed\n");
-		done(2);
+		exit(2);
 	}
 	repstr = *argp++;
 	if(*argp == 0)
@@ -76,7 +76,7 @@ char *argv[];
 			}
 			argp++;
 		}
-	done(status);
+	exit(status);
 }
 
 /*
@@ -111,7 +111,7 @@ char *s;
 	std_err("gres: ");
 	std_err(s);
 	std_err("\n");
-	done(2);
+	exit(2);
 }
 
 char *
@@ -185,11 +185,4 @@ char *repstr;
 	*end = ch;
 	regsub(exp, repstr, buf);
 	fputs(buf,stdout);
-}
-
-done(n)
-int n;
-{
-  _cleanup();			/* flush stdio's internal buffers */
-  exit(n);
 }

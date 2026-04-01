@@ -38,7 +38,7 @@ for c in *.c
 do
     f=`basename $c .c`.s
     echo $f
-    if grep -s $f list > /dev/null 2>&1 ; then cat /dev/null ; else echo ar av libc.a $f >> new.files ; fi
+    if grep -s "^$f" list > /dev/null 2>&1 ; then cat /dev/null ; else echo ar av libc.a $f >> new.files ; fi
 done
 
 #

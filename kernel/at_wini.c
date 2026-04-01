@@ -95,7 +95,7 @@ PUBLIC winchester_task()
   int r, caller, proc_nr;
 
   /* First initialize the controller */
-  init_param();
+  init_params();
 
   /* Here is the main loop of the disk task.  It waits for a message, carries
    * it out, and sends a reply.
@@ -189,7 +189,7 @@ register struct wini *wn;	/* pointer to the drive struct */
 {
   extern phys_bytes umap();
   phys_bytes usr_buf = umap(proc_addr(wn->wn_procnr), D, wn->wn_address, BLOCK_SIZE);
-  register int i,j;
+  register int i;
   int r = 0;
 
   /* The command is issued by outputing 7 bytes to the controller chip. */
@@ -420,10 +420,10 @@ PRIVATE init_params()
 
   /* Calculate the address off the parameters and copy them to buf */
   address = ((long)segment << 4) + offset;
-  phys_copy(address, umap(proc_addr(WINCHESTER), D, buf, 16), 16L);
+  phys_copy(address, umap(proc_addr(WINCHESTER), D, (vir_bytes)buf, 16), 16L);
 
   /* Copy the parameters to the structures */
-  copy_param(buf, &wini[0]);
+  copy_params(buf, &wini[0]);
 
   /* Copy the parameter vector from the saved vector table */
   offset = vec_table[2 * 0x46];
@@ -431,13 +431,13 @@ PRIVATE init_params()
 
   /* Calculate the address off the parameters and copy them to buf */
   address = ((long)segment << 4) + offset;
-  phys_copy(address, umap(proc_addr(WINCHESTER), D, buf, 16), 16L);
+  phys_copy(address, umap(proc_addr(WINCHESTER), D, (vir_bytes)buf, 16), 16L);
 
   /* Copy the parameters to the structures */
-  copy_param(buf, &wini[5]);
+  copy_params(buf, &wini[5]);
 
   /* Get the nummer of drives from the bios */
-  phys_copy(0x475L, umap(proc_addr(WINCHESTER), D, buf, 1), 1L);
+  phys_copy(0x475L, umap(proc_addr(WINCHESTER), D, (vir_bytes)buf, 1), 1L);
   nr_drives = (int) *buf;
 
   /* Set the parameters in the drive structure */
@@ -455,13 +455,17 @@ PRIVATE init_params()
 	w_mess.ADDRESS = (char *) buf;
 	w_mess.PROC_NR = WINCHESTER;
 	w_mess.m_type = DISK_READ;
-	if (w_do_rdwt(&w_mess) != BLOCK_SIZE)
-		panic("Can't read partition table of winchester ", i);
-	if (buf[510] != 0x55 || buf[511] != 0xAA) {
-		printf("Invalid partition table\n");
+	if (w_do_rdwt(&w_mess) != BLOCK_SIZE) {
+		printf("Can't read partition table on winchester %d\n",i);
+		delay();
 		continue;
 	}
-	copy_prt(i*5);
+	if (buf[510] != 0x55 || buf[511] != 0xAA) {
+		printf("Invalid partition table on winchester %d\n",i);
+		delay();
+		continue;
+	}
+	copy_prt((int)i*5);
   }
 }
 
@@ -520,24 +524,26 @@ int drive;
 }
 
 sort(wn)
-register struct wini *wn;
+register struct wini wn[];
 {
   register int i,j;
+  struct wini tmp;
 
   for (i=0; i<4; i++)
 	for (j=0; j<3; j++)
-		if ((wn[j].wn_low == 0) && (wn[j+1].wn_low != 0))
-			swap(&wn[j], &wn[j+1]);
-		else if (wn[j].wn_low > wn[j+1].wn_low && wn[j+1].wn_low != 0)
-			swap(&wn[j], &wn[j+1]);
+		if ((wn[j].wn_low == 0 && wn[j+1].wn_low != 0) ||
+		    (wn[j].wn_low > wn[j+1].wn_low && wn[j+1].wn_low != 0)) {
+			tmp = wn[j];
+			wn[j] = wn[j+1];
+			wn[j+1] = tmp;
+		}
 }
 
-swap(first, second)
-register struct wini *first, *second;
+delay()
 {
-  register struct wini tmp;
+  int i,j;
 
-  tmp = *first;
-  *first = *second;
-  *second = tmp;
+  for (i = 0; i < 1000; i++)
+	for (j = 0; j < 1000; j ++)
+		;
 }

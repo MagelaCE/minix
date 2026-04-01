@@ -6,7 +6,7 @@ typedef struct {		/* directory entry */
 } dir_struct;
 
 /* Declaration of the disk inode used in rw_inode(). */
-typedef struct {		/* disk inode.  Memory inode is in "inotab.h" */
+typedef struct {		/* disk inode.  Memory inode is in "inode.h" */
   mask_bits i_mode;		/* file type, protection, etc. */
   uid i_uid;			/* user id of the file's owner */
   file_pos i_size;		/* current file size in bytes */

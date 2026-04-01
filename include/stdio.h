@@ -54,3 +54,9 @@ extern struct _io_buf {
 
 #define noperprintf(p)		((p)->_flags &= ~PERPRINTF)
 #define perprintf(p)		((p)->_flags |= PERPRINTF)
+
+extern FILE	*fopen();
+extern FILE	*freopen();
+extern long	ftell();
+extern char	*fgets();
+extern char	*gets();

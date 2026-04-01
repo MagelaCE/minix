@@ -27,7 +27,7 @@ EXTERN struct super_block {
   zone_nr s_firstdatazone;	/* number of first data zone */
   short int s_log_zone_size;	/* log2 of blocks/zone */
   file_pos s_max_size;		/* maximum file size on this device */
-  int s_magic;			/* magic number to recognize super-blocks */
+  short s_magic;		/* magic number to recognize super-blocks */
 
   /* The following items are only used when the super_block is in memory. */
   struct buf *s_imap[I_MAP_SLOTS]; /* pointers to the in-core inode bit map */

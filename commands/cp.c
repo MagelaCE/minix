@@ -1,6 +1,7 @@
 /* cp - copy files	Author: Andy Tanenbaum */
 
-#include "stat.h"
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #define TRANSFER_UNIT    16384
 char cpbuf[TRANSFER_UNIT];
@@ -40,7 +41,7 @@ char *argv[];
 	if (fd2 < 0) {stderr3("cannot create ", argv[2], "\n"); exit(2);}
 	fstat(fd2, &sbuf2);
 	if ( (sbuf2.st_mode & S_IFMT) == S_IFBLK) isfloppy = 1;
-	copyfile(fd1, fd2);
+	copyfile(fd1, fd2, argv[2]);
   } else {
 	stderr3("cannot copy to ", argv[2], "\n");
 	exit(3);
@@ -86,7 +87,7 @@ char *argv[];
 		stderr3("cannot create ", dirname, "\n");
 		continue;
 	}
-	copyfile(fd1, fd2);
+	copyfile(fd1, fd2, dirname);
   }
 }
 
@@ -94,8 +95,9 @@ char *argv[];
 
 
 
-copyfile(fd1, fd2)
+copyfile(fd1, fd2, name)
 int fd1, fd2;
+char *name;
 {
   int n, m;
 
@@ -106,6 +108,7 @@ int fd1, fd2;
 		m = write(fd2, cpbuf, n);
 		if (m != n) {
 			perror("cp");
+			unlink(name);	/* don't leave truncated file around */
 			exit(1);
 		}
 		if (isfloppy) sync();	/* purge the cache all at once */

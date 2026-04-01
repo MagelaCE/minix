@@ -11,18 +11,21 @@
 |   build_sig:	build 4 word structure pushed onto stack for signals
 |   csv:	procedure prolog to save the registers
 |   cret:	procedure epilog to restore the registers
-|   get_chrome:	returns 0 is display is monochrome, 1 if it is color
+|   get_chrome:	returns 0 if display is monochrome, 1 if it is color
 |   vid_copy:	copy data to video ram (on color display during retrace only)
+|   scr_up:	scroll screen a line up (in software, by copying)
+|   scr_down:	scroll screen a line down (in software, by copying)
 |   get_byte:	reads a byte from a user program and returns it as value
 |   reboot:	reboot for CTRL-ALT-DEL
 |   wreboot:	wait for character then reboot 
 |   dma_read:	transfer data between HD controller and memory
 |   dma_write:	transfer data between memory and HD controller
+|   em_xfer:	read or write AT extended memory using the BIOS
 
 | The following procedures are defined in this file and called from outside it.
 .globl _phys_copy, _cp_mess, _port_out, _port_in, _lock, _unlock, _restore
 .globl _build_sig, csv, cret, _get_chrome, _vid_copy, _get_byte, _reboot
-.globl _wreboot, _dma_read, _dma_write
+.globl _wreboot, _dma_read, _dma_write, _em_xfer, _scr_up, _scr_down
 
 | The following external procedure is called in this file.
 .globl _panic
@@ -40,6 +43,7 @@
 _phys_copy:
 	pushf			| save flags
 	cli			| disable interrupts
+	cld			| clear direction flag
 	push bp			| save the registers
 	push ax			| save ax
 	push bx			| save bx
@@ -127,7 +131,7 @@ L7:	mov 32(bp),dx		| store decremented byte count back in mem
 |*===========================================================================*
 |*				cp_mess					     *
 |*===========================================================================*
-| This routine is makes a fast copy of a message from anywhere in the address
+| This routine makes a fast copy of a message from anywhere in the address
 | space to anywhere else.  It also copies the source address provided as a
 | parameter to the call into the first word of the destination message.
 | It is called by:
@@ -135,7 +139,7 @@ L7:	mov 32(bp),dx		| store decremented byte count back in mem
 | where all 5 parameters are shorts (16-bits).
 |
 | Note that the message size, 'Msize' is in WORDS (not bytes) and must be set
-| correctly.  Changing the definition of message the type file and not changing
+| correctly.  Changing the definition of message in type file and not changing
 | it here will lead to total disaster.
 | This routine destroys ax.  It preserves the other registers.
 
@@ -147,6 +151,7 @@ _cp_mess:
 	mov bp,sp		| index off bp because machine can't use sp
 	pushf			| save flags
 	cli			| disable interrupts
+	cld			| clear direction flag
 	push cx			| save cx
 	push si			| save si
 	push di			| save di
@@ -352,7 +357,7 @@ _dma_read:
 	pop	es
 	pop	di
 	pop	dx
-	pop	dx
+	pop	cx
 	mov	sp,bp
 	pop	bp
 	ret
@@ -376,7 +381,7 @@ _dma_write:
 	pop	ds
 	pop	si
 	pop	dx
-	pop	dx
+	pop	cx
 	mov	sp,bp
 	pop	bp
 	ret
@@ -435,6 +440,7 @@ vid.3:	in			| 0x3DA is set during retrace.  First wait
 
 vid.4:	pushf			| copying may now start; save flags
 	cli			| interrupts just get in the way: disable them
+	cld			| clear direction flag
 	mov es,6(bp)		| load es now: int routines may ruin it
 
 	cmp si,#0		| si = 0 means blank the screen
@@ -471,6 +477,88 @@ vid.7:	mov ax,#BLANK		| ax = blanking character
 	jmp vid.5		| done
 
 |*===========================================================================*
+|*				scr_up  				     *
+|*===========================================================================*
+| This routine scrolls the screen up one line on an EGA display 
+| 
+| The call is:
+|     scr_up(org)
+| where
+|     'org'       is the video segment origin of the desired page
+
+_scr_up:
+	push bp			| we need bp to access the parameters
+	mov bp,sp		| set bp to sp for indexing
+	push si			| save the registers
+	push di			| save di
+	push cx			| save cx
+	push es			| save es
+	push ds			| save ds
+	mov si,#160		| si = pointer to data to be copied
+	mov di,#0		| di = offset within video ram
+	mov cx,#1920		| cx = word count for copy loop
+
+	pushf			| copying may now start; save flags
+	cli			| interrupts just get in the way: disable them
+	cld			| clear diretion flag
+	mov ax,4(bp)
+	mov es,ax		| load es now: int routines may ruin it
+	mov ds,ax
+
+	rep			| this is the copy loop
+	movw			| ditto
+
+	popf			| restore flags
+	pop ds			| restore ds
+	pop es			| restore es
+	pop cx			| restore cx
+	pop di			| restore di
+	pop si			| restore si
+	pop bp			| restore bp
+	ret			| return to caller
+
+|*===========================================================================*
+|*				  scr_down				     *
+|*===========================================================================*
+| This routine scrolls the screen down one line on an EGA display 
+| 
+| The call is:
+|     scr_down(org)
+| where
+|     'org'       is the video segment origin of the desired page
+
+_scr_down:
+	push bp			| we need bp to access the parameters
+	mov bp,sp		| set bp to sp for indexing
+	push si			| save the registers
+	push di			| save di
+	push cx			| save cx
+	push es			| save es
+	push ds			| save ds
+	mov si,#3838		| si = pointer to data to be copied
+	mov di,#3998		| di = offset within video ram
+	mov cx,#1920		| cx = word count for copy loop
+
+	pushf			| copying may now start; save flags
+	cli			| interrupts just get in the way: disable them
+	mov ax,4(bp)
+	mov es,ax		| load es now: int routines may ruin it
+	mov ds,ax
+
+	std
+	rep			| this is the copy loop
+	movw			| ditto
+
+	popf			| restore flags
+	pop ds			| restore ds
+	pop es			| restore es
+	pop cx			| restore cx
+	pop di			| restore di
+	pop si			| restore si
+	pop bp			| restore bp
+	ret			| return to caller
+
+|*===========================================================================*
 |*				get_byte				     *
 |*===========================================================================*
 | This routine is used to fetch a byte from anywhere in memory.
@@ -492,6 +580,136 @@ _get_byte:
 	pop bp			| restore bp
 	ret			| return to caller
 
+|===========================================================================
+|                		em_xfer
+|===========================================================================
+|
+|  This file contains one routine which transfers words between user memory
+|  and extended memory on an AT or clone.  A BIOS call (INT 15h, Func 87h)
+|  is used to accomplish the transfer.  The BIOS call is "faked" by pushing
+|  the processor flags on the stack and then doing a far call to the actual
+|  BIOS location.  An actual INT 15h would get a MINIX complaint from an
+|  unexpected trap.
+|
+|  NOTE:  WARNING:  CAUTION: ...
+|  Before using this routine, you must find your BIOS address for INT 15h.
+|  The debug command "d 0:54 57" will give you the segment and address of
+|  the BIOS call.  On my machine this generates:
+|      0000:0050      59 F8 00 F0                          Y...
+|  These values are then plugged into the two strange ".word xxxx" lines
+|  near the end of this routine.  They correspond to offset=0xf859 and
+|  seg=0xf000.  The offset is the first two bytes and the segment is the
+|  last two bytes (Note the byte swap).
+|
+|  This particular BIOS routine runs with interrupts off since the 80286
+|  must be placed in protected mode to access the memory above 1 Mbyte.
+|  So there should be no problems using the BIOS call.
+|
+	.text
+gdt:				| Begin global descriptor table
+					| Dummy descriptor
+	.word 0		| segment length (limit)
+	.word 0		| bits 15-0 of physical address
+	.byte 0		| bits 23-16 of physical address
+	.byte 0		| access rights byte
+	.word 0		| reserved
+					| descriptor for GDT itself
+	.word 0		| segment length (limit)
+	.word 0		| bits 15-0 of physical address
+	.byte 0		| bits 23-16 of physical address
+	.byte 0		| access rights byte
+	.word 0		| reserved
+src:					| source descriptor
+srcsz:	.word 0		| segment length (limit)
+srcl:	.word 0		| bits 15-0 of physical address
+srch:	.byte 0		| bits 23-16 of physical address
+	.byte 0x93	| access rights byte
+	.word 0		| reserved
+tgt:					| target descriptor
+tgtsz:	.word 0		| segment length (limit)
+tgtl:	.word 0		| bits 15-0 of physical address
+tgth:	.byte 0		| bits 23-16 of physical address
+	.byte 0x93	| access rights byte
+	.word 0		| reserved
+					| BIOS CS descriptor
+	.word 0		| segment length (limit)
+	.word 0		| bits 15-0 of physical address
+	.byte 0		| bits 23-16 of physical address
+	.byte 0		| access rights byte
+	.word 0		| reserved
+					| stack segment descriptor
+	.word 0		| segment length (limit)
+	.word 0		| bits 15-0 of physical address
+	.byte 0		| bits 23-16 of physical address
+	.byte 0		| access rights byte
+	.word 0		| reserved
+
+|
+|
+|  Execute a transfer between user memory and extended memory.
+|
+|  status = em_xfer(source, dest, count);
+|
+|    Where:
+|       status => return code (0 => OK)
+|       source => Physical source address (32-bit)
+|       dest   => Physical destination address (32-bit)
+|       count  => Number of words to transfer
+|
+|
+|
+_em_xfer:
+
+	push	bp		| Save registers
+	mov	bp,sp
+	push	si
+	push	es
+	push	cx
+|
+|  Pick up source and destination addresses and update descriptor tables
+|
+	mov ax,4(bp)
+	seg cs
+	mov srcl,ax
+	mov ax,6(bp)
+	seg cs
+	movb srch,al
+	mov ax,8(bp)
+	seg cs
+	mov tgtl,ax
+	mov ax,10(bp)
+	seg cs
+	movb tgth,al
+|
+|  Update descriptor table segment limits
+|
+	mov cx,12(bp)
+	mov ax,cx
+	add ax,ax
+	seg cs
+	mov tgtsz,ax
+	seg cs
+	mov srcsz,ax
+|
+|  Now do actual DOS call
+|
+	push cs
+	pop es
+	seg cs
+	mov si,#gdt
+	movb ah,#0x87
+	pushf
+	int 0x15		| Do a far call to BIOS routine
+|
+|  All done, return to caller.
+|
+
+	pop	cx		| restore registers
+	pop	es
+	pop	si
+	mov	sp,bp
+	pop	bp
+	ret
 
 
 
@@ -504,6 +722,7 @@ _reboot:
 	cli			| disable interrupts
 	mov ax,#0x20		| re-enable interrupt controller
 	out 0x20
+	call _eth_stp		| stop the ethernet chip
 	call resvec		| restore the vectors in low core
 	mov ax,#0x40
 	mov ds,ax
@@ -521,6 +740,7 @@ _wreboot:
 	cli			| disable interrupts
 	mov ax,#0x20		| re-enable interrupt controller
 	out 0x20
+	call _eth_stp		| stop the ethernet chip
 	call resvec		| restore the vectors in low core
 	xor ax,ax		| wait for character before continuing
 	int 0x16		| get char

@@ -103,7 +103,7 @@ message *m_ptr;			/* pointer to the newly arrived message */
 
   /* Compute the physical address of the data buffer within user space. */
   rp = proc_addr(m_ptr->PROC_NR);
-  phys = umap(rp, D, (vir_bytes) m_ptr->ADDRESS, m_ptr->COUNT);
+  phys = umap(rp, D, (vir_bytes) m_ptr->ADDRESS, (vir_bytes)m_ptr->COUNT);
   if (phys == 0) r = E_BAD_ADDR;
 
   if (r == OK) {

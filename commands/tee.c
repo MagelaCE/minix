@@ -1,7 +1,7 @@
 /* tee - pipe fitting		Author: Paul Polderman */
 
-#include "blocksize.h"
-#include "signal.h"
+#include <minix/blocksize.h>
+#include <signal.h>
 
 #define	MAXFD	18
 

@@ -1,8 +1,11 @@
 /* login - log into the system		Author: Patrick van Kleef */
 
-#include "signal.h"
-#include "sgtty.h"
-#include "pwd.h"
+#include <signal.h>
+#include <sgtty.h>
+#include <pwd.h>
+
+char	home[100] = "HOME=";
+char	*env[] = { home, 0 };
 
 main() 
 {
@@ -41,6 +44,7 @@ main()
 			write(1,"\n",1);
 			args.sg_flags = 06030;
 			ioctl (0, TIOCSETP, &args);
+			if (bad) crypt(buf1, "*"); /* be as slow */
 			if (bad || strcmp (pwd->pw_passwd, crypt(buf1, pwd->pw_passwd))) {
 				write (1,"Login incorrect\n",16);
 				continue;
@@ -51,10 +55,11 @@ main()
 		setgid (pwd->pw_gid);
 		setuid (pwd->pw_uid);
 		chdir (pwd->pw_dir);
+		strcpy(pwd->pw_dir, home+5);
 		if (pwd->pw_shell) {
-			execl(pwd->pw_shell, "-", (char *) 0);
+			execle(pwd->pw_shell, "-", (char *) 0, env);
 		}
-		execl("/bin/sh", "-", (char *) 0);
+		execle("/bin/sh", "-", (char *) 0, env);
 		write(1,"exec failure\n",13);
 	}
 }
