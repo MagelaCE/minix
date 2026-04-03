@@ -531,7 +531,7 @@ long t;				/* time in seconds */
   /* At this point, 'year', 'month', 'day', 'hour', 'minute'  ok */
   if (curtime == 0) curtime = time( (long*)0);	/* approximate current time */
   fprintf(stdout, "%3s %2d ",moname[month], day+1);
-  if (curtime - original >= YEAR/2L) {
+  if (curtime - original >= YEAR/2L || curtime < original) {
 	fprintf(stdout, "%5d ",year);
   } else {
 	if (hour < 10)

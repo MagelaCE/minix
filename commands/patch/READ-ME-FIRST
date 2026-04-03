@@ -1,0 +1,49 @@
+This is the source to Larry Wall's "patch" program ported to the 
+Minix operating system.  I've used this program for several months,
+and it seems to work quite well.  It certainly is more reliable and
+forgiving than "fix."  That program can't reconcile diffs with
+altered source;  this one can.
+
+There are a number of problems with the "virgin" Un*x source under
+Minix.  The first is the absence of both "sed" and a full
+implementation of "expr" from off-the-shelf Minix
+1.2.  This means that "Configure" can't run to completion under Minix.
+I've pre-run Configure and enclosed the results, so this won't
+be a problem.  All you have to do is type "make."
+
+Another problem arises from patch's use of long integers as indices
+into character arrays.  The Minix C compiler "knows" that it has at
+most 64K worth of memory to play with, so it prints messages about
+conversions from long to pointer losing accuracy.  At *lot* of
+messages.  Don't worry.  I've been using the program for a couple of
+months and it does work in spite of the nasty compilation warnings.
+I've tracked down the problem to one line in common.h:
+
+	typedef long LINENUM;
+
+Don't bother trying to change long to int;  I've tried that.  The
+warnings disappear, but the program malfunctions.  I'll take
+compilation warnings over incorrect operation any day.
+
+Patch occasionally uses "ed" to process diffs that look like editor
+scripts.  Someone (Brian Beatie, I think) posted an ed a while ago
+and the sources should be in the achives.  I've assumed that ed lives in
+/usr/bin.
+
+A final note to the "small is beautiful" fans:  yes, I know that patch is
+quite large.  It is not used constantly, and it eliminates a lot of
+frustration.  It's memory well spent.
+
+A final plea:  I've tried contacting Larry Wall, but to no avail.  I'd
+like to see "official" support for Minix patch.  For one thing, it
+would assure that Minix users would always have the latest version.
+Does anyone know his current e-mail address?
+
+Enjoy!
+
+				Frank Wortner
+				Morgan Stanley & Co.
+				(212) 703-6498
+
+				frank@morgan.com
+				...{sun, uunet}!mstan!frank

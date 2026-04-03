@@ -13,6 +13,8 @@ struct tchars tch;
 #define QUITC	 034		/* CTRL-\ */
 #define EOFC	 004		/* CTRL-D */
 #define DELC	0177		/* DEL */
+#define BYTE    0377
+#define FD         0		/* which file descriptor to use */
 
 #define speed(s) args.sg_ispeed = s;  args.sg_ospeed = s
 #define clr1 args.sg_flags &= ~(BITS5 | BITS6 | BITS7 | BITS8)
@@ -24,8 +26,8 @@ char *argv[];
 {
 
   /* stty with no arguments just reports on current status. */
-  ioctl(0, TIOCGETP, &args);
-  ioctl(0, TIOCGETC, &tch);
+  ioctl(FD, TIOCGETP, &args);
+  ioctl(FD, TIOCGETC, &tch);
   if (argc == 1) {
 	report();
 	exit(0);
@@ -37,8 +39,8 @@ char *argv[];
 	option(argv[k], k+1 < argc ? argv[k+1] : "");
 	k++;
   }
-  ioctl(0, TIOCSETP, &args);
-  ioctl(0, TIOCSETC, &tch);
+  ioctl(FD, TIOCSETP, &args);
+  ioctl(FD, TIOCSETC, &tch);
   exit(0);
 }
 
@@ -46,8 +48,7 @@ char *argv[];
 
 report()
 {
-  int mode;
-
+  int mode, ispeed, ospeed;
 
   mode = args.sg_flags;
   pr(mode&XTABS, 0);
@@ -55,10 +56,25 @@ report()
   pr(mode&RAW, 2);
   pr(mode&CRMOD,3);
   pr(mode&ECHO,4);
+
+  ispeed = 100 * ((int) args.sg_ispeed & BYTE);
+  ospeed = 100 * ((int) args.sg_ospeed & BYTE);
   prints("\nkill = "); 	prctl(args.sg_kill);
   prints("\nerase = ");	prctl(args.sg_erase);
   prints("\nint = "); 	prctl(tch.t_intrc);
   prints("\nquit = "); 	prctl(tch.t_quitc);
+  if (ispeed > 0) {
+	prints("\nspeed = ");
+	switch(ispeed) {
+		case  100: prints("110");	break;
+		case  300: prints("300");	break;
+		case 1200: prints("1200");	break;
+		case 2400: prints("2400");	break;
+		case 4800: prints("4800");	break;
+		case 9600: prints("9600");	break;
+		default:   prints("unknown");
+	}
+  }
   prints("\n");
 }
 

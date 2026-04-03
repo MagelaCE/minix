@@ -1,8 +1,16 @@
 /* su - become super-user		Author: Patrick van Kleef */
 
-#include <sgtty.h>
-#include <stdio.h>
-#include <pwd.h>
+/* Modified to set up HOME and SHELL in the environment, and pass */
+/* the rest of the environment to the new shell. 1987-Oct-7 EFTH  */
+
+#include "sgtty.h"
+#include "stdio.h"
+#include "pwd.h"
+
+extern  char  **environ;
+
+char *malloc();
+
 
 main (argc, argv)
 int   argc;
@@ -11,6 +19,7 @@ char *argv[];
 	register char   *name;
 	char   *crypt ();
 	char   *shell = "/bin/sh";
+	char   *_home, *_shell;
 	int     nr;
 	char    password[14];
 	struct sgttyb   args;
@@ -48,7 +57,20 @@ char *argv[];
 	setuid (pwd->pw_uid);
 	if (pwd->pw_shell[0])
 		shell = pwd->pw_shell;
-	execl (shell, 0);
+
+	/*  Set up HOME and SHELL in the environment  */
+
+	_home = malloc( strlen(pwd->pw_dir) + 6 );
+	strcpy( _home, "HOME=" );
+	strcat( _home, pwd->pw_dir );
+	putenv( _home );
+
+	_shell = malloc( strlen(shell) + 7 );
+	strcpy( _shell, "SHELL=" );
+	strcat( _shell, shell );
+	putenv( _shell );
+
+	execle( shell, shell, (char *) 0, environ );
 	std_err("No shell\n");
 	exit (3);
 }

@@ -248,15 +248,11 @@ The most significant changes are listed here.
        MINIX works with monochrome cards, CGA cards, and IBM EGA cards. 
     However, it does not work with some nonstandard EGA cards.  With these 
     cards, the screen will go blank every 25 lines.  MINIX can be made to work 
-    with these EGA cards by recompiling tty.c (or the whole kernel)
-    with the -DSOFTSCROLL flag.  For example, add -DSOFTSCROLL to CFLAGS in
-    kernel/makefile and re-make the kernel.  Software scrolling is much slower
-    than hardware scrolling, so this option should only be used if needed.
-    The bootable image in the standard distribution was made by running
-         make -DSOFTSCROLL
-    in the kernel directory.  It is suggested that you try making a new
-    kernel (but not mm or fs) without -DSOFTSCROLL.  If that one works, use 
-    it, since it will be faster than the one in the distribution.
+    with these EGA cards by hitting the F3 key to enable software scrolling.
+    This is slower than hardware scrolling, so only use it if you have to.  You
+    can toggle between the two modes by hitting F3 repeatedly. If you have a
+    nonstandard EGA card and want F4 to be the default, recompile kernel/tty.c
+    with the variable softscroll initialized to 1, and make a new kernel.
 
 21. NEW FLAGS AND FEATURES
        Various programs have acquired new flags and features and new programs
@@ -323,17 +319,51 @@ The most significant changes are listed here.
     can be used to run cpp and cem sequentially instead of in parallel.  This
     approach is slower but uses less memory. Fourth, the library, libc.a
     contains several large routines that are rarely used.  By removing these,
-    you can reduce the amount of space the library requires. 
+    you can reduce the amount of space the library requires. Fifth, if you are
+    able to compile but not link, after having created all the *.s files, you
+    can remove some of the larger *.c files, replacing them with null files to
+    keep make happy, and then link.
     
-27. LIBRARY
+27. MULTIPLE BIN DIRECTORIES IN THE DISTRIBUTION
+       Since the distribution disks are nearly full, a few of the programs that
+    logically ought to be in the /usr/bin directory have been put on one of the
+    other distribution diskettes in a separate bin directory.  On a hard disk
+    system, these programs should be put in /usr/bin.
+
+28. LIBRARY
        Not all the sources in minix/lib have been included in libc.a (to save
     space).  If you have a hard disk and enough space, compare the sources and
     binaries and add the missing files.  Remember to compile all library
     routines with cc -c -LIB file.c.  The -LIB flag is essential for libraries.
 
-28. PASCAL AND MODULA 2 COMPILERS FOR MINIX
+29. RS232 LINES
+       MINIX supports RS232 lines to terminals and modems.  Baudrate, parity,
+    and bits/character are user settable.  The special files /dev/tty[12] are
+    used to access the RS232 lines. They can be opened for reading and writing.
+       As shipped, the system is configured for only one line, /dev/tty1.  To
+    enable the second one, change NR_RS_LINES in tty.c to 2.  Doing so will
+    increase kernel size by 1K, due to the extra table and buffer space needed.
+    Furthermore, change kernel/main.c to setup the vector 11 for the second
+    port.  In the standard configuration, that vector is for the Ethernet.
+       The file /etc/ttys can be configured to have a shell be started for
+    either line, thus making MINIX a multi-terminal system.  The second char
+    of the three-character /etc/ttys entry gives the line parameters.  See
+    the comment at the start of tools/init.c for details.
+       The program stty can be used to set baud rates, bits/character and
+    parity for its standard input, e.g.  stty 9600 8 -even -odd </dev/tty1 
+    sets line 1 to 9600 baud, 8 bits/char, no parity.  The stty program does
+    its work using the ioctl system call.
+
+30. MISSING SOURCES
+       The sources for the C compiler (including all its parts), the editor
+    elle, and patch are not included in the distribution.  The compiler sources
+    are available from Transmediair and UniPress (see below).  The elle and
+    patch sources were too large to be included and are only available via the
+    USENET online archives.
+
+31. PASCAL AND MODULA 2 COMPILERS FOR MINIX
        A MINIX compiler for Pascal is available.  A MINIX compiler for Modula 2
-    will available during the course of 1988.  Neither is part of the standard
+    will available during the course of 1988-9. Neither is part of the standard
     distribution.  They may be purchased from either of:
 
 	Unipress Software		Transmediair Utrecht B.V.
@@ -344,3 +374,4 @@ The most significant changes are listed here.
 
     These companies also sell the sources to the MINIX C compiler, and the
     Amsterdam Compiler Kit, from which all the compilers have been derived.
+

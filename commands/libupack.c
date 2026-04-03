@@ -122,19 +122,26 @@ char *table[] = {
 
 #define IBUFSIZE 10000
 #define OBUFSIZE 30000
+#define OUTMAX (7*1024)
 
 char input[IBUFSIZE+1], output[OBUFSIZE+1];
 
 main()
 {
-  int n, count;
+  int n, count, bytes, cum;
 
   while (1) {
 	n = read(0, input,IBUFSIZE);
 	if (n <= 0) exit(1);
 	input[n] = 0;
 	count = unpack88(input, output);
-	n = write(1, output, count);
+	cum = 0;
+	while (count > 0) {
+		bytes = (count < OUTMAX ? count : OUTMAX);
+		n = write(1, output+cum, bytes);
+		count -= bytes;
+		cum += bytes;
+	}
   }
 }
 

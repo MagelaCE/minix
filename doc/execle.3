@@ -1,0 +1,32 @@
+NAME
+    execle(3)    	- execute a file as a process
+
+SYNOPSIS
+    execle( name, arg0, arg1, ..., argn, 0, envp )
+      char *name, *arg0, *arg1, ..., *argn, *envp[];
+
+    execl( name, arg0, arg1, ..., argn, 0 )
+      char *name, *arg0, *arg1, ..., *argn;
+
+    execv( name, argv )
+      char *name, *argv[];
+
+    execn( name )
+      char *name;
+
+DESCRIPTION
+    These calls are simpler calls to execve(2). The first two
+    routines allow the "argv" vector to be given as a list
+    of strings, terminated by a zero. The execl(3) and execv(3)
+    routines are like execle(3) and execve(2) respectively, except 
+    that no user environment is passed.
+
+    For the special case of no argument list and no environment
+    the execn(3) call is useful.
+
+SEE ALSO
+    execve(2), environ(4)
+
+BUGS
+    The calls execl() and execv() don't pass the environment, I think
+    they should.

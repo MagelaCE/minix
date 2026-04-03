@@ -1850,7 +1850,7 @@ char **argv;
 		case 'h':
 			get_partition();
 			drive = (partition < PARB ? 0x80 : 0x81);
-			cylsiz = 68;
+			cylsiz = 68;	/* sectors per cylinder */
 			tracksiz = 17;
 			printf("Checking hard disk.  %s\n", answer);
 			if (read_partition() < 0) continue;

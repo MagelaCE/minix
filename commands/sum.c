@@ -21,7 +21,7 @@ main(argc,argv)
 int argc;
 char *argv[];
 {
-  int fd;
+  register int fd;
 
   if (*++argv == 0)
 	argv = defargv;
@@ -58,7 +58,7 @@ int fd;
 char *fname;
 {
   char buf[BUFSIZ];
-  int i,n;
+  register int i,n;
   long size = 0;
   unsigned crc = 0;
   unsigned tmp, blks;

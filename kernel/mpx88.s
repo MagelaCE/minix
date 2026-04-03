@@ -10,7 +10,8 @@
 | The external entry points into this file are:
 |   s_call:	process or task wants to send or receive a message
 |   tty_int:	interrupt routine for each key depression and release
-|   rs232_int:	interrupt routine for each rs232 interrupt
+|   rs232_int:	interrupt routine for each rs232 interrupt on port 1
+|   secondary:	interrupt routine for each rs232 interrupt on port 2
 |   lpr_int:	interrupt routine for each line printer interrupt
 |   disk_int:	disk interrupt routine
 |   wini_int:	winchester interrupt routine
@@ -31,7 +32,7 @@ CLOCK_TICK	=    2
 
 | The following procedures are defined in this file and called from outside it.
 .globl _tty_int, _rs232_int, _lpr_int, _clock_int, _disk_int, _wini_int
-.globl _eth_int, _s_call, _trp, _restart
+.globl _eth_int, _s_call, _trp, _restart, _secondary_int
 .globl _int00, _int01, _int02, _int03, _int04, _int05, _int06, _int07
 .globl _int08, _int09, _int10, _int11, _int12, _int13, _int14, _int15
 
@@ -106,6 +107,17 @@ _tty_int:			| Interrupt routine for terminal input.
 _rs232_int:			| Interrupt routine for rs232 I/O.
 	call save		| save the machine state
 	mov ax,#1		| which unit caused the interrupt
+	push ax			| pass it as a parameter
+	call _rs232		| process a rs232 interrupt
+	jmp _restart		| continue execution
+
+
+|*============================================================================
+|*				secondary_int				     *
+|*============================================================================
+_secondary_int:			| Interrupt routine for rs232 port 2
+	call save		| save the machine state
+	mov ax,#2		| which unit caused the interrupt
 	push ax			| pass it as a parameter
 	call _rs232		| process a rs232 interrupt
 	jmp _restart		| continue execution

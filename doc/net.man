@@ -1,0 +1,862 @@
+                        MINIX NETWORKING
+
+1. INTRODUCTION
+     Network software can be divided into two general categories differing
+in the way the software is integrated into the operating system and the user
+software.  When networks first developed, they were used over slow wide-area
+links (56 kbps or less), so the designers' main concern was using the 
+available bandwidth efficiently.  Programmer convenience was not considered.  
+Later, as higher bandwidth networks became widespread (especially local area 
+networks, such as Ethernet), the focus changed from worrying about bandwidth 
+utilization, to worrying about making the network interface convenient for 
+the programmers.  This evolution is very similar to the evolution from 
+assembly language programming, where the machine came first, to programming 
+in high level languages, where the programmer came first.
+
+     Networks of the first type of are said to be connection oriented, and use
+what are called sliding window protocols.  All older networks, especially
+wide area networks, are of this type.  Some of the better known protocols are
+X.25, TCP/IP, and OSI.  Networks of the second type are connectionless, and
+use what is called remote procedure call (RPC).  Virtually all modern 
+distributed operating systems are based on this concept.  Some well-known 
+examples are the work of Xerox PARC [1], the V kernel [2], and Amoeba [3-9].
+While it is certainly possible to build RPC on top of a connection-oriented
+protocol, this approach is inefficient compared to building the RPC on top of
+the bare network.  For an introduction to connection-oriented protocols, RPC,
+and networking in general, see [10].
+
+     Networking in MINIX is based on RPC.  Briefly summarized, communication
+between two processes works as follows.  One of the processes, called the
+server, has some service to offer, such as a file storage.  The other process,
+the client, wants to use this service.  The interface to the service consists
+of a collection of procedures that the client can call.  In the case of a file
+server, the procedures might be CREATE_FILE, RENAME_FILE, READ_DATA,
+WRITE_DATA, and so on.  These are library routines available on the client's
+machine.
+
+     When the client calls one of these procedures, the procedure sends a
+message to the server containing the procedure name and its parameters.  The
+procedure then blocks waiting for the reply.  When the message gets to the
+server, it is decoded there and executed.  The reply is sent back to the
+calling procedure on the client's machine, which then returns the results to
+the caller.  From the programmer's point of view, having remote services in the
+network essentially means that there is a new collection of procedures to 
+call.  The programmer is not burdened with concepts like opening connections,
+sending data, or thinking in terms of acknowledgements, all of which are
+needed in the connection-oriented model.  Nor is the network software burdened
+with having to manage connections.  
+
+     In effect, RPC is based on the abstraction of the procedure call, whereas
+connection-oriented networks are based on the much lower-level concept of 
+making the network look like an input/output device.  While at first glance it 
+might seem that connection-oriented networking could be made to fit with the
+UNIX/MINIX concept of a pipe, pipes are set up in a very different way (by a
+common ancestor), and fit very poorly to the most common style of local area
+network programming, where the client has a request and the server gives a 
+response.  With wide area networks, this kind of interaction is painfully slow,
+due to the low bandwidth, so the only services generally available are mail
+and file transfer, which are batch-oriented.  MINIX networking has been
+designed for interactive use on high performance local area networks, so for
+this reason, RPC has been chosen over the older connection-oriented style.
+
+     In particular, MINIX networking has been designed to be compatible with
+the form of RPC used in the Amoeba distributed operating system [3-9].  Not
+only have the concepts and the implementation been well tested, but the
+performance is exceedingly good.  For example, for doing file transfers,
+something that connection-oriented protocols are supposed to be good at,
+Amoeba running on two Sun 3s achieves triple the throughput of TCP/IP running
+on the same hardware.  Data transfers between two Zenith Z-248s running
+the Amoeba RPC on MINIX have been measured at 165 kbytes/sec, almost as fast
+as TCP/IP transfers between two Sun 3/50s.  Considering that the Suns are
+two times as fast as the Z-248s and the network software is 100% CPU
+limited (doubling the CPU speed doubles the throughput), this is a strong
+argument for the Amoeba RPC.  As a final statistic, the RPC throughput between
+a client and server located on the same Z-248 is 1.5 Mbytes/sec, an extremely
+high figure for this class of machine, and much better than what Suns and VAXes
+normally achieve locally, despite their greater CPU power.  In conclusion,
+although RPC was chosen for its elegance and ease of use, it turns out that it
+also has excellent performance, even doing things like bulk transfer, and
+certainly doing things like short request-reply interactions.
+
+     A few words about Amoeba are probably in order here.  It is a distributed 
+operating system that was developed at the Vrije Universiteit in Amsterdam and
+is now being used there, at the Centre for Mathematics and Computer Science in
+Amsterdam, and a number of other research centers in several countries. It is 
+written in C and currently runs on a wide variety of microprocessors and 
+minicomputers (including the Sun 3, various other MC68020 systems, the PDP 11 
+and the DEC Vax).  Note that Amoeba is a complete operating system, just like 
+UNIX, MINIX or VMS.  The only relation between Amoeba and MINIX is that MINIX 
+networking uses the Amoeba RPC protocols.  Other than that they are quite 
+different in structure, funtionality, and goals. Amoeba was designed to run 
+on systems consisting of dozens of processors, and yet give the programmer the
+illusion that it is a traditional single-CPU time sharing system.  For more
+information about Amoeba, see the references.
+
+
+2. OBJECTS
+     Amoeba is an object-oriented system, and to a considerable extent this
+orientation is reflected in the protocol.  As a consequence, MINIX also
+acquires a certain object-orientation.  Very briefly, an object is a programmer
+defined abstract data type that has well-defined operations on it.  As an
+example, a file server could define file and directory objects, and provide
+operations to read and write the file objects, and insert files in, and delete
+files from, directory objects.  Clients can perform these operations by doing 
+RPCs with the file server.  Henceforth we will adopt the Amoeba terminology and
+call these RPCs "transactions."  A transaction consists of a request message
+from a client to a server, followed by a reply message from the server back to
+the client.
+
+     It is up to the writer of each server to decide what kinds of objects the
+server will support and what operations will be available on them.  The 
+structure of the system guarantees that clients can only perform the 
+operations provided by the server.  This style of networking is intended to 
+force constraints on programmers, just as high-level languages force 
+constraints on former assembly-language programmers.
+
+     Objects are normally protected by capabilities, which are currently 128-
+bit numbers, although in the the next version of Amoeba (Amoeba 4.0) this will
+become 256 bits.  When a client asks a server to create an object, the server
+returns a capability for the object.  This capability must be presented by the
+client to perform subsequent operations on the object.  In Amoeba, capabilities
+are protected crytographically.  Since the MINIX kernel, unlike the Amoeba
+kernel, was not designed from scratch as a distributed system, the protection
+aspects in MINIX are not fully implemented.
+
+     A capability has 4 fields, described below.  These fields are important
+because they appear in the Amoeba and MINIX message headers.
+
+	Port:	48-bit number used to identify the server owning the object.
+	Object:	24-bit number used by the server to identify the object
+	Rights:	8 bits telling which operations are allowed
+	Cksum:	48-bit checksum to prevent tampering with the capability
+
+The "port" field is a (random) 48-bit number used for addressing.  Any 48-bit
+number can be used as a port.  In some situations, an ASCII string can be used
+as a port, with the first 48 bits taken as the port number.  All messages
+in Amoeba and MINIX are sent to ports, not to machine addresses.  The mapping
+of ports to machine addresses is done deep down in the system, and is of little
+concern to the average programmer.  Thus: a port uniquely identifies a server
+and provides a logical address to which all messages for the server are sent.
+
+     The remaining three fields are called the private part of the capability.
+In theory, each server can use them any way it wants to.  In practice, to
+prevent total chaos, all existing servers adhere to the following conventions
+(just as most UNIX programs adhere to the convention that certain files contain
+ASCII characters with a line feed at the end of each line).  The "object" field
+is used by the server to identify the specific object being accessed.  For
+example, when a file server created a new file on behalf of a client, it could
+put the i-node number of the new file in this field, so that when the client
+later used the capability, the server could tell which file was being 
+addressed.  The field is 24-bits long, providing each server with 16 million
+object identifers.
+
+     The "rights" field contains a bit map for up to eight protected
+operations.  Each bit controls permission to perform one operation.  Thus a
+file server could allocate bit 0 for READ_DATA, bit 1 for WRITE_DATA, bit 2 for
+APPEND_DATA, bit 3 for DELETE_FILE, and so on.  When a capability arrives from
+a client, the server checks to see if the bit corresponding to the relevant 
+operation is on.  If it is not, the operation is rejected.  In this way, a user
+can create a file, ask the server to turn off the WRITE_DATA and DELETE_FILE
+bits, and then give the capability to another user.  This new user cannot
+perform WRITE_DATA and DELETE_FILE operations, but can perform the operations
+whose bits are turned on.
+
+     A moment's thought will reveal that the above protection scheme is
+worthless if users can turn the rights bits on and off by themselves.  To
+prevent this, the "cksum" field is used.  When creating a new object, the
+server simultaneously creates a random number and stores it in its internal
+tables (e.g., in the i-node).  It then combines the rights bits and the
+random number, and passes the result through a one-way cryptographic function.
+The result of this function is put in the cksum field.  When a capability
+comes in from a client, the server uses the object number to locate the
+original random number.  It then combines it with the rights bits present in
+the capability, and runs the result through the one-way function.  If the
+result disagrees with the cksum field, the capability is considered invalid, 
+and an error return is sent back.  In this way, users who change the rights 
+bits will simply invalidate their capabilities.  Attempts to break the scheme 
+by finding an inverse to the one-way function can be handled by choosing a
+cryptographically strong one-way function.  Brute force does not work either,
+as picking cksums at random will require, on the average, 2**47 attempts to
+guess the 48-bit cksum.  Since a null transaction over a 10 Mbit/sec Ethernet 
+using SUN 3/50s takes about 1.4 msec, about 3000 years are needed to perform 
+the search.  Furthermore, it is easy enough to program a server to artificially
+increase the transaction time to 1 sec after 10 unsuccessful attempts have
+been made, thus increasing the mean search time to 3,000,000 years.
+
+
+3. OVERVIEW OF TRANSACTIONS
+    To summarize what we have covered so far, the normal style of networking in
+MINIX (and Amoeba) is to structure dialogues in terms of clients and servers.
+Each server manages one or more types of objects, and provides operations for
+clients to perform operations on these objects.  When a client asks a server to
+create an object for it, the server then returns a capability for the object
+to the client.  This capability identifies the server, identifies the object,
+and tells which subset of the operations the holder of the capability may
+perform.  To have an operation performed, the client sends a request message
+to the server (with the capability embedded in the message header), and the
+server then sends back a reply.  In most cases, the calls to the server are
+embedded in library procedures, called "stubs", to encapsulate the message 
+passing and hide it from the users.  
+
+      Transactions provide a basis for a large number of user services.
+In MINIX, users can use them to build arbitrary services.  Two key services
+are provided as standard for MINIX, remote execution and remote file copying.
+These services make use of a process called the shell server, or sherver for
+short.  The sherver accepts messages from remote (or local) clients, executes
+the commands in them, and returns the output.
+
+     Communication is implemented as follows. Each server listens to a
+unique 48-bit port.  A client that wants service from the server sends a 
+request to that port and blocks until it receives a reply. (If the client 
+cannot find anyone listening to the port after a given period, it times
+out and returns an error status.)  When the server is ready, it returns a reply
+to the client,  which then continues execution. Each transaction is independent
+of the previous transactions; there is no connection or virtual circuit.
+
+
+     Clients must have some way of discovering a server's port.  Under Amoeba 
+a directory server is used. The directory server stores capabilities for 
+objects and associates them with an ASCII string.  The directory server has a 
+well known port.  Under MINIX you make initial contact with a sherver that has
+a well known port and then the sherver creates a secret port for all further 
+transactions on that machine.
+
+    There are four stub routines in the user library which provide the basic
+interface between user processes and transactions.  They are:
+
+	1. getreq() - get request (used by servers to get a request)
+	2. putrep() - put reply (used by servers to send reply)
+	3. trans() - transaction (used by clients to do a transaction)
+	4. timeout() - sets the time limit at which trans() gives up
+
+Getreq() and putrep() are used by servers to get a request from a client and
+to send a reply.  A server may not do a getreq() until it has replied to the 
+previous getreq().  The call trans() is used by clients to send a request to a
+server. It blocks until a reply or a signal arrives, or, if it cannot find a 
+server listening to his port, it times out and returns an error code.
+The length of the timeout is set using the function timeout().  This timeout
+has to do with locating servers, not how long they have to do the work.
+
+     Messages of up to 30000 bytes can be sent between client and server.
+This limit will increase to 1 Gbyte in the next version of Amoeba but will
+probably remain at 30000 bytes in MINIX due to the small address space of the
+IBM PC.  It is possible to provide security so that servers only execute 
+remote procedure calls for authorized users. The protection mechanism uses 
+capabilities and is discussed in detail in the references.  It will not be
+discussed much here.  This protection mechanism is not implemented in the 
+remote shell software available with MINIX.  (It requires a directory server, 
+among other things. The implementation is left as an exercise for the reader.)
+
+
+4. SYNTAX AND SEMANTICS OF TRANSACTION PRIMITIVES
+     Now we will take a detailed look at the syntax and semantics of the 
+library routines for using transactions, followed by some simple examples to 
+indicate how the functions are typically used. Remember, that when programming
+with transactions, the primitives used in C programs are getreq(), putrep(),
+trans(), and timeout().  These can be thought of as "network system calls,"
+although they are not implemented quite like that in MINIX.  If you are
+building a server, it will typically have a main loop with a getreq() at the
+top, a switch in the middle based on some field of the incoming message, and
+a putrep() at the bottom.  Furthermore, the server writer will generally also
+provide a set of stub procedures that contain trans() calls to access the
+server.  The average user will call these library procedures, and will not
+make trans() calls directly, although he is, of course, free to do so if he 
+wishes.
+
+     Transaction messages always begin with a special header.  The exact
+layout of these messages is defined by the Amoeba protocol.  By using this
+protocol, MINIX machines can communicate with one another, and with Suns, 
+Vaxes, and PDP-11s running Amoeba.  Device drivers have also been written for
+UNIX to allow UNIX processes to speak Amoeba, and have Amoeba clients and
+servers run on UNIX.  At the Vrije Universiteit, all the Suns, Vaxes, and
+PDP-11s that run UNIX have such drivers to communicate with each other and with
+machines running Amoeba and MINIX.  It is the local lingua franca, just as
+TCP/IP is at some sites.
+
+     The amoeba header is defined in the include file "amoeba.h", which must
+be included in all programs using transactions.  The header definition is given
+below.  The types used in the header struct are also defined in "amoeba.h".
+
+typedef struct {
+	port	h_port;		/* port (i.e., logical address) of the dest. */
+	port	h_signature;	/* used for authentication and protection */
+	private	h_priv;		/* 10 bytes: object, rights, and cksum */
+	unshort h_command;	/* code for operation desired/status returned*/
+	long	h_offset;	/* parameter field */
+	unshort	h_size;		/* parameter field */
+	unshort	h_extra;	/* parameter field */
+} header;
+
+     The message header contains the port to which the message should be sent, 
+a command/status field for use by the server and space for some parameters to 
+go with the command or status.  Let us now look at the four network primitives.
+The first one, getreq, has the following declaration:
+
+	unshort getreq(hdr, buffer, size)
+	header *hdr;
+	char *buffer;
+	unshort	size;
+
+The three parameters refer to the header, the buffer, and the buffer size,
+respectively.  In a sense, they are analogous to the parameters of the MINIX
+READ and WRITE system calls.  The hdr parameter points to a header struct,
+which is used to allow the server to specify which port it wants to listen to.
+The h_port field of the header must be initialized with the port number.
+The buffer parameter is a pointer to a buffer to hold the incoming message.
+It can hold a maximum of size bytes, specified by the third parameter.  If 
+successful getreq() returns the number of the bytes of data in the buffer that
+were actually received.  In addition, the other fields of the header are filled
+in by the system.  If an error occurs then it returns a negative error code. 
+Possible error codes (defined in "amoeba.h") are: 
+
+	FAILED:	a null port was given or a getreq was attempted before 
+		the previous putrep() was done
+	BADADDRESS: the buffer pointer and/or size was not valid
+	ABORTED: a signal was received
+	TRYAGAIN: there were no free transaction slots in the kernel tables
+
+Note that after a getreq(), trans() may be used to communicate with another
+server before doing the putrep(). In other words, a server may call other
+servers to help it do its job, but it may not process multiple transactions
+simultaneously.  (In Amoeba, server processes may contain multiple threads
+to allow parallelism, but MINIX does not allow multiple threads per process.)
+
+     The next call is putrep(), used by servers to reply to requests and send
+back results and status information.  The declaration is:
+
+	unshort putrep(hdr, buffer, size)
+	header *hdr;
+	char *buffer;
+	unshort	size;
+
+The header returned contains status information, and possibly a new port
+(in the h_signature field).  A buffer containing size bytes of data is also
+returned to the client.  If successful, putrep() returns the number of bytes 
+sent.  The reply message is not acknowledged, so that a successful return
+from this call does not guarantee that the client got the reply.  In general,
+it is up to the client to try again if the reply is not forthcoming quickly
+enough.  Possible error conditions for putrep() are defined in "amoeba.h" as
+follows:
+
+	FAILED: no getreq() was done first
+	BADADDRESS: the buffer pointer and/or size was not valid
+	ABORTED: a signal was received
+
+     Now we come to the call used by clients to request services and wait for
+replies.  Servers can also use this call to request services from other 
+servers.  Thus at one instant a process may be acting as a server and at 
+another the same process may be acting as a client.  The client call is:
+
+	unshort trans(hdr1, buffer1, size1, hdr2, buffer2, size2)
+	header *hdr1, *hdr2;
+	char *buffer1, *buffer2;
+	unshort	size1, size2;
+
+The call has two independent sets of parameters.  Those with suffix 1 are
+used for sending the request message to the server.  Those with suffix 2 are
+used for getting the reply.  Both sets have a header, a buffer, and a size.
+The two hdr pointers point to structs for message headers.  The first one
+contains parameters copied to the outgoing message to the server and the
+second one contains space for the data to be copied in from the server's
+putrep().  The two buffer parameters are for the outgoing and incoming data,
+respectively, and the two sizes tell how large these buffers are.
+
+     After making a trans() call, the client blocks until the message has
+been sent, received, processed by the server, and replied to.  Only then can
+the client continue execution.  At this point the fields of hdr2 and buffer2
+will contain the reply data.  Like MINIX itself, transactions support only this
+synchronous form of communication.  Experience has painfully shown that 
+asynchronous stream communication is difficult for programmers to deal with.
+After all, everything else in programming languages is synchronous.  (Can you
+imagine what it would be like to have a procedure call return control to the
+caller before having finished its work?)
+
+     If successful, trans(), returns the number of bytes in the reply.  
+Possible error codes are: 
+
+	FAILED: a null port was given or the server crashed between doing the 
+		getreq and the putrep
+	NOTFOUND: the port locate failed to find a server before the timeout
+	BADADDRESS: a buffer pointer and/or size was not valid
+	ABORTED: a signal was received
+	TRYAGAIN: there were no free transaction slots in the kernel's tables
+
+The final network primitive deals with setting timeouts.  When a client first
+does a transaction on a previously unknown port, the kernel broadcasts a locate
+message to find the server.  It then waits a certain amount of time for a 
+server to reply.  If no server replies before the timer goes off, the trans()
+fails with NOTFOUND.  The timeout() call allows the client to determine how
+long to wait for a server to reply.  After a reply has been received, the
+kernel keeps it in a cache, so that locates will not be needed subsequently.
+It is important to realize that the timeout relates to locating servers, not
+to how much time servers have to perform their work.  The declaration is:
+
+	unshort timeout(time)
+	unshort	time;
+
+The function sets the length of the locate timeout in tenths of a second.
+The default is 300 (30 seconds). A timeout of 0 means do not time out.
+The timeout() call returns the length of the previous timeout. 
+
+
+5. STRUCTURE OF SERVERS AND CLIENTS
+     In this section we will examine typical servers and clients to give an
+idea of how they are structured.
+
+5.1 Server structure
+     A typical server has the following form:
+
+	/* Declarations needed by the server. */
+	header hdr;			/* header for receiving requests */
+	char buffer[BUFSIZE];		/* buffer for receiving requests */
+	char reply[BUF2SIZE];		/* buffer for sending replies */
+	unshort	size, replysize;	/* sizes of the two buffers */
+	unshort	getreq();		/* function declaration */
+	char *strncpy();		/* string function */
+
+	signal(SIGAMOEBA, SIG_IGN);	/* ignore signals */
+
+	while (1) {
+
+	  /* Have the server listen to a 48-bit port equal to ASCII "MyServ" */
+	  strncpy(&hdr.h_port, "MyServ", HEADERSIZE);
+
+	  /* Wait for a request to come in for that port. */
+	  size = getreq(&hdr, buffer, BUFSIZE);
+
+	  /* If the size returned is negative then an error occurred. */
+	  if ((short) size < 0) {
+		handle_error();
+	  } else {
+		perform_request_found_in_buffer(); /* carry out the work */
+		hdr.h_status = OK; 		   /* or whatever */
+		putrep(&hdr, reply, replysize);	   /* send reply back */
+	  }
+	}
+
+If all the information necessary for the request is in the headers then the 
+buffers in getreq() and putrep() can be replaced by the value NILBUF and the 
+buffer sizes can be replaced by 0.
+
+5.2 Clients Structure
+     The structure of a client program is much more variable.  A program that 
+deals with the above server might look like this: 
+
+	/* Declarations needed by the client. */
+	header	hdr;			/* header used for request */
+	char buffer[BUFSIZE];		/* buffer used for request */
+	short size;			/* size of the buffer */
+	unshort	trans();		/* function declaration */
+	char *strncpy();		/* string function */
+
+	/* Initialize server port to "MyServ". */
+	strncpy(&hdr.h_port, "MyServ", HEADERSIZE);
+
+	/* Send request to server listening to that port. */
+	size = (short) trans(&hdr, buffer, BUFSIZE, &hdr, NILBUF, 0);
+	if (size < 0) {
+		printf("trans failed %d\n", size);
+	} else {
+		if (hdr.h_status != OK)	/* nonzero status is an error */
+			work_not_done();
+		else
+			successful_trans();
+	}
+
+5.3 Signal Handling
+     The semantics of signals with transactions is important for programmers to
+understand.  If a client receives a signal while doing a trans(), the signal 
+propagates to the server.  If the server is also doing a trans() then it 
+propagates again to the next server, and so on.  The aim of this is to request
+all servers to terminate their transaction as soon as possible.
+ 
+     If the server receiving the signal is not doing a transaction and not 
+already doing a putrep() then the server code must handle the signal.  It may 
+choose to catch the signal and send a reply immediately or simply ignore the 
+signal.  If it does not catch the signal then it will die since the signal 
+propagated is SIGAMOEBA (which is defined as SIGEMT for MINIX).  In this case 
+the transaction will fail (with return status FAILED for the client).
+
+     Once the transaction is completed the client process will be signaled.
+It in turn must handle the original signal (not necessarily SIGAMOEBA).  The 
+exact transaction semantics of Amoeba are not supported under MINIX due to
+difficulty in keeping user processes alive until a transaction terminates
+after a signal.  Signal propagation does occur, but the client may die before 
+a reply comes in.  This should not matter too much for most applications. 
+In the next rewrite of Amoeba the syntax and semantics of these functions will
+change in non-compatible ways, but this will probably not appear in MINIX.
+
+
+6. IMPLEMENTATION OF TRANSACTIONS IN MINIX
+     Amoeba transactions are implemented in the MINIX kernel as a number of 
+kernel tasks. Several alterations were made to the kernel to support these 
+tasks, including the addition of an (optional) ethernet driver (for the 
+Western Digital EtherCard Plus (TM), also known as the WD1003E) and the 
+possibility to specify the size of the stack for kernel tasks on a per task 
+basis.  (Amoeba tasks need larger stacks than the other MINIX kernel tasks.)  
+There is also an extra system call that is handled by MM.  This is the Amoeba 
+system call and is the interface to the kernel.  Special handling of signals is
+also provided for in the MM task. 
+
+     There are five kernel tasks for Amoeba.  The first acts as a manager 
+which accepts asynchronous events.  Possible events are:
+
+	1. An ethernet packet has arrived
+	2. A local signal has arrived
+	3. A user task involved in an active transaction has died
+	4. A sweep timeout has occurred 
+
+(Locate timeouts are implemented using a counter which is decremented every
+tenth of a second by a sweep routine.) Each of the other four tasks manage a 
+single user process' transactions.  Thus, a maximum of four processes can
+simultaneously do transactions under MINIX.  The number of transaction tasks 
+is, however, a constant in an include file and can be increased if needed.
+
+     In the MINIX kernel there is a table which keeps a record of the current 
+state of a transaction.  This table is called "am_task" and is declared in the
+file "amoeba.c."  This records many things, including, the process number of 
+the task doing the transaction, the current state (locating, waiting for a 
+reply, waiting for a request, etc.) and the relevant ports and machine 
+addresses. 
+
+     The Amoeba network protocol is a stop and wait protocol that guarantees
+at most once delivery of a message.  A message consists of the concatenation of
+the transaction header with the data in the buffer (if any) given to trans(),
+getreq() or putrep().  The transaction code divides messages up into packets 
+which fit on the underlying network medium (which is ethernet in the case of 
+MINIX).  It then sends over the message fragments and they are reassembled on 
+the remote machine before being given to the recipient.
+
+     Each packet begins with an ethernet header (which consists of the source 
+and destination ethernet addresses) followed by a 10-byte Amoeba internet 
+header containing data about the source and destination processes to ensure
+that the message is delivered to the correct process.  The rest of the packet 
+is used for sending data.
+
+
+7. COMPILING THE SYSTEM 
+     There are several interesting things you need to know before you can build
+a MINIX kernel with Amoeba transactions in it.  First of all, you do not need 
+an Ethernet to use transactions.  You can have your clients and servers running
+on a single machine.  In this mode, it is possible to write and debug network
+software without having a network.  Later, when you move to a real network, the
+code will already be fully debugged, as the system itself makes no distinction
+between local and remote transactions.  
+
+     Second, the transaction code is quite substantial.  So much so that it
+would tend to overshadow the rest of MINIX if it were fully integrated into it.
+This fact, combined with the knowledge that not all MINIX users are interested
+in networking has led to adding a new top-level directory in MINIX, amoeba.
+This directory and its subdirectories contain all the networking code.  If you
+are not interested in networking, copy the entire top-level amoeba directory to
+a diskette in case you later become interested, and then type
+
+	rm -rf amoeba
+
+This will get rid of all the networking code, and you can continue as usual.
+The only thing you will notice is a few #ifdefs in the normal code that relate
+to networking; they will all be disabled if you do not specifically enable 
+them. 
+
+     Installation of networking is largely auto-configured using the makefiles
+provided.  Two new -D entries are used in the mm and amoeba/kernel makefiles:
+
+	-DAM_KERNEL	(used in mm and amoeba/kernel) enables networking
+	-DNONET		(used in amoeba/kernel only) single machine networking,
+			 in other words, local transactions only
+
+If you use -DAM_KERNEL but not -DNONET, you get full networking and MUST have 
+a Western Digital Etherplus card.  To install the makefiles and make other
+necessary changes, run the install shell script (amoeba/install)
+
+     If you add a new kernel task of your own then it MUST come between the
+Amoeba kernel tasks and the printer task in the file kernel/table.c and should
+be numbered relative to AMOEBA_CLASS in the file h/com.h (i.e. The task number
+should be AMOEBA_CLASS+1 for the first new task, AMOEBA_CLASS+2 for the second
+new task, etc.).  Be sure to set NR_TASKS correctly.
+
+     To compile and install networking, you must follow the steps below 
+carefully.
+
+
+How to Install Amoeba
+---------------------
+
+You must do the following important steps carefully.
+
+
+ 1. Make sure that you are in the amoeba directory.
+    Run the command:
+
+	install
+
+ 2. If you do not have much free disk space then do the following:
+    Go to the fs directory (ie. ../fs) and type
+	make clean
+    Then go to the mm directory (ie. ../mm) and type:
+	make clean
+    Then go to the kernel directory (ie. ../kernel) and type:
+	make clean
+
+ 3. Go to the amoeba/mm directory and run make.
+
+ 4. Go to the amoeba/fs directory and run make.
+
+ 5. Go to the amoeba/kernel directory (NOT the regular kernel directory).
+    If you do NOT have an ethernet card but still wish to have local Amoeba
+    transactions then edit the makefile and add -DNONET to the CFLAGS.
+    If you do have an ethernet card and would like to keep ethernet statistics
+    then add -DSTATISTICS to CFLAGS.
+
+ 6. Now run make.
+
+ 7. Go to the tools directory and build a new boot floppy.
+    The command to do this is:
+	make net
+
+ 8. Reboot your machine using the new boot floppy.
+
+ 9. Test the system.  The directory amoeba/examples contains several programs 
+    to test the reliability of transactions.  The READ_ME file in the directory
+    gives more details.
+
+10. If you have an ethernet card then install the network tools.  The directory
+    amoeba/util contains utilities for remote shells, remote file copying and
+    message sending.  These only work with machines that have Amoeba
+    transactions installed.  The READ_ME file there gives more details.
+
+
+8. NETWORKING UTILITIES 
+     There are several utility programs which you may find useful if you have a
+network connection.  They are listed below with a brief outline of their use.
+Other utilities are possible and reasonably simple to write as shell scripts
+that use rsh (remote shell, described below).  The utilities are located in the
+amoeba/utilities directory.
+
+8.1 Remote Shell
+     One of the main features of MINIX networking is the use of the remote 
+shell.  This utility is a server that accepts commands over the network from
+clients and executes them.  The syntax of this command is:
+
+	rsh [-bei] <port> <command> 
+
+This program executes the command specified by <command> on the machine with a
+sherver (described below) listening to the port <port>, which is an ASCII
+string of up to 6 characters.  It is used to generate a unique port name for
+the underlying transaction mechanism.
+
+     Normally standard output and standard error from the command are written 
+on standard output of the local process.  If the -e flag is specified then they
+are kept separate. The -i flag specifies that standard input for the command 
+should come from the local process.  The -b flag specifies that the rsh should
+be started in the background.  Some examples:
+
+	rsh bozo
+
+starts an interactive shell on the machine running a sherver with port bozo.
+Subsequent commands that you type will be fed to the remote shell.  You can
+use cd to change to a directory on the remote machine, ls to list files in the
+remote directory, and any other commands you want.  In effect, rsh gives you a
+simple form of remote login.  Note that to make this work, the remote process
+listening on the port bozo must be a shell server (sherver).
+
+     As a second example of rsh, consider
+
+	rsh jumbo cat /etc/passwd
+
+which displays on your screen the file /etc/passwd from the machine running a 
+sherver with port jumbo.  The rsh command could also have redirected this 
+output to a local file or pipe.
+
+     A slightly more complex example is
+
+	rsh -i freddo 'cat >/usr/ast/junk' </etc/termcap
+
+which runs the command
+
+	cat >/usr/ast/junk
+
+on machine the machine running a sherver with port freddo and takes as input 
+the file /etc/termcap from the local machine.  Note that by quoting the
+second argument, it is passed as a string to the remote sherver.  If the
+command contains magic characters (e.g., *.c) the resulting action depends on
+whether the command is quoted or not.  If it is not quoted, the local shell
+will expand the magic characters before rsh is even called.  If the command
+is quoted, the command string is passed unmodified to the remote sherver,
+which then expands it in the directory it is currently working in.
+
+     When you log into a remote machine with rsh, you get a shell having the
+uid and gid of the sherver (see below).  To get your own uid and gid, type
+
+	exec su george
+
+assuming that your login is george.  If you have a password, su will ask for
+it.  Needless to say, the su program will use /etc/passwd on the remote 
+machine.  Do not forget to use exec, as this eliminates the need for an extra
+shell.  If you do not need your own uid, don't bother, as it costs memory.
+
+8.2 Shervers
+     To enable remote shell operations, it is necessary to have a sherver
+running on the destination machine.  Shervers can be started up by:
+
+	sherver <port> 
+
+assuming that sherver is kept in  /usr/bin.  This program listens to the
+port specified and accepts a single request from the program rsh.  It then
+executes it with the uid and gid of the sherver.  When it is finished, the
+sherver exits.
+
+     The sherver gets its input from a pipe.  This means that it can only do
+those things possible with a pipe as input. In particular, signals (e.g., DEL),
+EOF (e.g., CTRL-D), and the ioctl system call do not work properly.  Hitting
+DEL remotely will kill the sherver.  There is no simple solution, except to
+use stty to change your DEL character so that you do not hit it out of habit.
+
+8.3 Masters
+     Another useful program is master.  It is started up as follows:
+
+	master <count> <uid> <gid> <command> 
+
+This program starts up <count> copies of the program specified by <command>
+with user id <uid> and group id <gid>.  The command may be given parameters.
+If at any time the command exits or dies then master will start up a new
+invocation of it.  This was designed to work with shervers but has other 
+applications as well.  
+
+For example,
+
+	/usr/bin/master 1 2 2 /etc/sherver mumbo
+
+will start a single sherver listening to the port `jumbo' and ensure that
+there is always a sherver running.  This sherver will have uid=2 and gid=2,
+so that rsh calls to mumbo will be executed with this uid/gid combination.  
+It is suggested to start up master in the /etc/rc file of any machine
+running shervers. When a sherver finishes executing a command, it exists.
+By having master running in the background all the time, every time a sherver
+exists, its parent, master, will create a new one.  This mechanism is somewhat
+akin to init creating a new login process whenever a shell exits.  Since $PATH
+is generally not set prior to executing /etc/rc, master should be specified as
+/usr/bin/master (or whatever).
+
+
+8.4 File Transfer
+     The standard MINIX networking provides for file transfer using a shell
+script called rcp (remote cp).  The syntax of the call is
+
+	rcp [port!]from_file [port!]to_file 
+
+It can also do local file copy but this is more easily accomplished with cp. 
+Here are two examples of rcp usage:
+
+	rcp jumbo!/etc/passwd .
+	rcp jumbo!/etc/passwd freddo!/usr/ast/pebble
+
+The first one will copy the file /etc/passwd from the machine running a sherver
+with the port jumbo to the file passwd in the current directory. The second one
+will copy the file /etc/passwd from the machine running a sherver with the port
+jumbo to the file /usr/ast/pebble on the machine running a sherver with the 
+port freddo.  Thus it is possible to issue commands on machine A to copy files
+from machine B to machine C.
+
+8.5 Remote Pipes
+     It is possible to set up remote pipes using the programs 'to' and 'from'.
+The program 'to' reads from standard input and writes its output to the named
+port.  Similarly, 'from' reads from the named port and writes to standard
+output.  For example, consider the following commands, possibly given on two 
+different machines:
+
+	cat F* | sort | to 'port66'
+	from 'port66' | uniq -c | sort -n
+
+The first command concatenates files beginning with 'F', sorts them, and writes
+the output to 'port66'.  The second commands reads from 'port66' and provides
+input to the rest of the pipeline.
+
+
+9. THE ETHERNET INTERFACE
+     The ethernet driver in this version of Minix is for the Western Digital 
+Ethercard Plus card, which is also known as the WD1003E. The ethernet 
+controller chip on this board is the National Semiconductor DP8390.
+If you have a different type of ethernet controller then there are several
+things you need to know about the interface between the driver and the Amoeba
+transaction layer in order to write a suitable driver for your card.
+
+     There were several fundamental assumptions made while designing the high 
+level protocol which affect the ethernet driver.
+
+  1. The ethernet controller has enough local memory to buffer at least one
+     incoming packet and one outgoing packet and will not overwrite a buffer
+     with a new incoming packet until the buffer has been released.
+
+  2. Read buffers are released in the same order as they were allocated.
+     After a read interrupt has occurred and (*bufread)() has been called,
+     then bufread will not be called again until an eth_release has been done.
+
+  3. The ethernet driver generates no write interrupts.  This is because we
+     found that the chip on the ethernet card was so much faster than the CPU
+     on the Zenith AT clone that it was always sent before the next packet is
+     ready.  If necessary the high level code busy-waits until the ethernet
+     write buffer is free.  If write interrupts are required then pkt_sent()
+     in amoeba.c should be modified.
+     This is rather disgusting, but was done for efficiency reasons.  Interrupt
+     handling is expensive under Minix and so it was much faster to not
+     generate interrupts and just wait for the buffer to become free.
+
+There are several routines used by the high level code which should be
+provided by the ethernet driver.  Unless otherwise stated, these routines are 
+called in the file amoeba.c.
+
+1. etheraddr	- get ethernet address of this host from rom.
+2. eth_init	- initialises the ethernet card and sets pointers to routines
+		  to be called on packet arrival and departure.
+3. eth_getbuf	- returns pointer to next write buffer.
+4. eth_write	- writes the current "write buffer" to the net.
+5. eth_release	- release a read buffer for reuse.
+6. eth_stp	- shuts up the ethernet chip so that reboot can stop all
+		  interrupts from the chip.  The normal reboot procedure
+		  doesn't stop the WD1003E from running, so the next time
+		  interrupts are enabled it makes a fuss (called from klib88.s).
+
+The files dp8390.c, dp8390.h, dp8390info.h and dp8390stat.h contain routines
+specific to the NS DP8390 chip.  These may need some slight changes before
+working correctly with another manufacturer's board which also uses this chip.
+The files etherplus.c and etherplus.h contain routines specific to the WD1003E
+board.
+
+10. REFERENCES
+
+ 1. Birrell, A.D., and Nelson, B.J.: "Implementing Remote Procedure Calls,"
+    ACM Transactions on Computer Systems, vol. 2, pp. 39-59, Feb. 1984.
+
+ 2. Cheriton, D.. "The V Kernel: A Software Base for Distributed Systems,"
+    IEEE Software Magazine, vol. 1, pp. 19-42, April 1984.
+
+ 3. Bal, H.E., Renesse, R. van, and Tanenbaum, A.S.: "Implementing Distributed 
+    Algorithms using Remote Procedure Call," Proc. National Computer Conference
+    AFIPS, pp. 499-505, 1987.
+
+ 4. Renesse, R. van, Tanenbaum, A.S., Staveren, H., and Hall, J.: "Connecting
+    RPC-Based Distributed Systems using Wide-Area Networks," Proc. Seventh
+    International Conf. on Distr. Computer Systems, IEEE, pp. 28-34, 1987.
+
+ 5. Tanenbaum, A.S., Mullender, S.J., and van Renesse, R.: "Using Sparse 
+    Capabilities in a Distributed Operating System," Proc. Sixth 
+    International Conf. on Distr. Computer Systems, IEEE, 1986. 
+
+ 6. Mullender, S.J., and Tanenbaum, A.S.: "The Design of a Capability-Based 
+    Distributed Operating System," Computer Journal, vol. 29, pp. 289-299, 
+    Aug. 1986.
+
+ 7. Tanenbaum, A.S., and Renesse, R. van: "Distributed Operating Systems," 
+    Computing Surveys, vol. 17, pp. 419-470, Dec. 1985.
+
+ 8. Mullender, S.J., and Tanenbaum, A.S.: "A Distributed File Service Based on 
+    Optimistic Concurrency Control," Proc. Tenth Symp. Oper. Syst. Prin., 
+    pp. 51-62, 1985.
+
+ 9. Mullender, S.J., and Tanenbaum, A.S.: "Protection and Resource Control in 
+    Distributed Operating Systems," Computer Networks, vol. 8, pp. 421-432, 
+    Oct. 1984.
+
+10. Tanenbaum, A.S., "Computer Networks, 2nd ed., Englewood Cliffs, NJ: 
+    Prentice-Hall, 1989.

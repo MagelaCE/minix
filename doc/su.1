@@ -1,0 +1,25 @@
+NAME
+    su(1)		- superimpose another user's shell
+
+SYNOPSIS
+    su  [ username ]
+
+DESCRIPTION
+    This performs a log-in of another user, a new process is
+    used for the appropriate shell. Your current shell is not
+    destroyed, as occurs when using login(1).
+
+    If "username" is not given it defaults to "root" (the super-
+    user). A password will be asked for if "username" requires one.
+
+    The group and user id are changed for the new username.
+    The environment entries $HOME and $SHELL are set up according
+    to the new username's entry in the password file, but the
+    rest of the environment is passed untouched. The current
+    directory is not changed.
+
+FILES
+    /etc/passwd
+
+SEE ALSO
+    login(1)

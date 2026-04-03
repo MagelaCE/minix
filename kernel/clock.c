@@ -53,6 +53,7 @@ PRIVATE int sched_ticks = SCHED_RATE;	/* counter: when 0, call scheduler */
 PRIVATE struct proc *prev_ptr;	/* last user process run by clock task */
 PRIVATE message mc;		/* message buffer for both input and output */
 PRIVATE int (*watch_dog[NR_TASKS+1])();	/* watch_dog functions to call */
+extern int flush_flag;		/* tells clock when to flush the tty buf */
 
 /*===========================================================================*
  *				clock_task				     *
@@ -196,6 +197,9 @@ PRIVATE do_clocktick()
 	sched_ticks = SCHED_RATE;		/* reset quantum */
 	prev_ptr = bill_ptr;			/* new previous process */
 
+	/* If characters are accumulating, call the TTY task. */
+	if (flush_flag) rs_flush();	/* flush accumulated tty input */
+
 	/* Check if printer is hung up, and if so, restart it. */
 	if (pr_busy && pcount > 0 && cum_count == prev_ct) pr_char(); 
 	prev_ct = cum_count;	/* record # characters printed so far */
@@ -203,21 +207,28 @@ PRIVATE do_clocktick()
 
 }
 
+
 /*===========================================================================*
  *				accounting				     *
  *===========================================================================*/
 PRIVATE accounting()
 {
-/* Update user and system accounting times.  The variable 'bill_ptr' is always
- * kept pointing to the process to charge for CPU usage.  If the CPU was in
- * user code prior to this clock tick, charge the tick as user time, otherwise
- * charge it as system time.
+/*
+ * Update user and system accounting times.  Charge the current process for 
+ * user time or system time.  In addition, if the current proces (i.e.
+ * prev_proc, because cur_proc is always CLOCK) is a task, charge it too.
+ * This is just for the F1 display.
  */
 
-  if (prev_proc >= LOW_USER)
-	bill_ptr->user_time++;	/* charge CPU time */
-  else
-	bill_ptr->sys_time++;	/* charge system time */
+  register struct proc *rp;
+
+  if (prev_proc >= LOW_USER) {
+	bill_ptr->user_time++;				/* user time */
+  } else {
+	bill_ptr->sys_time++;				/* system time */
+	rp = proc_addr(prev_proc);
+	if (prev_proc != IDLE) rp->sys_time++;
+  }
 }
 
 

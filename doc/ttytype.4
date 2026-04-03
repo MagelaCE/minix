@@ -1,0 +1,19 @@
+NAME
+    ttytype(4)		- mapping from terminal ports to type
+
+SYNOPSIS
+    /etc/ttytype
+
+DESCRIPTION
+    This file contains one line for each terminal port.
+    The format is: device type, a space and then the port
+    name (without the "/dev/" prefix), for example:
+
+	minix tty0
+	vt100 tty1
+
+    The tset(1) command uses this file to map a port
+    name into the appropriate default device descriptor.
+
+SEE ALSO
+    tset(1), ttys(4)
