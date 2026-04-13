@@ -50,7 +50,7 @@ test110()
 	 * If a bug lets it unexpectedly succeed, the child will print an
 	 * error message since the arguments are wrong.
 	 */
-	execl("t11a", 0, envp);	/* should fail -- no X bits on */
+	execl("t11a", (char *) 0, envp);  /* should fail -- no X bits on */
 
 	/* Control should come here after the failed execl(). */
 	chmod("t11a", 06555);
@@ -71,7 +71,7 @@ test110()
 	aa[0] = 3;  aa[1] = 5;  aa[2] = 7;  aa[3] = 9;
 	if (write(3, aa, 4) != 4) e(17);
 	lseek(3, 2L, 0);
-	execle("t11a", "t11a",  "arg0", "arg1", "arg2", 0, envp);
+	execle("t11a", "t11a",  "arg0", "arg1", "arg2", (char *) 0, envp);
 	e(18);
 	printf("Can't exec t11a\n");
 	exit(3);

@@ -1,11 +1,9 @@
-/* chgrp - change group			Author: Phil Nelson */
+/* chgrp - change group		Authors: P. van Kleef and D. Spinellis */
 
-/* Code modified from chown By Patrick van Kleef */
-
-#include "../include/grp.h"
-#include "../h/type.h"
-#include "stat.h"
-#include "stdio.h"
+#include <grp.h>
+#include <minix/type.h>
+#include <sys/stat.h>
+#include <stdio.h>
 
 main (argc, argv)
 int   argc;
@@ -32,7 +30,7 @@ char *argv[];
 			status++;
 		}
 		else
-			if (chown (argv[i], stbuf.st_uid, grp -> gid) < 0) {
+			if (chown (argv[i], stbuf.st_uid, grp -> gr_gid) < 0) {
 				fprintf (stderr,"%s: not changed\n", argv[i]);
 				status++;
 			}

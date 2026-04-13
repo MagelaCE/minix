@@ -1,12 +1,10 @@
-/* ed - standard editor		Authors: Brian Beattie, Kees Bot, and others */
-
 /*
  * Copyright 1987 Brian Beattie Rights Reserved.
  *
  * Permission to copy and/or distribute granted under the
  * following conditions:
  *
- * 1). No charge may be made other than reasonable charges
+ * 1). No charge may be made other than resonable charges
  *	for reproduction.
  *
  * 2). This notice must remain intact.
@@ -31,6 +29,7 @@ ed:	$(OBJS)
 */
 
 #include <stdio.h>
+#include <signal.h>
 /****************************/
 
 /*	tools.h	*/
@@ -174,7 +173,6 @@ extern LINE	line0;
 extern int	curln, lastln, line1, line2, nlines;
 extern int	nflg;		/* print line number flag */
 extern int	lflg;		/* print line in verbose mode */
-extern int	pflg;		/* print current line after each command */
 extern char	*inptr;			/* tty input buffer */
 extern char	linbuf[], *linptr;	/* current line */
 extern int	truncflg;	/* truncate long line flag */
@@ -195,8 +193,8 @@ extern TOKEN	*optpat();
 
 extern char	*catsub();
 
-extern char	*strcpy();
-extern int	*malloc();
+extern char	*strcpy(), *strcat();
+extern char	*malloc();
 
 /*	amatch.c	*/
 /* #include <stdio.h> */
@@ -225,8 +223,6 @@ char	*lin;
 TOKEN	*pat;
 char	*boln;
 {
-	register i;
-
 	between=0;
 	parnum=0;
 
@@ -271,7 +267,7 @@ char	*boln;
 				 */
 			bocl = lin;
 
-			while( *lin && omatch(&lin, pat))
+			while( *lin && omatch(&lin, pat, boln))
 				;
 
 				/* 'Lin' now points to the character that made
@@ -441,7 +437,7 @@ char		*map;
 	else
 		map[c >> 3] &= ~(1 << (c & 0x07));
 
-	return( 1 );
+	return 1;
 }
 
 testbit( c, map )
@@ -512,7 +508,8 @@ char	*from, *to, *sub, *new, *newend;
 ckglob()
 {
 	TOKEN	*glbpat;
-	char	c, delim, *lin;
+	char	c, delim;
+	char	lin[MAXLINE];
 	int	num;
 	LINE	*ptr;
 
@@ -533,18 +530,20 @@ ckglob()
 	if(*inptr == delim)
 		inptr++;
 
+	ptr = getptr(1);
 	for (num=1; num<=lastln; num++)
 	{
-		ptr = getptr(num);
 		ptr->l_stat &= ~LGLOB;
 		if (line1 <= num && num <= line2) {
-			lin = gettxt(num);
+			strcpy(lin,ptr->l_buff);
+			strcat(lin,"\n");
 			if(matchs(lin, glbpat, 0)) {
 				if (c=='g') ptr->l_stat |= LGLOB;
 			} else {
 				if (c=='v') ptr->l_stat |= LGLOB;
 			}
 		}
+		ptr = ptr->l_next;
 	}
 	return(1);
 }
@@ -564,6 +563,7 @@ int	def1, def2;
 	}
 	if(line1 > line2 || line1 <= 0)
 		return (ERR);
+	return(0);
 }
 
 /*	del.c	*/
@@ -584,12 +584,13 @@ int	from, to;
 	while(next != last && next != &line0)
 	{
 		tmp = next->l_next;
-		free(next);
+		free((char *) next);
 		next = tmp;
 	}
 	relink(first, last, first, last);
 	lastln -= (to - from)+1;
 	curln = prevln(from);
+	return(0);
 }
 
 /*	docmd.c	*/
@@ -609,7 +610,7 @@ int	glob;
 	static char	rhs[MAXPAT];
 	TOKEN	*subpat;
 	int	c, err, line3;
-	int	i, apflg, pflag, gflag;
+	int	apflg, pflag, gflag;
 	int	nchng;
 	char	*fptr;
 
@@ -789,7 +790,7 @@ int	glob;
 		if(nlines > 1)
 			return(ERR);
 
-		if(nlines = 0)
+		if(nlines == 0)
 			line2 = lastln;
 
 		if(*inptr != ' ' && *inptr != HT && *inptr != NL)
@@ -971,9 +972,10 @@ doglob()
 
 	while(1)
 	{
+		ptr = getptr(1);
 		for (lin=1; lin<=lastln; lin++) {
-			ptr = getptr(lin);
 			if (ptr->l_stat & LGLOB) break;
+			ptr = ptr->l_next;
 		}
 		if (lin>lastln) break;
 
@@ -985,7 +987,7 @@ doglob()
 		if((stat = docmd(1)) < 0)
 			return(stat);
 	}
-	return(0);
+	return(curln);
 }
 
 /*	doprnt.c	*/
@@ -997,14 +999,18 @@ doprnt(from, to)
 int	from, to;
 {
 	int	i;
+	LINE *lptr;
 
 	from = from < 1 ? 1 : from;
 	to = to > lastln ? lastln : to;
 		
 	if(to != 0)
 	{
-		for(i = from; i <= to; i++)
-			prntln(gettxt(i), lflg, (nflg ? i : 0));
+		lptr = getptr(from);
+		for(i = from; i <= to; i++) {
+			prntln(lptr->l_buff, lflg, (nflg ? i : 0));
+			lptr = lptr->l_next;
+		}
 		curln = to;
 	}
 
@@ -1124,8 +1130,10 @@ int	apflg;
 	extern FILE	*fopen();
 	FILE	*fp;
 	int	lin, err;
-	int	lines, bytes;
+	int	lines;
+	long	bytes;
 	char	*str;
+	LINE	*lptr;
 
 	err = 0;
 
@@ -1136,19 +1144,22 @@ int	apflg;
 		printf("file open error\n");
 		return( ERR );
 	}
+	lptr = getptr(from);
 	for(lin = from; lin <= to; lin++)
 	{
-		str = gettxt(lin);
+		str = lptr->l_buff;
 		lines++;
-		bytes += strlen(str);
+		bytes += strlen(str)+1;
 		if(fputs(str, fp) == EOF)
 		{
 			printf("file write error\n");
 			err++;
 			break;
 		}
+		fputc('\n',fp);
+		lptr = lptr->l_next;
 	}
-	printf("%d lines %d bytes\n",lines,bytes);
+	printf("%d lines %D bytes\n",lines,bytes);
 	fclose(fp);
 	return( err );
 }
@@ -1169,6 +1180,7 @@ int	apflg;
  *
  */
 /* #include <stdio.h> */
+/* #include <signal.h> */
 /* #include "tools.h" */
 /* #include "ed.h" */
 #include <setjmp.h>
@@ -1179,7 +1191,7 @@ int	curln = 0;
 int	lastln = 0;
 char	*inptr;
 static char	inlin[MAXLINE];
-int	nflg, lflg, pflg, pflag;
+int	nflg, lflg;
 int	line1, line2, nlines;
 extern char	fname[];
 int	version = 1;
@@ -1195,7 +1207,7 @@ main(argc,argv)
 int	argc;
 char	**argv;
 {
-	int	stat, i, j, doflush;
+	int	stat, i, doflush;
 
 	setbuf();
 	doflush=isatty(1);
@@ -1219,7 +1231,7 @@ char	**argv;
 	while(1)
 	{
 		setjmp(env);
-		signal(2, intr);
+		if (signal(SIGINT, SIG_IGN)!=SIG_IGN) signal(SIGINT, intr);
 
 		if (doflush) fflush(stdout);
 
@@ -1270,7 +1282,6 @@ char	**argv;
 /* #include "tools.h" */
 /* #include "ed.h" */
 
-int	truncflg = 1;	/* truncate long line flag */
 int	eightbit = 1;	/* save eight bit */
 int	nonascii, nullchar, truncated;
 egets(str,size,stream)
@@ -1378,17 +1389,27 @@ TOKEN	*pat;
 int	dir;
 {
 	int	i, num;
-	char	*lin;
+	char	lin[MAXLINE];
+	LINE	*ptr;
 
 	num=curln;
+	ptr = getptr(curln);
+	num = (dir ? nextln(num) : prevln(num));
+	ptr = (dir ? ptr->l_next : ptr->l_prev);
 	for(i=0; i<lastln; i++)
 	{
-		lin = gettxt(num);
+		if(num == 0) {
+			num = (dir ? nextln(num) : prevln(num));
+			ptr = (dir ? ptr->l_next : ptr->l_prev);
+		}
+		strcpy(lin, ptr->l_buff);
+		strcat(lin, "\n");
 		if(matchs(lin, pat, 0))
 		{
 			return(num);
 		}
 		num = (dir ? nextln(num) : prevln(num));
+		ptr = (dir ? ptr->l_next : ptr->l_prev);
 	}
 	return ( ERR );
 }
@@ -1674,7 +1695,7 @@ char	*str;
 		new->l_stat=0;
 		strcpy(new->l_buff,buf);	/* build new line */
 		cur = getptr(curln);		/* get current line */
-		nxt = getptr(nextln(curln));	/* get next line */
+		nxt = cur->l_next;		/* get next line */
 		relink(cur, new, new, nxt);	/* add to linked list */
 		relink(new, nxt, cur, new);
 		lastln++;
@@ -1753,7 +1774,6 @@ char	*arg;
 int	delim;
 {
 	 TOKEN	*head, *tail, *ntok;
-	 char	buf[CLS_SIZE];
 	 int	error;
 
 	/*
@@ -1769,7 +1789,7 @@ int	delim;
 
 	while (*arg && *arg != delim && *arg != '\n' && !error)
 	{
-		ntok = (TOKEN *)malloc(TOKSIZE);
+		ntok = (TOKEN *) malloc(TOKSIZE);
 		ntok->lchar = '\000';
 		ntok->next = 0;
 
@@ -1999,13 +2019,60 @@ int	ret_endp;
 {
 
 	char	*rval, *bptr;
+	char *line2;
+	TOKEN *pat2;
+	char c;
+	short ok;
 
 	bptr = line;
 
 	while(*line)
 	{
-		if ((rval = amatch(line, pat, bptr)) == 0)
+
+	if(pat && pat->tok==LITCHAR) {
+		while(*line) {
+			pat2 = pat;
+			line2 = line;
+			if(*line2 != pat2->lchar) {
+				c = pat2->lchar;
+				while(*line2 && *line2!=c)
+					++line2;
+				line = line2;
+				if(*line2 == '\0')
+					break;
+			}
+			ok = 1;
+			++line2;
+			pat2 = pat2->next;
+			while(pat2 && pat2->tok==LITCHAR) {
+				if(*line2 != pat2->lchar) {
+					ok = 0;
+					break;
+				}
+				++line2;
+				pat2 = pat2->next;
+			}
+			if(!pat2) {
+				if(ret_endp)
+					return(--line2);
+				else
+					return(line);
+			}
+			else if(ok)
+				break;
+			++line;
+		}
+		if(*line == '\0')
+			return(0);
+	}
+	else {
+		line2 = line;
+		pat2 = pat;
+	}
+		if((rval = amatch(line2,pat2,bptr)) == 0)
 		{
+			if(pat && pat->tok == BOL)
+				break;
 			line++;
 		} else {
 			if(rval > bptr && rval > line)
@@ -2033,9 +2100,9 @@ int	num;
 	k1 = getptr(line1);
 	k2 = getptr(line2);
 	k3 = getptr(nextln(line2));
-	lastln -= line2-line1+1;
 
 	relink(k0, k3, k0, k3);
+	lastln -= line2-line1+1;
 
 	if (num > line1)
 		num -= line2-line1+1;
@@ -2045,9 +2112,9 @@ int	num;
 	k0 = getptr(num);
 	k3 = getptr(nextln(num));
 
-	lastln += line2-line1+1;
 	relink(k0, k1, k2, k3);
 	relink(k2, k3, k0, k1);
+	lastln += line2-line1+1;
 
 	return( 1 );
 }
@@ -2111,7 +2178,7 @@ char	*boln;
 			break;
 
 		case BOL:
-			if (*linp = boln)
+			if (*linp == boln)
 				advance = 0;
 			break;
 
@@ -2205,7 +2272,7 @@ set()
 		inptr++;
 
 	if(*inptr == NL)
-		return(show("all"));
+		return(show());
 		/* skip white space */
 	while(*inptr == SP || *inptr == HT)
 		inptr++;
@@ -2221,6 +2288,7 @@ set()
 			return(0);
 		}
 	}
+	return(0);
 }
 
 show()
@@ -2360,7 +2428,7 @@ TOKEN	*head;
 		default:
 			old_head = head;
 			head = head->next;
-			free (old_head);
+			free((char *) old_head);
 			break;
 		}
 	}

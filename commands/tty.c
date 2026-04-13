@@ -1,14 +1,5 @@
-/*
- * tty.c - Return tty name
- *
- * Freename P. Pascal IV
- *
- */
-/* 
- *  History:
- *
- *	31 July 87	fpp	Creation
- */
+/* tty.c - Return tty name		Author: Freeman P. Pascal IV */
+
 #include <stdio.h>
 
 char	*ttyname();

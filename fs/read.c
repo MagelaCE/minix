@@ -143,22 +143,23 @@ int rw_flag;			/* READING or WRITING */
 
   /* On write, update file size and access time. */
   if (rw_flag == WRITING) {
-	if (char_spec == 0 && block_spec == 0 && position > f_size)
-		rip->i_size = position;
-	rip->i_modtime = clock_time();
-	rip->i_dirt = DIRTY;
+	if (char_spec == 0 && block_spec == 0) {
+		if (position > f_size) rip->i_size = position;
+		rip->i_modtime = clock_time();
+		rip->i_dirt = DIRTY;
+	}
   } else {
 	if (rip->i_pipe && position >= rip->i_size) {
 		/* Reset pipe pointers. */
 		rip->i_size = 0;	/* no data left */
 		position = 0;		/* reset reader(s) */
-		if ( (wf = find_filp(rip, W_BIT)) != NIL_FILP) wf->filp_pos = 0;
+		if ( (wf = find_filp(rip, W_BIT)) != NIL_FILP) wf->filp_pos =0;
 	}
   }
   f->filp_pos = position;
 
   /* Check to see if read-ahead is called for, and if so, set it up. */
-  if (rw_flag == READING && rip->i_seek == NO_SEEK && position % BLOCK_SIZE == 0
+  if (rw_flag == READING && rip->i_seek == NO_SEEK && position % BLOCK_SIZE== 0
 		&& (mode_word == I_REGULAR || mode_word == I_DIRECTORY)) {
 	rdahed_inode = rip;
 	rdahedpos = position;

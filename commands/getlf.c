@@ -1,3 +1,5 @@
+/* getlf - get a line feed		Author: Andy Tanenbaum */
+
 main(argc, argv)
 int argc;
 char *argv[];

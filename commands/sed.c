@@ -98,6 +98,8 @@ typedef struct cmd_t	sedcmd;		/* use this name for declarations */
 
 /* sed.h ends here */
 
+#define CMASK  0xFF	/* some char type should have been unsigned char? */
+
 /*+++++++++++++++*/
 
 /* sed - stream editor		Author: Eric S. Raymond */

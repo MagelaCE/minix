@@ -26,20 +26,21 @@
 # When making a kernel on a machine with limited RAM disk, it may be 
 # necessary to use -T. or even remove /lib/cem and /lib/cpp during asld.
 #
-CFLAGS	= -DAM_KERNEL -Di8088  -F -I../../kernel -I.
+CFLAGS	= -DAM_KERNEL -Di8088   -F -I../../kernel -I. 
 A	= ../h
 H	= ../../h
 K	= ../../kernel
 LIB	= /usr/lib
 
 OBJ =	../../kernel/mpx88.s main.s tty.s floppy.s wini.s system.s proc.s \
-	clock.s memory.s printer.s amoeba.s conf.s dp8390.s util.s \
-	etherplus.s portcache.s trans.s table.s ../../kernel/klib88.s dmp.s
+	console.s rs232.s clock.s memory.s printer.s amoeba.s conf.s dp8390.s \
+	util.s etherplus.s portcache.s trans.s table.s ../../kernel/klib88.s \
+	dmp.s
 
 
 COBJS =	main.s tty.s floppy.s wini.s system.s proc.s clock.s memory.s \
 	amoeba.s conf.s dp8390.s util.s etherplus.s portcache.s trans.s \
-	printer.s table.s dmp.s
+	console.s rs232.s printer.s table.s dmp.s
 
 
 kernel:	makefile $(OBJ) $(LIB)/libc.a
@@ -59,6 +60,18 @@ clock.s:	$K/glo.h
 clock.s:	$K/proc.h
 clock.s:	$K/clock.c
 	$(CC) $(CFLAGS) -c $K/clock.c
+
+console.s:	$K/const.h $K/type.h $H/const.h $H/type.h
+console.s:	$H/callnr.h
+console.s:	$H/com.h
+console.s:	$H/error.h
+console.s:	$H/sgtty.h
+console.s:	$H/signal.h
+console.s:	$K/glo.h
+console.s:	$K/proc.h
+console.s:	$K/tty.h
+console.s:	$K/tty.c
+	$(CC) $(CFLAGS) -c $K/console.c
 
 dmp.s:		$K/const.h $K/type.h $H/const.h $H/type.h
 dmp.s:		$H/callnr.h
@@ -113,6 +126,17 @@ proc.s:		$K/proc.h
 proc.s:		$K/proc.c
 	$(CC) $(CFLAGS) -c $K/proc.c
 
+rs232.s:	$K/const.h $K/type.h $H/const.h $H/type.h
+rs232.s:	$H/callnr.h
+rs232.s:	$H/com.h
+rs232.s:	$H/error.h
+rs232.s:	$H/sgtty.h
+rs232.s:	$H/signal.h
+rs232.s:	$K/glo.h
+rs232.s:	$K/proc.h
+rs232.s:	$K/rs232.c
+	$(CC) $(CFLAGS) -c $K/rs232.c
+
 system.s:	$K/const.h $K/type.h $H/const.h $H/type.h
 system.s:	$H/callnr.h
 system.s:	$H/com.h
@@ -138,6 +162,7 @@ tty.s:	$H/signal.h
 tty.s:	$K/glo.h
 tty.s:	$K/proc.h
 tty.s:	$K/tty.c
+tty.s:	$K/ttymaps.h
 	$(CC) $(CFLAGS) -c $K/tty.c
 
 wini.s:	$K/const.h $K/type.h $H/const.h $H/type.h
@@ -243,3 +268,4 @@ util.s: ./eplinfo.h
 util.s: $K/proc.h
 util.s: $K/type.h
 util.s: util.c
+

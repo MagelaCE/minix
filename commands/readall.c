@@ -1,3 +1,5 @@
+/* readall - read a whole device fast		Author: Andy Tanenbaum */
+
 #define BLK 30
 
 char a[32000];

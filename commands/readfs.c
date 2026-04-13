@@ -236,7 +236,7 @@ char *directory;
 
 		/* Read next block of the directory */
 		if (get_fileblock(special, ip, b, &bp) < 0)
-			return(-1);
+			return;
 		dp = &bp.b_dir[0];
 		if (b++ == (block_nr) 0) {
 			dp += 2;	/* Skip "." and ".." */

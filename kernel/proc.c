@@ -36,6 +36,8 @@ message *m_ptr;			/* interrupt message to send to the task */
 
 #ifdef i8088
   /* Re-enable the 8259A interrupt controller. */
+  if (ps && task==FLOPPY)port_out(0x3C, ENABLE);/* Nonspecific End-Of-Int ps */
+
   port_out(INT_CTL, ENABLE);	/* this re-enables the 8259A controller chip */
   if (pc_at && task == WINCHESTER)
 	  /* this re-enables the second controller chip */
@@ -241,7 +243,10 @@ message *m_ptr;			/* pointer to message buffer */
   /* If MM has just blocked and there are kernel signals pending, now is the
    * time to tell MM about them, since it will be able to accept the message.
    */
-  if (sig_procs > 0 && caller == MM_PROC_NR && src == ANY) inform();
+  if (sig_procs > 0 && caller == MM_PROC_NR && src == ANY) {
+	inform();
+	pick_proc();
+  }
   return(OK);
 }
 

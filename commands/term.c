@@ -102,7 +102,7 @@ char *argv[];
   /* Fetch the keyboard parameters, save them, and set new ones. */
   ioctl(0, TIOCGETP, &sgtty);
   sgsave2 = sgtty;		/* modem parameters */
-  sgtty.sg_flags = RAW;
+  sgtty.sg_flags = (sgtty.sg_flags & 01700) + RAW;
   ioctl(0, TIOCSETP, &sgtty);
 }
 

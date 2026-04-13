@@ -883,3 +883,4 @@ long t;
   else 
 	fprintf(stdout,"%02.2d:%02.2d ",hour, minute);
 }
+

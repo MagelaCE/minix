@@ -1,4 +1,5 @@
-#include "stat.h"
+#include <sys/stat.h>
+
 extern int errno;
 int testnr;
 extern long lseek();

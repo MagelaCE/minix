@@ -25,7 +25,6 @@ char * oargv[];
   int find();
   void exparg();
   void getargs();
-  void maktbl();
   void gotone();
 
   argc=oargc;
@@ -72,6 +71,7 @@ char * oargv[];
 void getargs()
 {
   int tmp;
+  void maktbl();
   for (i=1; i< argc && argv[i][0]=='-'; i++) {
     switch (argv[i][1]) {
     case 'e':

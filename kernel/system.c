@@ -136,6 +136,8 @@ message *m_ptr;			/* pointer to request message */
   while (bytes--) *dptr++ = *sptr++;	/* copy parent struct to child */
 
   rpc->p_flags |= NO_MAP;	/* inhibit the process from running */
+  rpc->p_flags &= ~PENDING;	/* only one in group should have PENDING */
+  rpc->p_pending = 0;
   rpc->p_pid = pid;		/* install child's pid */
   rpc->p_reg[RET_REG] = 0;	/* child sees pid = 0 to know it is child */
 
@@ -271,6 +273,7 @@ message *m_ptr;			/* pointer to request message */
 		}
 	}
   }
+  if (rc->p_flags & PENDING) --sig_procs;
   rc->p_flags = P_SLOT_FREE;
   return(OK);
 }

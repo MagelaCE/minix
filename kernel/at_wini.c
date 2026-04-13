@@ -188,12 +188,13 @@ PRIVATE int w_transfer(wn)
 register struct wini *wn;	/* pointer to the drive struct */
 {
   extern phys_bytes umap();
-  phys_bytes usr_buf = umap(proc_addr(wn->wn_procnr), D, wn->wn_address, BLOCK_SIZE);
+  phys_bytes usr_buf;
   register int i, old_state;
   int r = 0;
 
   /* The command is issued by outputing 7 bytes to the controller chip. */
 
+  usr_buf = umap(proc_addr(wn->wn_procnr), D, wn->wn_address, BLOCK_SIZE);
   if (usr_buf == (phys_bytes)0)
 	return(ERR);
   command[0] = wn->wn_ctlbyte;
@@ -212,9 +213,9 @@ register struct wini *wn;	/* pointer to the drive struct */
   if (wn->wn_opcode == DISK_READ) {
 	for (i=0; i<BLOCK_SIZE/SECTOR_SIZE; i++) {
 		receive(HARDWARE, &w_mess);
-		old_state = lock();
+/*		old_state = lock(); */
 		dma_read((unsigned)(usr_buf >> 4), (unsigned)(usr_buf & 0x0F));
-		restore(old_state);
+/*		restore(old_state); */
 		usr_buf += 0x200;
 		if (win_results() != OK) {
 			w_need_reset = TRUE;
@@ -230,9 +231,9 @@ register struct wini *wn;	/* pointer to the drive struct */
 		return(ERR);
 	}
 	for (i=0; i<BLOCK_SIZE/SECTOR_SIZE; i++) {
-		old_state = lock();
+/*		old_state = lock(); */
 		dma_write((unsigned)(usr_buf >> 4), (unsigned)(usr_buf&0x0F));
-		restore(old_state);
+/*		restore(old_state); */
 		usr_buf += 0x200;
 		receive(HARDWARE, &w_mess);
 		if (win_results() != OK) {

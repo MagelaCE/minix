@@ -11,16 +11,21 @@ char **argv;
 		default:
 			return;
 		case 0:
-			setgid(gid);
-			setuid(uid);
+			if (setgid(gid) < 0) perror("can't set gid");
+			if (setuid(uid) < 0) perror("can't set uid");
 /*
 			execvp(*argv, argv);
 */
 			execv(*argv, argv);
+			perror("master: exec'ing");
 			prints("can't execute %s\n", *argv);
 /*
 			kill(getppid(), SIGTERM);
 */
+			/* If the exec failed, don't try it again immediately.
+			 * Give the kernel a chance to do something else.
+			 */
+			sleep (5);
 			_exit(1);
 		case -1:
 			sleep(10);

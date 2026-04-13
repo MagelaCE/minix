@@ -1,3 +1,5 @@
+/* factor - print the prime factors of a number      Author: Andy Tanenbaum */
+
 main(argc, argv)
 int argc;
 char *argv[];

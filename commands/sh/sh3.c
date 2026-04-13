@@ -1,7 +1,7 @@
 #define Extern extern
-#include "signal.h"
-#include "errno.h"
-#include "setjmp.h"
+#include <signal.h>
+#include <errno.h>
+#include <setjmp.h>
 #include "sh.h"
 
 /* -------- exec.c -------- */
@@ -116,7 +116,7 @@ int act;
 	case TFOR:
 		if (wp == NULL) {
 			wp = dolv+1;
-			if ((i = dolc-1) < 0)
+			if ((i = dolc) < 0)
 				i = 0;
 		} else
 			i = -1;

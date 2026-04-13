@@ -1,22 +1,30 @@
-/*
-	Driver for the CEMCOM compiler.
-	Derived from: "cem.c,v 1.5 86/01/20 11:10:29 erikb Exp"
-	Author: Erik Baalbergen
+/* cc - call the C compiler		Author: Erik Baalbergen */
 
-	Log:
-	Date written: Dec 4, 1985
-	Adapted for PC/IX on Jan 20, 1986
-	Strongly reduced (May 14, 1986)
-	Piping output from cpp into cem (Jul 30, 1986)
-	Create temporary files in TMP directory (Aug 6, 1986)
-	Pass hint for optimization to cg (Aug 15, 1986)
-	Throw away intermediate files on interrupts (Aug 15, 1986)
-	Print file name if there are more than one source files (Sep 22, 1986)
-	Various minor corrections for MINIX (Mar 18, 1987)
-*/
-	
+#ifndef MEM640K
+#ifndef MEM512K
+#ifndef RAMDISK
+#error !!! AH HA!  I HAVE YOUR ATTENTION!
+/* This is not an error.  It is a dirty trick to force the user to read this
+ * comment.  The program cc calls the various passes of the compiler.  To call
+ * them, it must know where they are.  On the 640K PC MINIX, cpp and cem are
+ * kept in /lib, on the root device.  Thus the symbol PP is defined as
+ * /lib/cpp, etc.  On the 512K AT, there is no room on the root device, so cpp
+ * and cem are kept in /usr/lib, which means that PP must be /usr/lib/cpp,
+ * etc.  One of the following two definitions must be uncommented, to 
+ * generate the right paths.  For 640K machines (PCs or ATs), MEM640K should
+ * be defined.  For 512K machines, MEM512K should be defined.  On ATs with a
+ * large RAM disk in extended memory, put the whole compiler on the RAM disk
+ * and define RAMDISK.
+ */
+#endif
+#endif
+#endif
+
+
 #include <errno.h>
 #include <signal.h>
+
+#define SYMBOL_FILE	"symbol.out"		/* symbol table for prof */
 
 #define MAXARGC	64	/* maximum number of arguments allowed in a list */
 #define USTR_SIZE	64	/* maximum length of string variable */
@@ -28,20 +36,6 @@ struct arglist {
 	char *al_argv[MAXARGC];
 };
 
-!!! AH HA!  I HAVE YOUR ATTENTION!
-/* This is not an error.  It is a dirty trick to force the user to read this
- * comment.  The program cc calls the various passes of the compiler.  To call
- * them, it must know where they are.  On the 640K PC MINIX, cpp and cem are
- * kept in /lib, on the root device.  Thus the symbol PP is defined as
- * /lib/cpp, etc.  On the 512K AT, there is no room on the root device, so cpp
- * and cem are kept in /usr/lib, which means that PP must be /usr/lib/cpp,
- * etc.  One of the following two definitions must be uncommented, to 
- * generate the right paths.  For 640K machines (PCs or Ats), MEM640K should
- * be defined.  For 512K machines, MEM512K should be defined.
- */
-
-/* #define MEM640K */
-/* #define MEM512K */
 
 #ifdef MEM640K
 /* MINIX paths for 640K PC (not 512K AT) */
@@ -50,6 +44,7 @@ char *CEM    = "/lib/cem";
 char *OPT    = "/usr/lib/opt";
 char *CG     = "/usr/lib/cg";
 char *ASLD   = "/usr/bin/asld";
+char *AST    = "/usr/bin/ast";
 char *SHELL  = "/bin/sh";
 char *LIBDIR = "/usr/lib";
 #endif
@@ -61,27 +56,39 @@ char *CEM    = "/usr/lib/cem";
 char *OPT    = "/usr/lib/opt";
 char *CG     = "/usr/lib/cg";
 char *ASLD   = "/usr/bin/asld";
+char *AST    = "/usr/bin/ast";
 char *SHELL  = "/bin/sh";
 char *LIBDIR = "/usr/lib";
 #endif
 
-struct arglist LD_HEAD = {
-	1,
-	{
-		"/usr/lib/crtso.s",
-	}
-};
+#ifdef RAMDISK
+/* MINIX paths for RAM disk (mostly PC/ATs with large extended memory */
+char *PP     = "/lib/cpp";
+char *CEM    = "/lib/cem";
+char *OPT    = "/lib/opt";
+char *CG     = "/lib/cg";
+char *ASLD   = "/bin/asld";
+char *AST    = "/bin/ast";
+char *SHELL  = "/bin/sh";
+char *LIBDIR = "/lib";
+#endif
 
-struct arglist LD_TAIL = {
-	2,
-	{
-		"/usr/lib/libc.a",
-		"/usr/lib/end.s"
-	}
-};
+#ifdef RAMDISK
+struct arglist LD_HEAD =    {1, { "/lib/crtso.s" } };
+struct arglist M_LD_HEAD =  {1, { "/lib/mrtso.s" } };
+struct arglist LD_TAIL =    {2, { "/lib/libc.a", "/lib/end.s" } };
+#else
+struct arglist LD_HEAD =    {1, { "/usr/lib/crtso.s" } };
+struct arglist M_LD_HEAD =  {1, { "/usr/lib/mrtso.s" } };
+struct arglist LD_TAIL =    {2, { "/usr/lib/libc.a", "/usr/lib/end.s" } };
+#endif
+
 
 
 char *o_FILE = "a.out"; /* default name for executable file */
+
+#define AST_FLAGS	"-X"
+#define AST_TAIL	"symbol.out"
 
 #define remove(str)	(unlink(str), (str)[0] = '\0')
 #define cleanup(str)		(str && remove(str))
@@ -112,6 +119,8 @@ int o_flag = 0;
 int S_flag = 0;
 int v_flag = 0;
 int F_flag = 0;	/* use pipes by default */
+int s_flag = 0;
+int p_flag = 0;	/* profil flag */
 
 char *mkstr();
 char *alloc();
@@ -141,6 +150,7 @@ trapcc(sig)
 main(argc, argv)
 	char *argv[];
 {
+	register char *f;
 	char *str;
 	char **argvec;
 	int count;
@@ -199,9 +209,15 @@ main(argc, argv)
 			append(&ASLD_FLAGS, str);
 			/*FALLTHROUGH*/
 		case 'R':
-		case 'p':
 		case 'w':
 			append(&CEM_FLAGS, str);
+			break;
+		case 's':
+			s_flag = 1;
+			break;
+		case 'p':
+			p_flag = 1;
+			s_flag = 1;
 			break;
 		case 'L':
 			if (strcmp(&str[1], "LIB") == 0) {
@@ -221,10 +237,9 @@ main(argc, argv)
 	argvec = &(SRCFILES.al_argv[0]);
 
 	while (count-- > 0) {
-		register char *f;
 		basename(file = *argvec++, BASE);
 
-		if (SRCFILES.al_argc > 1) {
+		if (v_flag && SRCFILES.al_argc > 1) {
 			write(1, file, strlen(file));
 			write(1, ":\n", 2);
 		}
@@ -333,18 +348,33 @@ main(argc, argv)
 		init(call);
 		append(call, ASLD);
 		concat(call, &ASLD_FLAGS);
+		if (s_flag) append(call, "-s");
 		append(call, "-o");
 		append(call, o_FILE);
-		concat(call, &LD_HEAD);
+		if (p_flag)
+			concat(call, &M_LD_HEAD);
+		else	concat(call, &LD_HEAD);
 		concat(call, &LDFILES);
 		concat(call, &LD_TAIL);
-		if (runvec(call, (char *)0)) {
+		if (s_flag) 
+			f = SYMBOL_FILE;
+		else	f = (char *) 0;
+		if (runvec(call, f)) {
 			register i = GEN_LDFILES.al_argc;
 
 			while (i-- > 0)
 				remove(GEN_LDFILES.al_argv[i]);
 
 		}
+	}
+	/* add symbol table when p_flag is set */
+	if (s_flag) {
+		init(call);
+		append(call, AST);
+		append(call, AST_FLAGS);
+		append(call, o_FILE);
+		append(call, AST_TAIL);
+		(void) runvec(call, (char *) 0);
 	}
 	return(RET_CODE);
 }

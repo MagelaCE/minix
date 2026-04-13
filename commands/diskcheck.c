@@ -1,12 +1,8 @@
 /* diskcheck - test a disk for bad blocks	Author: Andy Tanenbaum */
 
-/* Usage: diskcheck  device  starting-block  block-count
- * Example:  diskcheck /dev/hd1 0 10000  # check blocks 0 to 9999 on hd1 
- */
-
-#include "signal.h"
-#include "../fs/const.h"
-#include "../h/const.h"
+#include <signal.h>
+#include <fs/const.h>
+#include <minix/const.h>
 #include <errno.h>
 #undef printf
 #define PRINTFREQ  100
@@ -19,6 +15,7 @@ int blk = -1;			/* number of the block in buf, or -1 */
 int pfd;			/* file descriptor for purging */
 int fd;				/* file descriptor for data I/O */
 unsigned initblock;		/* first block to test */
+unsigned curblock;		/* current block */
 unsigned limit;			/* first block beyond test zone */
 unsigned errors;		/* # errors so far */
 unsigned ct;			/* # blocks read so far */
@@ -66,6 +63,7 @@ char *argv[];
 			write(fd, buf, BLOCK_SIZE);
 		}
 	}
+	curblock = b;
 	ct++;
 	if (ct % PRINTFREQ == 0) status();
   }
@@ -124,7 +122,8 @@ unsigned b;
 
 status()
 {
-  printf("%5u blocks tested, %u errors detected\n",ct,errors);
+  printf("%5u blocks tested, %u errors detected (last block tested = %5u)\n",
+						ct,errors,curblock);
 }
 
 nonfatal(s, b)
@@ -194,3 +193,4 @@ purge_cache()
   }
   close(pfd);
 }
+

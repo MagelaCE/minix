@@ -470,8 +470,7 @@ register char *pp;
 			if (ent[j].d_ino == 0)
 				continue;
 			strncpy(dname, ent[j].d_name, DIRSIZ);
-			if (dname[0] == '.' &&
-			    (dname[1] == '\0' || dname[1] == '.' && dname[2] == '\0'))
+			if (dname[0] == '.')
 				if (*gp != '.')
 					continue;
 			for(k=0; k<DIRSIZ; k++)

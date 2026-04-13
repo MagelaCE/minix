@@ -30,7 +30,7 @@ char *argv[];
   }
   std_err(argv[1]);
   std_err(" mounted\n");
-  if ((fd = open("/etc/mtab", 2)) < 0) exit(1);
+  if ((fd = open(mounttable, 2)) < 0) exit(1);
   lseek(fd, 0L, 2);		/* seek to EOF */
   write(fd, argv[1], strlen(argv[1]));
   write(fd, " is mounted on ", 15);

@@ -9,7 +9,7 @@
 
 #ifndef i8088
 #ifndef ATARI_ST
-#Either_i8088_or_ATARI_ST_must_be_defined
+#error Either i8088 or ATARI ST must be defined
 #endif
 #endif
 

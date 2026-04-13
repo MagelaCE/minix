@@ -27,6 +27,7 @@ char *name , *mode;
 		break;
 
 	case 'a': 
+		flags |= WRITEMODE;
 		if (( fd = open(name,1)) < 0 )
 			if(errno != ENOENT || (fd = creat(name, PMODE)) < 0)
 				return(NULL);

@@ -1,3 +1,4 @@
+.define _get_base, _get_size, _get_tot_mem
 .globl _get_base, _get_size, _get_tot_mem
 .globl endbss
 
@@ -17,7 +18,7 @@ _get_tot_mem:
 	cli
 	push es
 	push di
-	mov ax,#8192		| start search at 128K (8192 clicks)
+	mov ax,#16384		| start search at 256K (16384 clicks)
 	sub di,di
 L1:	mov es,ax
 	seg es

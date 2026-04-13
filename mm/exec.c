@@ -76,7 +76,8 @@ PUBLIC int do_exec()
 
   /* Read the file header and extract the segment sizes. */
   sc = (stk_bytes + CLICK_SIZE - 1) >> CLICK_SHIFT;
-  m = read_header(fd, &ft, &text_bytes, &data_bytes, &bss_bytes, &tot_bytes, &sym_bytes, sc);
+  m = read_header(fd, &ft, &text_bytes, &data_bytes, &bss_bytes, 
+						&tot_bytes, &sym_bytes, sc);
   if (m < 0) {
 	close(fd);		/* something wrong with header */
 	return(ENOEXEC);
@@ -142,7 +143,8 @@ PUBLIC int do_exec()
 /*===========================================================================*
  *				read_header				     *
  *===========================================================================*/
-PRIVATE int read_header(fd, ft, text_bytes, data_bytes, bss_bytes, tot_bytes, sym_bytes, sc)
+PRIVATE int read_header(fd, ft, text_bytes, data_bytes, bss_bytes, 
+						    tot_bytes, sym_bytes, sc)
 int fd;				/* file descriptor for reading exec file */
 int *ft;			/* place to return ft number */
 vir_bytes *text_bytes;		/* place to return text size */

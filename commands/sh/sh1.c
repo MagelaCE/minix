@@ -1,7 +1,7 @@
 #define Extern extern
-#include "signal.h"
-#include "errno.h"
-#include "setjmp.h"
+#include <signal.h>
+#include <errno.h>
+#include <setjmp.h>
 #include "sh.h"
 /* -------- sh.c -------- */
 /*
@@ -162,7 +162,7 @@ register char **argv;
 				dolc--;	/* keyword */
 			else
 				ap++;
-	setval(lookup("#"), putn(dolc-1));
+	setval(lookup("#"), putn(--dolc));
 
 	for (;;) {
 		if (talking && e.iop <= iostack)

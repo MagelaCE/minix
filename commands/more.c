@@ -1,19 +1,33 @@
 /* more - terminal pager		Author: Brandon S. Allbery  */
 
+/*  Temporary fixes:  efth   1988-Aug-16
+     -  don't display directories and special files
+     -  don't die on files with '\0' in them
+     -  don't print non-ASCII characters
+     -  use termcap for #lines, normal, reverse, clear-line
+ */
+
+
 /* Pager commands:
  *	<space>	 display next page
  *	<return> scroll up 1 line
  *	q	 quit
 */
 
-#define reverse()	write(1, "\033[7m", 4)		/* reverse video */
-#define normal()	write(1, "\033[m", 3)		/* undo reverse() */
-#define clearln()	write(1, "\r\033[J", 4)		/* clear line */
+char *SO, *SE, *CD;
 
-#define LINES		23	/* lines/screen (- 1 to retain last line) */
+#define reverse()	write(1, SO, strlen(SO))	/* reverse video */
+#define normal()	write(1, SE, strlen(SE))	/* undo reverse() */
+#define clearln()	write(1,"\r",1); \
+			write(1, CD, strlen(CD))	/* clear line */
+
+int  lines;			/* lines/screen (- 2 to retain last line) */
+
 #define COLS		80	/* columns/line */
 #define TABSTOP		8	/* tabstop expansion */
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sgtty.h>
 #include <signal.h>
 
@@ -34,14 +48,17 @@ int isdone = 0;			/* flag: return EOF next read even if not */
 
 main(argc, argv)
 char **argv; {
-	char ch;
+	int ch;
 	int fd, arg;
+	struct stat s;
+
+	get_termcap();
 
 	signal(SIGINT, byebye);
 	fd = 0;
 	cbreak();
 	if (argc < 2)
-		while ((ch = input(fd)) != 0)
+		while ((ch = input(fd)) != -1)
 			output(ch);
 	else
 		for (arg = 1; argv[arg] != (char *) 0; arg++) {
@@ -52,8 +69,19 @@ char **argv; {
 				nocbreak();
 				exit(1);
 			}
-			while ((ch = input(fd)) != 0)
-				output(ch);
+
+			if ( fstat(fd,&s) < 0 ) {
+				write( 1, "more: can not fstat file\n", 25 );
+				nocbreak();
+				exit(1);
+			}
+
+			if ( (s.st_mode & S_IFMT) == S_IFREG )
+				while ((ch = input(fd)) != -1)
+					output(ch);
+			else
+				write(1, "not file\n", 9 );
+
 			close(fd);
 			if (argv[arg + 1] != (char *) 0) {
 				oflush();
@@ -77,7 +105,7 @@ char **argv; {
 					break;
 				case '\r':
 				case '\n':
-					line = LINES - 1;
+					line = lines - 1;
 					break;
 				case 'q':
 				case 'Q':
@@ -95,7 +123,7 @@ input(fd) {
 	if (isdone) {
 		ibl = 0;
 		ibc = 0;
-		return 0;
+		return -1;
 	}
 	if (isrewind) {
 		lseek(fd, 0L, 0);
@@ -106,9 +134,9 @@ input(fd) {
 	if (ibc == ibl) {
 		ibc = 0;
 		if ((ibl = read(fd, ibuf, sizeof ibuf)) <= 0)
-			return 0;
+			return -1;
 	}
-	return ibuf[ibc++];
+	return ibuf[ibc++] & 0xff;
 }
 
 output(c)
@@ -140,7 +168,7 @@ unsigned len; {
 		switch (buf[here++]) {
 		case '\n':
 			col = 0;
-			if (++line == LINES) {
+			if (++line == lines) {
 				write(fd, buf + start, here - start);
 				reverse();
 				write(1, "--More--", 8);
@@ -168,9 +196,11 @@ unsigned len; {
 			} while (col % TABSTOP != 0);
 			break;
 		default:
+			if ( buf[here-1] < ' ' || (buf[here-1] & 0x80) )
+			   buf[here-1] = '?';
 			if (++col == COLS) {
 				col = 0;
-				if (++line == LINES) {
+				if (++line == lines) {
 					write(fd, buf + start, here - start);
 					reverse();
 					write(1, "--More--", 8);
@@ -190,7 +220,7 @@ unsigned len; {
 			break;
 		case '\r':
 		case '\n':
-			line = LINES - 1;
+			line = lines - 1;
 			break;
 		case 'q':
 		case 'Q':
@@ -249,3 +279,27 @@ byebye() {
 	nocbreak();
 	exit(0);
 }
+
+
+
+get_termcap()
+  {
+  static char termbuf[50];
+  extern char *tgetstr(), *getenv();
+  char *loc = termbuf;
+  char entry[1024];
+
+  if (tgetent(entry, getenv("TERM")) <= 0) {
+  	printf("Unknown terminal.\n");
+  	exit(1);
+  }
+
+  lines = tgetnum("li" ) - 2;
+
+  SO = tgetstr("so", &loc);
+  SE = tgetstr("se", &loc);
+  CD = tgetstr("cd", &loc);
+
+  if ( CD == (char *) 0 )
+    CD = "             \r";
+  }

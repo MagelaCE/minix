@@ -1,5 +1,5 @@
+.define _setjmp,_longjmp
 .globl _setjmp, _longjmp
-.globl csv
 .text
 _setjmp:	mov	bx,sp
 		mov	ax,(bx)
@@ -11,7 +11,8 @@ _setjmp:	mov	bx,sp
 		ret
 
 _longjmp:	xor	ax,ax
-		call	csv
+		push	bp
+		mov	bp,sp
 		mov	bx,*4(bp)
 		mov	ax,*6(bp)
 		or	ax,ax
@@ -24,11 +25,12 @@ L2:		cmp	cx,*0(bp)
 		or	bp,bp
 		jne	L2
 		hlt
-L3:		mov	di,*-2(bp)
-		mov	si,*-4(bp)
+L3:
 		mov	bp,*0(bp)
 		mov	sp,*2(bx)
 		mov	cx,*4(bx)
 		mov	bx,sp
 		mov	(bx),cx
 		ret
+
+

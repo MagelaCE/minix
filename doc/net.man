@@ -585,42 +585,22 @@ How to Install Amoeba
 You must do the following important steps carefully.
 
 
- 1. Make sure that you are in the amoeba directory.
-    Run the command:
+ 1. Make sure that you are in the amoeba directory and that there is plenty
+    of free disk space.  Run the command:
 
 	install
 
- 2. If you do not have much free disk space then do the following:
-    Go to the fs directory (ie. ../fs) and type
-	make clean
-    Then go to the mm directory (ie. ../mm) and type:
-	make clean
-    Then go to the kernel directory (ie. ../kernel) and type:
-	make clean
+ 2. Type:  make
 
- 3. Go to the amoeba/mm directory and run make.
+ 3. When you are instructed to do so, insert a blank diskette and hit return.
 
- 4. Go to the amoeba/fs directory and run make.
+ 4. Reboot your machine using the new boot floppy.
 
- 5. Go to the amoeba/kernel directory (NOT the regular kernel directory).
-    If you do NOT have an ethernet card but still wish to have local Amoeba
-    transactions then edit the makefile and add -DNONET to the CFLAGS.
-    If you do have an ethernet card and would like to keep ethernet statistics
-    then add -DSTATISTICS to CFLAGS.
-
- 6. Now run make.
-
- 7. Go to the tools directory and build a new boot floppy.
-    The command to do this is:
-	make net
-
- 8. Reboot your machine using the new boot floppy.
-
- 9. Test the system.  The directory amoeba/examples contains several programs 
+ 5. Test the system.  The directory amoeba/examples contains several programs 
     to test the reliability of transactions.  The READ_ME file in the directory
     gives more details.
 
-10. If you have an ethernet card then install the network tools.  The directory
+ 6. If you have an ethernet card then install the network tools.  The directory
     amoeba/util contains utilities for remote shells, remote file copying and
     message sending.  These only work with machines that have Amoeba
     transactions installed.  The READ_ME file there gives more details.
@@ -727,7 +707,7 @@ For example,
 
 	/usr/bin/master 1 2 2 /etc/sherver mumbo
 
-will start a single sherver listening to the port `jumbo' and ensure that
+will start a single sherver listening to the port `mumbo' and ensure that
 there is always a sherver running.  This sherver will have uid=2 and gid=2,
 so that rsh calls to mumbo will be executed with this uid/gid combination.  
 It is suggested to start up master in the /etc/rc file of any machine
@@ -793,14 +773,11 @@ level protocol which affect the ethernet driver.
      then bufread will not be called again until an eth_release has been done.
 
   3. The ethernet driver generates no write interrupts.  This is because we
-     found that the chip on the ethernet card was so much faster than the CPU
-     on the Zenith AT clone that it was always sent before the next packet is
-     ready.  If necessary the high level code busy-waits until the ethernet
-     write buffer is free.  If write interrupts are required then pkt_sent()
-     in amoeba.c should be modified.
-     This is rather disgusting, but was done for efficiency reasons.  Interrupt
-     handling is expensive under Minix and so it was much faster to not
-     generate interrupts and just wait for the buffer to become free.
+     found that busy waiting was more efficient than doing a context switch and
+     waiting for an interrupt.  By the time the context switch was done, the
+     interrupt had already happened, so we had to switch back.  It's faster to
+     just wait for it.  On a very slow machine, a different strategy might be
+     appropriate.
 
 There are several routines used by the high level code which should be
 provided by the ethernet driver.  Unless otherwise stated, these routines are 

@@ -1,9 +1,6 @@
 # This shell script copies the few files required for amoeba transactions
 # to the appropriate directories.
 #
-cp mm/IBM_PC/makefile mm/makefile
-cp fs/IBM_PC/makefile fs/makefile
-cp kernel/IBM_PC/makefile kernel/makefile
 cp h/amoeba.h /usr/include
 cp h/host_os.h /usr/include
 cp h/amparam.h /usr/include

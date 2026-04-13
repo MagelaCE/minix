@@ -1,41 +1,58 @@
-/* Here is source that will compile with AZTEC C86.  Define AZTEC86 and compile it.
-** it is completely self-contained - no makefile. Just "cc -dAZTEC86 compress ;
-**ln compress.o -lc".
-** for some debug output add -DDEBUG
-** for more add -DDEBUG -DDEBUG2 -DAZTECBITS=12 (won't work w 13 bits)
-**
-** It also has defines for the Metaware compiler, but since that is not yet very
-** popular, I won't include the functions that Metaware lacks (stat and utime).
-** Altered by Richard Todd to allow compilation for MINIX with Aztec cc and
-** the appropriate library:
-**   cc -DMINIX -DAZTEC86 compress.c
-**   ln -o compress.exe -S 1 crtso.o compress.o -lminix	
-**   dos2out -d compress.exe
-** If MINIX isn't defined and AZTEC86 is, PCDOS will be automatically defined.
-*/
-#ifdef _lint      
-/* flags for gimpel's pc-lint */
-#define AZTEC86
-/*lint -e701 -e702 signed integers are shifted with reckless abandon */
-#endif
-/* 
- * Compress - data compression program 
- */
-#define	min(a,b)	((a>b) ? b : a)
+/* compress - Reduce file size using Modified Lempel-Ziv encoding */
 
 /*
- * machine variants which require cc -Dmachine:  pdp11, z8000 
- * compiler variants for PC-DOS which require -Dcompiler: AZTEC86
+ * compress.c - File compression ala IEEE Computer, June 1984.
+ *
+ * Authors:	Spencer W. Thomas	(decvax!harpo!utah-cs!utah-gr!thomas)
+ *		Jim McKie		(decvax!mcvax!jim)
+ *		Steve Davies		(decvax!vax135!petsd!peora!srd)
+ *		Ken Turkowski		(decvax!decwrl!turtlevax!ken)
+ *		James A. Woods		(decvax!ihnp4!ames!jaw)
+ *		Joe Orost		(decvax!vax135!petsd!joe)
+ *
+ *		Richard Todd		Port to MINIX
+ *		Andy Tanenbaum		Cleanup
+ *
+ *
+ * Algorithm from "A Technique for High Performance Data Compression",
+ * Terry A. Welch, IEEE Computer Vol 17, No 6 (June 1984), pp 8-19.
+ *
+ * Usage: compress [-dfvc] [-b bits] [file ...]
+ * Inputs:
+ *	-d:	    If given, decompression is done instead.
+ *
+ *      -c:         Write output on stdout.
+ *
+ *      -b:         Parameter limits the max number of bits/code.
+ *
+ *	-f:	    Forces output file to be generated, even if one already
+ *		    exists, and even if no space is saved by compressing.
+ *		    If -f is not used, the user will be prompted if stdin is
+ *		    a tty, otherwise, the output file will not be overwritten.
+ *
+ *      -v:	    Write compression statistics
+ *
+ * 	file ...:   Files to be compressed.  If none specified, stdin
+ *		    is used.
+ * Outputs:
+ *	file.Z:	    Compressed form of file with same mode, owner, and utimes
+ * 	or stdout   (if stdin used as input)
+ *
+ * Assumptions:
+ *	When filenames are given, replaces with the compressed version
+ *	(.Z suffix) only if the file decreases in size.
+ * Algorithm:
+ * 	Modified Lempel-Ziv method (LZW).  Basically finds common
+ * substrings and replaces them with a variable size code.  This is
+ * deterministic, and can be done on the fly.  Thus, the decompression
+ * procedure needs no input table, but tracks the way the table was built.
  */
 
-/*******************************************************************
-*
-*	IMPORTANT MODEL 16 NOTE
-*
-*	cc -DM_XENIX -DUSERMEM=128000 compress.c -o compress
-*
-*******************************************************************/
 
+#define AZTEC86 1
+#define MINIX 1
+
+#define	min(a,b)	((a>b) ? b : a)
 
 /*
  * Set USERMEM to the maximum amount of physical user memory available
@@ -53,32 +70,8 @@
 # define USERMEM 	450000	/* default user memory */
 #endif
 
-#ifdef interdata		/* (Perkin-Elmer) */
-#define SIGNED_COMPARE_SLOW	/* signed compare is slower than unsigned */
-#endif
-
-#ifdef pdp11
-# define BITS 	12	/* max bits/code for 16-bit machine */
-# define NO_UCHAR	/* also if "unsigned char" functions as signed char */
-# undef USERMEM 
-#endif /* pdp11 */	/* don't forget to compile with -i */
-
-#ifdef z8000
-# define BITS 	12
-# undef vax		/* weird preprocessor */
-# undef USERMEM 
-#endif /* z8000 */
-
-#ifdef METAWARE
-#define REGISTER
-#define AZTEC86
-#include <stdlib.h>
-#include <string.h>
-#include <system.cf>
-#include <ufile.h>
-#else
 #define REGISTER register
-#endif /* METAWARE */
+#define DOTZ ".Z"
 
 #ifdef AZTEC86 
 void prratio(),cl_block(),cl_hash(),output(),decompress(),
@@ -134,15 +127,6 @@ copystat(),writeerr(),compress(),Usage(),version();
 # define HSIZE	5003		/* 80% occupancy */
 #endif
 
-#ifdef M_XENIX			/* Stupid compiler can't handle arrays with */
-# if BITS == 16			/* more than 65535 bytes - so we fake it */
-#  define XENIX_16
-# else
-#  if BITS > 13			/* Code only handles BITS = 12, 13, or 16 */
-#   define BITS	13
-#  endif
-# endif
-#endif
 
 /*
  * a code_int must be able to hold 2**BITS values of type int, and also -1
@@ -174,170 +158,13 @@ char_type magic_header[] = { "\037\235" };	/* 1F 9D */
    a fourth header byte (for expansion).
 */
 #define INIT_BITS 9			/* initial number of bits/code */
-
-/*
- * compress.c - File compression ala IEEE Computer, June 1984.
- *
- * Authors:	Spencer W. Thomas	(decvax!harpo!utah-cs!utah-gr!thomas)
- *		Jim McKie		(decvax!mcvax!jim)
- *		Steve Davies		(decvax!vax135!petsd!peora!srd)
- *		Ken Turkowski		(decvax!decwrl!turtlevax!ken)
- *		James A. Woods		(decvax!ihnp4!ames!jaw)
- *		Joe Orost		(decvax!vax135!petsd!joe)
- *
- * $Header: compress.c,v 4.0 85/07/30 12:50:00 joe Release $
- * $Log:	compress.c,v $
- * Revision 4.1  85/12/02             Kent Williams
- * Ported to AZTEC C86 under MSDOS
- * Changed appending a ".Z" to just "Z" so that MSDOS won't choke
- * changed getchar and putchar to getc(stdin) and putc(c,stdout) to
- * suppress cr/nl mapping and hi bit masking
- *
- * Revision 4.0  85/07/30  12:50:00  joe
- * Removed ferror() calls in output routine on every output except first.
- * Prepared for release to the world.
- * 
- * Revision 3.6  85/07/04  01:22:21  joe
- * Remove much wasted storage by overlaying hash table with the tables
- * used by decompress: tab_suffix[1<<BITS], stack[8000].  Updated USERMEM
- * computations.  Fixed dump_tab() DEBUG routine.
- *
- * Revision 3.5  85/06/30  20:47:21  jaw
- * Change hash function to use exclusive-or.  Rip out hash cache.  These
- * speedups render the megamemory version defunct, for now.  Make decoder
- * stack global.  Parts of the RCS trunks 2.7, 2.6, and 2.1 no longer apply.
- *
- * Revision 3.4  85/06/27  12:00:00  ken
- * Get rid of all floating-point calculations by doing all compression ratio
- * calculations in fixed point.
- *
- * Revision 3.3  85/06/24  21:53:24  joe
- * Incorporate portability suggestion for M_XENIX.  Got rid of text on #else
- * and #endif lines.  Cleaned up #ifdefs for vax and interdata.
- *
- * Revision 3.2  85/06/06  21:53:24  jaw
- * Incorporate portability suggestions for Z8000, IBM PC/XT from mailing list.
- * Default to "quiet" output (no compression statistics).
- *
- * Revision 3.1  85/05/12  18:56:13  jaw
- * Integrate decompress() stack speedups (from early pointer mods by McKie).
- * Repair multi-file USERMEM gaffe.  Unify 'force' flags to mimic semantics
- * of SVR2 'pack'.  Streamline block-compress table clear logic.  Increase 
- * output byte count by magic number size.
- * 
- * Revision 3.0   84/11/27  11:50:00  petsd!joe
- * Set HSIZE depending on BITS.  Set BITS depending on USERMEM.  Unrolled
- * loops in clear routines.  Added "-C" flag for 2.0 compatibility.  Used
- * unsigned compares on Perkin-Elmer.  Fixed foreground check.
- *
- * Revision 2.7   84/11/16  19:35:39  ames!jaw
- * Cache common hash codes based on input statistics; this improves
- * performance for low-density raster images.  Pass on #ifdef bundle
- * from Turkowski.
- *
- * Revision 2.6   84/11/05  19:18:21  ames!jaw
- * Vary size of hash tables to reduce time for small files.
- * Tune PDP-11 hash function.
- *
- * Revision 2.5   84/10/30  20:15:14  ames!jaw
- * Junk chaining; replace with the simpler (and, on the VAX, faster)
- * double hashing, discussed within.  Make block compression standard.
- *
- * Revision 2.4   84/10/16  11:11:11  ames!jaw
- * Introduce adaptive reset for block compression, to boost the rate
- * another several percent.  (See mailing list notes.)
- *
- * Revision 2.3   84/09/22  22:00:00  petsd!joe
- * Implemented "-B" block compress.  Implemented REVERSE sorting of tab_next.
- * Bug fix for last bits.  Changed fwrite to putc loop everywhere.
- *
- * Revision 2.2   84/09/18  14:12:21  ames!jaw
- * Fold in news changes, small machine typedef from thomas,
- * #ifdef interdata from joe.
- *
- * Revision 2.1   84/09/10  12:34:56  ames!jaw
- * Configured fast table lookup for 32-bit machines.
- * This cuts user time in half for b <= FBITS, and is useful for news batching
- * from VAX to PDP sites.  Also sped up decompress() [fwrite->putc] and
- * added signal catcher [plus beef in writeerr()] to delete effluvia.
- *
- * Revision 2.0   84/08/28  22:00:00  petsd!joe
- * Add check for foreground before prompting user.  Insert maxbits into
- * compressed file.  Force file being uncompressed to end with ".Z".
- * Added "-c" flag and "zcat".  Prepared for release.
- *
- * Revision 1.10  84/08/24  18:28:00  turtlevax!ken
- * Will only compress regular files (no directories), added a magic number
- * header (plus an undocumented -n flag to handle old files without headers),
- * added -f flag to force overwriting of possibly existing destination file,
- * otherwise the user is prompted for a response.  Will tack on a .Z to a
- * filename if it doesn't have one when decompressing.  Will only replace
- * file if it was compressed.
- *
- * Revision 1.9  84/08/16  17:28:00  turtlevax!ken
- * Removed scanargs(), getopt(), added .Z extension and unlimited number of
- * filenames to compress.  Flags may be clustered (-Ddvb12) or separated
- * (-D -d -v -b 12), or combination thereof.  Modes and other status is
- * copied with copystat().  -O bug for 4.2 seems to have disappeared with
- * 1.8.
- *
- * Revision 1.8  84/08/09  23:15:00  joe
- * Made it compatible with vax version, installed jim's fixes/enhancements
- *
- * Revision 1.6  84/08/01  22:08:00  joe
- * Sped up algorithm significantly by sorting the compress chain.
- *
- * Revision 1.5  84/07/13  13:11:00  srd
- * Added C version of vax asm routines.  Changed structure to arrays to
- * save much memory.  Do unsigned compares where possible (faster on
- * Perkin-Elmer)
- *
- * Revision 1.4  84/07/05  03:11:11  thomas
- * Clean up the code a little and lint it.  (Lint complains about all
- * the regs used in the asm, but I'm not going to "fix" this.)
- *
- * Revision 1.3  84/07/05  02:06:54  thomas
- * Minor fixes.
- *
- * Revision 1.2  84/07/05  00:27:27  thomas
- * Add variable bit length output.
- *
- */
 static char rcs_ident[] = "$Header: compress.c,v 4.1 85/12/05 09:00:00 kent Release $";
 
 #include <stdio.h>
 #include <ctype.h>
-
-#ifndef METAWARE
 #include <signal.h>
-#endif
-
-#ifndef AZTEC86
 #include <sys/types.h>
 #include <sys/stat.h>
-#else
-/* stuff defined for Aztec compiler */
-#ifndef MINIX
-#define PCDOS
-/* MINIX can handle full-length filenames, DOS can't */
-/* also, MINIX has full stat capability */
-#endif
-
-#include <stat.h>
-#ifndef METAWARE
-#ifndef MINIX
-/* MINIX signal.h includes definition of signal */
-void (*signal())();
-#endif
-FILE *freopen();
-#endif
-#endif
-
-#ifdef PCDOS
-#define DOTZ "Z"
-#else
-#define DOTZ ".Z"
-#endif
 
 #define ARGVAL() (*++(*argv) || (--argc && *++argv))
 
@@ -351,31 +178,6 @@ code_int maxmaxcode = 1 << BITS;	/* should NEVER generate this code */
 # define MAXCODE(n_bits)	((1 << (n_bits)) - 1)
 #endif /* COMPATIBLE */
 
-#ifdef XENIX_16
-count_int htab0[8192];
-count_int htab1[8192];
-count_int htab2[8192];
-count_int htab3[8192];
-count_int htab4[8192];
-count_int htab5[8192];
-count_int htab6[8192];
-count_int htab7[8192];
-count_int htab8[HSIZE-65536];
-count_int * htab[9] = {
-	htab0, htab1, htab2, htab3, htab4, htab5, htab6, htab7, htab8 };
-#define htabof(i)	(htab[(i) >> 13][(i) & 0x1fff])
-unsigned short code0tab[16384];
-unsigned short code1tab[16384];
-unsigned short code2tab[16384];
-unsigned short code3tab[16384];
-unsigned short code4tab[16384];
-unsigned short * codetab[5] = {
-	code0tab, code1tab, code2tab, code3tab, code4tab };
-
-#define codetabof(i)	(codetab[(i) >> 14][(i) & 0x3fff])
-
-#else	/* Normal machine */
-
 #ifndef AZTEC86
 	count_int htab [HSIZE];
 	unsigned short codetab [HSIZE];
@@ -385,7 +187,7 @@ unsigned short * codetab[5] = {
 #	define HTABSIZE ((unsigned)(HSIZE*sizeof(count_int)))
 #	define CODETABSIZE ((unsigned)(HSIZE*sizeof(unsigned short)))
 
-#endif
+
 #define htabof(i)	htab[i]
 #define codetabof(i)	codetab[i]
 #endif	/* XENIX_16 */
@@ -461,42 +263,6 @@ int
 
 int do_decomp = 0;
 
-/*****************************************************************
- * TAG( main )
- *
- * Algorithm from "A Technique for High Performance Data Compression",
- * Terry A. Welch, IEEE Computer Vol 17, No 6 (June 1984), pp 8-19.
- *
- * Usage: compress [-dfvc] [-b bits] [file ...]
- * Inputs:
- *	-d:	    If given, decompression is done instead.
- *
- *      -c:         Write output on stdout, don't remove original.
- *
- *      -b:         Parameter limits the max number of bits/code.
- *
- *	-f:	    Forces output file to be generated, even if one already
- *		    exists, and even if no space is saved by compressing.
- *		    If -f is not used, the user will be prompted if stdin is
- *		    a tty, otherwise, the output file will not be overwritten.
- *
- *      -v:	    Write compression statistics
- *
- * 	file ...:   Files to be compressed.  If none specified, stdin
- *		    is used.
- * Outputs:
- *	file.Z:	    Compressed form of file with same mode, owner, and utimes
- * 	or stdout   (if stdin used as input)
- *
- * Assumptions:
- *	When filenames are given, replaces with the compressed version
- *	(.Z suffix) only if the file decreases in size.
- * Algorithm:
- * 	Modified Lempel-Ziv method (LZW).  Basically finds common
- * substrings and replaces them with a variable size code.  This is
- * deterministic, and can be done on the fly.  Thus, the decompression
- * procedure needs no input table, but tracks the way the table was built.
- */
 
 void main( argc, argv )
 REGISTER int argc; char **argv;
@@ -823,23 +589,25 @@ REGISTER int argc; char **argv;
 			{
 				if (stat(ofname, &statbuf) == 0) 
 				{
-				    char response[2];
+				    char response[2]; int fd;
 				    response[0] = 'n';
 				    fprintf(stderr, "%s already exists;", ofname);
 				    if (foreground()) 
 					{
+						fd = open("/dev/tty", 0);
 						fprintf(stderr, 
 						" do you wish to overwrite %s (y or n)? ", ofname);
 						fflush(stderr);
-						(void)read(2, response, 2);
+						(void)read(fd, response, 2);
 						while (response[1] != '\n') 
 						{
-						    if (read(2, response+1, 1) < 0) 
+						    if (read(fd, response+1, 1) < 0) 
 							{	/* Ack! */
 								perror("stderr"); 
 								break;
 						    }
 						}
+						close(fd);
 				    }
 				    if (response[0] != 'y') 
 					{
@@ -1576,7 +1344,8 @@ char *ifname, *ofname;
 #else
 	unsigned long timep[2];
 #endif
-    fclose(stdout);
+    fflush(stdout);
+    close(fileno(stdout));
     if (stat(ifname, &statbuf)) 
 	{		/* Get stat on input file */
 		perror(ifname);
@@ -1622,11 +1391,16 @@ char *ifname, *ofname;
 		timep[1] = statbuf.st_mtime;
 #endif
 		utime(ofname, timep);	/* Update last accessed and modified times */
-		if (unlink(ifname))	/* Remove input file */
+/*
+		if (unlink(ifname))
 		    perror(ifname);
+*/
 		if(!quiet)
-			fprintf(stderr, " -- replaced with %s", ofname);
-			return;		/* Successful return */
+		    if(do_decomp == 0)
+			fprintf(stderr, " -- compressed to %s", ofname);
+		    else
+			fprintf(stderr, " -- decompressed to %s", ofname);
+		return;		/* Successful return */
     }
 
     /* Unsuccessful return -- one of the tests failed */
@@ -1793,7 +1567,7 @@ long int num, den;
 		putc('-', stream);
 		q = -q;
 	}
-	fprintf(stream, "%d.%02d%%", q / 100, q % 100);
+	fprintf(stream, "%d.%02d%c", q / 100, q % 100, '%');
 }
 
 void version()
@@ -1827,4 +1601,3 @@ void version()
 	fprintf(stderr, "BITS = %d\n", BITS);
 }
 /* End of text from uok.UUCP:net.sources */
-

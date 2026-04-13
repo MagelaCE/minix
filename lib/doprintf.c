@@ -16,7 +16,7 @@
 #endif
 
 static char *
-itoa(p, num, radix)
+_itoa(p, num, radix)
 register char *p;
 register unsigned num;
 register radix;
@@ -182,7 +182,7 @@ register int *args;
 				break;
 			}
 #endif
-			p = itoa(p, GETARG(int), c);
+			p = _itoa(p, GETARG(int), c);
 			break;
 		case 'D':
 #ifndef NO_LONGD
@@ -203,7 +203,7 @@ register int *args;
 				*p++ = '-';
 				i = -i;
 			}
-			p = itoa(p, i, 10);
+			p = _itoa(p, i, 10);
 			break;
 #ifdef NO_FLOAT
 		case 'e':

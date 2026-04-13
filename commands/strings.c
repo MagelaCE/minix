@@ -1,191 +1,153 @@
-/****************************************************************/
-/*								*/
-/*	strings.c						*/
-/*								*/
-/*		Find printable strings in a file.		*/
-/*		This is the code for strings(1).		*/
-/*								*/
-/****************************************************************/
-/*   origination        1988-Apr-14               T. Holm	*/
-/****************************************************************/
+/* strings - print ASCII strings in a file	Author: Peter S. Housel */
 
+/*
+	This is a version of the BSD "strings" program for Minix. It is used
+to search a file for printable strings. To install,
 
+	cc -o strings strings.c
+	chmem =8000 strings
 
+Command:  strings - search file for printable strings
+Syntax:	  strings [-] [-o] [-len] file ...
+Flags:	  -	Search the entire file. If this option is not given, only
+		the initialized data segment of files that appear to be
+		"a.out" format is searched.
+	  -o	Print the offset (in octal) with each string.
+	  -len	Use "len" as the minimum string length. The default is 4.
+Examples: strings core
+	  strings -o a.out > str
 
-/****************************************************************/
-/*								*/
-/*								*/
-/*  Usage:    strings  [ -o ]  [ -number ]  [ file ]		*/
-/*								*/
-/*								*/
-/*  The "file", or standard input if "file" is not specified,	*/
-/*  is scanned for possible character strings. A "string" is	*/
-/*  a sequence of 4 or more printable ASCII characters followed */
-/*  by a '\0', '\n' or '\r'.					*/
-/*								*/
-/*								*/
-/*    -o       Also display the character offset of the start	*/
-/*	       of the string from the beginning of the file,	*/
-/*	       in decimal.					*/
-/*								*/
-/*    -number  Minimum sequence length which is considered a	*/
-/*	       string (the default is 4).			*/
-/*								*/
-/*								*/
-/****************************************************************/
+Strings searches the specified file(s) for printable ASCII strings (four
+or more printable characters followed by a newline or a null) and writes
+them to the standard output. This can be used to find out, for example, to
+find out what program a "core" file came from, what kinds of error messages
+are in an executable, or to see ASCII data hidden in a "binary" data file.
 
+P.S. The program doesn't use the "a.out.h" file posted last week by
+Dick van Veen, both because it was written before then, and because
+not everybody has a.out.h yet. Future revisions probably ought to, though.
+
+*/
 
 
 
 #include <stdio.h>
+#include <ctype.h>
 
+/* Minix (8086 version) dependant definitions */
+#define SMALLMAGIC	0x04100301L	/* small model a.out magic number */
+#define SEPARATEMAGIC	0x04200301L	/* separate instruction/data a.out */
 
-#define   FALSE			0
-#define   TRUE 			1
-#define   MAX_STRING_LENGTH	78
+#define HDR_MAGIC	0		/* 0'th long  magic number */
+#define HDR_HSIZE	1		/* 1'st long  size of header */
+#define HDR_TSIZE	2		/* 2'nd long  size of text */
+#define HDR_DSIZE	3		/* 3'rd long  size of init'ed data */
+#define HDR_BSIZE	4		/* 4'th long  size of bss */
+#define HDR_TOTMEM	6		/* 6'th long  total memory */
 
+#define HDR_LEN		8		/* total length of header */
 
+/* miscellaneous definitions */
+#define	STRLEN		4		/* default minimum string length */
+#define STRBUF		512		/* buffer length for strings */
 
+void strings(), usage();
 
+int strmin = STRLEN;			/* minimum string length */
+int printoff = 0;			/* print octal offset of each str */
+int objall = 0;				/* search entire a.out file, not */
+					/* just initialized data segment */
 
-main( argc, argv )
-  int   argc;
-  char *argv[];
-
-  {
-  char  *my_name       = argv[0];   /*  The name of this program      */
-
-  char   echo_position = FALSE;	    /*  "-o" means echo where found   */
-  long   position      = 0;	    /*  Where string was found	      */
-
-  int    string_size   = 4;	    /*  "-#" sets minimum string size */
-  int    count         = 0;         /*  Size of string so far         */
-  
-  char   string[MAX_STRING_LENGTH]; /*  A possible printable string   */
-  int    c;
-
-
-
-  /********  Parse the arguments  ********/
-
-  --argc;
-  ++argv;
-
-
-  if ( argc > 0  &&  strcmp( argv[0], "-o" ) == 0 )
-    {
-    echo_position = TRUE;
-
-    --argc;
-    ++argv;
-    }
-
-
-  if ( argc > 0  &&  *argv[0] == '-' )
-    {
-    string_size = atoi( argv[0]+1 );
-
-    if ( string_size <= 0 )
-      string_size = 1;
-
-    --argc;
-    ++argv;
-    }
-
-
-  if ( argc > 0 )
-    {
-    if( (freopen( argv[0], "r", stdin )) == NULL )
+main(argc, argv)
+int argc; char *argv[];
+{
+ while((++argv, --argc) && '-' == (*argv)[0])
       {
-      fprintf( stderr, "%s:  Can not open file \"%s\"\n", my_name, argv[0] );
-      exit( 1 );
+       if(!strcmp(*argv, "-"))
+	  ++objall;
+       else if(!strcmp(*argv, "-o"))
+	  ++printoff;
+       else if(isdigit((*argv)[1]))
+	  strmin = atoi(&(*argv)[1]);
+       else
+	  usage();
+      } 
+
+ if(0 == argc)
+    usage();
+
+ while(argc--)
+       strings(*argv++);
+
+ exit(0);
+}
+
+void strings(filename)
+char *filename;
+{
+ char buf[STRBUF];	/* the strings buffer */
+ char *bufptr;		/* pointer into the strings buffer */ 
+ FILE *input;		/* input file */
+ long header[HDR_LEN];	/* buffer for reading the header */
+ long offset;		/* file offset */
+ long limit;		/* limit, if doing data segment only */
+ int c;			/* input character */
+
+
+ extern FILE *fopen();
+ extern int fread();
+
+ if(NULL == (input = fopen(filename, "r")))
+   {
+    fprintf(stderr, "strings: ");
+    perror(filename);
+    exit(1);
+   }
+
+ if(HDR_LEN == fread(header, sizeof(long), HDR_LEN, input)
+    && (SMALLMAGIC == header[HDR_MAGIC]
+	|| SEPARATEMAGIC == header[HDR_MAGIC]) && !objall)
+   {
+    offset = header[HDR_HSIZE] + header[HDR_TSIZE]; /* object file */
+    limit = offset + header[HDR_DSIZE];
+   }
+ else
+   {
+    offset = 0L;
+    limit = 0L;
+   }
+
+ fseek(input, offset, 0);
+ bufptr = buf;
+
+ while(!limit || offset < limit)
+      {
+       if(EOF == (c = getc(input)))
+          break;
+       if((('\0' == c || '\n' == c) && bufptr - buf >= strmin)
+	  || (bufptr - buf == STRBUF - 1))
+         {
+	  *bufptr = '\0';
+	  if(printoff)
+             printf("%O:", offset - (bufptr - buf));
+	  puts(buf);
+	  bufptr = buf;
+	 }
+       else if((' ' <= c && c < 0177) || '\t' == c)
+	  *bufptr++ = c;
+       else
+	  bufptr = buf;
+
+       ++offset;
       }
 
-    --argc;
-    ++argv;
-    }
+ fclose(input);  
+}
+
+void usage()
+{
+ fprintf(stderr, "usage: strings [-] [-o] [-num] file ...\n");
+ exit(1);
+}
 
 
-  if ( argc > 0 )
-    {
-    fprintf( stderr, "Usage:  %s  [ -o ]  [ -number ]  [ file ]\n", my_name );
-    exit( 1 );
-    }
-
-
-
-
-  /********  The main loop  ********/
-
-
-  while( (c=getchar()) != EOF )
-    {
-    ++position;
-
-
-    if (  c == '\0'  ||  c == '\n'  ||  c == '\r'  )
-      {
-      /*  Found the end of a printable string  */
-
-      if ( count >= string_size )
-	Print( string, count, echo_position, position - 1 - count );
-
-      count = 0;
-      }
-
-
-    else if (  c >= ' '  &&  c < '\177'  ||  c == '\t'  )
-      {
-      /*  Append another printable character to the string  */
-
-      string[count] = c;
-      ++count;
-
-      if ( count == MAX_STRING_LENGTH )
-	{
-	Print( string, count, echo_position, position - count );
-	count = 0;
-	}
-      }
-
-
-    else  /*  Not a printable character  */
-      count = 0;
-
-    }  /*  end while(getchar())  */
-
-  exit( 0 );
-  }
-
-
-
-
-
-
-
-
-/****************************************************************/
-/*								*/
-/*	Print( string, count, echo_position, position )		*/
-/*								*/
-/*		If "echo_position" is TRUE then output the	*/
-/*		"position" in the file. "count" printable	*/
-/*		characters in "string" are output.		*/
-/*								*/
-/****************************************************************/
-
-
-Print( string, count, echo_position, position )
-  char   string[];
-  int    count;
-  char   echo_position;
-  long   position;
-
-  {
-  if ( echo_position )
-    printf( "%7D ", position );
-
-  fwrite( string, 1, count, stdout );
-
-  putchar( '\n' );
-  }

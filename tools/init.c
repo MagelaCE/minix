@@ -28,6 +28,8 @@
 #define NOPARAMS        -100
 #define WTMPSIZE           8
 
+extern long time();
+extern long lseek();
 
 struct uart {
   int baud;
@@ -124,6 +126,7 @@ main()
   for (i = 1; i <= NR_SIGS; i++) signal(i, SIG_IGN);
 
   while (1) {
+	sync();
 	k = wait(&status);
 	pidct--;
 
@@ -154,9 +157,9 @@ int linenr, params;
 	/* Child */
 	close(0);		/* /etc/ttys may be open */
 	name[DIGIT] = '0' + linenr;
-	if (open(name, 0) != 0) exit(-3);	/* standard input */
-	if (open(name, 1) != 1) exit(-3);	/* standard output */
-	if (open(name, 1) != 2) exit(-3);	/* standard error */
+	if (open(name, 2) != 0) exit(-3);	/* standard input */
+	if (open(name, 2) != 1) exit(-3);	/* standard output */
+	if (open(name, 2) != 2) exit(-3);	/* standard error */
 
 
 	/* Set line parameters. */

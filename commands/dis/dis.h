@@ -25,7 +25,10 @@
   * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <stdio.h>      /* System standard I/O definitions  */
-#include <fcntl.h>      /* System file-control definitions  */
+
+/* fcntl.h not used in MINIX */
+/* #include <fcntl.h>      /* System file-control definitions  */
+
 #include <a.out.h>      /* Object file format definitions   */
 
 #if i8086 || i8088      /* For CPU's with 16-bit integers   */

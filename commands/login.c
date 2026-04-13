@@ -1,93 +1,172 @@
 /* login - log into the system		Author: Patrick van Kleef */
 
+/* Peter S. Housel   Jan. 1988
+ *  - Set up $USER, $HOME and $TERM.
+ *  - Set signals to SIG_DFL.
+ *
+ * Terrence W. Holm   June 1988
+ *  - Allow a username as an optional argument.
+ *  - Time out if a password is not typed within 30 seconds.
+ *  - Perform a dummy delay after a bad username is entered.
+ *  - Don't allow a login if "/etc/nologin" exists.
+ *  - Cause a failure on bad "pw_shell" fields.
+ *  - Record the login in "/usr/adm/wtmp".
+ */
+
 #include <signal.h>
 #include <sgtty.h>
 #include <pwd.h>
 #include <sys/stat.h>
 
-#define NULL (char *) 0
-#define WTMPSIZE 8
+#define  NULL   (char *) 0
+#define WTMPSIZE           8
 #define DIGIT 3
 
-char user[32];
-char home[64];
+extern char *crypt();
+extern struct passwd *getpwnam();
+extern long time();
+extern long lseek();
+int Time_out();
+
+int  time_out;
+
+char user[ 32 ];
+char logname[ 35 ];
+char home[ 64 ];
+char shell[ 64 ];
+
+char *env[] = {
+	      user,
+	      logname,
+	      home,
+	      shell,
+	      "TERM=minix",
+	      NULL
+};
+char wtmpfile[] = {"/usr/adm/wtmp"};
 char ttyname[] = {"tty?"};
-char *wtmpfile = "/usr/adm/wtmp";
-char *env[] = {user, home, "TERM=minix", (char *)0 };
 
-main() 
+
+main( argc, argv ) 
+int   argc;
+char *argv[];
 {
-	char buf[30], buf1[30], *crypt(), *p, *q;
-	int n, n1, bad, oldflags, ttynr;
-	struct sgttyb args;
+	char    name[30];
+	char	password[30];
+	int     bad;
+	int	n;
+	int 	ttynr;
+	struct  sgttyb args;
+	struct  passwd *pwd;
 	struct stat statbuf;
-	struct passwd *pwd, *getpwnam();
+	char   *sh = "/bin/sh";
 
-	/* Look up /dev/tty number. */
-	fstat(0, &statbuf);
-	ttynr = statbuf.st_rdev & 0377;
-	ttyname[DIGIT] = '0' + ttynr;
+	/* Reset some of the line parameters in case they have been mashed */
+	if ( ioctl(0, TIOCGETP, &args) < 0 ) exit( 1 );
 
-	/* Reset some of the line parameters in case they have been mashed. */
-	ioctl(0, TIOCGETP, &args);
-	args.sg_kill = '@';
+	args.sg_kill  = '@';
 	args.sg_erase = '\b';
-	oldflags = args.sg_flags & 01700;	/* save char len, parity */
-	args.sg_flags = oldflags | XTABS | CRMOD | ECHO;
-	ioctl(0, TIOCSETP, &args);
+	args.sg_flags = (args.sg_flags & 01700) | XTABS | CRMOD | ECHO;
+	ioctl (0, TIOCSETP, &args);
 
 	/* Get login name and passwd. */
 	for (;;) {
 		bad = 0;
-		do {
+
+		if ( argc > 1 ) {
+		    strcpy( name, argv[1] );
+		    argc = 1;
+		} else {
+		    do {
 			write(1,"login: ",7);
-			n = read (0, buf, 30);
-		} while (n < 2);
-		buf[n - 1] = 0;
+			n = read (0, name, 30);
+		    } while (n < 2);
+		    name[n - 1] = 0;
+		}
 
 		/* Look up login/passwd. */
-		if ((pwd = getpwnam (buf)) == 0) bad++;
+		if ((pwd = getpwnam (name)) == 0) bad++;
 
 		/* If login name wrong or password exists, ask for pw. */
 		if (bad || strlen (pwd->pw_passwd) != 0) {
 			args.sg_flags &= ~ECHO;
-			ioctl(0, TIOCSETP, &args);
+			ioctl (0, TIOCSETP, &args);
 			write(1,"Password: ",10);
-			n1 = read (0, buf1, 30);
-			buf1[n1 - 1] = 0;
+
+			time_out = 0;
+			signal( SIGALRM, Time_out );
+			alarm( 30 );
+
+			n = read (0, password, 30);
+
+			alarm( 0 );
+			if ( time_out ) {
+				n = 1;
+				bad++;
+			}
+
+			password[n - 1] = 0;
 			write(1,"\n",1);
 			args.sg_flags |= ECHO;
-			ioctl(0, TIOCSETP, &args);
-			if (bad || strcmp (pwd->pw_passwd, 
-						crypt(buf1, pwd->pw_passwd))) {
+			ioctl (0, TIOCSETP, &args);
+
+			if (bad && crypt(password, "aaaa") ||
+			 strcmp (pwd->pw_passwd, crypt(password, pwd->pw_passwd))) {
 				write (1,"Login incorrect\n",16);
 				continue;
 			}
 		}
 
-		/* Successful login.   Set up environment. */
-		setgid (pwd->pw_gid);
-		setuid (pwd->pw_uid);
-		chdir (pwd->pw_dir);
-		strcpy(home, "HOME=");
-		strcat(home, pwd->pw_dir);
-		strcpy(user, "USER=");
-		strcat(user, pwd->pw_name);
+		/*  Check if the system is going down  */
+		if ( access( "/etc/nologin", 0 ) == 0  &&  
+						strcmp( name, "root" ) != 0 ) {
+			write( 1, "System going down\n\n", 19 );
+			continue;
+		}
+
+
+		/* Look up /dev/tty number. */
+		fstat(0, &statbuf);
+		ttynr = statbuf.st_rdev & 0377;
+		ttyname[DIGIT] = '0' + ttynr;
+
+		/*  Write login record to /usr/adm/wtmp  */
+		wtmp(ttyname, name);
+
+		setgid( pwd->pw_gid );
+		setuid( pwd->pw_uid );
+
+		if (pwd->pw_shell[0]) sh = pwd->pw_shell;
+
+		/*  Set the environment  */
+		strcpy( user,  "USER=" );
+		strcat( user,   name );
+		strcpy( logname, "LOGNAME=" );
+		strcat( logname, name );
+		strcpy( home,  "HOME=" );
+		strcat( home,  pwd->pw_dir );
+		strcpy( shell, "SHELL=" );
+		strcat( shell, sh );
+
+		chdir( pwd->pw_dir );
 
 		/* Reset signals to default values. */
-		for(n = 1; n <= NR_SIGS; ++n) signal(n, SIG_DFL);
 
-		/* Creat wmtp entry. */
-		wtmp(ttyname, pwd->pw_name);
+		for ( n = 1;  n <= NR_SIGS;  ++n )
+		    signal( n, SIG_DFL );
 
-		/* If shell has been specified, exec it, else use /bin/sh. */
-		if (pwd->pw_shell) 
-			execle(pwd->pw_shell, "-", NULL, env);
-		execle("/bin/sh", "-", NULL, env);
-		write(1,"login can't exec shell\n",23);
+		execle( sh, "-", NULL, env );
+		write(1,"exec failure\n",13);
+		exit(1);
 	}
 }
 
+
+
+Time_out( )
+{
+  time_out = 1;
+}
 
 wtmp(tty, name)
 {

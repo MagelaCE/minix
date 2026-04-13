@@ -32,6 +32,7 @@
 #define  EXTERN
 #include "glo.h"
 #include "proc.h"
+#include "tty.h"
 
 extern int sys_task(), clock_task(), mem_task(), floppy_task(),
            winchester_task(), tty_task(), printer_task();

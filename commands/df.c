@@ -178,10 +178,12 @@ getname(p)
 char *p;
 {
   char c;
+  char ch;
 
   while (1) {
-	c = getchar();
-	if (c < 0) exit(0);
+	ch = getchar();
+	if (ch == EOF) exit(0);
+	c = (char) ch;
 	if (c == ' ') c = 0;
 	*p++ = c;
 	if (c == '\n') return;

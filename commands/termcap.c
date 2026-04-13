@@ -1,27 +1,11 @@
-/****************************************************************/
-/*								*/
-/*	termcap(1)						*/
-/*								*/
-/*		Display the current termcap settings.		*/
-/*								*/
-/****************************************************************/
-/*   origination	1988-Apr-28		 T. Holm	*/
-/****************************************************************/
-
+/* termcap - print termcap settings	Author: Terrence Holm */
 
 #include <stdio.h>
 
-
 #define  TC_BUFFER  1024	/* Size of termcap(3) buffer	*/
-
 
 char *getenv();
 char *tgetstr();
-
-
-
-
-
 
 /****************************************************************/
 /*								*/

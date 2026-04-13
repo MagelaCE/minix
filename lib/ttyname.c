@@ -34,7 +34,7 @@ char *ttyname( tty_file_desc )
   if ( (dev_dir_desc = open(DEV,0)) < 0 )
 	return( NULL );
 
-  while ( read(dev_dir_desc, (char *) &dir_entry, sizeof (struct direct)) > 0 )
+  while( read(dev_dir_desc, (char *) &dir_entry, sizeof (struct direct)) > 0 )
 	{
 	/*  Find an entry in /dev with the same inode number  */
 

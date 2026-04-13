@@ -1,7 +1,7 @@
 #define Extern extern
-#include "signal.h"
-#include "errno.h"
-#include "setjmp.h"
+#include <signal.h>
+#include <errno.h>
+#include <setjmp.h>
 #include "sh.h"
 
 /* -------- io.c -------- */
@@ -26,7 +26,7 @@ register int ec;
 		return(c);
 	}
 	c = readc();
-	if (ec != '\'') {
+ 	if (ec != '\'' && ec != '`' && e.iop->task != XGRAVE) {
 		if(c == '\\') {
 			c = readc();
 			if (c == '\n' && ec != '\"')
