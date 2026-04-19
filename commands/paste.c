@@ -60,7 +60,7 @@ extern int errno;
 #define MINIX   /* as opposed to C86, or AZTEC in my case */
 		/* just in case I want to compile under DOS sometime */
 
-#undef toupper
+#undef xtoupper
 
 /* I'd love to use enums, but not everyone has them.  Portability, y'know. */
 #define NODELIM		1
@@ -80,7 +80,7 @@ extern int errno;
 #define	CLOSED		((FILE *)-1)
 #define ENDLIST		((FILE *)-2)
 
-char *cmdnam, toupper();
+char *cmdnam, xtoupper();
 
 
 short int dflag,sflag;
@@ -106,7 +106,7 @@ char **argv;
 
 	while(argv[0][0] == '-' && argv[0][1] != '\0')
 	{
-		switch(toupper(argv[0][1]))
+		switch(xtoupper(argv[0][1]))
 		{
 			case 'D':
 				/* Delimiter character(s) */
@@ -424,7 +424,7 @@ char *strptr;
 		{
 			strptr++;	/* Get past escape character */
 
-			switch(toupper(*strptr))
+			switch(xtoupper(*strptr))
 			{
 				case '0':
 					*strout++ = DEL;
@@ -487,7 +487,7 @@ char *estring;
 	exit(1);
 }
 
-char toupper(c)			/* This is non-standard, but it works */
+char xtoupper(c)			/* This is non-standard, but it works */
 char c;
 {
    char x;

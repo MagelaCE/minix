@@ -1,79 +1,62 @@
-/*  strtok(3)
- *
- *  Author: Terrence W. Holm          July 1988
- *
- *
- *  This function is used to divide up a string into tokens.
- *  Strtok(3) is called with <string> pointing to the string
- *  to be scanned and <char_set> pointing to a string which
- *  consists of the set of separator characters. Tokens are
- *  substrings bordered by separator characters. A pointer to
- *  the first token encountered is returned. If <string> is
- *  NULL then the scan is continued from the last token
- *  returned. Each token is terminated by a '\0'. If there are
- *  no tokens remaining in the string then NULL is returned.
+/*
+ * Get next token from string s (NULL on 2nd, 3rd, etc. calls),
+ * where tokens are nonempty strings separated by runs of
+ * chars from delim.  Writes NULs into s to end tokens.  delim need not
+ * remain constant from call to call.
  */
 
-#define NULL (char *) 0
+#define	NULL	0
 
+static char *scanpoint = NULL;
 
-char *strtok( string, char_set )
-  char *string;
-  char *char_set;
+char *				/* NULL if no token left */
+strtok(s, delim)
+char *s;
+register char *delim;
+{
+	register char *scan;
+	char *tok;
+	register char *dscan;
 
-  {
-  static char *last_string = "";
-  register char *chr;
-  char *next_token;
+	if (s == NULL && scanpoint == NULL)
+		return(NULL);
+	if (s != NULL)
+		scan = s;
+	else
+		scan = scanpoint;
 
-  if ( string == NULL )
-      string = last_string;
+	/*
+	 * Scan leading delimiters.
+	 */
+	for (; *scan != '\0'; scan++) {
+		for (dscan = delim; *dscan != '\0'; dscan++)
+			if (*scan == *dscan)
+				break;
+		if (*dscan == '\0')
+			break;
+	}
+	if (*scan == '\0') {
+		scanpoint = NULL;
+		return(NULL);
+	}
 
-  if ( char_set == NULL )
-      return( NULL );
+	tok = scan;
 
+	/*
+	 * Scan token.
+	 */
+	for (; *scan != '\0'; scan++) {
+		for (dscan = delim; *dscan != '\0';)	/* ++ moved down. */
+			if (*scan == *dscan++) {
+				scanpoint = scan+1;
+				*scan = '\0';
+				return(tok);
+			}
+	}
 
-  /*  First skip over any separator characters  */
-
-  while ( *string != '\0' )
-      {
-      for ( chr = char_set;  *chr != '\0';  ++chr )
-	  if ( *string == *chr )
-	      break;
-
-      if ( *chr == '\0' )
-	  break;
-
-      ++string;
-      }
-
-
-  /*  Check if we have reached the end of the string  */
-
-  if ( *string == '\0' )
-      return( NULL );
-
-
-  /*  If not, then we have found the next token  */
-
-  next_token = string;
-
-
-  /*  Scan for the end of this token  */
-
-  while ( *string != '\0' )
-      {
-      for ( chr = char_set;  *chr != '\0';  ++chr )
-	  if ( *string == *chr )
-	      {
-	      *string = '\0';
-	      last_string = string + 1;
-	      return( next_token );
-	      }
-
-      ++string;
-      }
-
-  last_string = string;
-  return( next_token );
-  }
+	/*
+	 * Reached end of string.
+	 */
+	scanpoint = NULL;
+	return(tok);
+}

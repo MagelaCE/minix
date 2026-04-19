@@ -86,6 +86,7 @@ char *argv[];
   FILE *file;
   char *ptr;
   int index = 1;	/* index is one ahead of argc */
+  int line, col;
 
   setbuf(stdout, output);
   do { 
@@ -146,6 +147,7 @@ char *argv[];
   		}
 	continue;	/* Scan for next flags */
 
+
 	/* ==============  flags are read. Print the file(s) ========= */
 
 pr_files:
@@ -153,6 +155,9 @@ pr_files:
 	if (!no_header)
 		length -= 10;
 
+		for(line=0; line < length; line++)
+			for(col=0; col < columns; col++)
+				L_BUF(line, col) = NIL_PTR; 
 	if (length <= 0 ) {
 		fprintf(stderr,"Minimal length shuold be %d\n",no_header ?
 							1: 11);

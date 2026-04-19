@@ -156,7 +156,7 @@ Extern	char	*trap[NSIG];
 Extern	char	ourtrap[NSIG];
 Extern	int	trapset;	/* trap pending */
 
-extern	int	inword;	/* defer traps and interrupts */
+extern	int	heedint;	/* heed interrupt signals */
 
 Extern	int	yynerrs;	/* yacc */
 
@@ -235,18 +235,33 @@ void	putvlist(/* int key, int fd */);
 int	eqname(/* char *n1, char *n2 */);
 
 /* -------- io.h -------- */
+/* io buffer */
+struct iobuf {
+  unsigned id;				/* buffer id */
+  char buf[512];			/* buffer */
+  char *bufp;				/* pointer into buffer */
+  char *ebufp;				/* pointer to end of buffer */
+};
+
 /* possible arguments to an IO function */
 struct ioarg {
 	char	*aword;
 	char	**awordlist;
-	int	afile;	/* file descriptor */
+	int	afile;		/* file descriptor */
+	unsigned afid;		/* buffer id */
+	long	afpos;		/* file position */
+	struct iobuf *afbuf;	/* buffer for this file */
 };
+Extern struct ioarg ioargstack[NPUSH];
+#define AFID_NOBUF	(~0)
+#define AFID_ID		0
 
 /* an input generator's state */
 struct	io {
 	int	(*iofn)();
-	struct	ioarg	arg;
+	struct	ioarg	*argp;
 	int	peekc;
+	char	prev;		/* previous character read by readc() */
 	char	nlcount;	/* for `'s */
 	char	xchar;		/* for `'s */
 	char	task;		/* reason for pushed IO */
@@ -265,10 +280,10 @@ Extern	struct	io	iostack[NPUSH];
  */
 int	nlchar();
 int	strchar();
+int	qstrchar();
 int	filechar();
 int	herechar();
 int	linechar();
-int	nextchar();
 int	gravechar();
 int	qgravechar();
 int	dolchar();
@@ -277,6 +292,7 @@ int	wdchar();
 /*
  * IO functions
  */
+int	eofc();
 int	getc();
 int	readc();
 void	unget();
@@ -296,9 +312,9 @@ int	openpipe();
 void	closepipe();
 struct io *setbase(/* struct io * */);
 
-Extern	struct	ioarg	temparg;	/* temporary for PUSHIO */
-#define	PUSHIO(what,arg,gen) ((temparg.what = (arg)),pushio(temparg,(gen)))
-#define	RUN(what,arg,gen) ((temparg.what = (arg)), run(temparg,(gen)))
+extern	struct	ioarg	temparg;	/* temporary for PUSHIO */
+#define	PUSHIO(what,arg,gen) ((temparg.what = (arg)),pushio(&temparg,(gen)))
+#define	RUN(what,arg,gen) ((temparg.what = (arg)), run(&temparg,(gen)))
 
 /* -------- word.h -------- */
 #ifndef WORD_H

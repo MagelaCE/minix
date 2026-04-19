@@ -1,28 +1,12 @@
-/*  bcmp(3)
- *
- *  Author: Terrence W. Holm          Sep. 1988
+/*
+ - bcmp - Berklix equivalent of memcmp
  */
 
-
-int bcmp( vector1, vector2, count )
-  char *vector1;
-  char *vector2;
-  int   count;
-
-  {
-  int word_count = count / sizeof(int);
-  int byte_count = count & ( sizeof(int) - 1 );
-
-  if ( vector1 == vector2 )
-    return( 0 );
-
-  while( --word_count >= 0 )
-    if (  *((int *) vector1)++ != *((int *) vector2)++ )
-	return( 1 );
-
-  while( --byte_count >= 0 )
-    if (  *vector1++ != *vector2++ )
-	return( 1 );
-
-  return( 0 );
-  }
+int				/* == 0 or != 0 for equality and inequality */
+bcmp(s1, s2, length)
+char *s1;
+char *s2;	
+int length;
+{
+	return(memcmp((char *)s1, (char *)s2, (int)length));
+}

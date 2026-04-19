@@ -402,7 +402,8 @@ struct file *fp;
   }
   buf = getuidgid(xid);
   if (buf != 0)
-	fprintf(stdout, "%6s ",buf);
+	/* Assuming the number 8 is not a good idea. */
+	fprintf(stdout, "%-8.8s ",buf);
   else
 	fprintf(stdout, "%6d ",xid);
 }

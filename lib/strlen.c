@@ -1,10 +1,16 @@
-int strlen(s)
+/*
+ * strlen - length of string (not including NUL)
+ */
+int
+strlen(s)
 char *s;
 {
-/* Return length of s. */
+	register char *scan;
+	register int count;
 
-  char *original = s;
-
-  while (*s != 0) s++;
-  return(s - original);
+	count = 0;
+	scan = s;
+	while (*scan++ != '\0')
+		count++;
+	return(count);
 }

@@ -1,32 +1,21 @@
-/*  strpbrk(3)
- *
- *  Author:  Terrence W. Holm          July 1988
- *
- *
- *  Strpbrk(3) scans <string> for the first occurrence of a
- *  character from the string <char_set>. If a character from
- *  the <char_set> was found then a pointer to it within
- *  <string> is returned, otherwise NULL is returned.
+/*
+ * strpbrk - find first occurrence of any char from breakat in s
  */
 
-#define NULL (char *) 0
+#define	NULL	0
 
+char *				/* found char, or NULL if none */
+strpbrk(s, breakat)
+char *s;
+char *breakat;
+{
+	register char *sscan;
+	register char *bscan;
 
-char *strpbrk( string, char_set )
-  char *string;
-  char *char_set;
-
-  {
-  register char  c;
-  register char *p;
-
-  if ( string == NULL  ||  char_set == NULL )
-      return( NULL );
-
-  while ( (c = *string++) != '\0' )
-      for ( p = char_set;  *p != '\0';  ++p )
-	  if ( c == *p )
-	    return( string - 1 );
-
-  return( NULL );
-  }
+	for (sscan = s; *sscan != '\0'; sscan++) {
+		for (bscan = breakat; *bscan != '\0';)	/* ++ moved down. */
+			if (*sscan == *bscan++)
+				return(sscan);
+	}
+	return(NULL);
+}

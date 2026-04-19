@@ -106,7 +106,7 @@ int             ch;
 
 
 
-static tolower (ch)
+static xtolower (ch)
 int             ch;
 {
 	if (ch >= 'A' && ch <= 'Z')
@@ -176,7 +176,7 @@ union ptr_union *argp;		/* our argument list */
 				width = width * 10 + *format++ - '0';
 		} else
 			widflag = 0;	/* no width spec */
-		if (longflag = (tolower (*format) == 'l'))
+		if (longflag = (xtolower (*format) == 'l'))
 			++format;
 		if (*format != 'c')
 			while (iswhite (ic))
@@ -194,7 +194,7 @@ union ptr_union *argp;		/* our argument list */
 			base = 16;
 			if (((!widflag) || width >= 2) && ic == '0') {
 				rnc ();
-				if (tolower (ic) == 'x') {
+				if (xtolower (ic) == 'x') {
 					width -= 2;
 					done_some = 1;
 					rnc ();
@@ -217,8 +217,8 @@ union ptr_union *argp;		/* our argument list */
 			while (width--) {
 				if (isdigit (ic) && ic - '0' < base)
 					ic -= '0';
-				else if (base == 16 && tolower (ic) >= 'a' && tolower (ic) <= 'f')
-					ic = 10 + tolower (ic) - 'a';
+				else if (base == 16 && xtolower (ic) >= 'a' && xtolower (ic) <= 'f')
+					ic = 10 + xtolower (ic) - 'a';
 				else
 					break;
 				val = val * base + ic;

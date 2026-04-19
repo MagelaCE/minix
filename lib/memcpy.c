@@ -1,39 +1,31 @@
-/*  memcpy(3)
- *
- *  Author: Terrence W. Holm          Sep. 1988
+/*
+ * memcpy - copy bytes
  */
 
+char *
+memcpy(dst, src, size)
+char * dst;
+char * src;
+int size;
+{
+	register char *d;
+	register char *s;
+	register int n;
 
-char *memcpy( to, from, count )
-  char *to;
-  char *from;
-  int   count;
+	if (size <= 0)
+		return(dst);
 
-  {
-  int word_count = count / sizeof(int);
-  int byte_count = count & ( sizeof(int) - 1 );
-  char *temp_to  = to;
-  
-  if ( to > from  &&  to < from + count )
-    {
-    /*  Must copy backwards  */
-    from += count;
-    to   += count;
+	s = src;
+	d = dst;
+	if (s <= d && s + (size-1) >= d) {
+		/* Overlap, must copy right-to-left. */
+		s += size-1;
+		d += size-1;
+		for (n = size; n > 0; n--)
+			*d-- = *s--;
+	} else
+		for (n = size; n > 0; n--)
+			*d++ = *s++;
 
-    while( --byte_count >= 0 )
-      *--to = *--from;
-
-    while( --word_count >= 0 )
-      *--((int *) to) = *--((int *) from);
-    }
-  else
-    {
-    while( --word_count >= 0 )
-      *((int *) to)++ = *((int *) from)++;
-
-    while( --byte_count >= 0 )
-      *to++ = *from++;
-    }
-
-  return( temp_to );
-  }
+	return(dst);
+}

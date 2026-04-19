@@ -1,8 +1,13 @@
-bcopy(old, new, n)
-register char *old, *new;
-int n;
-{
-/* Copy a block of data. */
+/*
+ - bcopy - Berklix equivalent of memcpy
+ */
 
-  while (n--) *new++ = *old++;
+bcopy(src, dst, length)
+char *src;
+char *dst;
+int length;
+{
+	extern char * memcpy();
+
+	(void) memcpy((char *)dst, (char *)src, (int)length);
 }

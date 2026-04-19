@@ -1,27 +1,22 @@
 /*
-  strncpy.c - char *strncpy( char *s1, char *s2, int n )
-
-  Strncpy  writes exactly  n  (or 0 if n < 0)  characters to  s1.
-  It copies up to  n  characters from  s2, and null-pads the rest.
-  The result is null terminated iff  strlen( s2 ) < n.
-  It returns the target string.
-*/
-
-char *strncpy( s1, s2, n )
-char *s1;
-register char *s2;
+ * strncpy - copy at most n characters of string src to dst
+ */
+char *				/* dst */
+strncpy(dst, src, n)
+char *dst;
+char *src;
 int n;
 {
-  register char *rs1;
+	register char *dscan;
+	register char *sscan;
+	register int count;
 
-  rs1 = s1;
-  if ( n > 0 )
-  {
-    while ( (*rs1++ = *s2++) != 0 && --n != 0 )  
-      ;
-	if ( n != 0 )
-      while ( --n != 0 )
-        *rs1++ = 0;
-  }
-  return s1;
+	dscan = dst;
+	sscan = src;
+	count = n;
+	while (--count >= 0 && (*dscan++ = *sscan++) != '\0')
+		continue;
+	while (--count >= 0)
+		*dscan++ = '\0';
+	return(dst);
 }

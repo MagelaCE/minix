@@ -1,12 +1,33 @@
-int strcmp(s1, s2)
-register char *s1, *s2;
-{
-/* Compare 2 strings. */
+/*
+ * strcmp - compare string s1 to s2
+ */
 
-  while (1) {
-	if (*s1 != *s2) return(*s1 - *s2);
-	if (*s1 == 0) return(0);
-	s1++;
-	s2++;
-  }
+int				/* <0 for <, 0 for ==, >0 for > */
+strcmp(s1, s2)
+char *s1;
+char *s2;
+{
+	register char *scan1;
+	register char *scan2;
+
+	scan1 = s1;
+	scan2 = s2;
+	while (*scan1 != '\0' && *scan1 == *scan2) {
+		scan1++;
+		scan2++;
+	}
+
+	/*
+	 * The following case analysis is necessary so that characters
+	 * which look negative collate low against normal characters but
+	 * high against the end-of-string NUL.
+	 */
+	if (*scan1 == '\0' && *scan2 == '\0')
+		return(0);
+	else if (*scan1 == '\0')
+		return(-1);
+	else if (*scan2 == '\0')
+		return(1);
+	else
+		return(*scan1 - *scan2);
 }
