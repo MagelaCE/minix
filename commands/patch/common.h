@@ -1,6 +1,12 @@
-/* $Header: common.h,v 2.0 86/09/17 15:36:39 lwall Exp $
+/* $Header: common.h,v 2.0.1.2 88/06/22 20:44:53 lwall Locked $
  *
  * $Log:	common.h,v $
+ * Revision 2.0.1.2  88/06/22  20:44:53  lwall
+ * patch12: sprintf was declared wrong
+ * 
+ * Revision 2.0.1.1  88/06/03  15:01:56  lwall
+ * patch10: support for shorter extensions.
+ * 
  * Revision 2.0  86/09/17  15:36:39  lwall
  * Baseline for netwide release.
  * 
@@ -29,7 +35,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <sys/types.h>
-#include <stat.h>
+#include <sys/stat.h>
 #include <ctype.h>
 #include <signal.h>
 
@@ -42,11 +48,18 @@
 #define INITHUNKMAX 125			/* initial dynamic allocation size */
 #define MAXLINELEN 1024
 #define BUFFERSIZE 1024
-#define ORIGEXT ".orig"
 #define SCCSPREFIX "s."
 #define GET "get -e %s"
 #define RCSSUFFIX ",v"
 #define CHECKOUT "co -l %s"
+
+#ifdef FLEXFILENAMES
+#define ORIGEXT ".orig"
+#define REJEXT ".rej"
+#else
+#define ORIGEXT "~"
+#define REJEXT "#"
+#endif
 
 /* handy definitions */
 
@@ -65,7 +78,7 @@
 /* typedefs */
 
 typedef char bool;
-typedef int LINENUM;			/* must be signed */
+typedef long LINENUM;			/* must be signed */
 typedef unsigned MEM;			/* what to feed malloc */
 
 /* globals */
@@ -95,6 +108,7 @@ EXT char *outname INIT(Nullch);
 EXT char rejname[128];
 
 EXT char *origext INIT(Nullch);
+EXT char *origprae INIT(Nullch);
 
 EXT char TMPOUTNAME[] INIT("/tmp/patchoXXXXXX");
 EXT char TMPINNAME[] INIT("/tmp/patchiXXXXXX");	/* might want /usr/tmp here */
@@ -134,7 +148,11 @@ char *malloc();
 char *realloc();
 char *strcpy();
 char *strcat();
-char *sprintf();		/* usually */
 long atol();
 long lseek();
 char *mktemp();
+#ifdef CHARSPRINTF
+char *sprintf();
+#else
+int sprintf();
+#endif

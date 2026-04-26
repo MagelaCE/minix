@@ -23,6 +23,12 @@ st.1:	mov	(bx),ax		| clear bss
 	mov	sp,#kerstack+STACKSIZE
 	call	_main
 	mov	bx,ax		| put scan code for '=' in bx
+	sub	ax,ax		| ax == 0 to show new boot (was scan code)
+	mov	si,#_boot_parameters	| pointer to boot parameters in di:si
+	mov	di,ds
+	mov	cx,#10		| sizeof structure in cx
+				| next 'cli' and setting up segs is redundant
+				| and the segments are wrong for sep I&D
 	cli
 	mov	dx,#0x60
 	mov	ds,dx

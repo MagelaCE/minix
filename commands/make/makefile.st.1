@@ -1,0 +1,23 @@
+# Makefile for make! (Minix ST 1.1)
+
+CFLAGS = -O -Dunix 
+
+OBJS	=	check.o input.o macro.o main.o \
+		make.o reader.o rules.o putenv.o
+
+make:		$(OBJS)
+	cc -o make $(OBJS)
+ 
+check.o:	h.h check.c
+
+input.o:	h.h input.c
+
+macro.o:	h.h macro.c
+
+main.o:		h.h main.c
+
+make.o:		h.h make.c
+
+reader.o:	h.h reader.c
+
+rules.o:	h.h rules.c

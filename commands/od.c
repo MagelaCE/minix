@@ -1,6 +1,9 @@
-/* od - octal dump	   Author: Andy Tanenbaum */
+/* od - octal dump		   Author: Andy Tanenbaum */
 
+#include <sys/types.h>
+#include <fcntl.h>
 #include <stdio.h>
+#include <unistd.h>
 
 
 int bflag, cflag, dflag, oflag, xflag, hflag, linenr, width, state, ever;
@@ -28,23 +31,23 @@ char *argv[];
 	flags++;
 	p++;
 	while (*p) {
-	   switch(*p) {
-		case 'b': bflag++;	break;
-		case 'c': cflag++;	break;
-		case 'd': dflag++;	break;
-		case 'h': hflag++;	break;
-		case 'o': oflag++;	break;
-		case 'x': xflag++;	break;
-		default: usage();
-	   }
-	   p++;
+		switch (*p) {
+		    case 'b':	bflag++;	break;
+		    case 'c':	cflag++;	break;
+		    case 'd':	dflag++;	break;
+		    case 'h':	hflag++;	break;
+		    case 'o':	oflag++;	break;
+		    case 'x':	xflag++;	break;
+		    default:	usage();
+		}
+		p++;
 	}
   } else {
 	oflag = 1;
   }
-  if ( (bflag | cflag | dflag | oflag | xflag) == 0) oflag = 1;
+  if ((bflag | cflag | dflag | oflag | xflag) == 0) oflag = 1;
   k = (flags ? 2 : 1);
-  if (bflag | cflag ) {
+  if (bflag | cflag) {
 	width = 8;
   } else if (oflag) {
 	width = 7;
@@ -59,7 +62,7 @@ char *argv[];
   if (k < argc && *p != '+') {
 	/* Explicit file name given. */
 	close(0);
-	if (open(argv[k], 0) != 0) {
+	if (open(argv[k], O_RDONLY) != 0) {
 		std_err("od: cannot open ");
 		std_err(argv[k]);
 		std_err("\n");
@@ -72,10 +75,9 @@ char *argv[];
   if (k < argc) {
 	/* Offset present. */
 	off = offset(argc, argv, k);
-	off = (off/16L) * 16L;
-	lseek(0, off, 0);
+	off = (off / 16L) * 16L;
+	lseek(0, off, SEEK_SET);
   }
-
   dumpfile();
   addrout(off);
   printf("\n");
@@ -95,7 +97,8 @@ int k;
   /* See if the offset is decimal. */
   dot = 0;
   p = argv[k];
-  while (*p) if (*p++ == '.') dot = 1;
+  while (*p)
+	if (*p++ == '.') dot = 1;
 
   /* Convert offset to binary. */
   radix = (dot ? 10 : 8);
@@ -111,7 +114,7 @@ int k;
 	val = radix * val + c - '0';
   }
 
-  p = argv[k+1];
+  p = argv[k + 1];
   if (k + 1 == argc - 1 && *p == 'b') val = 512L * val;
   return(val);
 }
@@ -122,19 +125,18 @@ dumpfile()
   int k;
   int *words;
 
-  while ( (k = getwords(&words))) {/* 'k' is # bytes read */
-	if (k == 16 && same(words, prevwds) && ever==1) {
+  while ((k = getwords(&words))) {	/* 'k' is # bytes read */
+	if (k == 16 && same(words, prevwds) && ever == 1) {
 		if (state == 0) {
 			printf("*\n");
 			state = 1;
 			off += 16;
 			continue;
 		} else if (state == 1) {
-				off += 16;
-				continue;
-			}
-	} 
-
+			off += 16;
+			continue;
+		}
+	}
 	addrout(off);
 	off += k;
 	state = 0;
@@ -157,7 +159,7 @@ int words[8], k, radix;
   int i;
 
   if (linenr++ != 1) printf("       ");
-  for (i = 0; i < (k+1)/2; i++) outword(words[i], radix);
+  for (i = 0; i < (k + 1) / 2; i++) outword(words[i], radix);
   printf("\n");
 }
 
@@ -178,20 +180,29 @@ byte(val, c)
 int val;
 char c;
 {
-  if (c == 'b') { 
+  if (c == 'b') {
 	printf(" ");
 	outnum(val, 7);
 	return;
   }
-
-  if (val == 0)         printf("  \\0");
-  else if (val == '\b') printf("  \\b");
-  else if (val == '\f') printf("  \\f");
-  else if (val == '\n') printf("  \\n");
-  else if (val == '\r') printf("  \\r");
-  else if (val == '\t') printf("  \\t");
-  else if (val >= ' ' && val < 0177) printf("   %c",val);
-  else {printf(" "); outnum(val, 7);}
+  if (val == 0)
+	printf("  \\0");
+  else if (val == '\b')
+	printf("  \\b");
+  else if (val == '\f')
+	printf("  \\f");
+  else if (val == '\n')
+	printf("  \\n");
+  else if (val == '\r')
+	printf("  \\r");
+  else if (val == '\t')
+	printf("  \\t");
+  else if (val >= ' ' && val < 0177)
+	printf("   %c", val);
+  else {
+	printf(" ");
+	outnum(val, 7);
+  }
 }
 
 
@@ -220,7 +231,8 @@ int *w1, *w2;
 {
   int i;
   i = 8;
-  while (i--) if (*w1++ != *w2++) return(0);
+  while (i--)
+	if (*w1++ != *w2++) return(0);
   return(1);
 }
 
@@ -233,11 +245,15 @@ int val, radix;
 
   if (radix == 16) i = width - 4;
   if (radix == 10) i = width - 5;
-  if (radix ==  8) i = width - 6;
-  if (i == 1)      printf(" ");
-  else if (i == 2) printf("  ");
-  else if (i == 3) printf("   ");
-  else if (i == 4) printf("    ");
+  if (radix == 8) i = width - 6;
+  if (i == 1)
+	printf(" ");
+  else if (i == 2)
+	printf("  ");
+  else if (i == 3)
+	printf("   ");
+  else if (i == 4)
+	printf("    ");
   outnum(val, radix);
 }
 
@@ -245,7 +261,7 @@ int val, radix;
 outnum(num, radix)
 int num, radix;
 {
-/* Output a number with all leading 0s present.  Octal is 6 places, 
+/* Output a number with all leading 0s present.  Octal is 6 places,
  * decimal is 5 places, hex is 4 places.
  */
   int d, i;
@@ -253,19 +269,26 @@ int num, radix;
   char s[8];
 
   val = (unsigned) num;
-  if (radix ==  8) d = 6;
-  else if (radix == 10) d = 5;
-  else if (radix == 16) d = 4;
-  else if (radix == 7) {d = 3; radix = 8;}
-
+  if (radix == 8)
+	d = 6;
+  else if (radix == 10)
+	d = 5;
+  else if (radix == 16)
+	d = 4;
+  else if (radix == 7) {
+	d = 3;
+	radix = 8;
+  }
   for (i = 0; i < d; i++) {
 	s[i] = val % radix;
 	val -= s[i];
-	val = val/radix;
+	val = val / radix;
   }
-  for (i = d - 1 ; i >= 0; i--) {
-	if (s[i] > 9) printf("%c",'a'+s[i]-10);
-	else printf("%c",s[i]+'0');
+  for (i = d - 1; i >= 0; i--) {
+	if (s[i] > 9)
+		printf("%c", 'a' + s[i] - 10);
+	else
+		printf("%c", s[i] + '0');
   }
 }
 
@@ -276,9 +299,11 @@ long l;
   int i;
 
   if (hflag == 0) {
-	for (i = 0; i < 7; i++) printf("%c", (int)((l>>(18-3*i)) & 07) + '0');
+	for (i = 0; i < 7; i++)
+		printf("%c", (int) ((l >> (18 - 3 * i)) & 07) + '0');
   } else {
-	for (i = 0; i < 7; i++) printf("%c", hexit( (int)((l>>(24-4*i)) & 0x0F)) );
+	for (i = 0; i < 7; i++)
+		printf("%c", hexit((int) ((l >> (24 - 4 * i)) & 0x0F)));
   }
 }
 

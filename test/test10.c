@@ -1,4 +1,9 @@
-char *name[] = {"t10a","t10b","t10c","t10d","t10e","t10f","t10g","t10h","t10i","t10j"};
+/* test 10 */
+
+#include <sys/types.h>
+#include <fcntl.h>
+
+char *name[] = {"t10a", "t10b", "t10c", "t10d", "t10e", "t10f", "t10g", "t10h", "t10i", "t10j"};
 
 extern int errno;
 int errct;
@@ -15,13 +20,28 @@ main()
   /* Create files t10b ... t10h */
   mkfiles();
 
-  if (getpid() == pid) if (fork() == 0) {execl("t10a", (char *) 0); exit(0);}
-  if (getpid() == pid) if (fork() == 0) {execl("t10b", (char *) 0); exit(0);}
-  if (getpid() == pid) if (fork() == 0) {execl("t10c", (char *) 0); exit(0);}
-  if (getpid() == pid) if (fork() == 0) {execl("t10d", (char *) 0); exit(0);}
-
+  if (getpid() == pid)
+	if (fork() == 0) {
+		execl("t10a", (char *) 0);
+		exit(0);
+	}
+  if (getpid() == pid)
+	if (fork() == 0) {
+		execl("t10b", (char *) 0);
+		exit(0);
+	}
+  if (getpid() == pid)
+	if (fork() == 0) {
+		execl("t10c", (char *) 0);
+		exit(0);
+	}
+  if (getpid() == pid)
+	if (fork() == 0) {
+		execl("t10d", (char *) 0);
+		exit(0);
+	}
   for (i = 0; i < 60; i++) {
-	spawn( rand()&07);
+	spawn(rand() & 07);
   }
   for (i = 0; i < 4; i++) wait(&n);
   if (errct == 0)
@@ -37,7 +57,7 @@ int n;
 {
   int pid, k;
 
-  if (pid =fork()) {
+  if (pid = fork()) {
 	wait(&n);		/* wait for some child (any one) */
   } else {
 	k = execl(name[n], (char *) 0);
@@ -45,16 +65,19 @@ int n;
 	printf("Child execl didn't take. file=%s errno=%d\n", name[n], errno);
 	rmfiles();
 	exit(0);
-	printf("Worse yet, EXIT didn't exit\n"); 
+	printf("Worse yet, EXIT didn't exit\n");
   }
 }
 
 mkfiles()
 {
   int fd;
-  fd = open("t10a",0);
-  if (fd < 0) {printf("Can't open t10a\n"); exit(1);}
-  psize = read(fd, prog, 300*4);
+  fd = open("t10a", 0);
+  if (fd < 0) {
+	printf("Can't open t10a\n");
+	exit(1);
+  }
+  psize = read(fd, prog, 300 * 4);
   cr_file("t10b", 1600);
   cr_file("t10c", 1400);
   cr_file("t10d", 2300);

@@ -158,13 +158,13 @@ char_type magic_header[] = { "\037\235" };	/* 1F 9D */
    a fourth header byte (for expansion).
 */
 #define INIT_BITS 9			/* initial number of bits/code */
-static char rcs_ident[] = "$Header: compress.c,v 4.1 85/12/05 09:00:00 kent Release $";
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <signal.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 #define ARGVAL() (*++(*argv) || (--argc && *++argv))
 
@@ -594,7 +594,7 @@ REGISTER int argc; char **argv;
 				    fprintf(stderr, "%s already exists;", ofname);
 				    if (foreground()) 
 					{
-						fd = open("/dev/tty", 0);
+						fd = open("/dev/tty", O_RDONLY);
 						fprintf(stderr, 
 						" do you wish to overwrite %s (y or n)? ", ofname);
 						fflush(stderr);
@@ -1572,7 +1572,7 @@ long int num, den;
 
 void version()
 {
-	fprintf(stderr, "%s\n", rcs_ident);
+	fprintf(stderr, "compress 4.1\n");
 	fprintf(stderr, "Options: ");
 #ifdef vax
 	fprintf(stderr, "vax, ");

@@ -26,6 +26,8 @@
  *				: taken as the communication device.
  */
 
+#include <sys/types.h>
+#include <fcntl.h>
 #include <sgtty.h>
 #include <signal.h>
 
@@ -59,9 +61,8 @@ struct sgttyb sgstdin;		/* saved terminal parameters for stdin */
 int writepid;			/* pid of child writing commfd */
 
 char endseq[] = "\033[G";	/* sequence to leave simulator */
-				/* keypad '5', and must arrive in 1 piece */
-struct param_s
-{
+ /* Keypad '5', and must arrive in 1 piece */
+struct param_s {
   char *pattern;
   int value;
   char type;
@@ -71,38 +72,39 @@ struct param_s
 #define PARITY   3
 #define SPEED    4
 }
-  params[] =
+
+ params[] =
 {
-	"5", BITS5, BITS,
-	"6", BITS6, BITS,
-	"7", BITS7, BITS,
-	"8", BITS8, BITS,
+  "5", BITS5, BITS,
+  "6", BITS6, BITS,
+  "7", BITS7, BITS,
+  "8", BITS8, BITS,
 
-	"even", EVENP, PARITY,
-	"odd", ODDP, PARITY,
-	"nostrip", 0, NOSTRIP,
+  "even", EVENP, PARITY,
+  "odd", ODDP, PARITY,
+  "nostrip", 0, NOSTRIP,
 
-	"50", B50, SPEED,
-	"75", B75, SPEED,
-	"110", B110, SPEED,
-	"134", B134, SPEED,
-	"200", B200, SPEED,
-	"300", B300, SPEED,
-	"600", B600, SPEED,
-	"1200", B1200, SPEED,
-	"1800", B1800, SPEED,
-	"2400", B2400, SPEED,
-	"3600", B3600, SPEED,
-	"4800", B4800, SPEED,
-	"7200", B7200, SPEED,
-	"9600", B9600, SPEED,
-	"19200", B19200, SPEED,
-	"EXTA", EXTA, SPEED,
-	"EXTB", EXTB, SPEED,
-	"38400", B38400, SPEED,
-	"57600", B57600, SPEED,
-	"115200", B115200, SPEED,
-	"", 0, BAD,		/* BAD type to end list */	
+  "50", B50, SPEED,
+  "75", B75, SPEED,
+  "110", B110, SPEED,
+  "134", B134, SPEED,
+  "200", B200, SPEED,
+  "300", B300, SPEED,
+  "600", B600, SPEED,
+  "1200", B1200, SPEED,
+  "1800", B1800, SPEED,
+  "2400", B2400, SPEED,
+  "3600", B3600, SPEED,
+  "4800", B4800, SPEED,
+  "7200", B7200, SPEED,
+  "9600", B9600, SPEED,
+  "19200", B19200, SPEED,
+  "EXTA", EXTA, SPEED,
+  "EXTB", EXTB, SPEED,
+  "38400", B38400, SPEED,
+  "57600", B57600, SPEED,
+  "115200", B115200, SPEED,
+  "", 0, BAD,			/* BAD type to end list */
 };
 unsigned char strip_parity = 1;	/* nonzero to strip high bits before output */
 
@@ -118,52 +120,49 @@ char *argv[];
 
   sync();
   for (i = 1; i < argc; ++i)
-	if ( argv[i][0] == '/') {
+	if (argv[i][0] == '/') {
 		if (commdev != NULL)
-			error("Too may communication devices", "");
+			error("Too many communication devices", "");
 		commdev = argv[i];
 	}
   if (commdev == NULL) {
 	i = MAXARGS + 1;
 	commdev = "/dev/tty1";
-  }
-  else
+  } else
 	i = MAXARGS + 2;
-  if (argc > i)
-	error("Usage: term [baudrate] [data_bits] [parity]", "");
-  commfd = open(commdev, 2);
+  if (argc > i) error("Usage: term [baudrate] [data_bits] [parity]", "");
+  commfd = open(commdev, O_RDWR);
   if (commfd < 0) error("Can't open ", commdev);
 
   /* Save state of both devices before altering either (may be identical!). */
   ioctl(0, TIOCGETP, &sgstdin);
   ioctl(commfd, TIOCGETP, &sgcommfd);
-  set_mode(0, -1, -1, -1, &sgstdin);	/* RAW mode on stdin, others current */
+  set_mode(0, -1, -1, -1, &sgstdin);	/* RAW mode on stdin, others
+					 * current */
   set_uart(argc, argv);
 
   /* Main body of the terminal simulator. */
   signal(SIGINT, quit);
   signal(SIGPIPE, quit);
-  if (pipe(pipefd) < 0)
-	error("Can't create pipe", "");
-  switch((writepid = fork()))
-  {
-  case -1:
+  if (pipe(pipefd) < 0) error("Can't create pipe", "");
+  switch ((writepid = fork())) {
+      case -1:
 	error("Can't create process to write to comm device", "");
-  case 0:
-	/* piped stdin to tty */
+      case 0:
+	/* Piped stdin to tty */
 	close(pipefd[1]);
 	copy(pipefd[0], "piped stdin", commfd, commdev, "");
   }
   close(pipefd[0]);
-  switch((readpid = fork()))
-  {
-  case -1:
+  switch ((readpid = fork())) {
+      case -1:
 	error("Can't create process to read from comm device", "");
-  case 0:
-	/* tty to stdout */
+      case 0:
+	/* Tty to stdout */
 	copy(commfd, commdev, 1, "stdout", "");
-  }  
-  /* stdin to pipe */
+  }
+
+  /* Stdin to pipe */
   copy(0, "stdin", pipefd[1], "redirect stdin", endseq);
 }
 
@@ -187,29 +186,24 @@ char *argv[];
 	/* Check parameter for legality. */
 	for (j = 0, param = &params[0];
 	     param->type != BAD && strcmp(arg, param->pattern) != 0;
-	     ++j, ++param)
-		;
-	switch (param->type)
-	{
-	case BAD:
+	     ++j, ++param);
+	switch (param->type) {
+	    case BAD:
 		error("Invalid parameter: ", arg);
-	case BITS:
+	    case BITS:
 		bits = param->value;
 		if (++nbits > 1) error("Too many character sizes", "");
 		break;
-	case PARITY:
+	    case PARITY:
 		parity = param->value;
 		if (++nparities > 1) error("Too many parities", "");
 		break;
-	case SPEED:
+	    case SPEED:
 		speed = param->value;
-		if (speed == 0)
-			error("Invalid speed: ", arg);
+		if (speed == 0) error("Invalid speed: ", arg);
 		if (++nspeeds > 1) error("Too many speeds", "");
 		break;
-	case NOSTRIP:
-		strip_parity = 0;
-		break;
+	    case NOSTRIP:	strip_parity = 0;	break;
 	}
   }
   set_mode(commfd, speed, parity, bits, &sgcommfd);
@@ -222,17 +216,17 @@ int parity;
 int bits;
 struct sgttyb *sgsavep;
 {
-  /* Set open file fd to RAW mode with the given other modes.
-   * If fd is not a tty, this may do nothing but connecting ordinary files
-   * as ttys may have some use.
-   */
+  /* Set open file fd to RAW mode with the given other modes. If fd is
+   * not a tty, this may do nothing but connecting ordinary files as
+   * ttys may have some use. */
 
   struct sgttyb sgtty;
 
   sgtty = *sgsavep;
   if (speed == -1) speed = sgtty.sg_ispeed;
   if (parity == -1) parity = sgtty.sg_flags & (EVENP | ODDP);
-  if (bits == -1) bits = sgtty.sg_flags & BITS8; /* BITS8 is actually a mask */
+  if (bits == -1)
+	bits = sgtty.sg_flags & BITS8;	/* BITS8 is actually a mask */
   sgtty.sg_ispeed = speed;
   sgtty.sg_ospeed = speed;
   sgtty.sg_flags = RAW | parity | bits;
@@ -262,15 +256,13 @@ char *end;
 
   len = strlen(end);
   while (1) {
-	if ( (count = read(in, buf, CHUNK)) <= 0) {
+	if ((count = read(in, buf, CHUNK)) <= 0) {
 		write2sn("Can't read from ", inname);
 		quit();
 	}
-	if (count == len && strncmp(buf, end, count) == 0)
-		quit();
-	if (strip_parity)
-		for (bufp = buf, bufend = bufp + count;
-		     bufp < bufend; ++bufp )
+	if (count == len && strncmp(buf, end, count) == 0) quit();
+	if (strip_parity) for (bufp = buf, bufend = bufp + count;
+		     bufp < bufend; ++bufp)
 			*bufp &= 0x7F;
 	if (write(out, buf, count) != count) {
 		write2sn("Can't write to ", outname);

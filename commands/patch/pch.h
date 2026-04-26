@@ -1,6 +1,9 @@
-/* $Header: pch.h,v 2.0 86/09/17 15:39:57 lwall Exp $
+/* $Header: pch.h,v 2.0.1.1 87/01/30 22:47:16 lwall Exp $
  *
  * $Log:	pch.h,v $
+ * Revision 2.0.1.1  87/01/30  22:47:16  lwall
+ * Added do_ed_script().
+ * 
  * Revision 2.0  86/09/17  15:39:57  lwall
  * Baseline for netwide release.
  * 
@@ -30,3 +33,4 @@ LINENUM pch_hunk_beg();
 char pch_char();
 char *pfetch();
 char *pgets();
+void do_ed_script();

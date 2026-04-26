@@ -152,8 +152,8 @@ extern	char	*flag;
 extern	char	*null;	/* null value for variable */
 extern	int	intr;	/* interrupt pending */
 
-Extern	char	*trap[NSIG];
-Extern	char	ourtrap[NSIG];
+Extern	char	*trap[_NSIG];
+Extern	char	ourtrap[_NSIG];
 Extern	int	trapset;	/* trap pending */
 
 extern	int	heedint;	/* heed interrupt signals */
@@ -184,14 +184,14 @@ char	**eval();
 int	setstatus();
 int	waitfor();
 
-int	onintr();	/* SIGINT handler */
+void	onintr();	/* SIGINT handler */
 
 /*
  * error handling
  */
 void	leave();	/* abort shell (or fail in subshell) */
 void	fail();		/* fail but return to process next command */
-int	sig();		/* default signal handler */
+void	sig();		/* default signal handler */
 
 /*
  * library functions and system calls

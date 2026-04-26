@@ -17,16 +17,6 @@
 
 #define MINIX
 
-#ifndef lint
-char copyright[] =
-"@(#) Copyright (c) 1980 Regents of the University of California.\n\
- All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-static char sccsid[] = "@(#)more.c	5.19 (Berkeley) 6/29/88";
-#endif /* not lint */
-
 /*
 ** more.c - General purpose tty output filter and file perusal program
 **
@@ -36,13 +26,17 @@ static char sccsid[] = "@(#)more.c	5.19 (Berkeley) 6/29/88";
 **	modified by John Foderaro, UCB to add -c and MORE environment variable
 */
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <signal.h>
-#include <errno.h>
 #include <sgtty.h>
 #include <setjmp.h>
-#include <sys/stat.h>
+#undef SIGTSTP			/* POSIX requires it to be defined */
+
 #ifndef MINIX
 #include <sys/param.h>
 #include <sys/file.h>
@@ -59,8 +53,8 @@ typedef char *va_list;
 #define  va_arg(p,type)	( (type *) ((p)+=sizeof(type)) )[-1]
 #define  va_end(p)
 
-#define  vfprintf	_doprintf
-#define  vprintf(fmt,args)	vfprintf(stdout,fmt,args)
+#define  vfPrintf	_doPrintf
+#define  vPrintf(fmt,args)	vfPrintf(stdout,fmt,args)
 /* end of varargs.h -------- */
 
 #ifdef MINIX
@@ -92,6 +86,8 @@ typedef char *va_list;
 #define RUBOUT	'\177'
 #define ESC	'\033'
 #define QUIT	'\034'
+
+int Printf();
 
 struct sgttyb	otty, savetty;
 long		file_pos, file_size;
@@ -135,12 +131,12 @@ char		*cursorm;	/* cursor movement */
 char		cursorhome[40];	/* contains cursor movement to home */
 char		*EodClr;	/* clear rest of screen */
 char		*tgetstr();
+char		*tgoto();
 int		Mcol = 80;	/* number of columns */
 int		Wrap = 1;	/* set if automargins */
 int		soglitch;	/* terminal has standout mode glitch */
 int		ulglitch;	/* terminal has underline mode glitch */
 int		pstate = 0;	/* current UL state */
-long		fseek();
 char		*getenv();
 struct {
     long chrctr, line;
@@ -299,11 +295,11 @@ char *argv[];
 		    pr("::::::::::::::");
 		    if (promptlen > 14)
 			erase (14);
-		    printf ("\n");
+		    Printf ("\n");
 		    if(clreol) cleareol();
-		    printf("%s\n", fnames[fnum]);
+		    Printf("%s\n", fnames[fnum]);
 		    if(clreol) cleareol();
-		    printf("::::::::::::::\n");
+		    Printf("::::::::::::::\n");
 		    if (left > Lpp - 4)
 			left = Lpp - 4;
 		}
@@ -394,7 +390,7 @@ checkf (fs, clearfirst)
 		return((FILE *)NULL);
 	}
 	if ((stbuf.st_mode & S_IFMT) == S_IFDIR) {
-		printf("\n*** %s: directory ***\n\n", fs);
+		Printf("\n*** %s: directory ***\n\n", fs);
 		return((FILE *)NULL);
 	}
 	if ((f = Fopen(fs, "r")) == NULL) {
@@ -435,7 +431,7 @@ magic(f, fs)
 		case 0405:
 		case 0411:
 		case 0177545:
-			printf("\n******** %s: Not a text file ********\n\n", fs);
+			Printf("\n******** %s: Not a text file ********\n\n", fs);
 			(void)fclose(f);
 			return(1);
 		}
@@ -614,9 +610,9 @@ register FILE *f;
 	putchar(c);
 }
 
-/* Simplified printf function */
+/* Simplified Printf function */
 
-printf (fmt, va_alist)
+int Printf (fmt, va_alist)
 register char *fmt;
 va_dcl
 {
@@ -681,16 +677,16 @@ int n;
 char *str;
 {
     sptr = str;
-    Sprintf (n);
+    SPrintf (n);
     *sptr = '\0';
 }
 
-Sprintf (n)
+SPrintf (n)
 {
     int a;
 
     if (a = n/10)
-	Sprintf (a);
+	SPrintf (a);
     *sptr++ = n % 10 + '0';
 }
 
@@ -745,10 +741,10 @@ char *filename;
 	    cleareol ();
 	pr("--More--");
 	if (filename != NULL) {
-	    promptlen += printf ("(Next file: %s)", filename);
+	    promptlen += Printf ("(Next file: %s)", filename);
 	}
 	else if (!no_intty) {
-	    promptlen += printf ("(%d%%)", (int)((file_pos * 100) / file_size));
+	    promptlen += Printf ("(%d%%)", (int)((file_pos * 100) / file_size));
 	}
 	if (dum_opt) {
 	    promptlen += pr("[Press space to continue, 'q' to quit.]");
@@ -1050,10 +1046,10 @@ register FILE *f;
 
 		putchar ('\r');
 		erase (0);
-		printf ("\n");
+		Printf ("\n");
 		if (clreol)
 			cleareol ();
-		printf ("...back %d page", nlines);
+		Printf ("...back %d page", nlines);
 		if (nlines > 1)
 			pr ("s\n");
 		else
@@ -1096,10 +1092,10 @@ register FILE *f;
 		nlines *= dlines;
 	    putchar ('\r');
 	    erase (0);
-	    printf ("\n");
+	    Printf ("\n");
 	    if (clreol)
 		cleareol ();
-	    printf ("...skipping %d line", nlines);
+	    Printf ("...skipping %d line", nlines);
 	    if (nlines > 1)
 		pr ("s\n");
 	    else
@@ -1191,7 +1187,7 @@ register FILE *f;
 		scanstr (Currline - dlines < 0 ? 0
 				: Currline - (dlines + 1) / 2, &cmdbuf[1]);
 		pr ("vi "); pr (cmdbuf); putchar (' '); pr (fnames[fnum]);
-		execute (filename, VI, "vi", cmdbuf, fnames[fnum], 0);
+		execute (filename, VI, "vi", cmdbuf, fnames[fnum], NULL);
 		break;
 	    }
 	default:
@@ -1245,9 +1241,9 @@ int nlines;
 	case 'f':
 		kill_line ();
 		if (!no_intty)
-			promptlen = printf ("\"%s\" line %d", fnames[fnum], Currline);
+			promptlen = Printf ("\"%s\" line %d", fnames[fnum], Currline);
 		else
-			promptlen = printf ("[Not a file] line %d", Currline);
+			promptlen = Printf ("[Not a file] line %d", Currline);
 		fflush (stdout);
 		return (-1);
 	case 'n':
@@ -1323,14 +1319,14 @@ char *filename;
 		ttyin (cmdbuf, 78, '!');
 		if (expand (shell_line, cmdbuf)) {
 			kill_line ();
-			promptlen = printf ("!%s", shell_line);
+			promptlen = Printf ("!%s", shell_line);
 		}
 	}
 	fflush (stdout);
 	write (2, "\n", 1);
 	promptlen = 0;
 	shellp = 1;
-	execute (filename, shell, shell, "-c", shell_line, 0);
+	execute (filename, shell, shell, "-c", shell_line, NULL);
 }
 
 /*
@@ -1428,7 +1424,7 @@ va_dcl
 	if (id == 0) {
 	    if (!isatty(0)) {
 		close(0);
-		open("/dev/tty", 0);
+		open("/dev/tty", O_RDONLY);
 	    }
 	    va_start(argp);
 	    execv (cmd, argp);
@@ -1443,7 +1439,7 @@ va_dcl
 	    if (catch_susp)
 		signal(SIGTSTP, SIG_DFL);
 #endif SIGTSTP
-	    while (wait(0) > 0);
+	    while (wait((int *)0) > 0);
 	    signal (SIGINT, end_it);
 	    signal (SIGQUIT, onquit);
 #ifdef SIGTSTP
@@ -1933,10 +1929,8 @@ char *str;
  return regexec(re_exp, str, 1);
 }
 
-regerror(str)
+void regerror(str)
 char *str;
 {
  re_err = str;
 }
-
-

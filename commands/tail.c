@@ -7,157 +7,138 @@
 #define TAB '\t'
 #define NEWL '\n'
 
-int lines, chars ;
+int lines, chars;
 char buff[BUFSIZ];
 
 main(argc, argv)
-int argc ;
-char *argv[] ;
+int argc;
+char *argv[];
 {
-        char *s ;
-        FILE *input , *fopen();
-        int count ;
+  char *s;
+  FILE *input, *fopen();
+  int count;
 
+  setbuf(stdout, buff);
+  argc--;
+  argv++;
+  lines = TRUE;
+  chars = FALSE;
+  count = -10;
 
-	setbuf(stdout, buff);
-        argc-- ; argv++ ;
-        lines = TRUE ;
-        chars = FALSE ;
-        count = -10 ;
+  if (argc == 0) {
+	tail(stdin, count);
+	exit(0);
+  }
+  s = *argv;
+  if (*s == '-' || *s == '+') {
+	s++;
+	if (*s >= '0' && *s <= '9') {
+		count = stoi(*argv);
+		s++;
+		while (*s >= '0' && *s <= '9') s++;
+	}
+	if (*s == 'c') {
+		chars = TRUE;
+		lines = FALSE;
+	} else if (*s != 'l' && *s != NULL) {
+		fprintf(stderr, "tail: unknown option %c\n", *s);
+		argc = 0;
+	}
+	argc--;
+	argv++;
+  }
+  if (argc < 0) {
+	fprintf(stderr, "Usage: tail [+/-[number][lc]] [files]\n");
+	exit(1);
+  }
+  if (argc == 0) tail(stdin, count);
 
-        if (argc == 0 ) {
-                tail(stdin, count);
-                exit(0) ;
-        }
+  else if ((input = fopen(*argv, "r")) == NULL) {
+	fprintf(stderr, "tail: can't open %s\n", *argv);
+	exit(1);
+  } else {
+	tail(input, count);
+	fclose(input);
+  }
 
-        s = *argv ;
-        if (*s == '-' || *s == '+' ) {
-                s++ ;
-                if (*s >= '0' && *s <= '9' ) {
-                        count = stoi(*argv);
-                        s++ ;
-                        while (*s >= '0' && *s <= '9' )
-                                s++ ;
-                }
-                if (*s == 'c' ) {
-                        chars = TRUE ;
-                        lines = FALSE ;
-                }
-                else if (*s != 'l' && *s != NULL ) {
-                        fprintf(stderr, "tail: unknown option %c\n", *s);
-                        argc = 0 ;
-                }
-                argc-- ; argv++ ;
-        }
-
-        if (argc < 0 ) {
-                fprintf(stderr, "Usage: tail [+/-[number][lc]] [files]\n");
-                exit(1) ;
-        }
-
-        if (argc == 0 )
-                tail(stdin, count);
-
-        else if ((input=fopen(*argv,"r")) == NULL ) {
-                fprintf(stderr, "tail: can't open %s\n", *argv) ;
-                exit(1) ;
-        }
-        else {
-                tail(input, count);
-                fclose(input);
-        }
-
-        exit(0) ;
+  exit(0);
 }
 
-/* stoi - convert string to integer */
-
+/* Stoi - convert string to integer */
 stoi(s)
-char *s ;
+char *s;
 {
-        int n, sign ;
+  int n, sign;
 
-        while (*s == BLANK || *s == NEWL || *s == TAB )
-                s++ ;
+  while (*s == BLANK || *s == NEWL || *s == TAB) s++;
 
-        sign = 1 ;
-        if (*s == '+' )
-                s++ ;
-        else if (*s == '-' ) {
-                sign = -1 ;
-                s++ ;
-        }
-        for(n=0 ; *s >= '0' && *s <= '9' ; s++ )
-                n = 10 * n + *s - '0' ;
-        return(sign * n);
+  sign = 1;
+  if (*s == '+')
+	s++;
+  else if (*s == '-') {
+	sign = -1;
+	s++;
+  }
+  for (n = 0; *s >= '0' && *s <= '9'; s++) n = 10 * n + *s - '0';
+  return(sign * n);
 }
 
-/* tail - print 'count' lines/chars */
+/* Tail - print 'count' lines/chars */
 
 #define INCR(p)  if (p >= end) p=cbuf ; else p++
 #define BUF_SIZE 4098
 
-char cbuf[ BUF_SIZE ] ;
+char cbuf[BUF_SIZE];
 
-tail(in, goal )
-FILE *in ;
-int goal ;
+tail(in, goal)
+FILE *in;
+int goal;
 {
-        int c, count ;
-        char *start, *finish, *end ;
+  int c, count;
+  char *start, *finish, *end;
 
-        count = 0 ;
+  count = 0;
 
-        if (goal > 0 ) {        /* skip */
-		count++;	/* start counting at 1 */
-                if (lines )     /* lines */
-                        while ((c=getc(in)) != EOF ) {
-                                if (c == NEWL )
-                                        count++ ; 
-                                if (count >= goal )
-                                        break ;
-                        }
-                else                    /* chars */
-                        while (getc(in) != EOF ) {
-                                count++ ;
-                                if (count >= goal )
-                                        break ;
-                        }
-                if (count >= goal )
-                        while ((c=getc(in)) != EOF )
-                                putc(c, stdout);
-        }
+  if (goal > 0) {		/* skip */
+	count++;		/* start counting at 1 */
+	if (lines)		/* lines */
+		while ((c = getc(in)) != EOF) {
+			if (c == NEWL) count++;
+			if (count >= goal) break;
+		}
+	else			/* chars */
+		while (getc(in) != EOF) {
+			count++;
+			if (count >= goal) break;
+		}
+	if (count >= goal) while ((c = getc(in)) != EOF)
+			putc(c, stdout);
+  } else {			/* tail */
 
-        else {                          /* tail */
+	goal = -goal;
+	start = finish = cbuf;
+	end = &cbuf[BUF_SIZE - 1];
 
-                goal = -goal ;
-                start = finish = cbuf ;
-                end = &cbuf[ BUF_SIZE - 1 ] ;
+	while ((c = getc(in)) != EOF) {
+		*finish = c;
+		INCR(finish);
 
-                while ((c=getc(in)) != EOF ) {
-                        *finish = c ;
-                        INCR(finish);
+		if (start == finish) INCR(start);
+		if (!lines || c == NEWL) count++;
 
-                        if (start == finish )
-                                INCR(start);
-                        if (!lines || c == NEWL )
-                                count++ ;
+		if (count > goal) {
+			count = goal;
+			if (lines) while (*start != NEWL)
+					INCR(start);
+			INCR(start);
+		}
+	}			/* end while */
 
-                        if (count > goal ) {
-                                count = goal ;
-                                if (lines )
-                                        while (*start != NEWL )
-                                                INCR(start);
-                                INCR(start);
-                        }
+	while (start != finish) {
+		putc(*start, stdout);
+		INCR(start);
+	}
 
-                } /* end while */
+  }				/* end else */
 
-                while (start != finish ) {
-                        putc(*start, stdout);
-                        INCR(start);
-                }
-
-        } /* end else */
-
-} /* end tail */
+}				/* end tail */

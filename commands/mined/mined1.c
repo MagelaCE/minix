@@ -2,6 +2,8 @@
  * Part one of the mined editor.
  */
 
+/*#define COMPAT /* On ST define COMPAT if you want 1.1 ST key bindings */
+ 			
 /*
  * Author: Michiel Huisjes.
  * 
@@ -1554,14 +1556,49 @@ XT()
 
 (*escfunc(c))()
 {
+#ifdef ATARI_ST
+#ifndef COMPAT
+  int ch;
+#endif
+#endif
   if (c == '[') {
 	/* Start of ASCII escape sequence. */
-	switch (getchar()) {
+	c = getchar();
+#ifdef ATARI_ST
+#ifndef COMPAT
+	if ((c >= '0') && (c <= '9')) ch = getchar();
+	/* ch is either a tilde or a second digit */
+#endif
+#endif
+	switch (c) {
 	case 'H': return(HO);
 	case 'A': return(UP);
 	case 'B': return(DN);
 	case 'C': return(RT);
 	case 'D': return(LF);
+#ifdef ATARI_ST
+#ifndef COMPAT
+	/* F1 = ESC [ 1 ~ */
+	/* F2 = ESC [ 2 ~ */
+	/* F3 = ESC [ 3 ~ */
+	/* F4 = ESC [ 4 ~ */
+	/* F5 = ESC [ 5 ~ */
+	/* F6 = ESC [ 6 ~ */
+	/* F7 = ESC [ 17 ~ */
+	/* F8 = ESC [ 18 ~ */
+	case '1': 
+	 	  switch (ch) {
+		  case '~': return(SF);
+		  case '7': (void) getchar(); return(MA);
+		  case '8': (void) getchar(); return(CTL);
+                  }
+	case '2': return(SR);
+	case '3': return(PD);
+	case '4': return(PU);
+	case '5': return(FS);
+	case '6': return(EF);
+#endif
+#endif
 #ifdef i8088
 	case 'G': return(FS);
 	case 'S': return(SR);
@@ -1574,6 +1611,7 @@ XT()
 	return(I);
   }
 #ifdef ATARI_ST
+#ifdef COMPAT
   if (c == 'O') {
 	/* Start of ASCII function key escape sequence. */
 	switch (getchar()) {
@@ -1586,8 +1624,8 @@ XT()
 	case 'V': return(MA);
 	case 'W': return(CTL);
 	}
-	return(I);
-  }
+    }
+#endif
 #endif
   return(I);
 }

@@ -1,6 +1,9 @@
 /* mount - mount a file system		Author: Andy Tanenbaum */
 
 #include <errno.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define BUFSIZE 1024
 
@@ -16,7 +19,7 @@ char *argv[];
 
   if (argc == 1) list();
   if (argc < 3 || argc > 4) usage();
-  if (argc == 4 && *argv[3] != '-' && *(argv[3]+1) != 'r') usage();
+  if (argc == 4 && *argv[3] != '-' && *(argv[3] + 1) != 'r') usage();
   ro = (argc == 4 ? 1 : 0);
   if (mount(argv[1], argv[2], ro) < 0) {
 	if (errno == EINVAL) {
@@ -30,8 +33,8 @@ char *argv[];
   }
   std_err(argv[1]);
   std_err(" mounted\n");
-  if ((fd = open(mounttable, 2)) < 0) exit(1);
-  lseek(fd, 0L, 2);		/* seek to EOF */
+  if ((fd = open(mounttable, O_RDWR)) < 0) exit(1);
+  lseek(fd, 0L, SEEK_END);	/* seek to EOF */
   write(fd, argv[1], strlen(argv[1]));
   write(fd, " is mounted on ", 15);
   write(fd, argv[2], strlen(argv[2]));
@@ -44,7 +47,7 @@ list()
 {
   int fd, n;
 
-  fd = open(mounttable, 0);
+  fd = open(mounttable, O_RDONLY);
   if (fd < 0) {
 	std_err("mount: cannot open ");
 	std_err(mounttable);

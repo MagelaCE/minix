@@ -1,0 +1,85 @@
+This is a slightly lobotomized kermit.  Because of bugs in
+cc and limitations in asld, I had to remove the help command, the
+script facility, and the automatic dial support.  ? and ESC still
+work, so there's still reasonable builtin help.  This is based on the
+normal Unix version of kermit, in a configuration very similar to v7.
+The only feature in v7 that I couldn't make work is the ability to see
+whether there are input characters waiting.  This means that you won't
+be able to ask for status while a file transfer is happening (though
+this isn't critical, because kermit prints a dot every so often and
+other special characters whenever there is an error or timeout).
+
+Simple instructions on use:
+
+Run kermit, and then type
+   set line /dev/tty1
+   set speed 2400
+   connect
+(It's more convenient if you put these commands in .kermrc in your
+home directory, so that they get done automatically whenever you
+run kermit.)  This will connect you to the modem or whatever on
+the serial port.  Now log into the other system.
+
+When you want to transfer files, run kermit on the other system.
+To it, type
+   server
+This puts its kermit into a sort of "slave mode" where it expects
+commands from the kermit running on your Minix system.  Now come back
+to the command level on Minix kermit, by typing the escape character
+followed "c".  (kermit will tell you the current escape character when
+you do the connect command.)  At this point you can issue various
+commands.  Your kermit will coordinate things with kermit on the other
+machine so that you only have to type commands at one end.  Common
+commands are
+   get filename
+   put filename
+   remote dir
+Filenames can include wildcards.  By default, kermit works in a
+system-independent, text mode.  (In effect it assumes that the
+whole world is MS-DOS and converts end of line and file names
+accordingly.)  To send binary files, you will want to type
+   set file type bin
+on both ends before starting any transfers.  This disables
+CR LF to newline conversion.  If both of your systems are some
+flavor of Unix, you might as well put this in .kermrc on both
+ends and run in binary mode all the time.  Also, if both systems
+are Unix I recommend
+    set file name lit
+on both ends.  This causes it to keep file names unchanged,
+rather than mapping to legal MS-DOS names.
+
+Here's the .kermrc I use on minix:
+
+   set file type bin
+   set file name lit
+   set rec pack 1000
+   set esc 29
+   set prompt Minix Kermit>
+   connect
+
+set rec pack 1000 says to request 1000-byte packets when receiving
+files.  (This will be ignored if the other end doesn't support
+long packets.)  This makes line utilization more efficient than
+the default 100-byte packets, though it isn't critical.  (You may
+not want to do this unless you have installed my changes to 
+increase buffer sizes, though on a 10MHz AT, 1000-byte packets
+work even without the patch as long as you are using a disk rather
+than a floppy.)
+
+set esc 29 sets the escape character to ^].  No particular reason.
+I just like that characters.
+
+I change the prompt since the other end is normally a Unix system.
+If I don't change one or the other, both ends will prompt
+   C Kermit>
+which is sort of confusing.
+
+Here's the .kermrc I use on our Unix hosts:
+
+   set rec packet 1000
+   set fil name lit
+   set fil type bin
+   server
+
+
+Charles Hedrick

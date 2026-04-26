@@ -16,7 +16,7 @@ int argc;
 char *argv[];
 {
 
-  char c, backslash();
+  int c, backslash();
   FILE *freopen();
 
   if (argc > 2) usage();
@@ -26,15 +26,14 @@ char *argv[];
 		exit(1);
 	}
   }
-
-  while ( (c = getchar()) != EOF) {
+  while ((c = getchar()) != EOF) {
 	/* Lines beginning with "." are troff commands -- skip them. */
 	if (lfread && c == TROFF_CHAR) {
 		skipline();
 		continue;
 	}
 	if (c == BACKSLASH) c = backslash();	/* eat troff stuff */
-		
+
 	if (isupper(c)) {
 		putchar(tolower(c));
 		lfwritten = 0;
@@ -65,52 +64,51 @@ skipline()
 {
   char c;
 
-  while ( (c = getchar()) != EOL) ;
+  while ((c = getchar()) != EOL);
 }
 
-	
-char backslash()
+
+int backslash()
 {
 /* A backslash has been seen.  Eat troff stuff. */
 
-  char c;
+  int c;
 
   c = getchar();
-  switch(c) {
-	case 'f':
-		c = getchar();
-		c = getchar();
-		return(c);
+  switch (c) {
+      case 'f':
+	c = getchar();
+	c = getchar();
+	return(c);
 
-	case 's':		/* \s7  or \s14 */
-		c = getchar();
-		c = getchar();
-		if (isdigit(c)) c = getchar();
-		return(c);
+      case 's':			/* \s7  or \s14 */
+	c = getchar();
+	c = getchar();
+	if (isdigit(c)) c = getchar();
+	return(c);
 
-	case 'n':		/* \na or \n(xx  */
+      case 'n':			/* \na or \n(xx  */
+	c = getchar();
+	if (c == '(') {
 		c = getchar();
-		if (c == '(') {
-			c = getchar();
-			c = getchar();
-		}
 		c = getchar();
-		return(c);
+	}
+	c = getchar();
+	return(c);
 
-	case '*':		/* / * (XX */
-		c = getchar();
-		if (c == '(') {
-			c = getchar();
-			c = getchar();
-			c = getchar();
-			return(c);
-		}
-
-	case '(':		/* troff 4-character escape sequence */
+      case '*':			/* / * (XX */
+	c = getchar();
+	if (c == '(') {
 		c = getchar();
 		c = getchar();
 		c = getchar();
 		return(c);
+	}
+      case '(':			/* troff 4-character escape sequence */
+	c = getchar();
+	c = getchar();
+	c = getchar();
+	return(c);
 
   }
 }
@@ -120,4 +118,3 @@ usage()
   printf("Usage: prep [file]\n");
   exit(1);
 }
-

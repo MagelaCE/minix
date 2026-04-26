@@ -1,5 +1,10 @@
+/* dd - disk dumper */
+
+#include <sys/types.h>
 #include <stdio.h>
 #include <signal.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define EOS '\0'
 #define BOOLEAN int
@@ -207,7 +212,7 @@ char *argv[];
   }
   if ((convert == null) && (convflag & (UCASE | LCASE)))
 	convert = cnull;
-  if ((ifd = ((ifilename) ? open(ifilename, 0) : dup(0))) < 0) {
+  if ((ifd = ((ifilename) ? open(ifilename, O_RDONLY) : dup(0))) < 0) {
 	fprintf(stderr, "dd: cannot open %s\n",
 			 (ifilename) ? ifilename : "stdin");
 	exit(1);
@@ -245,7 +250,7 @@ char *argv[];
   for (; skip; skip--)
 	read(ifd, ibuf, ibs);
   for (; nseek; nseek--)
-	lseek(ofd, (long) obs, 1);
+	lseek(ofd, (long) obs, SEEK_CUR);
 outputall:
   if (ibc-- == 0) {
 	ibc = 0;
@@ -264,7 +269,7 @@ outputall:
 		ibc = 0;
 		for (i = 0; i < ibs; i++)
 			if (ibuf[i] != 0)
-				ibs = i;
+				ibc = i;
 		statistics();
 	}
 	if ((ibc == 0) && (--files <= 0)) {

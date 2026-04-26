@@ -31,8 +31,13 @@ char *from, *to;
 	return 0;
     }
 
-    Strcpy(bakname, to);
-    Strcat(bakname, origext?origext:ORIGEXT);
+	if (origprae) {
+		Strcpy (bakname, origprae);
+    	Strcat(bakname, to);
+	} else {
+   		Strcpy(bakname, to);
+    	Strcat(bakname, origext?origext:ORIGEXT);
+	}
     if (stat(to, &filestat) >= 0) {	/* output file exists */
 	dev_t to_device = filestat.st_dev;
 	ino_t to_inode  = filestat.st_ino;
@@ -139,8 +144,7 @@ Reg1 char *s;
     return rv;
 }
 
-/* #if defined(lint) && defined(CANVARARG) */
-#if 0
+#if defined(lint) && defined(CANVARARG)
 
 /*VARARGS ARGSUSED*/
 say(pat) char *pat; { ; }
@@ -156,7 +160,7 @@ ask(pat) char *pat; { ; }
 void
 say(pat,arg1,arg2,arg3)
 char *pat;
-int arg1,arg2,arg3;
+long arg1,arg2,arg3;
 {
     fprintf(stderr, pat, arg1, arg2, arg3);
     Fflush(stderr);
@@ -167,7 +171,7 @@ int arg1,arg2,arg3;
 void				/* very void */
 fatal(pat,arg1,arg2,arg3)
 char *pat;
-int arg1,arg2,arg3;
+long arg1,arg2,arg3;
 {
     void my_exit();
 
@@ -180,7 +184,7 @@ int arg1,arg2,arg3;
 void
 ask(pat,arg1,arg2,arg3)
 char *pat;
-int arg1,arg2,arg3;
+long arg1,arg2,arg3;
 {
     int ttyfd;
     int r;
@@ -188,7 +192,6 @@ int arg1,arg2,arg3;
 
     Sprintf(buf, pat, arg1, arg2, arg3);
     Fflush(stderr);
-#ifndef MINIX	/* Minix can't read from fd 2 or 1 ! */
     write(2, buf, strlen(buf));
     if (tty2) {				/* might be redirected to a file */
 	r = read(2, buf, sizeof buf);
@@ -198,9 +201,7 @@ int arg1,arg2,arg3;
 	write(1, buf, strlen(buf));
 	r = read(1, buf, sizeof buf);
     }
-    else 
-#endif
-    if ((ttyfd = open("/dev/tty", 2)) >= 0 && isatty(ttyfd)) {
+    else if ((ttyfd = open("/dev/tty", 2)) >= 0 && isatty(ttyfd)) {
 					/* might be deleted or unwriteable */
 	write(ttyfd, buf, strlen(buf));
 	r = read(ttyfd, buf, sizeof buf);
@@ -222,20 +223,40 @@ int arg1,arg2,arg3;
     if (!tty2)
 	say1(buf);
 }
-#endif lint
+#endif /* lint */
 
 /* How to handle certain events when not in a critical region. */
 
 void
-set_signals()
+set_signals(reset)
+int reset;
 {
     void my_exit();
-
 #ifndef lint
-    if (signal(SIGHUP, SIG_IGN) != SIG_IGN)
-	Signal(SIGHUP, my_exit);
-    if (signal(SIGINT, SIG_IGN) != SIG_IGN)
-	Signal(SIGINT, my_exit);
+#ifdef VOIDSIG
+    static void (*hupval)(),(*intval)();
+#else
+    static int (*hupval)(),(*intval)();
+#endif
+
+    if (!reset) {
+	hupval = signal(SIGHUP, SIG_IGN);
+	if (hupval != SIG_IGN)
+#ifdef VOIDSIG
+	    hupval = my_exit;
+#else
+	    hupval = (int(*)())my_exit;
+#endif
+	intval = signal(SIGINT, SIG_IGN);
+	if (intval != SIG_IGN)
+#ifdef VOIDSIG
+	    intval = my_exit;
+#else
+	    intval = (int(*)())my_exit;
+#endif
+    }
+    Signal(SIGHUP, hupval);
+    Signal(SIGINT, intval);
 #endif
 }
 

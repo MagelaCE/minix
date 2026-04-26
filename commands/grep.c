@@ -25,13 +25,14 @@
 #define MAXLINE (1024)
 int status = 1;
 char *progname;
-int pmflag = 1;		/* print lines which match */
-int pnmflag = 0;	/* print lines which don't match */
-int nflag = 0;		/* number the lines printed */
+int pmflag = 1;			/* print lines which match */
+int pnmflag = 0;		/* print lines which don't match */
+int nflag = 0;			/* number the lines printed */
 int args;
 extern char *index();
+char *itoa();
 
-main(argc,argv)
+main(argc, argv)
 int argc;
 char *argv[];
 {
@@ -41,51 +42,46 @@ char *argv[];
   if (!isatty(1)) setbuf(stdout);
   args = argc;
   progname = argv[0];
-  while(*argp != 0 && argp[0][0] == '-') {
+  while (*argp != 0 && argp[0][0] == '-') {
 	args--;			/* flags don't count */
-	switch(argp[0][1]) {
-	case 'v':
+	switch (argp[0][1]) {
+	    case 'v':
 		pmflag = 0;
 		pnmflag = 1;
 		break;
-	case 'n':
-		nflag++;
-		break;
-	case 's':
-		pmflag = pnmflag = 0;
-		break;
-	case 'e':
+	    case 'n':	nflag++;	break;
+	    case 's':	pmflag = pnmflag = 0;	break;
+	    case 'e':
 		argp++;
 		goto out;
-	default:
-		usage();
+	    default:	usage();
 	}
 	argp++;
   }
 out:
-  if(*argp == 0) usage();
+  if (*argp == 0) usage();
 
-  if((exp = regcomp(*argp++)) == NULL) {
-  	std_err("grep: regcomp failed\n");
+  if ((exp = regcomp(*argp++)) == NULL) {
+	std_err("grep: regcomp failed\n");
 	exit(2);
   }
-  if(*argp == 0)
-	match((char *)0,exp);
+  if (*argp == 0)
+	match((char *) 0, exp);
   else
-	while(*argp) {
+	while (*argp) {
 		int infd;
 
-		if(strcmp(*argp,"-") == 0)
-			match("-",exp);
+		if (strcmp(*argp, "-") == 0)
+			match("-", exp);
 		else {
 			fclose(stdin);
-			if(fopen(*argp, "r") == NULL) {
+			if (fopen(*argp, "r") == NULL) {
 				std_err("Can't open ");
 				std_err(*argp);
 				std_err("\n");
 				status = 2;
 			} else {
-				match(*argp,exp);
+				match(*argp, exp);
 				close(infd);
 			}
 		}
@@ -94,9 +90,7 @@ out:
   exit(status);
 }
 
-/*
- *	This routine actually matches the file
- */
+/* This routine actually matches the file. */
 match(name, exp)
 char *name;
 regexp *exp;
@@ -104,21 +98,23 @@ regexp *exp;
   char buf[MAXLINE];
   int lineno = 0;
 
-  while(getline(buf,MAXLINE) != NULL) {
-	char *cr = index(buf,'\n');
+  int bol = 1, next_bol;
+
+  while (getline(buf, MAXLINE) != NULL) {
+	char *cr = index(buf, '\n');
 	lineno++;
-	if(cr == 0) {
+	next_bol = (int) cr;
+	if (cr == 0) {
 		std_err("Line too long in ");
-		std_err(name == 0 ? "stdin":name);
+		std_err(name == 0 ? "stdin" : name);
 	} else
 		*cr = '\0';
-	if(regexec(exp,buf)) {
-		if(pmflag)
-			pline(name,lineno,buf);
-		if(status != 2)
-			status = 0;
-	} else if(pnmflag)
-		pline(name,lineno,buf);
+	if (regexec(exp, buf, bol)) {
+		if (pmflag) pline(name, lineno, buf);
+		if (status != 2) status = 0;
+	} else if (pnmflag)
+		pline(name, lineno, buf);
+	bol = next_bol;
   }
 }
 void regerror(s)
@@ -136,9 +132,9 @@ char *name;
 int lineno;
 char buf[];
 {
-  if(name && args > 3) prints("%s:",name);
-  if(nflag) prints("%s:", itoa(lineno));
-  prints("%s\n",buf);
+  if (name && args > 3) prints("%s:", name);
+  if (nflag) prints("%s:", itoa(lineno));
+  prints("%s\n", buf);
 }
 
 
@@ -157,9 +153,9 @@ int size;
 
   while (1) {
 	c = getc(stdin);
-  	*buf++ = c;
-	if (c <= 0) return(NULL);
-  	if (buf - initbuf == size - 1) return(buf - initbuf);
-  	if (c == '\n') return(buf - initbuf);
+	*buf++ = c;
+	if (c < 0) return(NULL);
+	if (buf - initbuf == size - 1) return (buf - initbuf);
+	if (c == '\n') return (buf - initbuf);
   }
 }

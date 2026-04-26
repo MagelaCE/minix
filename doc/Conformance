@@ -1,0 +1,7 @@
+This document describes the MINIX options related to POSIX conformance.
+Limits and similar values can be found in the appropriate include headers.
+
+Sec. 5.5.1.1
+  Attempts to remove directories using unlink() always fail with EPERM,
+even for the superuser.
+

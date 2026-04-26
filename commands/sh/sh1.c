@@ -27,7 +27,7 @@ extern	char	**environ;	/* environment pointer */
 char	shellname[] = "/bin/sh";
 char	search[] = ":/bin:/usr/bin";
 
-int	(*qflag)() = SIG_IGN;
+void	(*qflag)() = SIG_IGN;
 
 main(argc, argv)
 int argc;
@@ -131,7 +131,7 @@ register char **argv;
 			setval(cprompt, "");
 			prompt->status &= ~EXPORT;
 			cprompt->status &= ~EXPORT;
-			if (newfile(*++argv))
+			if (newfile(name = *++argv))
 				exit(1);
 		}
 	}
@@ -144,9 +144,9 @@ register char **argv;
 	signal(SIGQUIT, qflag);
 	if (name && name[0] == '-') {
 		talking++;
-		if ((f = open("/etc/profile", 0)) >= 0)
-			next(remap(f));
 		if ((f = open(".profile", 0)) >= 0)
+			next(remap(f));
+		if ((f = open("/etc/profile", 0)) >= 0)
 			next(remap(f));
 	}
 	if (talking)
@@ -162,7 +162,7 @@ register char **argv;
 				dolc--;	/* keyword */
 			else
 				ap++;
-	setval(lookup("#"), putn(--dolc));
+	setval(lookup("#"), putn((--dolc < 0) ? (dolc = 0) : dolc));
 
 	for (;;) {
 		if (talking && e.iop <= iostack)
@@ -392,7 +392,7 @@ next(f)
 	PUSHIO(afile, f, filechar);
 }
 
-onintr()
+void onintr()
 {
 	signal(SIGINT, onintr);
 	intr = 1;
@@ -461,7 +461,7 @@ register char *s;
 /*
  * trap handling
  */
-sig(i)
+void sig(i)
 register i;
 {
 	trapset = i;
@@ -818,7 +818,7 @@ unsigned nbytes;
 			/*
 			 * merge free cells
 			 */
-			while ((q = p->next)->area > areanum)
+			while ((q = p->next)->area > areanum && q != areanxt)
 				p->next = q->next;
 			/*
 			 * exit loop if cell big enough

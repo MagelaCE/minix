@@ -1,206 +1,297 @@
-/* This process is the father (mother) of all MINIX user processes.  When
- * MINIX comes up, this is process 2.  It executes the /etc/rc shell file and
- * then reads the /etc/ttys file to find out which terminals need a login
- * process.  The ttys file consists of 3-character lines as follows:
+/* This process is the father (mother) of all Minix user processes.  When
+ * Minix comes up, this is process number 2, and has a pid of 1.  It
+ * executes the /etc/rc shell file, and then reads the /etc/ttys file to
+ * determine which terminals need a login process.  The ttys file consists
+ * of three-field lines as follows:
  *	abc
  * where
  *	a = 0 (line disabled = no shell), 1 (enabled = shell started)
  *	b = a-r defines UART paramers (baud, bits, parity), 0 for console
- *	c = line number
+ *	c = line number or line name
  *
  * The letters a-r correspond to the 18 entries of the uart table below.
- * For example, 'a' is 110 baud, 8 bits, no parity; 'b' is 300 baud, 8 bits,
- * no parity; 'j' is 2400 baud, 7 bits, even parity; etc.
+ * For example, 'a' is 110 baud, 8 bits, no parity; 'b' is 300 baud, 8
+ * bits, no parity; 'j' is 2400 baud, 7 bits, even parity; etc.  If the
+ * third field is a digit, then the terminal device will be /dev/tty{c},
+ * otherwise it will be /dev/{c}.  Note that since login cheats in
+ * determining the slot number, entries in /etc/ttys must always be in
+ * minor device number order - the first line should be for tty0, the
+ * second for tty1, and so on.
  *
- * If the file /usr/adm/wtmp exists and is writable, init (with help from
- * login) maintains login accounting used by who(1).
+ * If the files /usr/adm/wtmp and /etc/utmp exist and are writable, init
+ * (with help from login) will maintain login accounting.  Sending a
+ * signal 1 (SIGHUP) to init will cause it to reread /etc/ttys and start
+ * up new shell processes if necessary.  It will not, however, kill off
+ * login processes for lines that have been turned off; do this manually.
  */
 
-#include "../h/signal.h"
-#include "../h/sgtty.h"
+#include <signal.h>
+#include <sgtty.h>
+#include <utmp.h>
 
-#define PIDSLOTS          10
-#define NPARAMSETS  	  18
-#define STACKSIZE        256
-#define DIGIT              8
-#define OFFSET             5
-#define SHELL              1
-#define NOPARAMS        -100
-#define WTMPSIZE           8
+#ifndef WTMP
+#define WTMP		"/usr/adm/wtmp"	/* wtmp login accounting file */
+#endif
+#ifndef UTMP
+#define UTMP		"/etc/utmp"	/* utmp login file */
+#endif
 
-extern long time();
-extern long lseek();
+#define CONSNAME	"/dev/tty0"	/* system console device */
+
+#define PIDSLOTS	4		/* maximum number of ttys entries */
+#define TTYSBUF		(8 * PIDSLOTS)	/* buffer for reading /etc/ttys */
+#define STACKSIZE	(192 * sizeof(char *))	/* init's stack */
+
+#define EXIT_TTYFAIL	253		/* child had problems with tty */
+#define EXIT_EXECFAIL	254		/* child couldn't exec something */
+#define EXIT_OPENFAIL	255		/* child couldn't open something */
 
 struct uart {
   int baud;
   int flags;
-} uart[NPARAMSETS] = {
-	B110,   BITS8,		/*  110 baud, 8 bits, no parity */
-	B300,   BITS8,		/*  300 baud, 8 bits, no parity */
-	B1200,  BITS8,		/* 1200 baud, 8 bits, no parity */
-	B2400,  BITS8,		/* 2400 baud, 8 bits, no parity */
-	B4800,  BITS8,		/* 4800 baud, 8 bits, no parity */
-	B9600,  BITS8,		/* 9600 baud, 8 bits, no parity */
+} uart[] = {
+  B110,   BITS8,		/* 'a':  110 baud, 8 bits, no parity */
+  B300,   BITS8,		/* 'b':  300 baud, 8 bits, no parity */
+  B1200,  BITS8,		/* 'c': 1200 baud, 8 bits, no parity */
+  B2400,  BITS8,		/* 'd': 2400 baud, 8 bits, no parity */
+  B4800,  BITS8,		/* 'e': 4800 baud, 8 bits, no parity */
+  B9600,  BITS8,		/* 'f': 9600 baud, 8 bits, no parity */
 
-	B110,   BITS7 | EVENP,	/*  110 baud, 7 bits, even parity */
-	B300,   BITS7 | EVENP,	/*  300 baud, 7 bits, even parity */
-	B1200,  BITS7 | EVENP,	/* 1200 baud, 7 bits, even parity */
-	B2400,  BITS7 | EVENP,	/* 2400 baud, 7 bits, even parity */
-	B4800,  BITS7 | EVENP,	/* 4800 baud, 7 bits, even parity */
-	B9600,  BITS7 | EVENP,	/* 9600 baud, 7 bits, even parity */
+  B110,   BITS7 | EVENP,	/* 'g':  110 baud, 7 bits, even parity */
+  B300,   BITS7 | EVENP,	/* 'h':  300 baud, 7 bits, even parity */
+  B1200,  BITS7 | EVENP,	/* 'i': 1200 baud, 7 bits, even parity */
+  B2400,  BITS7 | EVENP,	/* 'j': 2400 baud, 7 bits, even parity */
+  B4800,  BITS7 | EVENP,	/* 'k': 4800 baud, 7 bits, even parity */
+  B9600,  BITS7 | EVENP,	/* 'l': 9600 baud, 7 bits, even parity */
 
-	B110,   BITS7 | ODDP,	/*  110 baud, 7 bits, odd parity */
-	B300,   BITS7 | ODDP,	/*  300 baud, 7 bits, odd parity */
-	B1200,  BITS7 | ODDP,	/* 1200 baud, 7 bits, odd parity */
-	B2400,  BITS7 | ODDP,	/* 2400 baud, 7 bits, odd parity */
-	B4800,  BITS7 | ODDP,	/* 4800 baud, 7 bits, odd parity */
-	B9600,  BITS7 | ODDP	/* 9600 baud, 7 bits, odd parity */
+  B110,   BITS7 | ODDP,		/* 'm':  110 baud, 7 bits, odd parity */
+  B300,   BITS7 | ODDP,		/* 'n':  300 baud, 7 bits, odd parity */
+  B1200,  BITS7 | ODDP,		/* 'o': 1200 baud, 7 bits, odd parity */
+  B2400,  BITS7 | ODDP,		/* 'p': 2400 baud, 7 bits, odd parity */
+  B4800,  BITS7 | ODDP,		/* 'q': 4800 baud, 7 bits, odd parity */
+  B9600,  BITS7 | ODDP		/* 'r': 9600 baud, 7 bits, odd parity */
 };
 
-char wtmpfile[] = {"/usr/adm/wtmp"};
-char name[] = {"/dev/tty?"};	/* terminal names */
-int pid[PIDSLOTS];		/* pids of init's own children */
-int save_params[PIDSLOTS];
-int pidct;
-extern int errno;
+#define NPARAMSETS (sizeof uart / sizeof(struct uart))
 
-char stack[STACKSIZE];
+struct slotent {
+  int onflag;			/* should this ttyslot be on? */
+  int pid;			/* pid of login process for this tty line */
+  char name[8];			/* name of this tty */
+  int flags;			/* sg_flags field for this tty */
+  int speed;			/* sg_ispeed for this tty */
+};
+
+struct slotent slots[PIDSLOTS];	/* init table of ttys and pids */
+
+char stack[STACKSIZE];		/* init's stack */
 char *stackpt = &stack[STACKSIZE];
 char **environ;			/* declaration required by library routines */
+extern int errno;
 
-struct sgttyb args;
-
+char CONSOLE[] = CONSNAME;	/* name of system console */
+struct sgttyb args;		/* buffer for TIOCGETP */
+int gothup = 0;			/* flag, showing signal 1 was recieved */
+int pidct = 0;			/* count of running children */
 
 main()
 {
-  char line[10];		/* /etc/ttys lines should be 3 chars */
-  int rc, tty, k, status, ttynr, ct, i, params, shell;
+  int pid;			/* pid of child process */
+  int fd;			/* fd of console for error messages */
+  int i;			/* loop variable */
+  int status;			/* return status from child process */
+  struct slotent *slotp;	/* slots[] pointer */
+  int onhup();			/* SIGHUP interrupt catch routine */
 
-  /* Carry out /etc/rc. */
-  sync();			/* force buffers out onto RAM disk */
+  sync();			/* force buffers out onto disk */
 
   /* Execute the /etc/rc file. */
-  if (fork()) {
+  if(fork()) {
 	/* Parent just waits. */
-	wait(&k);
+	wait(&status);
   } else {
 	/* Child exec's the shell to do the work. */
-	if (open("/etc/rc", 0) < 0) exit(-1);
-	open("/dev/tty0", 1);	/* std output */
-	open("/dev/tty0", 1);	/* std error */
+	if(open("/etc/rc", 0) < 0) exit(EXIT_OPENFAIL);
+	dup(open(CONSOLE, 1));	/* std output, error */
 	execn("/bin/sh");
-	exit(-2);		/* impossible */
+	exit(EXIT_EXECFAIL);	/* impossible, we hope */
   }
 
-  /* Make the /usr/adm/wtmp entry. */
-  wtmp("~","");			/* log system reboot */
+  wtmp("~", "reboot", -1);	/* log system reboot */
 
-  /* Read the /etc/ttys file and fork off login processes. */
-  if ( (tty = open("/etc/ttys", 0)) == 0) {
-	/* Process /etc/ttys file. */
-	while ( (ct = read(0, line, 4)) == 4) {
-		/* Extract and check the 3 characters on each line. */
-		shell = line[0] - '0';	/* 0, 1, 2 for disabled, sh, no sh */
-		params = line[1] - 'a';	/* selects UART parameters */
-		ttynr = line[2] - '0';	/* line number */
-		if (shell <= 0 || shell > 1) continue;
-		if (line[1] == '0') params = NOPARAMS;
-		else if (params < 0 || params > NPARAMSETS) continue;
-		if (ttynr < 0 || ttynr > PIDSLOTS) continue;
-
-		save_params[ttynr] = params;
-		startup(ttynr, params);
-	}
-  } else {
-	tty = open("/dev/tty0", 1);
-	write(tty, "Init can't open /etc/ttys\n", 26);
-	while (1) ;		/* just hang -- system cannot be started */
-  }
-  close(tty);
-
-  /* All the children have been forked off.  Wait for someone to terminate.
-   * Note that it might be a child, in which case a new login process must be
-   * spawned off, or it might be somebody's orphan, in which case ignore it.
-   * First ignore all signals.
+  /* Read the /etc/ttys file */
+  readttys();
+  
+  /* Main loop. If login processes have already been started up, wait for one
+   * to terminate, or for a HUP signal to arrive. Start up new login processes
+   * for all ttys which don't have them. Note that wait() also returns when
+   * somebody's orphan dies, in which case ignore it.
+   * First set up the signals.
    */
-  for (i = 1; i <= NR_SIGS; i++) signal(i, SIG_IGN);
 
-  while (1) {
+  for (i = 1; i <= _NSIG; i++) signal(i, SIG_IGN);
+  signal(SIGHUP, onhup);
+
+  while(1) {
 	sync();
-	k = wait(&status);
-	pidct--;
 
-	/* Search to see which line terminated. */
-	for (i = 0; i < PIDSLOTS; i++) {
-		if (pid[i] == k) {
-			name[DIGIT] = '0' + i;
-			wtmp(&name[OFFSET], "");
-			startup(i, save_params[i]);
-		}
+	if( pidct && (pid = wait(&status)) > 0 ) {
+		/* Search to see which line terminated. */
+		for(slotp = slots; slotp < &slots[PIDSLOTS]; ++slotp) {
+			if(slotp->pid == pid) {
+			    --pidct;
+			    slotp->pid = 0;	/* now no login process */
+			    wtmp(slotp->name, "", slotp - slots);
+
+			    if(((status >> 8) & 0xFF) == EXIT_TTYFAIL) {
+				fd = open(CONSOLE, 1);
+				write(fd, "init: problems with tty, shutting down ", 39);
+				write(fd, slotp->name, sizeof slotp->name);
+				write(fd, "\n", 1);
+
+				close(fd);
+				slotp->onflag = 0;
+			    }
+			    break;
+			}
+	      }
+	}
+
+	/* If a signal 1 (SIGHUP) is recieved, reread /etc/ttys */
+	if(gothup) {
+		readttys();
+		gothup = 0;
+	}
+
+	/* See which lines need a login process started up */
+	for(slotp = slots; slotp < &slots[PIDSLOTS]; ++slotp) {
+		if(slotp->onflag && slotp->pid <= 0) startup(slotp - slots);
 	}
   }
 }
 
-
-startup(linenr, params)
-int linenr, params;
+onhup()
 {
-/* Fork off a process for the indicated line. */
+  gothup = 1;
+  signal(SIGHUP, onhup);
+}
 
-  int k, n;
+readttys()
+{
+  /* (Re)read /etc/ttys. */
 
-  if ( (k = fork()) != 0) {
+  char ttys[TTYSBUF];			/* buffer for reading /etc/ttys */
+  register char *p;			/* current pos. within ttys */
+  char *endp;				/* pointer to end of ttys buffer */
+  int fd;				/* file descriptor for /etc/ttys */
+  struct slotent *slotp = slots;	/* entry in slots[] */
+  char *q;				/* pointer for copying ttyname */
+
+  if((fd = open("/etc/ttys", 0)) < 0) {
+	write(open(CONSOLE, 1), "init: can't open /etc/ttys\n", 27);
+	while (1) ;		/* just hang -- system cannot be started */
+  }
+
+  /* Read /etc/ttys file. */
+  endp = (p = ttys) + read(fd, ttys, TTYSBUF);
+  *endp = '\n';
+
+  while(p < endp) {
+	if(*p != '0' && *p != '1') goto endline;
+	slotp->onflag = ('1' == *p++);			/* 'line on' flag */
+	slotp->flags = CRMOD | XTABS | ECHO;		/* sg_flags setting */
+	if('a' <= *p && *p <= 'a' + NPARAMSETS)	{	/* a serial line? */
+		slotp->flags |= uart[*p - 'a'].flags;
+		slotp->speed = uart[*p - 'a'].baud;
+	} else if(*p != '0')				/* non-serial line? */
+		goto endline;
+        ++p;
+
+	if('0' <= *p && *p <= '9') {			/* ttyname = digit? */
+		strncpy(slotp->name, "tty?", sizeof (slotp->name));
+		slotp->name[3] = *p;			/* fill in '?' */
+	} else {					/* full name - copy */
+		for(q = slotp->name; *p != '\n';) {
+			*q++ = *p++;
+		}
+		*q = '\0';
+	}
+
+	++slotp;
+endline:
+	while(*p++ != '\n') ;
+  }
+
+  close(fd);
+}
+
+startup(linenr)
+int linenr;
+{
+  /* Fork off a process for the indicated line. */
+
+  register struct slotent *slotp;	/* pointer to ttyslot */
+  int pid;				/* new pid */
+  char line[30];			/* tty device name */
+
+  slotp = &slots[linenr];
+
+  if( (pid = fork()) != 0 ) {
 	/* Parent */
-	pid[linenr] = k;
-	pidct++;
+	slotp->pid = pid;
+	if( pid > 0 ) ++pidct;
   } else {
 	/* Child */
-	close(0);		/* /etc/ttys may be open */
-	name[DIGIT] = '0' + linenr;
-	if (open(name, 2) != 0) exit(-3);	/* standard input */
-	if (open(name, 2) != 1) exit(-3);	/* standard output */
-	if (open(name, 2) != 2) exit(-3);	/* standard error */
+	close(0);				/* just in case */
+	strcpy(line, "/dev/");			/* part of device name */
+	strncat(line, slotp->name, sizeof (slotp->name)); /* rest of name */
 
+	if( open(line, 2) != 0 ) exit(EXIT_TTYFAIL);	/* standard input */
+	if(	   dup(0) != 1 ) exit(EXIT_TTYFAIL);	/* standard output */
+	if( 	   dup(1) != 2 ) exit(EXIT_TTYFAIL);	/* standard error */
 
 	/* Set line parameters. */
-  	if (params != NOPARAMS) {
-		n = ioctl(0, TIOCGETP, &args);	/* get parameters */
-		args.sg_ispeed = uart[params].baud;
-		args.sg_ospeed = uart[params].baud;
-		args.sg_flags = CRMOD | XTABS | ECHO | uart[params].flags;
-		n = ioctl(0, TIOCSETP, &args);
-	}
+
+	if(ioctl(0, TIOCGETP, &args) < 0) exit(EXIT_TTYFAIL);
+	args.sg_ispeed = args.sg_ospeed = slotp->speed;
+	args.sg_flags = slotp->flags;
+	if(ioctl(0, TIOCSETP, &args) < 0) exit(EXIT_TTYFAIL);
 
 	/* Try to exec login, or in an emergency, exec the shell. */
 	execn("/usr/bin/login");
 	execn("/bin/login");
-	execn("/bin/sh");	/* last resort, if mount of /usr failed */
-	execn("/usr/bin/sh");	/* last resort, if mount of /usr failed */
-	return;			/* impossible */
+	execn("/bin/sh");
+	execn("/usr/bin/sh");
+	write(open(CONSOLE, 1), "init: couldn't exec login\n", 26);
+	exit(EXIT_EXECFAIL);
   }
 }
 
-wtmp(tty, name)
+wtmp(line, user, lineno)
+char *line, *user; int lineno;
 {
-/* Make an entry in /usr/adm/wtmp. */
+  struct utmp entry;
+  register int fd;
+  extern long time();
 
-  int i, fd;
-  long t, time();
-  char ttybuff[WTMPSIZE], namebuff[WTMPSIZE];
+  (void) strncpy( entry.ut_line, line, sizeof(entry.ut_line) );
+  (void) strncpy( entry.ut_name, user, sizeof(entry.ut_name) );
 
-  fd = open(wtmpfile, 2);
-  if (fd < 0) return;		/* if wtmp does not exist, no accounting */
-  i =lseek(fd, 0L, 2);		/* append to file */
+  entry.ut_time = time((long *)0);
 
-  for (i = 0; i < WTMPSIZE; i++) {
-	ttybuff[i] = 0;
-	namebuff[i] = 0;
+  if( (fd = open( WTMP, 1 )) < 0 ) return;
+  if( lseek( fd, 0L, 2 ) >= 0L ) {
+	write( fd, (char *) &entry, sizeof(struct utmp) );
   }
-  strncpy(ttybuff, tty, 8);
-  strncpy(namebuff, name, 8);
-  time(&t);
-  write(fd, ttybuff, WTMPSIZE);
-  write(fd, namebuff, WTMPSIZE);
-  write(fd, &t, sizeof(t));
-  close(fd);
+
+  close( fd );
+
+  if( lineno >= 0 ) {		/* remove entry from utmp */
+	if( (fd = open( UTMP, 1 )) < 0 ) return;
+	    if( lseek( fd, (long) (lineno * sizeof(struct utmp)), 0 ) >= 0 ) {
+		write( fd, (char *) &entry, sizeof(struct utmp) );
+	    }
+
+  	close( fd );
+  }
 }

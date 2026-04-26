@@ -1,5 +1,7 @@
 /* umount - unmount a file system		Author: Andy Tanenbaum */
 
+#include <sys/types.h>
+#include <fcntl.h>
 #include <errno.h>
 
 #define BUFSIZE 1024
@@ -15,7 +17,7 @@ char *argv[];
 
   if (argc != 2) usage();
   if (umount(argv[1]) < 0) {
-	if (errno == EINVAL) 
+	if (errno == EINVAL)
 		std_err("Device not mounted\n");
 	else
 		perror("umount");
@@ -35,7 +37,7 @@ char *devname;
   char line[256];
 
   /* Read in the mount table and then overwrite the file. */
-  fd = open(mounttable, 2);
+  fd = open(mounttable, O_RDWR);
   n = read(fd, buffer, BUFSIZE);
   close(fd);
   q = &buffer[n];

@@ -8,16 +8,11 @@
  *   truncate:	release all the blocks associated with an inode
  */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../h/error.h"
-#include "../h/stat.h"
-#include "const.h"
-#include "type.h"
+#include "fs.h"
+#include <sys/stat.h>
 #include "buf.h"
 #include "file.h"
 #include "fproc.h"
-#include "glo.h"
 #include "inode.h"
 #include "param.h"
 
@@ -30,9 +25,8 @@ PUBLIC int do_link()
 
   register struct inode *ip, *rip;
   register int r;
-  char string[NAME_SIZE];
+  char string[NAME_MAX];
   struct inode *new_ip;
-  extern struct inode *advance(), *last_dir(), *eat_path();
 
   /* See if 'name' (file to be linked) exists. */
   if (fetch_name(name1, name1_length, M1) != OK) return(err_code);
@@ -40,7 +34,7 @@ PUBLIC int do_link()
 
   /* Check to see if the file has maximum number of links already. */
   r = OK;
-  if ( (rip->i_nlinks & BYTE) == MAX_LINKS) r = EMLINK;
+  if ( (rip->i_nlinks & BYTE) == LINK_MAX) r = EMLINK;
 
   /* Only super_user may link to directories. */
   if (r == OK)
@@ -100,9 +94,8 @@ PUBLIC int do_unlink()
 
   register struct inode *rip, *rlast_dir_ptr;
   register int r;
-  inode_nr numb;
-  char string[NAME_SIZE];
-  extern struct inode *advance(), *last_dir();
+  ino_t numb;
+  char string[NAME_MAX];
 
   /* Get the last directory in the path. */
   if (fetch_name(name, name_length, M3) != OK) return(err_code);
@@ -140,21 +133,18 @@ PUBLIC int do_unlink()
 /*===========================================================================*
  *				truncate				     *
  *===========================================================================*/
-PUBLIC truncate(rip)
+PUBLIC void truncate(rip)
 register struct inode *rip;	/* pointer to inode to be truncated */
 {
 /* Remove all the zones from the inode 'rip' and mark it dirty. */
 
   register block_nr b;
   register zone_nr z, *iz;
-  file_pos position;
+  off_t position;
   zone_type zone_size;
   int scale, file_type;
   struct buf *bp;
-  dev_nr dev;
-  unshort modewd;
-  extern struct buf *get_block();
-  extern block_nr read_map();
+  dev_t dev;
 
   file_type = rip->i_mode & S_IFMT;	/* check to see if file is special */
   if (file_type == S_IFCHR || file_type == S_IFBLK) return;
@@ -185,9 +175,6 @@ register struct inode *rip;	/* pointer to inode to be truncated */
 	free_zone(dev, z);
   }
 
-  /* The inode being truncated might currently be open, so certain fields must
-   * be cleared immediately, even though these fields are also cleared by
-   * alloc_inode(). The function wipe_inode() does the dirty work in both cases.
-   */
-  wipe_inode(rip);
+  /* Leave zone numbers for de(1) to recover file after an unlink(2).  */
+  rip->i_dirt = DIRTY;
 }

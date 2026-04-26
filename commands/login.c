@@ -13,10 +13,11 @@
  *  - Record the login in "/usr/adm/wtmp".
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <signal.h>
 #include <sgtty.h>
 #include <pwd.h>
-#include <sys/stat.h>
 
 #define  NULL   (char *) 0
 #define WTMPSIZE           8
@@ -152,7 +153,7 @@ char *argv[];
 
 		/* Reset signals to default values. */
 
-		for ( n = 1;  n <= NR_SIGS;  ++n )
+		for ( n = 1;  n <= _NSIG;  ++n )
 		    signal( n, SIG_DFL );
 
 		execle( sh, "-", NULL, env );

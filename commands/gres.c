@@ -25,131 +25,124 @@
 int status = 1;
 char *usagemsg = "Usage: gres [-g] search replace [file ...]\n";
 char *progname;
-int gflag = 0;		/* != 0 => only do first substitution on line */
+int gflag = 0;			/* != 0 => only do first substitution on line */
 extern char *index();
 FILE *fopen();
 
-main(argc,argv)
+main(argc, argv)
 int argc;
 char *argv[];
 {
-	regexp *exp;
-	char *repstr;
-	char **argp = &argv[1];
+  regexp *exp;
+  char *repstr;
+  char **argp = &argv[1];
 
-	progname = argv[0];
-	if(*argp != 0 && argp[0][0] == '-' && argp[0][1] == 'g') {
-		gflag = 1;
-		argp++,argc--;
-	}
-	if(argc < 3) {
-		std_err(usagemsg);
-		exit(2);
-	}
-	if(argp[0][0] == '\0') {
-		std_err("gres: null match string is silly\n");
-		exit(2);
-	}
-	if((exp = regcomp(*argp++)) == NULL) {
-		std_err("gres: regcomp failed\n");
-		exit(2);
-	}
-	repstr = *argp++;
-	if(*argp == 0)
-		process(stdin,exp,repstr);
-	else
-		while(*argp) {
-			FILE *inf;
+  progname = argv[0];
+  if (*argp != 0 && argp[0][0] == '-' && argp[0][1] == 'g') {
+	gflag = 1;
+	argp++, argc--;
+  }
+  if (argc < 3) {
+	std_err(usagemsg);
+	exit(2);
+  }
+  if (argp[0][0] == '\0') {
+	std_err("gres: null match string is silly\n");
+	exit(2);
+  }
+  if ((exp = regcomp(*argp++)) == NULL) {
+	std_err("gres: regcomp failed\n");
+	exit(2);
+  }
+  repstr = *argp++;
+  if (*argp == 0)
+	process(stdin, exp, repstr);
+  else
+	while (*argp) {
+		FILE *inf;
 
-			if(strcmp(*argp,"-") == 0)
-				process(stdin,exp,repstr);
-			else {
-				if((inf = fopen(*argp,"r")) == NULL) {
-					std_err("gres: Can't open ");
-					std_err(*argp);
-					std_err("\n");
-					status = 2;
-				} else {
-					process(inf,exp,repstr);
-					fclose(inf);
-				}
+		if (strcmp(*argp, "-") == 0)
+			process(stdin, exp, repstr);
+		else {
+			if ((inf = fopen(*argp, "r")) == NULL) {
+				std_err("gres: Can't open ");
+				std_err(*argp);
+				std_err("\n");
+				status = 2;
+			} else {
+				process(inf, exp, repstr);
+				fclose(inf);
 			}
-			argp++;
 		}
-	exit(status);
+		argp++;
+	}
+  exit(status);
 }
 
-/*
- *	This routine does the processing
- */
+/* This routine does the processing. */
 process(inf, exp, repstr)
 FILE *inf;
 regexp *exp;
 char *repstr;
 {
-	char ibuf[MAXLINE];
+  char ibuf[MAXLINE];
 
-	while(fgets(ibuf,MAXLINE,inf) != NULL) {
-		char *cr = index(ibuf,'\n');
-		if(cr == 0)
-			std_err("gres: Line broken\n");
-		else
-			*cr = '\0';
-		if(regexec(exp,ibuf,1)) {
-			pline(exp,ibuf,repstr);
-			if(status != 2)
-				status = 0;
-		} else
-			printf("%s\n",ibuf);
-	}
+  while (fgets(ibuf, MAXLINE, inf) != NULL) {
+	char *cr = index(ibuf, '\n');
+	if (cr == 0)
+		std_err("gres: Line broken\n");
+	else
+		*cr = '\0';
+	if (regexec(exp, ibuf, 1)) {
+		pline(exp, ibuf, repstr);
+		if (status != 2) status = 0;
+	} else
+		printf("%s\n", ibuf);
+  }
 }
 
-void
-regerror(s)
+void regerror(s)
 char *s;
 {
-	std_err("gres: ");
-	std_err(s);
-	std_err("\n");
-	exit(2);
+  std_err("gres: ");
+  std_err(s);
+  std_err("\n");
+  exit(2);
 }
 
-char *
-getbuf(exp, repstr)
+char *getbuf(exp, repstr)
 regexp *exp;
 char *repstr;
 {
-	char *malloc();
-	void free();
-	static bufsize = 0;
-	static char *buf = 0;
-	int guess = 10;
-	int ch;
+  char *malloc();
+  void free();
+  static bufsize = 0;
+  static char *buf = 0;
+  int guess = 10;
+  int ch;
 
-	while(*repstr) {
-		switch(*repstr) {
-		case '&':
-			guess += exp->endp[0] - exp->startp[0];
-			break;
-		case '\\':
-			if((ch = *++repstr) < '0' || ch > '9')
-				guess += 2;
-			else {
-				ch -= '0';
-				guess += exp->endp[ch] - exp->startp[ch];
-			}
-			break;
-		default:
-			guess++;
+  while (*repstr) {
+	switch (*repstr) {
+	    case '&':
+		guess += exp->endp[0] - exp->startp[0];
+		break;
+	    case '\\':
+		if ((ch = *++repstr) < '0' || ch > '9')
+			guess += 2;
+		else {
+			ch -= '0';
+			guess += exp->endp[ch] - exp->startp[ch];
 		}
-		repstr++;
+		break;
+	    default:	guess++;
 	}
-	if(bufsize < guess) {
-		if(buf != 0)
-			free((char *)buf);
-		buf = malloc(guess);
-	}
-	return buf;
+	repstr++;
+  }
+  if (bufsize < guess) {
+	if (buf != 0) free((char *) buf);
+	buf = malloc(guess);
+  }
+  return buf;
 }
 
 pline(exp, ibuf, repstr)
@@ -157,32 +150,28 @@ regexp *exp;
 char ibuf[];
 char *repstr;
 {
-	do {
-		dosub(exp,ibuf,repstr);
-		ibuf = exp->endp[0];
-		if(*ibuf == '\0')
-			break;
-		if(ibuf == exp->startp[0])
-			putchar(*ibuf++);
-	} while(!gflag && regexec(exp,ibuf,0));
-	printf("%s\n",ibuf);
+  do {
+	dosub(exp, ibuf, repstr);
+	ibuf = exp->endp[0];
+	if (*ibuf == '\0') break;
+	if (ibuf == exp->startp[0]) putchar(*ibuf++);
+  } while (!gflag && regexec(exp, ibuf, 0));
+  printf("%s\n", ibuf);
 }
 
-/*
- *	print one subsitution
- */
-dosub(exp,ibuf,repstr)
+/* Print one subsitution. */
+dosub(exp, ibuf, repstr)
 regexp *exp;
 char ibuf[];
 char *repstr;
 {
-	char *buf = getbuf(exp, repstr);
-	char *end = exp->startp[0];
-	int ch = *end;
+  char *buf = getbuf(exp, repstr);
+  char *end = exp->startp[0];
+  int ch = *end;
 
-	*end = '\0';
-	fputs(ibuf,stdout);		/* output the initial part of line */
-	*end = ch;
-	regsub(exp, repstr, buf);
-	fputs(buf,stdout);
+  *end = '\0';
+  fputs(ibuf, stdout);		/* output the initial part of line */
+  *end = ch;
+  regsub(exp, repstr, buf);
+  fputs(buf, stdout);
 }

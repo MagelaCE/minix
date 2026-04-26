@@ -1,4 +1,4 @@
-CFLAGS=-F -Di8088
+CFLAGS=-F -Di8088 -D_POSIX_SOURCE -D_MINIX
 l=/lib
 
 mined:	mined1.s mined2.s mined.h

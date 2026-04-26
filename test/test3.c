@@ -1,4 +1,7 @@
+/* test 3 */
+
 #include <signal.h>
+
 int is, array[4];
 int parsigs, parpid, parcum;
 int sigct, cumsig, errct;
@@ -30,7 +33,7 @@ test90()
   signal(10, catch);
 
   if (pid = fork()) {
-	while(parsigs == 0) ;
+	while (parsigs == 0);
 	if (kill(pid, 9) < 0) e(1);
 	wait(&n);
 	if (n != 9) e(2);
@@ -50,7 +53,7 @@ catch()
 e(n)
 int n;
 {
-  printf("Error %d  ",n);
+  printf("Error %d  ", n);
   errct++;
   perror("");
 }
@@ -58,7 +61,7 @@ int n;
 
 test91()
 {
-   int fd[2], n, sigpip();
+  int fd[2], n, sigpip();
   char buf[4];
 
   sigct = 0;
@@ -68,7 +71,7 @@ test91()
 	/* Parent */
 	close(fd[0]);
 	while (sigct == 0) {
-		write(fd[1], buf,1);
+		write(fd[1], buf, 1);
 	}
 	wait(&n);
   } else {
@@ -92,10 +95,10 @@ test92()
 
   signal(SIGINT, SIG_DFL);
   is = 0;
-  if ((array[is++]=fork()) > 0) {
-	if ((array[is++]=fork()) > 0) {
-		if ((array[is++]=fork()) > 0) {
-			if ((array[is++]=fork()) > 0) {
+  if ((array[is++] = fork()) > 0) {
+	if ((array[is++] = fork()) > 0) {
+		if ((array[is++] = fork()) > 0) {
+			if ((array[is++] = fork()) > 0) {
 				signal(SIGINT, SIG_IGN);
 				kill(array[0], SIGINT);
 				kill(array[1], SIGINT);

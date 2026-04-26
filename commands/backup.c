@@ -24,10 +24,11 @@
  *
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <stdio.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <fcntl.h>
 
 #define COPY_SIZE 4096
 #define MAX_ENTRIES 512
@@ -35,6 +36,7 @@
 #define NAME_SIZE 14
 #define MAX_PATH 256
 #define NONFATAL 0
+#define FATAL 1
 #define NO_SAVINGS 512		/* compress can return code 2 */
 #define OUT_OF_SPACE 2
 
@@ -83,8 +85,7 @@ char *argv[];
 		    case 't':	tflag++;	break;
 		    case 'v':	vflag++;	break;
 		    case 'z':	zflag++;	break;
-		default:
-			usage();
+		    default:	usage();
 		}
 	}
 	dir1 = argv[2];
@@ -96,12 +97,12 @@ char *argv[];
 
   /* Read in the source directory */
 
-  fd = open(dir1, 0);
-  if (fd < 0) error(1, "cannot open ", dir1, "");
+  fd = open(dir1, O_RDONLY);
+  if (fd < 0) error(FATAL, "cannot open ", dir1, "");
   ct = read(fd, &dir_buf[0], MAX_ENTRIES * DIR_ENT_SIZE);
   close(fd);
   if (ct == MAX_ENTRIES * DIR_ENT_SIZE)
-	error(1, "directory ", dir1, " is too large");
+	error(FATAL, "directory ", dir1, " is too large");
 
   /* Create the target directory. */
   maketarget(dir2);
@@ -151,7 +152,7 @@ char *dir;
   int pid, status;
 
   if ((pid = fork()) < 0)
-	error(1, "cannot fork off mkdir to create ", dir, "");
+	error(FATAL, "cannot fork off mkdir to create ", dir, "");
   if (pid > 0) {
 	/* Parent process waits for child (mkdir). */
 	wait(&status);
@@ -161,7 +162,7 @@ char *dir;
 	close(2);		/* don't want mkdir's error messages */
 	execle("/bin/mkdir", "mkdir", dir, 0, environ);
 	execle("/usr/bin/mkdir", "mkdir", dir, 0, environ);
-	error(1, "cannot execute mkdir", "", "");
+	error(FATAL, "cannot execute mkdir", "", "");
   }
 }
 
@@ -266,7 +267,7 @@ char *dir1, *dir2;
 			printf("Out of space while copying to %s\n", cbuf);
 			/* We ran out of space copying a regular file. */
 			if (mflag == 0)
-				error(1, "Disk full.  Backup aborted", "", "");
+				error(FATAL,"Disk full. Backup aborted","","");
 
 			/* If -m, ask for new diskette and continue. */
 			newdisk(dir2);
@@ -330,17 +331,22 @@ char *dir1, *cbuf2;
   strncat(cbuf1, sp->namep, NAME_SIZE);	/* cbuf1 = source file name */
 
   /* At this point, cbuf1 contains the source file name, cbuf2 the target. */
-  fd1 = open(cbuf1, 0);
+  fd1 = open(cbuf1, O_RDONLY);
   if (fd1 < 0) {
 	error(NONFATAL, "cannot open ", cbuf1, "");
 	return(res);
   }
-  fd2 = creat(cbuf2, (sp->mode | S_IWRITE) & 07777);
+  fd2 = creat(cbuf2, (sp->mode | S_IWUSR) & 07777);
   if (fd2 < 0) {
+	if (errno == ENFILE) {
+		close(fd1);
+		return(OUT_OF_SPACE);
+	}
 	error(NONFATAL, "cannot create ", cbuf2, "");
 	close(fd1);
 	return(res);
   }
+
   /* Both files are now open.  Do the copying. */
   namlen = strlen(sp->namep);
   if (sp->namep[namlen - 2] != '.' || sp->namep[namlen - 1] != 'Z')
@@ -369,6 +375,7 @@ char *dir1, *cbuf2;
 			res = OUT_OF_SPACE;
 			break;
 		}
+
 		/* True write error. */
 		error(NONFATAL, "write error on ", cbuf2, "");
 		res = EIO;
@@ -393,7 +400,7 @@ char *src, *targ;
 
   int pid, status, res, s;
 
-  if ((pid = fork()) < 0) error(1, "cannot fork", "", "");
+  if ((pid = fork()) < 0) error(FATAL, "cannot fork", "", "");
   if (pid > 0) {
 	wait(&status);
 
@@ -403,11 +410,11 @@ char *src, *targ;
   } else {
 	/* Child must execute compress. */
 	close(1);
-	s = open(targ, 2);
-	if (s < 0) error(1, "cannot write on ", "targ", "");
+	s = open(targ, O_RDWR);
+	if (s < 0) error(FATAL, "cannot write on ", "targ", "");
 	execle("/bin/compress", "compress", "-fc", src, 0, environ);
 	execle("/usr/bin/compress", "compress", "-fc", src, 0, environ);
-	error(1, "cannot exec compress", "", "");
+	error(FATAL, "cannot exec compress", "", "");
   }
 }
 
@@ -438,7 +445,7 @@ char *dir1, *dir2, *namep;
   strcat(d2buf, "/", 2);
   strncat(d2buf, namep, NAME_SIZE);
 
-  if ((pid = fork()) < 0) error(1, "cannot fork", "", "");
+  if ((pid = fork()) < 0) error(FATAL, "cannot fork", "", "");
   if (pid > 0) {
 	wait(&status);
 	return;
@@ -446,7 +453,7 @@ char *dir1, *dir2, *namep;
 	execle("backup", "backup", fbuf, d1buf, d2buf, 0, environ);
 	execle("/bin/backup", "backup", fbuf, d1buf, d2buf, 0, environ);
 	execle("/usr/bin/backup", "backup", fbuf, d1buf, d2buf, 0, environ);
-	error(1, "cannot recursively exec backup", "", "");
+	error(FATAL, "cannot recursively exec backup", "", "");
   }
 }
 
@@ -466,14 +473,14 @@ char *dir;
   printf("   3. Mount the new diskette using /etc/mount\n");
   printf("   4. Type CTRL-D to return to the backup program\n");
 
-  if ((pid = fork()) < 0) error(1, "cannot fork", "", "");
+  if ((pid = fork()) < 0) error(FATAL, "cannot fork", "", "");
   if (pid > 0) {
 	wait(&status);
 	maketarget(dir);	/* make the directory */
   } else {
 	execle("/bin/sh", "sh", "-i", 0, environ);
 	execle("/usr/bin/sh", "sh", "-i", 0, environ);
-	error(1, "cannot execute shell to ask for new diskette", "", "");
+	error(FATAL, "cannot execute shell to ask for new diskette", "", "");
   }
 }
 

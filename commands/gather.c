@@ -184,7 +184,7 @@ char *argv[];
 	strcat(work, "\n");
 	s = system(work);
 	if (s < 0) {
-		fprintf(stderr, "gather: shar command failed\n");
+		fprintf(stderr, "gather: uue command failed\n");
 		exit(2);
 	}
 

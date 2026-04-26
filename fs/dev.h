@@ -3,9 +3,9 @@
  */
 
 EXTERN struct dmap {
-  int (*dmap_open)();
-  int (*dmap_rw)();
-  int (*dmap_close)();
+  void (*dmap_open)();
+  void (*dmap_rw)();
+  void (*dmap_close)();
   int dmap_task;
 } dmap[];
 

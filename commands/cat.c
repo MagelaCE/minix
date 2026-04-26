@@ -1,9 +1,10 @@
 /* cat - concatenates files  		Author: Andy Tanenbaum */
 
-extern int errno; /*DEBUG*/
+extern int errno;		/* DEBUG */
 
-#include <minix/blocksize.h>
+#include <blocksize.h>
 #include <sys/types.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 
 #define BUF_SIZE      512
@@ -22,22 +23,20 @@ char *argv[];
   k = 1;
   /* Check for the -u flag -- unbuffered operation. */
   p = argv[1];
-  if (argc >=2 && *p == '-' && *(p+1) == 'u') {
+  if (argc >= 2 && *p == '-' && *(p + 1) == 'u') {
 	unbuffered = 1;
 	k = 2;
   }
-
   if (k >= argc) {
 	copyfile(0, 1);
 	flush();
 	exit(0);
   }
-
   for (i = k; i < argc; i++) {
 	if (argv[i][0] == '-' && argv[i][1] == 0) {
 		fd1 = 0;
 	} else {
-		fd1 = open(argv[i], 0);
+		fd1 = open(argv[i], O_RDONLY);
 		if (fd1 < 0) {
 			std_err("cat: cannot open ");
 			std_err(argv[i]);
@@ -83,7 +82,7 @@ int fd1, fd2;
 
 flush()
 {
-  if (next != buffer) 
+  if (next != buffer)
 	if (write(1, buffer, (int) (next - buffer)) <= 0) quit();
 }
 

@@ -6,7 +6,6 @@
  * 
  */
 
-#define CANVARARG
 /* and for those machine that can't handle a variable argument list */
 
 #ifdef CANVARARG

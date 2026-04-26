@@ -10,11 +10,15 @@ main()
   /* Disable SIGTERM */
   signal(SIGTERM, SIG_IGN);
 
-  /* Open some files to hold their inodes in core. */
+  /* Release all (?) open file descriptors. */
   close(0);
   close(1);
   close(2);
 
+  /* Release current directory to avoid locking current device. */
+  chdir("/");
+
+  /* Open some files to hold their inodes in core. */
 /*open("/bin", 0);*/
 /*open("/lib", 0);*/
 /*open("/etc", 0);*/

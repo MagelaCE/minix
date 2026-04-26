@@ -7,7 +7,7 @@ char *argv[];
 /* Factor a number */
 
   long i, n, flag = 0, first(), atol();
-  
+
   if (argc != 2 || (n = atol(argv[1])) < 2) {
 	printf("Usage: factor n   (2 <= n < 2**31)\n");
 	exit(1);
@@ -16,17 +16,16 @@ char *argv[];
 	printf("2 is a prime\n");
 	exit(0);
   }
-
   while (1) {
 	i = first(n);
 	if (i == 0) {
-		if (flag == 0) 
-			printf("%D is a prime\n", n);
+		if (flag == 0)
+			printf("%ld is a prime\n", n);
 		else
-			printf("%D\n", n);
+			printf("%ld\n", n);
 		exit(0);
-	} 
-	printf("%D ", i);
+	}
+	printf("%ld ", i);
 	n = n / i;
 	flag = 1;
   }
@@ -41,8 +40,8 @@ long k;
   long i;
 
   if (k == 2) return(0);
-  if (k % 2 == 0) return(2);
-  for (i = 3; i <= k/3; i+=2)
+  if (k % 2 == 0) return (2);
+  for (i = 3; i <= k / 3; i += 2)
 	if (k % i == 0) return(i);
   return(0);
 }

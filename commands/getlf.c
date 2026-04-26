@@ -1,5 +1,8 @@
 /* getlf - get a line feed		Author: Andy Tanenbaum */
 
+#include <sys/types.h>
+#include <fcntl.h>
+
 main(argc, argv)
 int argc;
 char *argv[];
@@ -12,7 +15,7 @@ char *argv[];
 	std_err("\n");
   }
   close(0);
-  open("/dev/tty0", 0);
+  open("/dev/tty", O_RDONLY);
 
   do {
 	read(0, &c, 1);

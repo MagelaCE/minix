@@ -14,8 +14,7 @@ char *argv[];
   major = atoi(argv[3]);
   minor = atoi(argv[4]);
   if (major < 0 || minor < 0) badcomm();
-  if (mknod(argv[1], mode, (major<<8) | minor) < 0)
-	perror("mknod");
+  if (mknod(argv[1], mode, (major << 8) | minor) < 0) perror("mknod");
   exit(0);
 }
 

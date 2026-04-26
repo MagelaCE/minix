@@ -1,14 +1,42 @@
-/* libpack - pack ASCII assembly code	Author: Andy Tanenbaum */
+/* libpack - pack ASCII assembly code */
 
+/* Packs common strings found in PC Minix assembly code into single	*/
+/* byte abbreviations.  The abbreviations all have their high bit set.	*/
+/* Do not alter the order of the entries in "table"; asld depends on it.*/
 
-#define BUFSIZ 20000
+/* External interfaces */
+#include <ctype.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
 
+/* Constants */
+#define MAXLINE	256			/* maximum input line length */
+#define ABBREVS	128			/* number of abbreviations */
+#define COMMENT '|'			/* comment character */
 
-#define FS 1
-#define WRITE 4
-#define NILP (char *)0
+/* Structures and types */
+struct node {
+  char *string;				/* pointer to original string */
+  size_t length;			/* length of original string */
+  struct node *next;			/* next node with same hash value */
+};
+typedef unsigned short TWOBYTES;	/* CHEAT - used to return two bytes */
 
-char *table[] = {
+/* Local interfaces */
+static void error_exit(/* int rc, char *msg */);
+static void hash_init(/* void */);		/* initializes hash table */
+static void pack_line(/* char *line */);	/* packs an input line */
+static TWOBYTES abbreviate_string(/* char *s */); /* abbreviates a string */
+
+/* Macros */
+#define HASH(word) ((*(word) + *((word) + 1)) & 0x7f)
+#define HIBYTE(n)  ((n) >> 8)
+#define LOBYTE(n)  ((n) & 0xff)
+#define MAKETWOBYTES(hi, lo)  ((((hi) & 0xff) << 8) | ((lo) & 0xff))
+
+/* Static storage */
+static char *table[] = {
 "push ax",
 "ret",
 "mov bp,sp",
@@ -128,156 +156,117 @@ char *table[] = {
 "neg ",
 "_execve",
 ",#0",
-0};
+NULL
+};
 
-int bol = 1;
-int white = 0;
-
-
-#define MAX 128
 /* This table is used to look up strings.  */
-struct node {
-  char *string;
-  struct node *next;
-} node[MAX];
 
-struct node *hash[MAX];		/* hash table */
+struct node node[ABBREVS];
 
+struct node *hash[ABBREVS];		/* hash table */
 
-char input[BUFSIZ+2];
-char xbuf[BUFSIZ+2];
-main()
+/* Code */
+int main(argc, argv)
+int argc;
+char *argv[];
 {
-  int n, count, outbytes;
-  char *p;
+  char line[MAXLINE];
 
-  hainit();
-  while (1) {
-	for (p = &input[0]; p < &input[BUFSIZ+1]; p++) *p = 0;
-	n = read(0, input, BUFSIZ);
-	if (n == BUFSIZ) {
-		std_err("Input file too long\n");
-		exit(1);
+  switch (argc) {
+  case 1:
+	break;
+  case 2:
+	if (freopen(argv[1], "r", stdin) == NULL)
+		error_exit(ENOENT, "libpack: could not open file\n");
+	break;
+  default:
+	error_exit(EINVAL, "Usage: libpack [file]\n");
+  }
+
+  hash_init();
+  while (fgets(line, MAXLINE, stdin) != NULL) {
+	pack_line(line);
+	fputs(line, stdout);
+  }
+
+  exit(0);
+}
+
+static void error_exit(rc, msg)
+int rc;
+char *msg;
+{
+  fputs(msg, stderr);
+  exit(rc);
+}
+
+static void hash_init()
+{
+  int i;
+  register char **p;
+  register struct node *np;
+
+  for (i = 0, p = table; i < ABBREVS && *p != NULL; i++, p++) {
+  	if (hash[HASH(*p)] == NULL) {
+		hash[HASH(*p)] = &node[i];
+	} else {
+		for (np = hash[HASH(*p)]; np->next != NULL; np = np->next)
+			;
+		np->next = &node[i];
 	}
-	if (n <= 0) exit(0);
-	outbytes = pack88(input, xbuf, n);
-	write(1, xbuf, outbytes);
+	np = &node[i];
+  	np->string = *p;
+	np->length = strlen(*p);
+  	np->next = NULL;
   }
 }
 
-
-
-int pack88(inp, outp, count)
-register char *inp;
-char *outp;
-int count;
+static void pack_line(line)
+char *line;
 {
-  /* Take a string and pack it to compact assembly code. */
+  register char *ip;
+  register char *op;
+  int in_white;
+  TWOBYTES n;
 
-  int k, hit, whchar, n;
-  char *orig = outp;
-  char *inbeg = inp;
-  int ct;
-  char *p, **ppt;
-  struct node *nood;
+  for (ip = line; *ip != '\0'; ++ip)		/* translate tabs */
+	if (*ip == '\t') *ip = ' ';
 
-  /* Convert all tabs to spaces. */
-  p = inp;
-  while (p - inbeg < count)  {
-	if (*p == '\t') *p = ' ';
-	p++;
-  }
-
-  /* Loop on every char in the buffer. */
-  while (1) {
-	/* Is the current string in the table? */
-  	if (inp - inbeg > count) write(2, "Bug in packing algorithm\n", 25);
-	if (inp - inbeg == count) return(outp - orig);
-
-	/* Delete leading white space */
-	whchar = (*inp == ' ' ? 1 : 0);
-	if (bol && whchar) {
-		inp++;
-		continue;
-	} else {
-		bol = 0;
-	}
-	if (*inp == '\n') bol = 1;
-
-	/* Delete comments */
-	if (*inp == '|') {
-		while (*inp++ != '\n') ;
-		inp--;
-		bol = 1;
-	}
-
-	/* Compact white space */
-	if (white && whchar) {
-		inp++;
-		continue;
-	}
-	white = whchar;
-
-	ppt = table;
-	hit = 0;
-
-	/* Compute hash value for inp. */
-	n = (*inp + *(inp+1)) & 0177;
-	nood = hash[n];
-
-	while (nood != 0) {
-		if (match(inp, nood->string)) {
-			*outp++ = (char) (128 + (nood - node));
-			inp += strlen(nood->string);
-			hit++;
-			break;
+  op = line;
+  in_white = 1;
+  for (ip = line; *ip != '\0'; ++ip) {		/* pack strings in line */
+	if (*ip == COMMENT)
+		break;
+	if (isspace(*ip)) {
+		if (!in_white) {
+			*op++ = ' ';
+			in_white = 1;
 		}
-		nood = nood->next;
+		continue;
 	}
-	if (hit == 0) *outp++ = *inp++;
+	in_white = 0;
+	n = abbreviate_string(ip);
+	*op++ = LOBYTE(n);
+	ip += HIBYTE(n);
   }
+
+  if (op != line) {				/* finish nicely */
+	if (op[-1] == ' ')
+		--op;
+	*op++ = '\n';
+  }
+  *op = '\0';
 }
 
-
-int match(s1, s2)
-register char *s1, *s2;
+static TWOBYTES abbreviate_string(ip)
+register char *ip;
 {
+  register struct node *np;
 
-  while (*s2 != 0) {
-	if (*s1++ != *s2++) return(0);
-  }
-  return(1);
-} 
+  for (np = hash[HASH(ip)]; np != NULL; np = np->next)
+	if (strncmp(ip, np->string, np->length) == 0)
+		return MAKETWOBYTES(np->length - 1, 128 + (np - node));
 
-
-hainit()
-{
-/* Initialize the hash tables. */
-
-  int n, i, free;
-  char *p;
-  struct node *nood;
-
-  free = 0;			/* next free slot in node table */
-  for (i = 0; i < MAX; i++) {
-  	p = table[i];
-  	if (p == (char *) 0) return;
-  	n = *p + *(p+1);
-  	n = n & 0177;
-
-  	/* Enter string i on hash slot n. */
-  	if (hash[n] == (struct node *) 0) {
-		hash[n] = &node[free];
-	} else {
-		/* Find the end of the chain. */
-		nood = hash[n];
-		while (nood->next != (struct node *) 0) nood = nood->next;
-		nood->next = &node[free];
-	}
-  	node[free].string = p;
-  	node[free].next = (struct node *) 0;
-  	free++;
-  }
+  return MAKETWOBYTES(0, *ip);
 }
-
 

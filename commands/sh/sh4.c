@@ -1,4 +1,5 @@
 #define Extern extern
+#include <limits.h>
 #include <signal.h>
 #include <errno.h>
 #include <setjmp.h>
@@ -37,7 +38,7 @@ register char **ap;
 	wb = NULL;
 	wf = NULL;
 	if (newenv(setjmp(errpt = ev)) == 0) {
-		while (isassign(*ap))
+		while (*ap && isassign(*ap))
 			expand(*ap++, &wb, f & ~DOGLOB);
 		if (flag['k']) {
 			for (wf = ap; *wf; wf++) {
@@ -54,7 +55,7 @@ register char **ap;
 		quitenv();
 	} else
 		gflg = 1;
-	return(gflg? NULL: wp);
+	return(gflg? (char **)NULL: wp);
 }
 
 /*
@@ -360,7 +361,7 @@ int quoted;
 	}
 	*cp = 0;
 	/* allow trapped signals */
-	for (i=0; i<NSIG; i++)
+	for (i=0; i<_NSIG; i++)
 		if (ourtrap[i] && signal(i, SIG_IGN) != SIG_IGN)
 			signal(i, SIG_DFL);
 	dup2(pf[1], 1);
@@ -464,7 +465,7 @@ register char *pp;
 	char *name, *gp, *dp;
 	int dn, j, n, k;
 	struct direct ent[NDENT];
-	char dname[DIRSIZ+1];
+	char dname[NAME_MAX+1];
 	struct stat dbuf;
 
 	for (np = we; np != pp; pp--)
@@ -483,17 +484,17 @@ register char *pp;
 		DELETE(gp);
 		return;
 	}
-	dname[DIRSIZ] = '\0';
+	dname[NAME_MAX] = '\0';
 	while ((n = read(dn, (char *)ent, sizeof(ent))) >= sizeof(*ent)) {
 		n /= sizeof(*ent);
 		for (j=0; j<n; j++) {
 			if (ent[j].d_ino == 0)
 				continue;
-			strncpy(dname, ent[j].d_name, DIRSIZ);
+			strncpy(dname, ent[j].d_name, NAME_MAX);
 			if (dname[0] == '.')
 				if (*gp != '.')
 					continue;
-			for(k=0; k<DIRSIZ; k++)
+			for(k=0; k<NAME_MAX; k++)
 				if (any(dname[k], spcl))
 					dname[k] |= QUOTE;
 			if (gmatch(dname, gp)) {

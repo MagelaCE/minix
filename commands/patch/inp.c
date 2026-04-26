@@ -1,6 +1,9 @@
-/* $Header: inp.c,v 2.0 86/09/17 15:37:02 lwall Exp $
+/* $Header: inp.c,v 2.0.1.1 88/06/03 15:06:13 lwall Locked $
  *
  * $Log:	inp.c,v $
+ * Revision 2.0.1.1  88/06/03  15:06:13  lwall
+ * patch10: made a little smarter about sccs files
+ * 
  * Revision 2.0  86/09/17  15:37:02  lwall
  * Baseline for netwide release.
  * 
@@ -94,9 +97,10 @@ char *filename;
 		fatal2("Can't check out %s.\n", filename);
 	}
 	else {
-	    Sprintf(buf, "SCCS/%s%s", SCCSPREFIX, filename);
-	    if (stat(buf, &filestat) >= 0 || stat(buf+5, &filestat) >= 0) {
-		Sprintf(buf, GET, filename);
+	    Sprintf(buf+20, "SCCS/%s%s", SCCSPREFIX, filename);
+	    if (stat(s=buf+20, &filestat) >= 0 ||
+	      stat(s=buf+25, &filestat) >= 0) {
+		Sprintf(buf, GET, s);
 		if (verbose)
 		    say2("Can't find %s--attempting to get it from SCCS.\n",
 			filename);
@@ -171,13 +175,13 @@ char *filename;
 	if (!rev_in_string(i_womp)) {
 	    if (force) {
 		if (verbose)
-		    say2("\
-Warning: this file doesn't appear to be the %s version--patching anyway.\n",
+		    say2(
+"Warning: this file doesn't appear to be the %s version--patching anyway.\n",
 			revision);
 	    }
 	    else {
-		ask2("\
-This file doesn't appear to be the %s version--patch anyway? [n] ",
+		ask2(
+"This file doesn't appear to be the %s version--patch anyway? [n] ",
 		    revision);
 	    if (*buf != 'y')
 		fatal1("Aborted.\n");
@@ -216,13 +220,13 @@ char *filename;
 	if (!found_revision) {
 	    if (force) {
 		if (verbose)
-		    say2("\
-Warning: this file doesn't appear to be the %s version--patching anyway.\n",
+		    say2(
+"Warning: this file doesn't appear to be the %s version--patching anyway.\n",
 			revision);
 	    }
 	    else {
-		ask2("\
-This file doesn't appear to be the %s version--patch anyway? [n] ",
+		ask2(
+"This file doesn't appear to be the %s version--patch anyway? [n] ",
 		    revision);
 		if (*buf != 'y')
 		    fatal1("Aborted.\n");
@@ -302,6 +306,8 @@ char *string;
     if (revision == Nullch)
 	return TRUE;
     patlen = strlen(revision);
+    if (strnEQ(string,revision,patlen) && isspace(s[patlen]))
+	return TRUE;
     for (s = string; *s; s++) {
 	if (isspace(*s) && strnEQ(s+1, revision, patlen) && 
 		isspace(s[patlen+1] )) {

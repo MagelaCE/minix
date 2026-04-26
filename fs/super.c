@@ -14,11 +14,8 @@
  *   rw_super:        read or write a superblock
  */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../h/error.h"
-#include "const.h"
-#include "type.h"
+#include "fs.h"
+#include <minix/boot.h>
 #include "buf.h"
 #include "inode.h"
 #include "super.h"
@@ -30,15 +27,13 @@
  *				load_bit_maps				     *
  *===========================================================================*/
 PUBLIC int load_bit_maps(dev)
-dev_nr dev;			/* which device? */
+dev_t dev;			/* which device? */
 {
 /* Load the bit map for some device into the cache and set up superblock. */
 
   register int i;
   register struct super_block *sp;
   block_nr zbase;
-  extern struct buf *get_block();
-  extern struct super_block *get_super();
 
   sp = get_super(dev);		/* get the superblock pointer */
   if (bufs_in_use + sp->s_imap_blocks + sp->s_zmap_blocks >= NR_BUFS - 3)
@@ -67,8 +62,8 @@ dev_nr dev;			/* which device? */
 /*===========================================================================*
  *				unload_bit_maps				     *
  *===========================================================================*/
-PUBLIC unload_bit_maps(dev)
-dev_nr dev;			/* which device is being unmounted? */
+PUBLIC int unload_bit_maps(dev)
+dev_t dev;			/* which device is being unmounted? */
 {
 /* Unload the bit maps so a device can be unmounted. */
 
@@ -146,7 +141,7 @@ bit_nr origin;			/* number of bit to start searching at */
 /*===========================================================================*
  *				free_bit				     *
  *===========================================================================*/
-PUBLIC free_bit(map_ptr, bit_returned)
+PUBLIC void free_bit(map_ptr, bit_returned)
 struct buf *map_ptr[];		/* pointer to array of bit block pointers */
 bit_nr bit_returned;		/* number of bit to insert into the map */
 {
@@ -172,7 +167,7 @@ bit_nr bit_returned;		/* number of bit to insert into the map */
  *				get_super				     *
  *===========================================================================*/
 PUBLIC struct super_block *get_super(dev)
-dev_nr dev;			/* device number whose super_block is sought */
+dev_t dev;			/* device number whose super_block is sought */
 {
 /* Search the superblock table for this device.  It is supposed to be there. */
 
@@ -195,9 +190,9 @@ register struct inode *rip;	/* pointer to inode */
 /* Report on whether the given inode is on a mounted (or ROOT) file system. */
 
   register struct super_block *sp;
-  register dev_nr dev;
+  register dev_t dev;
 
-  dev = (dev_nr) rip->i_zone[0];
+  dev = (dev_t) rip->i_zone[0];
   if (dev == ROOT_DEV) return(TRUE);	/* inode is on root file system */
 
   for (sp = &super_block[0]; sp < &super_block[NR_SUPERS]; sp++)
@@ -215,7 +210,6 @@ struct inode *ip;		/* pointer to inode whose superblock needed */
 {
 /* Return the scale factor used for converting blocks to zones. */
   register struct super_block *sp;
-  extern struct super_block *get_super();
 
   sp = get_super(ip->i_dev);
   return(sp->s_log_zone_size);
@@ -225,15 +219,14 @@ struct inode *ip;		/* pointer to inode whose superblock needed */
 /*===========================================================================*
  *				rw_super				     *
  *===========================================================================*/
-PUBLIC rw_super(sp, rw_flag)
+PUBLIC void rw_super(sp, rw_flag)
 register struct super_block *sp; /* pointer to a superblock */
 int rw_flag;			 /* READING or WRITING */
 {
 /* Read or write a superblock. */
 
   register struct buf *bp;
-  dev_nr dev;
-  extern struct buf *get_block();
+  dev_t dev;
 
   /* Check if this is a read or write, and do it. */
   if (rw_flag == READING) {

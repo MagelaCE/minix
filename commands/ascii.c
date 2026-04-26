@@ -1,95 +1,93 @@
-/* ascii - list lines with/without ASCII chars	Author: Andy Tanenbaum */
+/* ascii - list lines with/without ASCII characters */
 
-#define BUFSIZE 30000
+#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
+#undef NULL			/* temporary hack */
+#include <stdio.h>
+#include <string.h>
 
-char buf[BUFSIZE];		/* input buffer */
-char *next;			/* start of line */
-char *limit;			/* last char of line */
-int count;			/* # chars in buffer not yet processed */
-int used;			/* how many chars used at start of buf */
-int eof;			/* set when eof seen */
-int nflag;			/* set if -n option given */
-int exitstatus;			/* 0 if pure ASCII, 1 if junk seen */
+#define BUFSIZE 4*1024
 
-main(argc, argv)
+static char buf[BUFSIZE + 1];	/* input buffer - +1 for sentinel */
+static char carry[BUFSIZE];	/* buffer for partial line carryover */
+
+int main(argc, argv)
 int argc;
-char *argv[];
+char **argv;
 {
-  int yes;
-  char *p;
+  int nflag = 0;		/* 1 if invoked with -n */
+  int ascii_line;		/* set to 1 if line is all ASCII */
+  int ascii_file = 1;		/* set to 0 if file is not all ASCII */
+  int count;			/* count of characters in buf */
+  char *start;			/* points to beginning of line */
+  register char *end;		/* points to end of line */
+  char *sentinel;		/* points past last character in buffer */
+  int carry_count;		/* size of carry over */
 
-  if (argc > 3) usage();
-  if (strcmp(argv[1], "-n") == 0) nflag++;
-
-  if ((argc == 2 && nflag == 0) || argc == 3) {
+  --argc;
+  ++argv;
+  if (argc > 0 && strcmp(*argv, "-n") == 0) {
+	nflag = 1;
+	--argc;
+	++argv;
+  }
+  switch (argc) {
+      case 0:
+	break;
+      case 1:
 	close(0);
-	if (open(argv[argc-1], 0) < 0) {
+	if (open(*argv, O_RDONLY) != 0) {
 		std_err("ascii: cannot open ");
-		std_err(argv[1]);
+		std_err(*argv);
 		std_err("\n");
 		exit(1);
 	}
+	break;
+      default:
+	std_err("Usage: ascii [-n] file\n");
+	exit(1);
   }
 
-  while(eof == 0) {
-	yes = getline();
-	if (nflag != yes) output();
-	next = limit;
-  }
-  exit(exitstatus);
-}
-
-int getline()
-{
-  char *p, c;
-  int asc = 1;
-
-  if (count == 0) load();
-  if (eof) exit(exitstatus);
-
-  p = next;
-  while (count > 0) {
-	c = *p++;
-	if (c & 0200) {asc = 0; exitstatus = 1;}
-	count--;
-	if (c == '\n') {
-		limit = p;
-		return(asc);
+  if ((count = read(0, buf, BUFSIZE)) <= 0) exit(0);
+  *(sentinel = &buf[count]) = '\n';
+  start = buf;
+  ascii_line = 1;
+  carry_count = 0;
+  while (1) {
+	for (end = start; *end != '\n'; ++end)
+		if ((*end & 0x80) != 0) {
+			ascii_line = 0;
+			ascii_file = 0;
+			end = (char *) memchr(end, '\n', BUFSIZE);
+			break;
+		}
+	if (end != sentinel) {
+		++end;
+		if (ascii_line != nflag) {
+			if (carry_count != 0)
+				fwrite(carry, carry_count, 1, stdout);
+			fwrite(start, end - start, 1, stdout);
+		}
+		carry_count = 0;
+		start = end;
+		ascii_line = 1;
+	} else {
+		if (carry_count != 0) {
+			std_err("ascii: line too long\n");
+			exit(1);
+		}
+		if (ascii_line != nflag) {
+			carry_count = end - start;
+			memcpy(carry, start, carry_count);
+		}
+		if ((count = read(0, buf, BUFSIZE)) <= 0) break;
+		*(sentinel = &buf[count]) = '\n';
+		start = buf;
 	}
-	if (count == 0) {
-		/* Move the residual characters to the bottom of buf */
-		used = &buf[BUFSIZE] - next;
-		copy(next, buf, used);
-		load();
-		p = &buf[used];
-		used = 0;
-		if (eof) return(asc);
-	}
   }
-}
+  if (ascii_line != nflag && carry_count != 0)
+	fwrite(carry, carry_count, 1, stdout);
 
-load()
-{
-  count = read(0, &buf[used], BUFSIZE-used);
-  if (count <= 0) eof = 1;
-  next = buf;
+  exit(ascii_file == 0);
 }
-
-output()
-{
-  write(1, next, limit-next);
-}
-
-usage()
-{
-  std_err("Usage: ascii [-n] file\n");
-  exit(1);
-}
-
-copy(s,d,ct)
-register char *s, *d;
-int ct;
-{
-  while (ct--) *d++ = *s++;
-}
-

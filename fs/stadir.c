@@ -8,17 +8,15 @@
  *   do_fstat:	perform the FSTAT system call
  */
 
-#include "../h/const.h"
-#include "../h/type.h"
-#include "../h/error.h"
-#include "../h/stat.h"
-#include "const.h"
-#include "type.h"
+#include "fs.h"
+#include <sys/stat.h>
 #include "file.h"
 #include "fproc.h"
-#include "glo.h"
 #include "inode.h"
 #include "param.h"
+
+FORWARD int change();
+FORWARD int stat_inode();
 
 /*===========================================================================*
  *				do_chdir				     *
@@ -72,7 +70,6 @@ int len;			/* length of the directory name string */
 
   struct inode *rip;
   register int r;
-  extern struct inode *eat_path();
 
   /* Try to open the new directory. */
   if (fetch_name(name_ptr, len, M3) != OK) return(err_code);
@@ -106,7 +103,6 @@ PUBLIC int do_stat()
 
   register struct inode *rip;
   register int r;
-  extern struct inode *eat_path();
 
   /* Both stat() and fstat() use the same routine to do the real work.  That
    * routine expects an inode, so acquire it temporarily.
@@ -127,7 +123,6 @@ PUBLIC int do_fstat()
 /* Perform the fstat(fd, buf) system call. */
 
   register struct filp *rfilp;
-  extern struct filp *get_filp();
 
   /* Is the file descriptor valid? */
   if ( (rfilp = get_filp(fd)) == NIL_FILP) return(err_code);
