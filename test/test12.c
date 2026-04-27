@@ -12,6 +12,7 @@ main()
   int k;
 
   printf("Test 12 ");
+  fflush(stdout);		/* have to flush for child's benefit */
 
   for (i = 0; i < NUM_TIMES; i++) switch (fork()) {
 	    case 0:	exit();	  		break;

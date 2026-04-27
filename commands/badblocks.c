@@ -1,6 +1,6 @@
 /* badblocks - collect bad blocks in a file	Author: Jacob Bunschoten */
 
-/* Usage "badblocks block_special" */
+/* Usage "badblocks block_special [Up_to_7_blocks]" */
 
 /* This program is written to handle BADBLOCKS on a hard or floppy disk.
  * The program asks for block_numbers. These numbers can be obtained with
@@ -19,14 +19,15 @@
  *
  */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
-
 #include <minix/config.h>
 #include <minix/type.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+
 
 
 /* 		Super block table.
@@ -66,7 +67,7 @@ struct d_inode {		/* disk inode. */
   mode_t i_mode;		/* file type, protection, etc. */
   uid_t i_uid;			/* user id of the file's owner */
   off_t i_size;			/* current file size in bytes */
-  time_t i_modtime;		/* when was file data last changed */
+  time_t i_mtime;		/* when was file data last changed */
   gid_t i_gid;			/* group number */
   nlink_t i_nlinks;		/* how many links to this file */
   zone_nr i_zone[NR_ZONE_NUMS];	/* blocks nums for direct, ind, and dbl ind */
@@ -102,20 +103,18 @@ char file_name[50];
 char dir_name[] = "/tmpXXXXXX";
 
 int block[NR_DZONE_NUMS + 1];	/* last block contains zero */
+int interactive;		/* 1 if interactive (argc == 2) */
+int position = 2;		/* next block # is argv[position] */
 
 FILE *fp, *fopen();
 int fd;
 int eofseen;			/* set if '\n' seen */
-
 struct stat stat_buf;
 struct d_inode *ip;
 struct super_block *sp;
 
 extern char *strcat();
-#ifdef DEBUG
-extern char *itoa();
-char *utobin();
-#endif
+
 
  /* ====== super block routines ======= */
 
@@ -127,9 +126,9 @@ rw_super(flag)
   lseek(fd, (long) BLOCK_SIZE, SEEK_SET);	/* seek */
 
   if (flag == READ)
-	rwd = read(fd, sp, SUPER_SIZE);
+	rwd = read(fd, (char *) sp, SUPER_SIZE);
   else
-	rwd = write(fd, sp, SUPER_SIZE);
+	rwd = write(fd, (char *) sp, SUPER_SIZE);
   if (rwd != SUPER_SIZE) {	/* ok ? */
 	printf("Bad %s in get_super() (should be %d is %d)\n",
 	       flag == READ ? "read" : "write",
@@ -147,15 +146,6 @@ get_super()
 	printf("Bad magic number in super_block?!\n");
 	done(DIR_CREATED);
   }
-#ifdef DEBUG
-  /* Give some information of the super_block */
-
-  printf("# Inodes %d\n", sp->s_ninodes);
-  printf("# Zones %d\n", sp->s_nzones);
-  printf("# inode map block %d\n", sp->s_imap_block);
-  printf("# zone map block %d\n", sp->s_zmap_block);
-  printf("  Firstdatazone %d\n\n", sp->s_firstdatazone);
-#endif
 }
 
 
@@ -187,9 +177,9 @@ struct stat *stat_ptr;
 
   /* Pointer is at the inode */
   if (rw_mode == READ) {	/* read it */
-	rwd = read(fd, ip, INODE_SIZE);
+	rwd = read(fd, (char *) ip, INODE_SIZE);
   } else {			/* write it */
-	rwd = write(fd, ip, INODE_SIZE);
+	rwd = write(fd, (char *) ip, INODE_SIZE);
   }
   if (rwd != INODE_SIZE) {	/* ok ? */
 	printf("Bad %s in get_inode()\n", (rw_mode == READ) ? "read" :
@@ -202,30 +192,10 @@ get_inode(stat_ptr)
 struct stat *stat_ptr;
 {
 
-#ifdef DEBUG
-  int tst;
-#endif
   int cnt;
 
   rw_inode(stat_ptr, READ);
 
-#ifdef DEBUG
-  tst = 0;
-  printf("\ni_zone[0]=%d, st_rdev=%d\n", (int) ip->i_zone[0],
-         (int) stat_ptr->st_rdev);
-  printf("File size %ld\n", (long) ip->i_size);
-  for (cnt = 0; cnt < NR_ZONE_NUMS; cnt++)
-	if (ip->i_zone[cnt] != 0) {
-		tst = 1;
-		printf("zone[%d] contains %d\n", cnt,
-		       (int) ip->i_zone[cnt]);
-	}
-  if (tst) {
-	printf("Possible wrong inode. Inode must be clean");
-	done(DIR_CREATED);
-  }
-  printf("\n");
-#endif
   for (cnt = 0; cnt < NR_ZONE_NUMS; cnt++)
 	ip->i_zone[cnt] = 0;	/* Just to be safe */
 }
@@ -248,10 +218,12 @@ char *argv[];
   sp = &super_block;
   ip = &d_inode;
 
-  if (argc != 2) {
-	fprintf(stderr, "Usage: %s block_special\n", argv[0]);
+  if (argc < 2 || argc > 9) {
+	fprintf(stderr, "Usage: %s block_special [up_to_7_blocks]\n", argv[0]);
 	done(HARMLESS);
   }
+
+  interactive = (argc == 2 ? 1 : 0);
 
   /* Do some test. */
   if (geteuid()) {
@@ -261,10 +233,7 @@ char *argv[];
   }
   dev_name = argv[1];
   mktemp(dir_name);
-#ifdef DEBUG
-  printf("Dir_name is %s\n", dir_name);
-#endif
-  if (mknod(dir_name, 040777, 0) == -1) {
+  if (mkdir(dir_name, 0777) == -1) {
 	fprintf(stderr, "%s is already used in system\n", dir_name);
 	done(HARMLESS);
   }
@@ -290,11 +259,11 @@ char *argv[];
 	done(HARMLESS);
   }
   if (stat(file_name, &stat_buf) != -1) {
-	printf("File %s does already exists\n", file_name);
+	printf("File %s already exists\n", file_name);
 	done(DEV_MOUNTED);
   }
   if ((fp = fopen(file_name, "w")) == NULL) {
-	printf("Can not create file %s\n", file_name);
+	printf("Cannot create file %s\n", file_name);
 	done(DEV_MOUNTED);
   }
   chmod(file_name, 0);		/* "useless" file */
@@ -333,16 +302,21 @@ char *argv[];
   get_inode(&stat_buf);
 
   for (finished = 0; !finished;) {
-	printf("Give up to %d bad block numbers separated by spaces\n",
-	       NR_DZONE_NUMS);
+	if (interactive)
+		printf("Give up to %d bad block numbers separated by spaces\n",
+							       NR_DZONE_NUMS);
 	reset_blks();
 	cnt = 0;		/* cnt keep track of the zone's */
 	while (cnt < NR_DZONE_NUMS) {
 		int tst;
 
-		blk_nr = rd_num();
+		if (interactive)
+			blk_nr = rd_num();
+		else
+			blk_nr = rd_cmdline(argc, argv);
 		if (blk_nr == -1) break;
 		tst = blk_ok(blk_nr);
+
 		/* Test if this block is free */
 		if (tst == OK) {
 			cnt++;
@@ -350,13 +324,16 @@ char *argv[];
 		} else if (tst == QUIT)
 			break;
 	}
-	show_blks();
+	if (interactive) show_blks();
 	if (!cnt) done(FILE_EXISTS);
-	switch (ok("All these blocks ok <y/n/q> (y:Device will change) ")) {
-	    case OK:	finished = 1;	break;
-	    case NOT_OK:
-		break;
-	    case QUIT:	done(FILE_EXISTS);
+	if (interactive) {
+	   switch (ok("All these blocks ok <y/n/q> (y:Device will change) ")) {
+		case OK:	finished = 1; break;
+		case NOT_OK:	break;
+		case QUIT:	done(FILE_EXISTS);
+	   }
+	} else {
+		finished = 1;
 	}
   }
 
@@ -364,6 +341,15 @@ char *argv[];
   close(fd);			/* free device */
   done(SUCCESS);
 }
+
+rd_cmdline(argc, argv)
+int argc;
+char *argv[];
+{
+  if (position == argc) return(-1);
+  return(atoi(argv[position++]));
+}
+
 
 modify(nr_blocks)
 {
@@ -452,7 +438,7 @@ unsigned num;
   lseek(fd, 0L, SEEK_SET);	/* rewind */
   lseek(fd, blk_offset, SEEK_SET);	/* set pointer at word */
 
-  rd = read(fd, &tst_word, SIZE_OF_INT);
+  rd = read(fd, (char *) &tst_word, SIZE_OF_INT);
   if (rd != SIZE_OF_INT) {
 	printf("Read error in bitmap\n");
 	done(DIR_CREATED);
@@ -493,7 +479,7 @@ unsigned num;
   lseek(fd, 0L, SEEK_SET);	/* rewind */
   lseek(fd, blk_offset, SEEK_SET);
 
-  rwd = read(fd, &tst_word, SIZE_OF_INT);
+  rwd = read(fd, (char *) &tst_word, SIZE_OF_INT);
   if (rwd != SIZE_OF_INT) {
 	printf("Read error in bitmap\n");
 	done(DEV_MOUNTED);
@@ -502,18 +488,8 @@ unsigned num;
   if (((tst_word >> bit) & 01) == 0) {	/* free */
 	lseek(fd, 0L, SEEK_SET);/* rewind */
 	lseek(fd, blk_offset, SEEK_SET);
-#ifdef DEBUG
-	printf("blk= %ld ", blk_offset);
-	printf("block= %ld ", (long) blk_offset / BLOCK_SIZE);
-	printf("offset= %d\n", offset);
-	printf("\t\tword= %s ", utobin(tst_word, wrd_str));
-	printf("bit_nr = %d\n", bit);
-#endif
 	tst_word |= (1 << bit);	/* not free anymore */
-#ifdef DEBUG
-	printf("The word is now %s\n", utobin(tst_word, wrd_str));
-#endif
-	rwd = write(fd, &tst_word, SIZE_OF_INT);
+	rwd = write(fd, (char *) &tst_word, SIZE_OF_INT);
 	if (rwd != SIZE_OF_INT) {
 		printf("Bad write in zone map\n");
 		printf("Check file system \n");
@@ -521,8 +497,9 @@ unsigned num;
 	}
 	return;
   }
-  printf("Bit was on block %d; ==> internal error\n", num);
-  done(DIR_CREATED);
+  printf("Bit map indicates that block %u is in use. Not marked.\n",num);
+/*  done(DIR_CREATED); */
+  return;
 }
 
  /* ======= interactive interface ======= */
@@ -565,18 +542,10 @@ char *str;
 	       c != 'y' && c != 'n' && c != 'q')
 		if (c != '\n') printf(" Bad character %c\n", (char) c);
 	switch (c) {
-	    case EOF:
-		return QUIT;
-	    case 'y':
-		return OK;
-	    case 'n':
-		return NOT_OK;
-	    case 'q':
-		return QUIT;
-#ifdef DEBUG
-	    default:
-		printf("Unknown option %c\n\t", *c);
-#endif
+	    case EOF:		return QUIT;
+	    case 'y':		return OK;
+	    case 'n':		return NOT_OK;
+	    case 'q':		return QUIT;
 	}
 	printf("\n");
   }
@@ -600,35 +569,3 @@ int nr;
   exit(nr == SUCCESS ? 0 : 1);
 }
 
-#ifdef DEBUG
- /* ===== print integer in binairy format ====== */
-
-char *chtobin(num, str)
- /* Char to binair. Convert the numerical value num to a binairy string (0|1)
-  * str[] is at least 8 chars wide */
-unsigned char num;
-char *str;
-{
-  int i;
-
-  for (i = 7; i >= 0; i--) {
-	str[i] = (num & 01) ? '1' : '0';
-	num >>= 1;
-	num &= 0xFF;
-  }
-  str[8] = '\0';
-  return str;
-}
-
-
-char *utobin(num, str)
- /* Unsigned to binair. Used to print a binairy word */
-unsigned num;
-char *str;
-{
-  chtobin((num >> 8) & 0xFF, str);
-  chtobin(num & 0xFF, &str[8]);
-  return str;
-}
-
-#endif DEBUG

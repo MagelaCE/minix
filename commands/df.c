@@ -5,8 +5,8 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <stdio.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include <minix/config.h>
 #include <minix/const.h>
@@ -73,7 +73,7 @@ int silent;
 	return;
   }
   lseek(fd, (long) BLOCK_SIZE, SEEK_SET);	/* skip boot block */
-  if (read(fd, &super, SUPER_SIZE) != SUPER_SIZE) {
+  if (read(fd, &super, SUPER_SIZE) != (int) SUPER_SIZE) {
 	fprintf(stderr, "df: Can't read super block of %s\n", name);
 	close(fd);
 	return;
@@ -126,36 +126,49 @@ int silent;
 }
 
 long bit_count(blocks, bits, fd)
-int blocks;
-int bits;
+unsigned blocks;
+unsigned bits;
 int fd;
 {
-  register int i, b;
-  long busy, count, w;
-  int *wptr, *wlim;
-  int buf[BLOCK_SIZE / sizeof(int)];
+  register char *wptr;
+  register int i;
+  register int b;
+  register unsigned busy;	/* bits fits in unsigned, so busy does too */
+  register char *wlim;
+  register int j;
+  static char buf[BLOCK_SIZE];
+  static unsigned bits_in_char[1 << CHAR_BIT];
+
+  /* Precalculate bitcount for each char. */
+  if (bits_in_char[1] != 1) {
+	for (b = (1 << 0); b < (1 << CHAR_BIT); b <<= 1)
+		for (i = 0; i < (1 << CHAR_BIT); i++)
+			if (i & b) bits_in_char[i]++;
+  }
 
   /* Loop on blocks, reading one at a time and counting bits. */
   busy = 0;
-  count = 0;
-  for (i = 0; i < blocks; i++) {
+  for (i = 0; i < blocks && bits != 0; i++) {
 	if (read(fd, buf, BLOCK_SIZE) != BLOCK_SIZE) return(-1);
 
 	wptr = &buf[0];
-	wlim = &buf[BLOCK_SIZE / sizeof(int)];
-
-	/* Loop on the words of a block */
-	while (wptr != wlim) {
-		w = *wptr++;
-
-		/* Loop on the bits of a word. */
-		for (b = 0; b < 8 * sizeof(int); b++) {
-			if ((w >> b) & 1) busy++;
-			if (++count == bits) return (busy);
-		}
+	if (bits >= CHAR_BIT * BLOCK_SIZE) {
+		wlim = &buf[BLOCK_SIZE];
+		bits -= CHAR_BIT * BLOCK_SIZE;
+	} else {
+		b = bits / CHAR_BIT;	/* whole chars in map */
+		wlim = &buf[b];
+		bits -= b * CHAR_BIT;	/* bits in last char, if any */
+		b = *wlim & ((1 << bits) - 1);	/* bit pattern from last ch */
+		busy += bits_in_char[b];
+		bits = 0;
 	}
+
+	/* Loop on the chars of a block. */
+	while (wptr != wlim)
+		busy += bits_in_char[*wptr++ & ((1 << CHAR_BIT) - 1)];
   }
-  return(0);
+  return(busy);
 }
 
 
@@ -200,49 +213,4 @@ char **d, **m;
 	df(dev, dir, REPORT);
   }
 
-}
-
-
-static int fd, w, left;
-static char fill;
-
-static void wr(a, n)
-char *a;
-int n;
-{
-  if (left && n > 0) write(fd, a, n);
-
-  while (w > n) {
-	write(fd, &fill, 1);
-	--w;
-  }
-
-  if (!left && n > 0) write(fd, a, n);
-}
-
-static void pr_n(neg, n)
-int neg;
-unsigned long n;
-{
-  char a[3 * sizeof(n) + 1], *pa = a + sizeof(a);
-
-  do
-	*--pa = '0' + n % 10;
-  while ((n /= 10) != 0);
-
-  if (neg) *--pa = '-';
-
-  wr(pa, a + sizeof(a) - pa);
-}
-
-static void pr_i(i)
-long i;
-{
-  int neg = 0;
-
-  if (i < 0) {
-	neg = 1;
-	i = -i;
-  }
-  pr_n(neg, (unsigned long) i);
 }

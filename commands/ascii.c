@@ -3,9 +3,8 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
-#undef NULL			/* temporary hack */
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 
 #define BUFSIZE 4*1024
 
@@ -67,7 +66,7 @@ char **argv;
 		if (ascii_line != nflag) {
 			if (carry_count != 0)
 				fwrite(carry, carry_count, 1, stdout);
-			fwrite(start, end - start, 1, stdout);
+			fwrite(start, (int)(end - start), 1, stdout);
 		}
 		carry_count = 0;
 		start = end;

@@ -49,7 +49,7 @@
 #define AUTO_BIOS          0	/* xt_wini.c - use Western's autoconfig BIOS */
 #define C_RS232_INT_HANDLERS 0	/* rs232.c - use slower C int handlers */
 #define DEFAULT_CLASS      0	/* floppy.c - 3 or 5 to get only that size */
-#define LINEWRAP           0	/* config.c - wrap lines at column 80 */
+#define LINEWRAP           0	/* console.c - wrap lines at column 80 */
 #define NO_HANDSHAKE       0	/* rs232.c - don't use CTS/RTS handshaking */
 #define STUPID_WINI_ADJUST 0	/* *wini.c - skip odd 1st sector of partition*/
 

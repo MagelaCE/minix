@@ -6,6 +6,7 @@
  *	abc
  * where
  *	a = 0 (line disabled = no shell), 1 (enabled = shell started)
+ *	    2 (enabled through a GETTY)
  *	b = a-r defines UART paramers (baud, bits, parity), 0 for console
  *	c = line number or line name
  *
@@ -18,25 +19,36 @@
  * minor device number order - the first line should be for tty0, the
  * second for tty1, and so on.
  *
+ * Example /etc/tty file (the text following # should not be in /etc/ttys)
+ *	1c0	# /dev/tty0 is enabled as 1200 baud, no parity
+ *	2c1	# /dev/tty1 is enabled using /etc/getty for speed detection
+ *	0c2	# /dev/tty2 is disabled
+ *	
+ * If any of the /etc/tty entries start with a 2, the file /etc/getty must
+ * be present and executable.
+ *
  * If the files /usr/adm/wtmp and /etc/utmp exist and are writable, init
  * (with help from login) will maintain login accounting.  Sending a
  * signal 1 (SIGHUP) to init will cause it to reread /etc/ttys and start
  * up new shell processes if necessary.  It will not, however, kill off
  * login processes for lines that have been turned off; do this manually.
  */
-
+#include <sys/types.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <signal.h>
 #include <sgtty.h>
+#include <string.h>
+#include <unistd.h>
 #include <utmp.h>
 
-#ifndef WTMP
-#define WTMP		"/usr/adm/wtmp"	/* wtmp login accounting file */
-#endif
-#ifndef UTMP
-#define UTMP		"/etc/utmp"	/* utmp login file */
-#endif
-
 #define CONSNAME	"/dev/tty0"	/* system console device */
+
+#define SHELL1		"/bin/sh"
+#define SHELL2		"/usr/bin/sh"
+#define LOGIN1		"/bin/login"
+#define LOGIN2		"/usr/bin/login"
+#define GETTY		"/etc/getty"	/* GETTY for dial IN/OUT */
 
 #define PIDSLOTS	4		/* maximum number of ttys entries */
 #define TTYSBUF		(8 * PIDSLOTS)	/* buffer for reading /etc/ttys */
@@ -77,6 +89,7 @@ struct uart {
 struct slotent {
   int onflag;			/* should this ttyslot be on? */
   int pid;			/* pid of login process for this tty line */
+  int exit;			/* eit status of child */
   char name[8];			/* name of this tty */
   int flags;			/* sg_flags field for this tty */
   int speed;			/* sg_ispeed for this tty */
@@ -89,10 +102,12 @@ char *stackpt = &stack[STACKSIZE];
 char **environ;			/* declaration required by library routines */
 extern int errno;
 
-char CONSOLE[] = CONSNAME;	/* name of system console */
+char *CONSOLE = CONSNAME;	/* name of system console */
 struct sgttyb args;		/* buffer for TIOCGETP */
 int gothup = 0;			/* flag, showing signal 1 was recieved */
 int pidct = 0;			/* count of running children */
+
+char *env[] = { (char *)0 };	/* tiny environment for execle */
 
 main()
 {
@@ -113,13 +128,15 @@ main()
 	/* Child exec's the shell to do the work. */
 	if(open("/etc/rc", 0) < 0) exit(EXIT_OPENFAIL);
 	dup(open(CONSOLE, 1));	/* std output, error */
-	execn("/bin/sh");
+	execle(SHELL1, SHELL1, (char *)0, env);
+	execle(SHELL2, SHELL2, (char *)0, env);
 	exit(EXIT_EXECFAIL);	/* impossible, we hope */
   }
 
-  wtmp("~", "reboot", -1);	/* log system reboot */
+  /* Log system reboot. */
+  wtmp("reboot", "~~", "~", 0, BOOT_TIME, -1);
 
-  /* Read the /etc/ttys file */
+  /* Read the /etc/ttys file. */
   readttys();
   
   /* Main loop. If login processes have already been started up, wait for one
@@ -139,13 +156,13 @@ main()
 		/* Search to see which line terminated. */
 		for(slotp = slots; slotp < &slots[PIDSLOTS]; ++slotp) {
 			if(slotp->pid == pid) {
-			    --pidct;
+			    pidct--;
 			    slotp->pid = 0;	/* now no login process */
-			    wtmp(slotp->name, "", slotp - slots);
+			    slotp->exit = status;
 
 			    if(((status >> 8) & 0xFF) == EXIT_TTYFAIL) {
 				fd = open(CONSOLE, 1);
-				write(fd, "init: problems with tty, shutting down ", 39);
+				write(fd, "init: tty problems, shutting down ", 39);
 				write(fd, slotp->name, sizeof slotp->name);
 				write(fd, "\n", 1);
 
@@ -157,15 +174,16 @@ main()
 	      }
 	}
 
-	/* If a signal 1 (SIGHUP) is recieved, reread /etc/ttys */
+	/* If a signal 1 (SIGHUP) is received, reread /etc/ttys. */
 	if(gothup) {
 		readttys();
 		gothup = 0;
 	}
 
-	/* See which lines need a login process started up */
+	/* See which lines need a login process started up. */
 	for(slotp = slots; slotp < &slots[PIDSLOTS]; ++slotp) {
-		if(slotp->onflag && slotp->pid <= 0) startup(slotp - slots);
+		if(slotp->onflag && slotp->pid <= 0)
+			startup(slotp - slots, DEAD_PROCESS, LOGIN_PROCESS);
 	}
   }
 }
@@ -196,37 +214,63 @@ readttys()
   endp = (p = ttys) + read(fd, ttys, TTYSBUF);
   *endp = '\n';
 
+  /* The first character of each line on /etc/ttys tells what to do:
+   * 	0 = do not enable line
+   *	1 = enable line for regular login
+   *	2 = use /etc/getty on this line to detect modem speed dynamically
+   */
   while(p < endp) {
-	if(*p != '0' && *p != '1') goto endline;
-	slotp->onflag = ('1' == *p++);			/* 'line on' flag */
+	switch(*p++) {
+		case '0':		/* no getty/login */
+			slotp->onflag = 0;
+			break;
+
+		case '1':		/* use login on this line */
+			slotp->onflag = 1;
+			break;
+
+		case '2':		/* use GETTY on this line */
+			slotp->onflag = 2;
+			break;
+
+		default:
+			/* First char of line is rotten.  Skip this entry. */
+			while(*p++ != '\n') ;	/* read until '\n' hit */
+			continue;	/* go to next entry */
+	}
+	slotp->exit = 0;
 	slotp->flags = CRMOD | XTABS | ECHO;		/* sg_flags setting */
+
+	/* Now examine the second character of an /etc/ttys entry. */
 	if('a' <= *p && *p <= 'a' + NPARAMSETS)	{	/* a serial line? */
 		slotp->flags |= uart[*p - 'a'].flags;
 		slotp->speed = uart[*p - 'a'].baud;
-	} else if(*p != '0')				/* non-serial line? */
-		goto endline;
-        ++p;
+	} else if (*p != '0') {
+		while(*p++ != '\n') ;	/* skip the rest of the line */
+		continue;
+	}
+        p++;
 
+	/* Now examine the third character of an /etc/ttys entry. */
 	if('0' <= *p && *p <= '9') {			/* ttyname = digit? */
 		strncpy(slotp->name, "tty?", sizeof (slotp->name));
 		slotp->name[3] = *p;			/* fill in '?' */
 	} else {					/* full name - copy */
-		for(q = slotp->name; *p != '\n';) {
-			*q++ = *p++;
-		}
+		for (q = slotp->name; *p != '\n';) *q++ = *p++;
 		*q = '\0';
 	}
 
-	++slotp;
-endline:
+	slotp++;
 	while(*p++ != '\n') ;
   }
 
   close(fd);
 }
 
-startup(linenr)
+startup(linenr, mode1, mode2)
 int linenr;
+int mode1;
+int mode2;
 {
   /* Fork off a process for the indicated line. */
 
@@ -240,6 +284,9 @@ int linenr;
 	/* Parent */
 	slotp->pid = pid;
 	if( pid > 0 ) ++pidct;
+	wtmp("", slotp->name, slotp->name, pid, mode1, linenr);
+	if (mode1 != mode2)
+		wtmp("", slotp->name, slotp->name, pid, mode2, linenr);
   } else {
 	/* Child */
 	close(0);				/* just in case */
@@ -257,41 +304,94 @@ int linenr;
 	args.sg_flags = slotp->flags;
 	if(ioctl(0, TIOCSETP, &args) < 0) exit(EXIT_TTYFAIL);
 
-	/* Try to exec login, or in an emergency, exec the shell. */
-	execn("/usr/bin/login");
-	execn("/bin/login");
-	execn("/bin/sh");
-	execn("/usr/bin/sh");
+	/* Try to exec GETTY first if needed.  Call it with "-k CONSOLE" if
+	 * the line is the console.  This causes GETTY to skip the speed 
+	 * adaption routines. To get a GETTY process instead of a LOGIN, set 
+	 * the first digit in /etc/ttys to '2'.  '1' still means LOGIN.
+	 */
+	if (slotp->onflag == 2) {
+		if (linenr == 0) {
+			execle(GETTY, GETTY, line, "-k", "CONSOLE", (char *)0,
+			       env);
+		 } else {
+			execle(GETTY, GETTY, line, (char *)0, env);
+		}
+	}
+
+	/* Try to exec various logins. */
+	execle(LOGIN1, LOGIN1, (char *)0, env);
+	execle(LOGIN2, LOGIN2, (char *)0, env);
+
+	/* Emergency! Try to exec various shells. */
+	execle(SHELL1, SHELL1, (char *)0, env);
+	execle(SHELL2, SHELL2, (char *)0, env);
+
 	write(open(CONSOLE, 1), "init: couldn't exec login\n", 26);
 	exit(EXIT_EXECFAIL);
   }
 }
 
-wtmp(line, user, lineno)
-char *line, *user; int lineno;
+
+wtmp(user, id, line, pid, type, lineno)
+char *user;			/* name of user */
+char *id;			/* inittab ID */
+char *line;			/* TTY name */
+int pid;			/* PID of process */
+int type;			/* TYPE of entry */
+int lineno;			/* slot number in UTMP */
 {
-  struct utmp entry;
+/* Log an event into the WTMP and UTMP files. */
+
+  struct utmp utmp;		/* UTMP/WTMP User Accounting */
+  char *sp = "               ";	/* blank space */
   register int fd;
-  extern long time();
 
-  (void) strncpy( entry.ut_line, line, sizeof(entry.ut_line) );
-  (void) strncpy( entry.ut_name, user, sizeof(entry.ut_name) );
+  /* Clear the fields. */
+  strncpy(utmp.ut_name, sp, sizeof(utmp.ut_name));
+  strncpy(utmp.ut_id, sp, sizeof(utmp.ut_id));
+  strncpy(utmp.ut_line, sp, sizeof(utmp.ut_line));
 
-  entry.ut_time = time((long *)0);
+  /* Strip the /dev part of the TTY name. */
+  sp = strrchr(line, '/');
+  if (sp == 0) 
+	sp = line;
+    else 
+	sp++;
 
-  if( (fd = open( WTMP, 1 )) < 0 ) return;
-  if( lseek( fd, 0L, 2 ) >= 0L ) {
-	write( fd, (char *) &entry, sizeof(struct utmp) );
+  /* Enter new values. */
+  strncpy(utmp.ut_name, user, sizeof(utmp.ut_name));
+  strncpy(utmp.ut_id, id, sizeof(utmp.ut_id));
+  strncpy(utmp.ut_line, sp, sizeof(utmp.ut_line));
+  utmp.ut_pid = pid;
+  utmp.ut_type = type;
+  utmp.ut_time = time(0);
+
+  if ((fd = open(WTMP, O_WRONLY)) < 0) return;
+  if (lseek(fd, 0L, SEEK_END) >= 0L) write(fd, &utmp, sizeof(struct utmp));
+  close(fd);
+
+  if (lineno >= 0) {		/* remove entry from utmp */
+	if ((fd = open(UTMP, O_WRONLY)) < 0) return;
+	lineno *= sizeof(struct utmp);
+	if (lseek(fd, (long) lineno, SEEK_SET) >= 0L)
+		write(fd, &utmp, sizeof(struct utmp));
+	close(fd);
   }
+}
 
-  close( fd );
+char *sbrk(incr)
+int incr;
+{
+/* One-off sbrk to allocate memory for execle.  The stack and heap are not set
+ * up right for the library sbrk.  This should only be called once, so can be
+ * very simple.
+ */
 
-  if( lineno >= 0 ) {		/* remove entry from utmp */
-	if( (fd = open( UTMP, 1 )) < 0 ) return;
-	    if( lseek( fd, (long) (lineno * sizeof(struct utmp)), 0 ) >= 0 ) {
-		write( fd, (char *) &entry, sizeof(struct utmp) );
-	    }
+  static void *some_memory[64];	/* (void *) to align it */
+  static int used_before;
 
-  	close( fd );
-  }
+  if (used_before || incr < 0 || incr > sizeof some_memory)
+	return((char *)-1);
+  used_before = 1;
+  return((char *) some_memory);
 }

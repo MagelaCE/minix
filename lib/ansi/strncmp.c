@@ -1,4 +1,3 @@
-#include <lib.h>
 /* strncmp - compare at most n characters of string s1 to s2 */
 
 #include <string.h>
@@ -14,11 +13,12 @@ size_t n;
 
   scan1 = s1;
   scan2 = s2;
-  count = n;
-  while (count > 0 && *scan1 != '\0' && *scan1 == *scan2) {
-	scan1++; scan2++; count--;
+  count = n + 1;		/* extra so predecrement tests remainder */
+  while (--count > 0 && *scan1 != '\0' && *scan1 == *scan2) {
+	scan1++;
+	scan2++;
   }
-  if (count == 0) return(0);
+  if (count <= 0) return(0);
 
   /* The following case analysis is necessary so that characters which
    * look negative collate low against normal characters but high

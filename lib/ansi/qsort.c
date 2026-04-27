@@ -10,7 +10,8 @@ size_t nel, width;
 _PROTOTYPE( int (*compar), (const void *, const void *));
 {
   qcompar = compar;
-  qsort1((char *) base, (char *) base + (nel - 1) * width, width);
+  if (nel > 0)
+  	qsort1((char *) base, (char *) base + (nel - 1) * width, width);
 }
 
 PRIVATE void qsort1(a1, a2, width)

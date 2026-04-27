@@ -1,7 +1,7 @@
 #include <lib.h>
-#include <stdio.h>
-#include <sys/types.h>
 #include <unistd.h>
+#include <stdio.h>
+
 
 int fgetc(iop)
 FILE *iop;

@@ -156,6 +156,7 @@ int cf;
 	iounit = IODEFAULT;
 	if (i & IOHERE)
 		markhere(yylval.cp, iop);
+	return(1);
 }
 
 static void
@@ -228,7 +229,7 @@ int cf;
 		peeksym = c;
 		if ((t = simple()) == NULL) {
 			if (iolist == NULL)
-				return(NULL);
+				return((struct op *)NULL);
 			t = newtp();
 			t->type = TCOM;
 		}
@@ -307,7 +308,7 @@ int onlydone;
 
 	c = yylex(CONTIN);
 	if (c == DONE && onlydone)
-		return(NULL);
+		return((struct op *)NULL);
 	if (c != DO)
 		SYNTAXERR;
 	list = c_list();
@@ -323,7 +324,7 @@ thenpart()
 
 	if ((c = yylex(0)) != THEN) {
 		peeksym = c;
-		return(NULL);
+		return((struct op *)NULL);
 	}
 	t = newtp();
 	t->type = 0;
@@ -355,7 +356,7 @@ elsepart()
 
 	default:
 		peeksym = c;
-		return(NULL);
+		return((struct op *)NULL);
 	}
 }
 
@@ -410,7 +411,7 @@ wordlist()
 
 	if ((c = yylex(0)) != IN) {
 		peeksym = c;
-		return(NULL);
+		return((char **)NULL);
 	}
 	startl = 0;
 	while ((c = yylex(0)) == WORD)

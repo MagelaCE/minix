@@ -2,8 +2,8 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdio.h>
 #include <time.h>
+#include <stdio.h>
 
 #define COOKIEJAR "/usr/lib/fortune.dat"
 
@@ -26,10 +26,9 @@ char *argv[];
   }
 
   /* Create seed from : date, time, user-id and process-id we can't get
-   * the position of the moon, unfortunately. Note that super cookies
-   * are not affected by chance...
+   * the position of the moon, unfortunately.
    */
-  seed = time((long *) 0) * (long) getuid() * (long) getpid();
+  seed = time((time_t *) 0) * (long) (getuid() + 1) * (long) getpid();
 
   if (stat(COOKIEJAR, &cookie_stat) != 0) {
 	fprintf(stderr, "%s:\nCannot stat cookie jar\n", argv[0]);

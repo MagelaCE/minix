@@ -1,12 +1,12 @@
 /*  animals - guessing game	Authors: Terrence W. Holm & Edwin L. Froese */
 
 #include <sys/types.h>
-#include <stdio.h>
 #include <string.h>
 #include <signal.h>
 #include <sgtty.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #define  ANIMALS	"/usr/lib/animals"
 #define  DEFAULT_ANIMAL	"beaver"

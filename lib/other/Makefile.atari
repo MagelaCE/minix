@@ -1,0 +1,6 @@
+CFLAGS= -c -O 
+
+$f.o:	$f.c
+	@cc $(CFLAGS) $f.c
+
+

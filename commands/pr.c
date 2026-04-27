@@ -31,14 +31,21 @@
  *        -columns : Print files in n-columns.
  *        -l length: Take the length of the page to be n instead of 66
  *        -h header: Take next argument as page header.
- *        -w width  : Take the width of the page to be n instead of default 72
+ *        -w width  : Take the width of the page to be n instead of default 79
  *	  -f : do not fold lines.
+ * Modified: Lars Fredriksen		(Jan 19, 1990)
+ *	fixed the program so that 
+ *		pr -n *.c
+ *	would work. The clobal variable 'width' was decremented
+ *	by NUM_WIDTH, for each file, resulting in width finally
+ *	being so small that nothing was printed. Used the local
+ *	variable 'w' for the width adjustment (in print())
  */
 
 #include <stdio.h>
 
 #define DEF_LENGTH	66
-#define DEF_WIDTH	72
+#define DEF_WIDTH	79
 #define NUM_WIDTH	8
 #define TAB_WIDTH	8	/* fixed tab_width */
 
@@ -364,7 +371,7 @@ FILE *filep;
 			 * parts */
 
   linenr = 1;
-  if (number) width -= NUM_WIDTH;
+  if (number) w -= NUM_WIDTH;
 
   do {
 	/* Check printing of page */
@@ -393,7 +400,7 @@ FILE *filep;
 				printf("%7c ", ' ');	/* 7 == NUM_WIDTH-1 */
 		pr_number = FALSE;
 		cnt = 0;
-		while (c != '\n' && c != EOF && cnt < width) {
+		while (c != '\n' && c != EOF && cnt < w) {
 			if (c == '\t') {
 				int i, max;
 				max = TO_TAB(cnt);
@@ -428,7 +435,7 @@ FILE *filep;
   }
 }
 
-char *myalloc(size)
+static char *myalloc(size)
 int size;			/* How many bytes */
 {
   char *ptr, *malloc();

@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 typedef enum {
   False, True
@@ -27,7 +28,10 @@ char *name;
 	if (++tries >= MAXTRIES) return(False);
 	sleep(NAPTIME);
   }
-  if (fd == -1 || close(fd) == -1) syserr("lock");
+  if (fd == -1 || close(fd) == -1) {
+	fprintf(stderr, "lock failed\n");
+	exit(1);
+  }
   return(True);
 }
 

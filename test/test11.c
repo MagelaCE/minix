@@ -3,21 +3,30 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdio.h>
 
+#define MAX_ERROR 1
 
 char *envp[3] = {"spring", "summer", 0};
 
 extern errno;
-int errct;
+int errct, subtest;
 
 main()
 {
   int i;
 
   printf("Test 11 ");
+  fflush(stdout);		/* have to flush for child's benefit */
+
+  if (geteuid() != 0) {
+	printf("must be setuid root; test aborted\n");
+	exit(1);
+  }
+
   for (i = 0; i < 9; i++) {
-	test110();
-	test111();
+	test11a();
+	test11b();
   }
   if (errct == 0)
 	printf("ok\n");
@@ -27,22 +36,14 @@ main()
 }
 
 
-e(n)
-int n;
-{
-  printf("\nError %d.  errno = %d  ", n, errno);
-  perror("");
-  errct++;
-}
-
-
-
-test110()
+test11a()
 {
 /* Test exec */
   int n, fd, fd1, i;
   char aa[4];
 
+
+  subtest = 1;
 
   if (fork()) {
 	wait(&n);
@@ -90,11 +91,12 @@ test110()
 
 
 
-test111()
+test11b()
 {
   int n;
   char *argv[5];
 
+  subtest = 2;
   if (fork()) {
 	wait(&n);
 	if (n != (75 << 8)) e(20);
@@ -107,5 +109,19 @@ test111()
 	argv[4] = 0;
 	execv("t11b", argv);
 	e(19);
+  }
+}
+
+e(n)
+int n;
+{
+  int err_num = errno;		/* save errno in case printf clobbers it */
+
+  printf("Subtest %d,  error %d  errno=%d  ", subtest, n, errno);
+  errno = err_num;		/* restore errno, just in case */
+  perror("");
+  if (errct++ > MAX_ERROR) {
+	printf("Too many errors; test aborted\n");
+	exit(1);
   }
 }

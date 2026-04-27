@@ -361,7 +361,7 @@ int quoted;
 	}
 	*cp = 0;
 	/* allow trapped signals */
-	for (i=0; i<_NSIG; i++)
+	for (i=0; i<=_NSIG; i++)
 		if (ourtrap[i] && signal(i, SIG_IGN) != SIG_IGN)
 			signal(i, SIG_DFL);
 	dup2(pf[1], 1);
@@ -608,10 +608,10 @@ register struct wdblock *wb;
 	register nb;
 
 	if (wb == NULL)
-		return(NULL);
+		return((char **)NULL);
 	if (wb->w_nword == 0) {
 		DELETE(wb);
-		return(NULL);
+		return((char **)NULL);
 	}
 	wd = (char **) space(nb = sizeof(*wd) * wb->w_nword);
 	memcpy((char *)wd, (char *)wb->w_words, nb);

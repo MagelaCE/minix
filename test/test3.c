@@ -1,6 +1,7 @@
 /* test 3 */
 
 #include <signal.h>
+#include <stdio.h>
 
 int is, array[4];
 int parsigs, parpid, parcum;
@@ -11,6 +12,8 @@ main()
   int i;
 
   printf("Test  3 ");
+  fflush(stdout);		/* have to flush for child's benefit */
+
   for (i = 0; i < 9; i++) {
 	test91();
 	test92();

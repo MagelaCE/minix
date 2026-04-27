@@ -129,7 +129,7 @@ char *dir2;
 
   if (access(dir2, 6) == 0)
 	return;			/* if target exists, we're done */
-  if (mkdir(dir2) == 0) return;	/* we just made it */
+  if (make_dir(dir2) == 0) return;	/* we just made it */
 
   /* We have to try creating all the higher level directories. */
   strcpy(dbuf, dir2);
@@ -138,14 +138,14 @@ char *dir2;
 	while (*p != '/' && *p != '\0') p++;
 	c = *p;			/* either / or \0 */
 	*p = 0;
-	mkdir(dbuf);
+	make_dir(dbuf);
 	if (c == '\0') return;
 	*p = c;
 	p++;
   }
 }
 
-int mkdir(dir)
+int make_dir(dir)
 char *dir;
 {
 /* Create a directory. */
@@ -160,8 +160,8 @@ char *dir;
   } else {
 	/* Child process executes mkdir */
 	close(2);		/* don't want mkdir's error messages */
-	execle("/bin/mkdir", "mkdir", dir, 0, environ);
-	execle("/usr/bin/mkdir", "mkdir", dir, 0, environ);
+	execle("/bin/mkdir", "mkdir", dir, (char *) 0, environ);
+	execle("/usr/bin/mkdir", "mkdir", dir, (char *) 0, environ);
 	error(FATAL, "cannot execute mkdir", "", "");
   }
 }
@@ -412,8 +412,8 @@ char *src, *targ;
 	close(1);
 	s = open(targ, O_RDWR);
 	if (s < 0) error(FATAL, "cannot write on ", "targ", "");
-	execle("/bin/compress", "compress", "-fc", src, 0, environ);
-	execle("/usr/bin/compress", "compress", "-fc", src, 0, environ);
+	execle("/bin/compress", "compress", "-fc", src, (char *) 0, environ);
+	execle("/usr/bin/compress", "compress", "-fc", src, (char *)0,environ);
 	error(FATAL, "cannot exec compress", "", "");
   }
 }
@@ -450,9 +450,9 @@ char *dir1, *dir2, *namep;
 	wait(&status);
 	return;
   } else {
-	execle("backup", "backup", fbuf, d1buf, d2buf, 0, environ);
-	execle("/bin/backup", "backup", fbuf, d1buf, d2buf, 0, environ);
-	execle("/usr/bin/backup", "backup", fbuf, d1buf, d2buf, 0, environ);
+	execle("backup", "backup", fbuf, d1buf, d2buf, (char *) 0, environ);
+	execle("/bin/backup", "backup", fbuf, d1buf, d2buf, (char *)0,environ);
+	execle("/usr/bin/backup","backup",fbuf,d1buf,d2buf,(char *)0,environ);
 	error(FATAL, "cannot recursively exec backup", "", "");
   }
 }
@@ -478,8 +478,8 @@ char *dir;
 	wait(&status);
 	maketarget(dir);	/* make the directory */
   } else {
-	execle("/bin/sh", "sh", "-i", 0, environ);
-	execle("/usr/bin/sh", "sh", "-i", 0, environ);
+	execle("/bin/sh", "sh", "-i", (char *) 0, environ);
+	execle("/usr/bin/sh", "sh", "-i", (char *) 0, environ);
 	error(FATAL, "cannot execute shell to ask for new diskette", "", "");
   }
 }

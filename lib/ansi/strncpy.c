@@ -1,4 +1,3 @@
-#include <lib.h>
 /* strncpy - copy at most n characters of string src to dst */
 
 #include <string.h>
@@ -14,10 +13,9 @@ size_t n;
 
   dscan = dst;
   sscan = src;
-  count = n;
-  while (count > 0 && (*dscan++ = *sscan++) != '\0') count--;
-  while (count > 0) {
-    *dscan++ = '\0'; count--;
-  }
+  count = n + 1;		/* extra so predecrement tests remainder */
+  while (--count > 0 && (*dscan++ = *sscan++) != '\0') continue;
+  if (count <= 0) return(dst);	/* so next loop works with unsigned size_t */ 
+  while (--count > 0) *dscan++ = '\0';
   return(dst);
 }

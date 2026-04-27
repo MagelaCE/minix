@@ -15,11 +15,11 @@
  *	Fix to centering valve with long input lines, 4 May 1987.
  */
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sgtty.h>
 #include <signal.h>
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 #define SUFTAB	"/usr/lib/suftab"
 #define TXTLEN	(o_pl-o_m1-o_m2-o_m3-o_m4-2)

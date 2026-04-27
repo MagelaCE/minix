@@ -703,11 +703,11 @@ int nf;
 {
   while (nf-- > 0) {
 	if (separator == '\0') {/* Means ' ' or '\t' */
-		while (*str != ' ' && *str != '\t' && *str != '\n') str++;
 		while (table[*str] & BLANK) str++;
+		while (*str != ' ' && *str != '\t' && *str != '\n') str++;
 	} else {
+		while (*str == separator) str++;
 		while (*str != separator && *str != '\n') str++;
-		if (*str != '\n') str++;
 	}
   }
   return str;			/* Return pointer to indicated field */
@@ -1150,7 +1150,7 @@ register size;
   extern char *sbrk();
   register char *address;
 
-  if ((address = sbrk(size)) < 0)
+  if ((address = sbrk(size)) == (char *) -1)
 	error(TRUE, "Not enough memory. Use chmem to allocate more", NIL_PTR);
   return address;
 }
@@ -1161,7 +1161,7 @@ char *address;
 {
   extern char *brk();
 
-  if ((address = brk(address)) < 0)
+  if ((address = brk(address)) == (char *) -1)
 	error(TRUE, "Cannot reset memory", NIL_PTR);
   return address;
 }

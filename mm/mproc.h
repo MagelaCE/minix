@@ -22,7 +22,7 @@ EXTERN struct mproc {
   /* Bit maps for signals. */
   unshort mp_ignore;		/* 1 means ignore the signal, 0 means don't */
   unshort mp_catch;		/* 1 means catch the signal, 0 means don't */
-  int (*mp_func)();		/* all signals vectored to a single user fcn */
+  void (*mp_func)();		/* all signals vectored to a single user fcn */
 
   unsigned mp_flags;		/* flag bits */
 } mproc[NR_PROCS];

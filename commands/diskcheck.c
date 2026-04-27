@@ -169,11 +169,11 @@ int pat[];
   int i;
 
   lseek(fd, pos, SEEK_SET);
-  if (write(fd, pat, BLOCK_SIZE) != BLOCK_SIZE) return(ERROR);
+  if (write(fd, (char *) pat, BLOCK_SIZE) != BLOCK_SIZE) return(ERROR);
   sync();			/* force the write to the disk */
   purge_cache();
   lseek(fd, pos, SEEK_SET);
-  if (read(fd, testb, BLOCK_SIZE) != BLOCK_SIZE) return(ERROR);
+  if (read(fd, (char *) testb, BLOCK_SIZE) != BLOCK_SIZE) return(ERROR);
   for (i = 0; i < BLOCK_SIZE / 2; i++)
 	if (testb[i] != pat[i]) {
 		printf("%d %d\n", testb[i], pat[i]);

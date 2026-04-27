@@ -6,6 +6,8 @@
 /* Copyright (C) 1987 by Martin Leisner. All rights reserved. */
 /* Used by permission. */
 
+#include <stdio.h>
+
 #define BLOCK_SIZE 	1000
 #define NUM_BLOCKS	1000
 char buffer[BLOCK_SIZE];
@@ -17,6 +19,8 @@ main()
   pipe(pipefd);
 
   printf("Test 13 ");
+  fflush(stdout);		/* have to flush for child's benefit */
+
   pipe(pipefd);
 
   switch (fork()) {

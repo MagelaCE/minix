@@ -7,10 +7,10 @@
  *      mm:             the memory manager
  *      fs:             the file system
  *      init:           the system initializer
- *      fsck:           the file system checker
+ *      menu:           the file system checker
  *
  * The bootblok file goes in sector 0 of the boot diskette.  The operating system
- * begins directly after it.  The kernel, mm, fs, init, and fsck are each
+ * begins directly after it.  The kernel, mm, fs, init, and menu are each
  * padded out to a multiple of clicksize bytes, and then concatenated into a
  * single file beginning 512 bytes into the file.  The first byte of sector 1
  * contains executable code for the kernel.  There is no header present.
@@ -22,9 +22,9 @@
  *
  *      1. The last 4 words of the boot block are set as follows:
  *	   Word at 504:	Number of sectors to load
- *	   Word at 506:	DS value for running fsck
- *	   Word at 508:	PC value for starting fsck
- *	   Word at 510:	CS value for running fsck
+ *	   Word at 506:	DS value for running menu
+ *	   Word at 508:	PC value for starting menu
+ *	   Word at 510:	CS value for running menu
  *
  *	2. Build writes a table into the first 8 words of the kernel's
  *	   data space.  It has 4 entries, the cs and ds values for each
@@ -38,7 +38,7 @@
  *
  * Build is called by:
  *
- *      build bootblok kernel mm fs init fsck image
+ *      build bootblok kernel mm fs init menu image
  *
  * to get the resulting image onto the file "image".
  */
@@ -56,7 +56,7 @@
  */
 
 
-#define PROGRAMS 5              /* kernel + mm + fs + init + fsck = 5 */
+#define PROGRAMS 5              /* kernel + mm + fs + init + menu = 5 */
 #define PROG_ORG 1536           /* where does kernel begin in abs mem */
 #define DS_OFFSET 4L            /* position of DS written in kernel text seg */
 #define SYM_OFFSET 2L		/* position of syms writ in kernel text seg */
@@ -110,7 +110,7 @@ struct sizes {
   int sep_id;                   /* 1 if separate, 0 if not */
 } sizes[PROGRAMS];
 
-char *name[] = {"\nkernel", "mm    ", "fs    ", "init  ", "fsck  "};
+char *name[] = {"\nkernel", "mm    ", "fs    ", "init  ", "menu  "};
 
 main(argc, argv)
 int argc;
@@ -132,13 +132,8 @@ char *argv[];
   for (i = 0; i < PROGRAMS; i++) copy2(i, argv[i+2]);
   flush();
   printf("                                               -----      -----\n");
-#ifdef PCIX
   printf("Operating system size  %29ld      %5lx\n", cum_size, cum_size);
-  printf("\nTotal size including fsck is %ld.\n", all_size);
-#else
-  printf("Operating system size  %29D      %5X\n", cum_size, cum_size);
-  printf("\nTotal size including fsck is %D.\n", all_size);
-#endif
+  printf("\nTotal size including menu is %ld.\n", all_size);
 
   /* Make the three patches to the output file or diskette. */
   patch1(all_size);
@@ -234,9 +229,9 @@ char *file_name;                /* file to open */
   sizes[num].sym_size  = sym_bytes;
   sizes[num].sep_id    = sepid;
 
-  /* Print a message giving the program name and size, except for fsck. */
+  /* Print a message giving the program name and size, except for menu. */
   if (num < FSCK) { 
-        printf("%s  text=%5u  data=%5u  bss=%5u  tot=%5D  hex=%5X  %s\n",
+        printf("%s  text=%5u  data=%5u  bss=%5u  tot=%5ld  hex=%5lx  %s\n",
                 name[num], text_bytes, data_bytes, bss_bytes, tot_bytes,
                 tot_bytes, (sizes[num].sep_id ? "Separate I & D" : ""));
   }
@@ -426,19 +421,19 @@ clear_buf()
 patch1(all_size)
 long all_size;
 {
-/* Put the ip and cs values for fsck in the last two words of the boot blk.
- * If fsck is sep I&D we must also provide the ds-value (addr. 506).
+/* Put the ip and cs values for menu in the last two words of the boot blk.
+ * If menu is sep I&D we must also provide the ds-value (addr. 506).
  * Put in bootblok-offset 504 the number of sectors to load.
  */
 
-  long fsck_org;
+  long menu_org;
   unsigned short ip, cs, ds, ubuf[SECTOR_SIZE/2], sectrs;
 
   if (cum_size % clicksize != 0)
 	pexit("MINIX is not multiple of clicksize bytes", "");
-  fsck_org = PROG_ORG + cum_size;       /* where does fsck begin */
+  menu_org = PROG_ORG + cum_size;       /* where does menu begin */
   ip = 0;
-  cs = fsck_org >> HCLICK_SHIFT;
+  cs = menu_org >> HCLICK_SHIFT;
   if (sizes[FSCK].sep_id)
      ds = cs + (sizes[FSCK].text_size >> HCLICK_SHIFT);
   else

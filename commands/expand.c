@@ -2,9 +2,9 @@
 
 /*  Usage:  expand  [ -tab1,tab2,tab3,... ]  [ file ... ]  */
 
-#include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdio.h>
 
 #define MAX_TABS 32
 

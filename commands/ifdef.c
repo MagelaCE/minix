@@ -6,8 +6,10 @@
 /* Long as this notice remains intact.		      */
 /* 9/16/89 - Added usage() before getopt() - meb      */
 
-#include <stdio.h>
+#include <sys/types.h>
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 /* Definition of structures and constants used in ifdef.c  */
 
@@ -48,7 +50,7 @@ char *cbuf;			/* terminated it. Cbuf returns NULL  */
   int i;
 
   i = 0;
-  cbuf[i] = NULL;
+  cbuf[i] = 0;
 
   while (((ch = fgetc(stream)) == ' ') || (ch == '\t') || (ch == '\n'))
 	if (ch == '\n') return(ch);	/* Bypass leading */
@@ -60,12 +62,13 @@ char *cbuf;			/* terminated it. Cbuf returns NULL  */
   while (((ch = fgetc(stream)) != ' ') && (ch != '\t') && (ch != '\n'))
 	cbuf[i++] = ch;		/* Get the argument */
 
-  cbuf[i] = NULL;
+  cbuf[i] = 0;
   return(ch);
 }
 
 
 find(sym)
+char *sym;
 {				/* Return DEF if defined else UNDEF */
   char found = 0;		/* IGN if symbol is ignored  */
   /* 0 if not in the list */

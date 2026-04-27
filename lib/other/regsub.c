@@ -1,4 +1,3 @@
-#include <lib.h>
 /* regsub
  *
  *	Copyright (c) 1986 by University of Toronto.
@@ -19,9 +18,10 @@
  *		be misrepresented as being the original software.
  */
 
-#include <stdio.h>
+#include <lib.h>
 #include <string.h>
 #include <regexp.h>
+#include <stdio.h>
 
 /* The first byte of the regexp internal "program" is actually this magic
  * number; the start node begins in the second byte.

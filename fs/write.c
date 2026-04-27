@@ -52,7 +52,7 @@ zone_nr new_zone;		/* zone # to be inserted */
   /* Is 'position' to be found in the inode itself? */
   if (zone < NR_DZONE_NUM) {
 	rip->i_zone[(int) zone] = new_zone;
-	rip->i_modtime = clock_time();
+	rip->i_update = MTIME;	/* mark mtime for update later */
 	return(OK);
   }
 
@@ -103,7 +103,7 @@ zone_nr new_zone;		/* zone # to be inserted */
   bp = get_block(rip->i_dev, b, (new_ind ? NO_READ : NORMAL) );
   if (new_ind) zero_block(bp);
   bp->b_ind[(int) excess] = new_zone;
-  rip->i_modtime = clock_time();
+  rip->i_update = MTIME;		/* mark mtime for update later */
   bp->b_dirt = DIRTY;
   put_block(bp, INDIRECT_BLOCK);
 

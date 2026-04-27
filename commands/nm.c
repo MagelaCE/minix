@@ -2,11 +2,12 @@
 
 /* Dick van Veen: veench@cs.vu.nl */
 
-#include <a.out.h>
-#include <stdio.h>
 #include <sys/types.h>
+#include <a.out.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 /* Read the name list in memory, sort it, and print it.  */
 
@@ -119,28 +120,31 @@ char *file;
   }
   if (read_header(fd)) {
 	fprintf(stderr, "%s: no executable file\n", file);
+	close(fd);
 	return;
   }
-  stbl = (struct nlist *) malloc((int) (header.a_syms & 0xFFFF));
-  if (stbl == NULL) {
+  if (header.a_syms != 0) {
+    stbl = (struct nlist *) malloc((int) (header.a_syms & 0xFFFF));
+    if (stbl == NULL) {
 	fprintf(stderr, "%s: can't allocate symbol table\n", file);
 	return;
+    }
+    if (read(fd, (char *) stbl, (int) (header.a_syms & 0xFFFF))
+        != (int) (header.a_syms & 0xFFFF)) {
+	  fprintf(stderr, "%s: can't read symbol table\n", file);
+	  return;
+    }
+    stbl_elems = (int) header.a_syms / sizeof(struct nlist);
+    if (!p_flag) qsort(stbl, stbl_elems, sizeof(struct nlist), nm_sort);
+    nm_print(file, stbl);
+    close(fd);
   }
-  if (read(fd, stbl, (int) (header.a_syms & 0xFFFF))
-      != (int) (header.a_syms & 0xFFFF)) {
-	fprintf(stderr, "%s: can't read symbol table\n", file);
-	return;
-  }
-  stbl_elems = (int) header.a_syms / sizeof(struct nlist);
-  if (!p_flag) qsort(stbl, stbl_elems, sizeof(struct nlist), nm_sort);
-  nm_print(file, stbl);
-  close(fd);
 }
 
 read_header(fd)
 int fd;
 {
-  if (read(fd, &header, sizeof(struct exec)) != sizeof(struct exec))
+  if (read(fd, (char *) &header, sizeof(struct exec)) != sizeof(struct exec))
 	return(1);
   if (BADMAG(header)) return(1);
   lseek(fd, A_SYMPOS(header), SEEK_SET);
@@ -176,9 +180,9 @@ register struct nlist *stbl;
 		type = 'u';
 	if ((stbl->n_sclass & N_CLASS) == C_EXT) type += 'A' - 'a';
 	strncpy(name, stbl->n_name, 8);
-	if (o_flag) printf("%s:%08X %c %s\n", file,
+	if (o_flag) printf("%s:%08lX %c %s\n", file,
 		       stbl->n_value, type, name);
 	else
-		printf("%08X %c %s\n", stbl->n_value, type, name);
+		printf("%08lX %c %s\n", stbl->n_value, type, name);
   }
 }

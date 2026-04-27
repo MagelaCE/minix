@@ -1,3 +1,8 @@
+#define MAX_ERROR 4
+
+int errct, subtest=1;
+extern errno;
+
 main(argc, argv, envp)
 int argc;
 char *argv[], *envp[];
@@ -39,8 +44,14 @@ char *s1, *s2;
   }
 }
 
+
 e(n)
 int n;
 {
-  printf("Error %d\n", n);
+  printf("Subtest %d,  error %d  errno=%d  ", subtest, n, errno);
+  perror("");
+  if (errct++ > MAX_ERROR) {
+	printf("Too many errors; test aborted\n");
+	exit(1);
+  }
 }

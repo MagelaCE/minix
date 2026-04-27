@@ -1,12 +1,19 @@
 /* Test 9 setjmp with register variables.		Author: Ceriel Jacobs */
 
 #include <setjmp.h>
-#include <stdio.h>
 #include <signal.h>
+#include <stdio.h>
+
+#define MAX_ERROR 4
 
 int whichtest;
 int nerrors;
+int errct;
+int subtest = 1;
 char *tmpa;
+
+
+extern int errno;
 
 main()
 {
@@ -45,11 +52,6 @@ to the value they had at the time of the \"setjmp\"\n");
   printf("ok\n");
 }
 
-e(n)
-{
-  nerrors++;
-  fprintf(stderr, "Error %d in test %d\n", n, whichtest);
-}
 
 test1()
 {
@@ -250,4 +252,18 @@ hard()
   signal(SIGHUP, catch);
   for (p = buf; p <= &buf[511]; p++) *p = 025;
   kill(getpid(), SIGHUP);
+}
+
+e(n)
+int n;
+{
+  int err_num = errno;		/* save errno in case printf clobbers it */
+
+  printf("Subtest %d,  error %d  errno=%d  ", subtest, n, errno);
+  errno = err_num;		/* restore errno, just in case */
+  perror("");
+  if (errct++ > MAX_ERROR) {
+	printf("Too many errors; test aborted\n");
+	exit(1);
+  }
 }

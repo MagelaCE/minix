@@ -8,8 +8,9 @@
  */
 
 
-#include <stdio.h>
+#include <sys/types.h>
 #include <utmp.h>
+#include <stdio.h>
 
 #ifndef  WTMP
 #define  WTMP   "/usr/adm/wtmp"

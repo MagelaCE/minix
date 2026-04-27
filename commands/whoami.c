@@ -1,8 +1,8 @@
 /* whoami - print the current user name 	Author: Terrence W. Holm */
 
 #include <sys/types.h>
-#include <stdio.h>
 #include <pwd.h>
+#include <stdio.h>
 
 struct passwd *getpwuid();
 

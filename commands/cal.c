@@ -89,7 +89,7 @@ int year;
 	calendar(year, month + 2, 2);
 	output(3);
 #if MONTHS_PER_LINE != 3
-#error  the above won't work
+#error  "the above will not work"
 #endif
   }
   printf("\n\n\n");

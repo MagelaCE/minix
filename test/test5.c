@@ -2,10 +2,13 @@
 
 #include <signal.h>
 #include <errno.h>
+#include <stdio.h>
+
+#define MAX_ERROR 4
 
 extern int errno;
 int errct;
-
+int subtest = 1;
 
 int func1(), func10(), func8(), funcalrm(), func11();
 int childsigs, parsigs, alarms;
@@ -16,6 +19,8 @@ main()
   int i;
 
   printf("Test  5 ");
+  fflush(stdout);		/* have to flush for child's benefit */
+
   for (i = 0; i < 1; i++) {
 	test50();
 	test51();
@@ -29,13 +34,6 @@ main()
   else
 	printf("%d errors\n", errct);
   exit(0);
-}
-
-e(n)
-int n;
-{
-  printf("\nError %d.  errno=%d\n", n, errno);
-  errct++;
 }
 
 
@@ -298,4 +296,19 @@ ex()
 {
   printf("Test 5.  fork failed.  Errno=%d\n", errno);
   exit(1);
+}
+
+
+e(n)
+int n;
+{
+  int err_num = errno;		/* save errno in case printf clobbers it */
+
+  printf("Subtest %d,  error %d  errno=%d  ", subtest, n, errno);
+  errno = err_num;		/* restore errno, just in case */
+  perror("");
+  if (errct++ > MAX_ERROR) {
+	printf("Too many errors; test aborted\n");
+	exit(1);
+  }
 }

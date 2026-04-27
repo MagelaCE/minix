@@ -9,14 +9,11 @@
 #ifndef _TIME_H
 #define _TIME_H
 
+#define NULL	((void *) 0)
 #define CLOCKS_PER_SEC    60	/* MINIX always uses 60 Hz, even in Europe */
 
 #ifdef _POSIX_SOURCE
 #define CLK_TCK CLOCKS_PER_SEC	/* obsolete name for CLOCKS_PER_SEC */
-#endif
-
-#ifndef NULL
-#define NULL    ((void *) 0)
 #endif
 
 #ifndef _TIME_T
@@ -27,6 +24,11 @@ typedef long time_t;		/* time in sec since 1 Jan 1970 0000 GMT */
 #ifndef _CLOCK_T
 #define _CLOCK_T
 typedef	long clock_t;		/* time in ticks since process started */
+#endif
+
+#ifndef _SIZE_T
+#define _SIZE_T			/* may not be allowed by ANSI */
+typedef unsigned size_t;	/* but we need size_t */
 #endif
 
 struct tm {

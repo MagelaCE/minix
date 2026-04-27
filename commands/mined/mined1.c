@@ -2,14 +2,12 @@
  * Part one of the mined editor.
  */
 
-/*#define COMPAT /* On ST define COMPAT if you want 1.1 ST key bindings */
- 			
 /*
  * Author: Michiel Huisjes.
  * 
  * 1. General remarks.
  * 
- *    Mined is a screen editor designed for the MINIX operating system.
+ *    Mined is a screen editor designed for the MINIX operating <UBem.
  *    It is meant to be used on files not larger than 50K and to be fast.
  *    When mined starts up, it reads the file into its memory to minimize
  *    disk access. The only time that disk access is needed is when certain

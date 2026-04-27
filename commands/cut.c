@@ -17,7 +17,6 @@
 #include <ctype.h>
 #include <string.h>
 #include <errno.h>
-#undef NULL			/* temporary hack */
 #include <stdio.h>
 
 #define MAX_FIELD	80	/* Pointers to the beginning of each field
@@ -74,7 +73,7 @@ void get_args()
 	args[arg_ptr + 1] = BUFSIZ;
 	flag = 1;
 
-	while (line[i] != ',' && line[i] != NULL) {
+	while (line[i] != ',' && line[i] != 0) {
 		if (isdigit(line[i])) {
 			args[arg_ptr] = 0;
 			while (isdigit(line[i]))
@@ -103,7 +102,7 @@ void cut()
 
   while (fgets(line, BUFSIZ, fd)) {
 	length = strlen(line) - 1;
-	*(line + length) = NULL;
+	*(line + length) = 0;
 	switch (mode) {
 	    case 0:	printf("%s", line);	break;
 	    case 1:
@@ -111,7 +110,7 @@ void cut()
 		columns[maxcol++] = line;
 		for (i = 0; i < length; i++) {
 			if (*(line + i) == delim) {
-				*(line + i) = NULL;
+				*(line + i) = 0;
 				if (maxcol == MAX_FIELD) cuterror(9);
 				columns[maxcol] = line + i + 1;
 				while (*(line + i + 1) == delim && flagi) {

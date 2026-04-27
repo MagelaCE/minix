@@ -19,8 +19,8 @@
  */
 
 
-#include <stdio.h>
 #include <ctype.h>
+#include <stdio.h>
 
 #define USAGE
 #define FILE_NAME 10		/* affects how long names are truncated */
@@ -46,7 +46,7 @@ int part = 'a', chap = 'a';
 char seqc = SEQMAX;
 
 int split = 0;
-fileln = 32000;
+int fileln = 32000;
 
 main(argc, argv)
 int argc;

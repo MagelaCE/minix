@@ -56,8 +56,8 @@ char *name;
   if (separate) dynam += head[TEXT];
   allmem = (separate ? head[CHMEM] + head[TEXT] : head[CHMEM]);
   if (heading++ == 0) prints("  text\t  data\t   bss\t stack\tmemory\n");
-  printf("%6D\t%6D\t%6D\t%6D\t%6D\t%s\n", head[TEXT], head[DATA], head[BSS],
-         dynam, allmem, name);
+  printf("%6ld\t%6ld\t%6ld\t%6ld\t%6ld\t%s\n",
+         head[TEXT], head[DATA], head[BSS], dynam, allmem, name);
   close(fd);
 }
 

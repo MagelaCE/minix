@@ -12,12 +12,11 @@
    Please report bugs and suggestions to erikb@cs.vu.nl
 */
 
-#include <stdio.h>
 
-/*######################## SWITCHES ##############################*/
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <stdio.h>
 
 #define SHELL "/usr/bin/sh"
 

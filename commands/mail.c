@@ -4,12 +4,12 @@
 #include <sys/stat.h>
 #include <errno.h>
 #undef EOF			/* temporary hack */
-#include <stdio.h>
 #include <signal.h>
 #include <pwd.h>
 #include <time.h>
 #include <setjmp.h>
 #include <string.h>
+#include <stdio.h>
 
 #ifdef DEBUG
 #define D(Q) (Q)

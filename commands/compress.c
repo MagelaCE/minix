@@ -50,7 +50,6 @@
 
 
 #define AZTEC86 1
-#define MINIX 1
 
 #define	min(a,b)	((a>b) ? b : a)
 
@@ -162,9 +161,9 @@ char_type magic_header[] = { "\037\235" };	/* 1F 9D */
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <ctype.h>
 #include <signal.h>
+#include <stdio.h>
 
 #define ARGVAL() (*++(*argv) || (--argc && *++argv))
 
@@ -1189,7 +1188,7 @@ REGISTER char *s, c;
 	return(p);
 }
 #endif
-#ifdef MINIX
+#ifdef _MINIX
 char *
 strrchr(s, c)		/* For those who don't have it in libc.a */
 REGISTER char *s, c;
@@ -1491,10 +1490,10 @@ void cl_hash(hsize)		/* reset code table */
 {
 #ifdef AZTEC86
 #ifdef PCDOS
-	/* this function only in PC-DOS lib, not in MINIX lib */
+	/* this function only in PC-DOS lib, not in _MINIX lib */
 	memset(htab,-1,(int)(hsize * sizeof(count_int)));
 #else
-/* MINIX and all non-PC machines do it this way */	
+/* _MINIX and all non-PC machines do it this way */	
 #ifndef XENIX_16	/* Normal machine */
 	REGISTER count_int *htab_p = htab+hsize;
 #else
@@ -1577,8 +1576,8 @@ void version()
 #ifdef vax
 	fprintf(stderr, "vax, ");
 #endif
-#ifdef MINIX
-	fprintf(stderr, "MINIX, ");
+#ifdef _MINIX
+	fprintf(stderr, "_MINIX, ");
 #endif
 #ifdef NO_UCHAR
 	fprintf(stderr, "NO_UCHAR, ");

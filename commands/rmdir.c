@@ -12,12 +12,7 @@
 #include <sys/stat.h>
 #include <sys/dir.h>
 #include <limits.h>
-
-#ifdef __GNUC__
-#ifdef ATARI_ST
-#include <std.h>
-#endif
-#endif
+#include <string.h>
 
 int error = 0;
 
@@ -37,7 +32,6 @@ register char **argv;
   if (error) exit(1);
 }
 
-extern char *rindex();
 
 remove(dirname)
 char *dirname;
@@ -72,7 +66,7 @@ char *dirname;
   }
 
   /* Are we trying to remove "." or ".." ? */
-  if (p = rindex(dirname, '/'))
+  if (p = strrchr(dirname, '/'))
 	p++;
   else
 	p = dirname;
@@ -87,13 +81,14 @@ char *dirname;
   while (dirname[fd])
 	if (dirname[fd++] == '/') sl = fd;
   dots[sl] = '\0';
+  if (*dots == '\0') strcpy(dots, ".");
   if (access(dots, 2)) {
 	stderr2(dirname, " no permission\n");
 	error++;
 	return;
   }
 
-  /* Are we trying to remove current dirctory ? */
+  /* Are we trying to remove current directory ? */
   stat(".", &cwd);
   if ((s.st_ino == cwd.st_ino) && (s.st_dev == cwd.st_dev)) {
 	std_err("rmdir: can't remove current directory\n");
@@ -110,7 +105,7 @@ char *dirname;
   }
 
   /* Is the directory empty ? (except "." and "..") */
-  while (read(fd, (char *) &d, sizeof(struct direct)) == sizeof(struct direct)) {
+  while(read(fd, (char *) &d, sizeof(struct direct)) == sizeof(struct direct)){
 	if (d.d_ino != 0) {
 		if (strcmp(d.d_name, ".") && strcmp(d.d_name, "..")) {
 			stderr2(dirname, " not empty\n");
@@ -127,16 +122,8 @@ char *dirname;
   strcpy(dots, dirname);
   patch_path(dots);
 
-  /* OK, let's unlink dirname/.. dirname/. and dirname */
-  strcat(dots, "/..");
-  for (p = dots; *p; p++);	/* find end of dots */
-  unlink(dots);			/* dirname/.. */
-  *(p - 1) = '\0';
-  unlink(dots);			/* dirname/. */
-  *(p - 3) = '\0';
-  /* Check the last unlink, in case rmdir is not SUID, and the
-   * unlinking didn't succeed. */
-  if (unlink(dots)) {		/* dirname */
+  /* OK, let's do the rmdir. */
+  if (rmdir(dots) != 0) {
 	stderr2("can't remove ", dots);
 	std_err("\n");
 	error++;

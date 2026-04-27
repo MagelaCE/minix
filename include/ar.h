@@ -6,8 +6,6 @@
 #define	ARMAG	0177545
 #define _NAME_MAX    14
 
-#define	ARMAG	0177545
-
 struct ar_hdr {
   char  ar_name[_NAME_MAX];
   char  ar_date[4];		/* long in byte order 2 3 1 0 */

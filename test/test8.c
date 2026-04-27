@@ -5,8 +5,10 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+#define MAX_ERROR 4
+
 extern int errno;
-int testnr;
+int subtest, errct;
 extern off_t lseek();
 
 
@@ -30,7 +32,7 @@ test80()
   int i, j;
   struct stat s;
 
-  testnr = 0;
+  subtest = 0;
   if (getuid() != 0) return;
   for (j = 0; j < 2; j++) {
 	umask(0);
@@ -84,10 +86,16 @@ test80()
 }
 
 
-
 e(n)
 int n;
 {
-  printf("Subtest %d,  error %d  errno=%d  ", testnr, n, errno);
+  int err_num = errno;		/* save errno in case printf clobbers it */
+
+  printf("Subtest %d,  error %d  errno=%d  ", subtest, n, errno);
+  errno = err_num;		/* restore errno, just in case */
   perror("");
+  if (errct++ > MAX_ERROR) {
+	printf("Too many errors; test aborted\n");
+	exit(1);
+  }
 }

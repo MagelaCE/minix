@@ -87,7 +87,6 @@ static char *
 invoker(s)
    register char *s;
 {
-   extern int strlen();
    register int k;
 
    k = strlen(s);

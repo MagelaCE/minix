@@ -301,7 +301,7 @@ char **argv;
 	write(2, "test: ] missing\n", 16);
 	exit(1);
   }
-  if (argv[0] == '[') argc--;
+  if (argv[0][0] == '[') argc--;
 
   if (argc == 1) exit(1);
   prog = argv[0];

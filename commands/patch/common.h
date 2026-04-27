@@ -32,12 +32,12 @@
 #define Strcpy (void)strcpy
 #define Strcat (void)strcat
 
-#include <stdio.h>
-#include <assert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <assert.h>
 #include <ctype.h>
 #include <signal.h>
+#include <stdio.h>
 
 /* constants */
 

@@ -1,4 +1,3 @@
-#include <lib.h>
 /* new freopen.c for minix/st
    hacked together: 11/11/88 by F. Meulenbroeks.
    Disclaimer: almost all of this code is extracted from fopen.c and
@@ -21,10 +20,10 @@
   buffering method. ANSI C does not explicitly specify this.
 */
 
-#include <stdio.h>
-#include <sys/types.h>
+#include <lib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #define  PMODE    0666
 

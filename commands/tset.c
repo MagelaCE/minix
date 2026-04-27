@@ -1,15 +1,12 @@
 /* tset - set the TERM variable		Author: Terrence Holm */
 
+#include <string.h>
 #include <stdio.h>
-
 
 #define  LINE_LENGTH  40	/* Max length in /etc/ttytype	 */
 #define  TC_BUFFER  1024	/* Size of termcap(3) buffer	 */
 
-
-FILE *fopen();
 char *ttyname();
-char *index();
 
 /****************************************************************/
 /*								*/
@@ -41,7 +38,6 @@ char *index();
 main(argc, argv)
 int argc;
 char *argv[];
-
 {
   char *name;
   FILE *f;
@@ -59,19 +55,18 @@ char *argv[];
 
   /* No terminal name supplied, so use the current device	 */
 
-  if ((name = ttyname(0)) == NULL)
+  if ((name = ttyname(0)) == (char *) NULL)
 	Error("Can not determine the user's terminal");
 
-  name += 5;			/* Chop off "/dev/" part		 */
-
+  name += 5;			/* Chop off "/dev/" part	 */
 
   /* Look up the default terminal type in /etc/ttytype		 */
 
-  if ((f = fopen("/etc/ttytype", "r")) == NULL)
+  if ((f = fopen("/etc/ttytype", "r")) == (FILE *) NULL)
 	Error("Can not open /etc/ttytype");
 
-  while (fgets(line, LINE_LENGTH, f) != NULL) {
-	char *space = index(line, ' ');
+  while (fgets(line, LINE_LENGTH, f) != (char *) NULL) {
+	char *space = strchr(line, ' ');
 
 	line[strlen(line) - 1] = '\0';	/* Remove '\n'		 */
 
@@ -85,11 +80,8 @@ char *argv[];
   Error("Can not find your terminal in /etc/ttytype");
 }
 
-
-
 Find_Termcap(terminal)
 char *terminal;
-
 {
   char termcap[TC_BUFFER];
 
@@ -100,11 +92,8 @@ char *terminal;
   printf("TERM=%s;\n", terminal);
 }
 
-
-
 Error(msg)
 char *msg;
-
 {
   fprintf(stderr, "tset: %s\n", msg);
   exit(1);

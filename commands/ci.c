@@ -1,11 +1,11 @@
 /* ci - check in 			Author: Peter S. Housel 12/17/87 */
 
-#include <stdio.h>
 #include <sys/types.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stdio.h>
 
 #define SUFFIX		",S"	/* svc indicator */
 #define SVCDIR		"SVC"	/* svc postfix indicator */
@@ -41,11 +41,8 @@ struct stat stb1, stb2;		/* stat buffers for size compare */
 char original[] = "/tmp/cioXXXXXX";	/* previous revision */
 char diffout[] = "/tmp/cidXXXXXX";	/* diffs */
 
-extern FILE *fopen();
-extern char *mktemp(), *fgets(), *rindex(), *index();
+extern char *mktemp();
 extern char *ctime();
-extern struct passwd *getpwuid();
-extern long ftell();
 
 char *whoami();
 int onintr();
@@ -88,7 +85,7 @@ char **argv;
   signal(SIGTERM, onintr);
 
 #ifndef BSD
-  if (NULL == (p = rindex(file, '/')))
+  if (NULL == (p = strrchr(file, '/')))
 	p = file;
   else
 	++p;
@@ -100,7 +97,7 @@ char **argv;
 #endif !BSD
 
   strcpy(newsvc, svc);
-  *(rindex(newsvc, ',')) = ';';	/* temporary file will be "file;S" */
+  *(strrchr(newsvc, ',')) = ';';	/* temporary file will be "file;S" */
 
   if (NULL == (newfp = fopen(newsvc, "w"))) {
 	perror("ci: can't create SVC temporary");
@@ -228,7 +225,7 @@ rundiff()
 		exit(1);
 	}
 	close(fd);
-	execlp("diff", "diff", file, original, 0);
+	execlp("diff", "diff", file, original, (char *) 0);
 	perror("ci: exec diff failed");
 	exit(1);
 
@@ -266,7 +263,6 @@ char *src, *dst;
 svcname(src, dst)
 char *src, *dst;
 {
-  extern char *rindex();
   char *p;
 
   strcpy(dst, src);
@@ -274,7 +270,7 @@ char *src, *dst;
 
   if (0 != access(dst, 4)) {
 	char dirname[PATHLEN];
-	if (NULL != (p = rindex(src, '/')))
+	if (NULL != (p = strrchr(src, '/')))
 		strncpy(dirname, src, p - src + 1);
 	else
 		dirname[0] = '\0';

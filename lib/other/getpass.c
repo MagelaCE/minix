@@ -1,8 +1,8 @@
 #include <lib.h>
 #include <sgtty.h>
-#include <stdio.h>
-#include <sys/types.h>
 #include <unistd.h>
+#include <stdio.h>
+
 
 PRIVATE char pwdbuf[9];
 

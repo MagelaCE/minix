@@ -18,8 +18,8 @@ $(OBJS):	sed.h
  * If you want more commands per script: increase MAXCMDS.
  */
 
-#include <stdio.h>
 #include <ctype.h>
+#include <stdio.h>
 
 /*+++++++++++++++*/
 
@@ -845,8 +845,9 @@ char delim;			/* end delimiter to look for */
 quit(n)
 int n;
 {
-/* Flush buffers and exit. */
-  _cleanup();
+/* Flush buffers and exit.  Now a historical relic.  Rely on exit to flush
+ * the buffers.
+ */
   exit(n);
 }
 
@@ -1306,6 +1307,7 @@ sedcmd *ipc;
   register char *p1, *p2;
   char *execp;
   int didsub;			/* true if last s succeeded */
+  char *getline();		/* input-getting functions */
 
   switch (ipc->command) {
       case ACMD:		/* append */

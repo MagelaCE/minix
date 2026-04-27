@@ -4,12 +4,12 @@
  *	atrun scans directory /usr/spool/at for 'at' jobs to be executed.  *
  *	Finished jobs have been moved to directory /usr/spool/at/past.     *
  *-------------------------------------------------------------------------*/
-#include <stdio.h>
 #include <sys/types.h>
+#include <sys/dir.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <sys/dir.h>
 #include <time.h>
+#include <stdio.h>
 
 main()
 {
@@ -17,7 +17,7 @@ main()
   char realtime[15], procname[35], procpast[35];
   struct direct dirbuf;
   struct tm *p, *localtime();
-  long clock;
+  time_t clock;
 
 /*-------------------------------------------------------------------------*
  *	Compute real time,  move 'at' jobs whose filenames < real time to  *
@@ -40,7 +40,7 @@ main()
 			if (fork() == 0)	/* code for child */
 				if (link(procname, procpast) == 0) {	/* link ok? */
 					unlink(procname);
-					execl("/bin/sh", "sh", procpast, 0);
+					execl("/bin/sh", "sh", procpast, (char *) 0);
 					fprintf(stderr, "proc %s can't start\n", procpast);
 					exit(1);
 				}

@@ -15,7 +15,7 @@ struct	group {
 #include <ansi.h>
 #endif
 
-_PROTOTYPE( struct group *getgrgid,  (int __gid)  			);
+_PROTOTYPE( struct group *getgrgid,  (gid_t __gid)  			);
 _PROTOTYPE( struct group *getgrnam, (char *__name) 			);
 
 #endif /* _GRP_H */

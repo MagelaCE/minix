@@ -10,7 +10,7 @@
 #include "param.h"
 
 /* Miscellaneous */
-char core_name[] = {"core"};	/* file name where core images are produced */
+char core_name[] = "core";	/* file name where core images are produced */
 unshort core_bits = 0x0EFC;	/* which signals cause core images */
 
 char *stackpt = &mm_stack[MM_STACK_BYTES];	/* initial stack pointer */
@@ -54,9 +54,9 @@ int (*call_vec[NCALLS])() = {
 	no_sys,		/* 35 = (ftime)	*/
 	no_sys,		/* 36 = sync	*/
 	do_kill,	/* 37 = kill	*/
-	no_sys,		/* 38 = unused	*/
-	no_sys,		/* 39 = unused	*/
-	no_sys,		/* 40 = unused	*/
+	no_sys,		/* 38 = rename	*/
+	no_sys,		/* 39 = mkdir	*/
+	no_sys,		/* 40 = rmdir	*/
 	no_sys,		/* 41 = dup	*/
 	no_sys,		/* 42 = pipe	*/
 	no_sys,		/* 43 = times	*/

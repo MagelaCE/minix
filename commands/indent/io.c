@@ -228,7 +228,7 @@ dump_line()
 		  else
 		     fwrite(" * ", com_st[0] == '\t' ? 2 : com_st[0] == '*' ? 1 : 3, 1, output);
 	    }
-	    fwrite(com_st, e_com - com_st, 1, output);
+	    fwrite(com_st, (int)(e_com - com_st), 1, output);
 	    ps.comment_delta = ps.n_comment_delta;
 	    cur_col = count_spaces(cur_col, com_st);
 	    ++ps.com_lines;		/* count lines with comments */
@@ -528,6 +528,7 @@ count_spaces(current, buffer)
 
 int             found_err;
 diag(level, msg, a, b)
+char *msg;
 {
    if (level)
       found_err = 1;

@@ -1,10 +1,10 @@
 /* dd - disk dumper */
 
 #include <sys/types.h>
-#include <stdio.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #define EOS '\0'
 #define BOOLEAN int

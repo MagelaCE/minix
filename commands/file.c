@@ -5,8 +5,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <minix/config.h>
 
-#ifdef ATARI_ST
+#if (CHIP == M68000)
 #define A_OUT		0x410	/* magic number for executables */
 #define A_OUT_SPLIT	0x420	/* magic number for executables split I/D */
 #define A_OUT_SEC	0x301	/* second check for executables */
@@ -82,7 +83,7 @@ char *name;
   }
 
   /* Check to see if file is an archive. */
-#ifdef ATARI_ST
+#if (CHIP == M68000)
   magic = (buf[0] << 8) | (buf[1] & 0377);
   if (magic == 026377) {
 #else
@@ -93,7 +94,7 @@ char *name;
 	close(fd);
 	return;
   }
-#ifdef ATARI_ST
+#if (CHIP == M68000)
   /* Check to see if file is an object file. */
   if (magic == OBJECT) {
 	printf("MINIX/ST object file\n");
@@ -103,7 +104,7 @@ char *name;
 #endif
 
   /* Check to see if file is an executable binary. */
-#ifndef ATARI_ST
+#if (CHIP != M68000)
   if (magic == A_OUT) {
 	/* File is executable.  Check for split I/D. */
 	printf("MINIX/PC executable");

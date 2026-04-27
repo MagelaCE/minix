@@ -29,13 +29,13 @@ PRIVATE int _gfd = -1;
 PRIVATE int _bufcnt;
 PRIVATE struct group _grp;
 
-PRIVATE _PROTOTYPE( void endgrent, (void));
-PRIVATE _PROTOTYPE( struct group *getgrent, (void));
+PUBLIC _PROTOTYPE( void endgrent, (void));
+PUBLIC _PROTOTYPE( struct group *getgrent, (void));
 PRIVATE _PROTOTYPE( int getline, (void));
-PRIVATE _PROTOTYPE( int setgrent, (void));
+PUBLIC _PROTOTYPE( int setgrent, (void));
 PRIVATE _PROTOTYPE( void skip_period, (int c));
 
-PRIVATE int setgrent()
+PUBLIC int setgrent()
 {
   if (_gfd >= 0)
 	lseek(_gfd, (off_t) 0, SEEK_SET);
@@ -47,7 +47,7 @@ PRIVATE int setgrent()
 }
 
 
-PRIVATE void endgrent()
+PUBLIC void endgrent()
 {
   if (_gfd >= 0) close(_gfd);
 
@@ -84,7 +84,7 @@ char c;
   if (*_buf) *_buf++ = '\0';
 }
 
-PRIVATE struct group *getgrent()
+PUBLIC struct group *getgrent()
 {
   char **_grmem_ptr;
 

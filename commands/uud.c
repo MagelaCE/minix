@@ -8,24 +8,11 @@
  * The MSDOS version with TurboC.
  * The Unix version with cc.
  * this version is made: 25 Nov 1988.
+ * Jan 2 1990: Change system definition and change MSDOS to open the output
+ *             file for write binary do cr/lf replacement.
  */
 
-/*
- * Be sure to have the proper symbol at this point. (GEMDOS, MSDOS, UNIX...)
- */
-/*
-#ifndef GEMDOS
-#define GEMDOS 1
-#endif
- */
-#ifndef UNIX
-#define UNIX 1
-#endif
-/*
-#ifndef MSDOS
-#define MSDOS 1
-#endif
- */
+#define UNIX  1		/* define one of: UNIX (Minix too!), MSDOS, or GEMDOS */ 
 
 #ifdef GEMDOS
 #define SYSNAME "gemdos"
@@ -44,10 +31,13 @@
 #ifdef GEMDOS
 #include <osbind.h>
 #define Error(n)  { Bconin(2); exit(n); }
-#define WRITE	  "wb"
 #else
 #define Error(n)  exit(n)
+#endif
+#ifdef UNIX
 #define WRITE	  "w"
+#else
+#define WRITE	  "wb"		/* for both MSDOS and GEMDOS!	*/
 #endif
 
 #define loop	while (1)

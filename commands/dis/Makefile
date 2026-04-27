@@ -38,3 +38,6 @@ dishand.s : dishand.c dis.h
 
 disfp.s : disfp.c dis.h
 
+
+clean:	
+	@rm -f *.bak *.s dis88

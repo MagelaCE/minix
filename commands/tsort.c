@@ -1,320 +1,342 @@
-/* tsort - topological sort ordered pairs of names	Author: Monty Walls */
+/*
+** topo - perform a topological sort of the output of lorder.
+**
+** Usage : topo [infile] [outfile]
+**
+** Author: Kent Williams (williams@umaxc.weeg.uiowa.edu)
+*/
 
-/* syntax - tsort [ file ]
- *
- * based on the discussion in 'The AWK programming Language', by
- * Aho, Kernighan, & Weinberger.
- *
- * author:	Monty Walls
- * written:	1/28/88
- * Copyright:	Copyright (c) 1988 by Monty Walls.
- *		Not derived from licensed software.
- *
- *		Permission to copy and/or distribute granted under the
- *		following conditions:
- *
- *		1). This notice must remain intact.
- *		2). The author is not responsible for the consequences of use
- *			this software, no matter how awful, even if they
- *			arise from defects in it.
- *		3). Altered version must not be represented as being the
- *			original software.
- *
- * change log:
- *	possible bug in ungetc(), fixed readone() to avoid - 2/19/88 - mrw
- *	massive design error, rewrote dump logic - 3/15/88 - mrw
- *	stupid error causing overlay of s1 & s2 in readnode - 9/12/88 - mrw
- *
- */
-
-#include <errno.h>
 #include <stdio.h>
 #include <ctype.h>
 
-#define printmem(_s)	(fprintf(stdout,"%s ",(_s)))
-#define MAXNAMELEN	32
-#define MAXMEMBERS	1024
+/*
+** for the benefit of the zortech runtime
+*/
+int _okbigbuf = 0;
 
-struct dependents {
-  struct node *nd;
-  struct dependents *next;
-};
+extern char *malloc();
+extern char *gets();
 
-struct node {
-  char *name;
-  int pcnt, scnt, visited;
-  struct dependents *succ, *pred;
-  struct node *left, *right;
-};
+typedef struct __v {
+    struct __v *next;   /* link list node                   */
+    int indegree,       /* number of edges into this vertex */
+        visited,        /* depth-first search visited flag  */
+        on_the_path,    /* used to find cycles              */
+        has_a_cycle;    /* true if a cycle at this vertex   */
+    struct __e *out;    /* outgoing edges from this vertex  */
+    char key[1];        /* name of this vertex              */
+} vertex;
 
-char *progname;
+typedef struct __e {
+    struct __e *next;   /* link list node                   */
+    vertex *v;          /* vertex to which this edge goes   */
+} edge;
 
-extern struct node *readnode(), *findnode();
-extern char *malloc(), *xalloc(), *readone(), *strsave();
-extern struct dependents *finddep();
-extern void dumptree(), walktree(), emptytree(), addqueue(), walklist();
+/*
+** xmalloc -- standard do or die malloc front end.
+*/
+void *
+xmalloc(siz)
+unsigned siz;
+{
+    void *rval = (void *)malloc(siz);
+    if(rval == NULL) {
+        fputs("Out of memory.\n",stderr);
+        exit(1);
+    }
+}
 
-extern int errno;
-extern char *sys_errlist[];
+/*
+** edge allocater.
+*/
+edge *
+new_edge(v)
+vertex *v;
+{
+    edge *rval;
+    rval = (edge *)xmalloc(sizeof(edge));
+    rval->v = v; return rval;
+}
 
-struct node *tree, *lastnode, *q[MAXMEMBERS];
-struct dependents *lastdepd;
-int node_cnt, rc, front, back;
+/*
+** copyupto - copy until you see the stop character.
+*/
+char *
+copyupto(name,buf,stop)
+char *name,*buf,stop;
+{
+    while(*buf != '\0' && *buf != stop)
+        *name++ = *buf++;
+    *name = '\0';
+    while(*buf != '\0' && isspace(*buf))
+        buf++;
+    return buf;
+}
 
-main(argc, argv)
+/*
+** find out if the vertex child is a child of the vertex parent.
+*/
+int
+child_of(parent,child)
+vertex *parent,*child;
+{
+    edge *e;
+    for(e = parent->out; e != NULL && e->v != child; e = e->next)
+        ;
+    return e == NULL ? 0 : 1;
+}
+
+/*
+** the vertex set.
+**
+** add_v adds a vertex to the set if it's not already there.
+*/
+vertex *vset = NULL;
+
+vertex *
+add_v(s)
+char *s;
+{
+    vertex *v,*last;
+    /*
+    ** go looking for this key in the vertex set.
+    */
+    for(last = v = vset; v != NULL && strcmp(v->key,s) != 0;
+        last = v, v = v->next)
+        ;
+    if(v != NULL) {
+        /*
+        ** use the move-to-front heuristic to keep this from being
+        ** an O(N^2) algorithm.
+        */
+        if(last != vset) {
+            last->next = v->next;
+            v->next = vset;
+            vset = v;
+        }
+        return v;
+    }
+
+    v = (vertex *)xmalloc(sizeof(vertex)+strlen(s));
+
+    v->out = NULL;
+    strcpy(v->key,s);
+    v->indegree =
+    v->on_the_path =
+    v->has_a_cycle =
+    v->visited = 0;
+    v->next = vset;
+    vset = v;
+    return v;
+}
+
+/*
+** readin -- read in the dependency pairs.
+*/
+void
+readin()
+{
+    static char buf[128];
+    static char name[64];
+    char *bp;
+    vertex *child,*parent;
+    edge *e;
+    while(gets(buf) != NULL) {
+        bp = copyupto(name,buf,' ');
+        child = add_v(name);
+        parent = add_v(bp);
+        if(child != parent && !child_of(parent,child)) {
+            e = new_edge(child);
+            e->next = parent->out;
+            parent->out = e;
+            child->indegree++;
+        }
+    }
+}
+
+/*
+** the topological sort produces names of modules in reverse of
+** the order we want them in, so use a stack to hold the names
+** until we get them all, then pop them off to print them.
+*/
+struct name { struct name *next; char *s; }
+*namelist = NULL;
+
+void
+pushname(s)
+char *s;
+{
+    struct name *x = (struct name *)xmalloc(sizeof(struct name));
+    x->s = s;
+    x->next = namelist;
+    namelist = x;
+}
+
+char *
+popname() {
+    char *rval;
+    struct name *tmp;
+    if(namelist == NULL)
+        return NULL;
+    tmp = namelist;
+    rval = namelist->s;
+    namelist = namelist->next;
+    free(tmp);
+    return rval;
+}
+
+/*
+** topo - do a topological sort of the dependency graph.
+*/
+topo() {
+    vertex *x = vset,*n;
+    edge *e;
+    vertex *outq = NULL,*tmp;
+#define insq(x) ((x->next = outq),(outq = x))
+#define deq() ((tmp = outq),(outq = outq->next),tmp)
+
+    /*
+    ** find all vertices that don't depend on any other vertices
+    ** Since it break the next links to insert x into the queue,
+    ** x->next is saved before insq, to resume the list traversal.
+    */
+    for(n = x->next; x != NULL; x = n, n = x->next)
+        if(x->indegree == 0) {
+            insq(x);
+            pushname(x->key);       
+        }
+
+    /*
+    ** for each vertex V with indegree of zero,
+    **     for each edge E from vertex V
+    **        subtract one from the indegree of the vertex V'
+    **        pointed to by E.  If V' now has an indegree of zero,
+    **        add it to the set of vertices with indegree zero, and
+    **        push its name on the output stack.
+    */
+    while(outq != NULL) {
+        x = deq();
+        e = x->out;
+        while(e != NULL) {
+            if(--(e->v->indegree) == 0) {
+                insq(e->v);
+                pushname(e->v->key);
+            }
+            e = e->next;
+        }
+    }
+    
+    /*
+    ** print the vertex names in opposite of the order they were
+    ** encountered.
+    */
+    while(namelist != NULL)
+        puts(popname());
+}
+
+/*
+** print_cycle --
+** A cycle has been detected between parent and child.
+** Start with the child, and look at each of its edges for
+** the parent.
+**
+** We know a vertex is on the path from the child to the parent
+** because the depth-first search sets on_the_path true for each
+** vertex it visits.
+*/
+void
+print_cycle(parent,child)
+vertex *parent, *child;
+{
+    char *s;
+    vertex *x;
+    edge *e;
+    for(x = child; x != parent; ) {
+        pushname(x->key);
+        for(e = x->out; e != NULL; e = e->next) {
+            /*
+            ** stop looking for the path at the first node found
+            ** that's on the path.  Watch out for cycles already
+            ** detected, because if you follow an edge into a cycle,
+            ** you're stuck in an infinite loop!
+            */
+            if(e->v->on_the_path && !e->v->has_a_cycle) {
+                x = e->v;
+                break;
+            }
+        }
+    }
+    /*
+    ** print the name of the parent, and then names of each of the
+    ** vertices on the path from the child to the parent.
+    */
+    fprintf(stderr,"%s\n",x->key);
+    while((s = popname()) != NULL)
+        fprintf(stderr,"%s\n",s);
+}
+
+/*
+** depth first search for cycles in the dependency graph.
+** See "Introduction to Algorithms" by Udi Manber Addison-Wesley 1989
+*/
+void
+dfs(v)
+vertex *v;
+{
+    edge *e;
+
+    if(v->visited)      /* If you've been here before, don't go again! */
+        return;
+    v->visited++;
+    v->on_the_path++;   /* this node is on the path from the root. */
+
+    /*
+    ** depth-first search all outgoing edges.
+    */
+    for(e = v->out; e != NULL; e = e->next) {
+        if(!e->v->visited)
+            dfs(e->v);
+        if(e->v->on_the_path) {
+            fprintf(stderr,"cycle found between %s and %s\n",
+                v->key,e->v->key);
+            print_cycle(v,e->v);
+            v->has_a_cycle++;
+        }
+    }
+    v->on_the_path = 0;
+}
+
+/*
+** check cycles starts the recursive depth-first search from
+** each vertex in vset.
+*/
+void
+check_cycles()
+{
+    vertex *v;
+    struct _vpair *vp;
+    for(v = vset; v != NULL; v = v->next)
+        dfs(v);
+}
+
+/*
+** main program.
+*/
+int
+main(argc,argv)
 int argc;
 char **argv;
 {
-  progname = argv[0];
-  if (argc > 1)
-	if (freopen(argv[1], "r", stdin) == (FILE *) NULL) {
-		fprintf(stderr, "Error: %s - %s\n", progname, sys_errlist[errno]);
-		exit(1);
-	}
-
-  /* Read in the tree of entries */
-  while (readnode() != (struct node *) NULL);
-  dumptree(tree);
-  fflush(stdout);
-
-  if (node_cnt != back) {
-	fprintf(stderr, "Error: %s - input contains a cycle\n", progname);
-	rc = 1;
-  }
-  exit(rc);
+    if(argc > 1 && freopen(argv[1],"r",stdin) == NULL) {
+        perror(argv[1]);
+        exit(0);
+    }
+    if(argc > 2 && freopen(argv[2],"w",stdout) == NULL) {
+        perror(argv[2]);
+        exit(0);
+    }
+    readin();
+    check_cycles();
+    topo();
 }
 
-
-struct node *readnode()
-{
-  static char s1[MAXNAMELEN], s2[MAXNAMELEN];
-  register struct node *n1, *n2;
-  struct dependents *pd;
-
-  if (readone(s1) != (char *) NULL) {
-	if ((n1 = findnode(s1)) == (struct node *) NULL) {
-		/* Is a new node so build it */
-		n1 = (struct node *) xalloc(sizeof(struct node));
-		n1->name = strsave(s1);
-		n1->succ = (struct dependents *) NULL;
-		n1->pred = (struct dependents *) NULL;
-		n1->left = (struct node *) NULL;
-		n1->right = (struct node *) NULL;
-		n1->pcnt = 0;
-		n1->scnt = 0;
-		n1->visited = 0;
-		linknode(n1);
-	}
-	if (readone(s2) != (char *) NULL) {
-		if ((n2 = findnode(s2)) == (struct node *) NULL) {
-			/* Is a new node so build it */
-			n2 = (struct node *) xalloc(sizeof(struct node));
-			n2->name = strsave(s2);
-			n2->succ = (struct dependents *) NULL;
-			n2->pred = (struct dependents *) NULL;
-			n2->left = (struct node *) NULL;
-			n2->right = (struct node *) NULL;
-			n2->pcnt = 0;
-			n2->scnt = 0;
-			n2->visited = 0;
-			linknode(n2);
-		}
-		if (n1 != n2) {
-			if (finddep(n2->pred, s1) == (struct dependents *) NULL) {
-				/* New dependence here */
-				pd = (struct dependents *) xalloc(sizeof(struct dependents));
-				pd->nd = n1;
-				pd->next = (struct dependents *) NULL;
-				n2->pcnt++;
-				if (n2->pred == (struct dependents *) NULL)
-					n2->pred = pd;
-				else
-					lastdepd->next = pd;
-			}
-			if (finddep(n1->succ, s2) == (struct dependents *) NULL) {
-				/* New dependence here */
-				pd = (struct dependents *) xalloc(sizeof(struct dependents));
-				pd->nd = n2;
-				pd->next = (struct dependents *) NULL;
-				n1->scnt++;
-				if (n1->succ == (struct dependents *) NULL)
-					n1->succ = pd;
-				else
-					lastdepd->next = pd;
-			}
-		}
-		return(n1);
-	} else
-		return((struct node *) NULL);
-  } else
-	return((struct node *) NULL);
-}
-
-void dumptree(top)
-register struct node *top;
-{
-  walktree(top);		/* get all entries in order with no
-			 * predecessors */
-  for (front = 1; front <= back; front++) {
-	printmem(q[front]->name);
-	walklist(q[front]->succ);
-  }
-  emptytree(top);		/* dumps all isolated nodes left over */
-}
-
-void walklist(s)
-register struct dependents *s;
-{
-  for (; s; s = s->next) {
-	if (--s->nd->pcnt == 0) {
-		addqueue(s->nd);
-		s->nd->visited = 1;
-		walklist(s->nd->succ);
-	}
-  }
-}
-
-void walktree(t)
-register struct node *t;
-{
-  if (t) {
-	node_cnt++;
-	walktree(t->right);
-	if (t->pcnt == 0) {
-		addqueue(t);
-		t->visited = 1;
-	}
-	walktree(t->left);
-  }
-}
-
-void emptytree(t)
-register struct node *t;
-{
-  struct dependents *s;
-
-  /* T  - represents a remaining entry which is in a cycle */
-  if (t) {
-	emptytree(t->right);
-	if (t->visited == 0) {
-		t->visited = 1;
-		printmem(t->name);
-		for (s = t->succ; s; s = s->next)
-			if (s->nd->visited == 0) {
-				fprintf(stderr, "Error: %s - %s and %s are in a cycle\n", progname, t->name, s->nd->name);
-			}
-	}
-	emptytree(t->left);
-  }
-}
-
-void addqueue(t)
-struct node *t;
-{
-  if (++back >= MAXMEMBERS) {
-	fprintf(stderr, "Error: %s - member queue overflow\n", progname);
-	exit(1);
-  } else {
-	q[back] = t;
-  }
-}
-
-char *
- readone(str)
-char str[];			/* of MAXNAMELEN length */
-{
-  register int c, n = 0;
-
-  /* Eat up leading spaces */
-  while ((c = getchar()) != EOF && isspace(c));
-
-  if (c != EOF) {
-	str[n++] = c;		/* save into name first non blank */
-	while ((c = getchar()) != EOF && !isspace(c)) {
-		if (n < MAXNAMELEN) str[n++] = c;
-	}
-	str[n] = '\0';
-	return(str);
-  } else
-	return((char *) NULL);
-
-}
-
-struct node *
- findnode(s)
-char *s;
-{
-  register struct node *n;
-  register int cmp;
-
-  if (tree) {
-	lastnode = n = tree;
-	while (n && n->name) {
-		lastnode = n;
-		if (!(cmp = strcmp(s, n->name)))
-			return(n);
-		else if (cmp > 0)
-			n = n->left;
-		else
-			n = n->right;
-	}
-  }
-  return((struct node *) NULL);
-}
-
-struct dependents *
- finddep(dp, s)
-register struct dependents *dp;
-register char *s;
-{
-  lastdepd = (struct dependents *) NULL;
-  while (dp && dp->nd) {
-	lastdepd = dp;
-	if (strcmp(dp->nd->name, s) == 0)
-		return(dp);
-	else {
-		dp = dp->next;
-	}
-  }
-  return((struct dependents *) NULL);
-}
-
-linknode(n)
-register struct node *n;
-{
-  register int cmp;
-
-  if (tree) {
-	cmp = strcmp(n->name, lastnode->name);
-	if (cmp > 0)
-		lastnode->left = n;
-	else
-		lastnode->right = n;
-  } else
-	tree = n;
-}
-
-char *
- xalloc(n)
-int n;
-{
-  char *p;
-
-  if ((p = malloc(n)) != (char *) NULL)
-	return(p);
-  else {
-	fprintf(stderr, "Error: %s out of memory\n", progname);
-	exit(1);
-  }
-}
-
-char *
- strsave(s)
-char *s;
-{
-  char *p;
-
-  p = xalloc(strlen(s) + 1);
-  strcpy(p, s);
-  return(p);
-}

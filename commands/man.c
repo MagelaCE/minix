@@ -13,12 +13,13 @@
  * <ar-name>	is a digit, when no digit is used, chapter 1 searched.
  */
 
-#include <stdio.h>
 #include <sys/types.h>
-#include <fcntl.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
+#include <termcap.h>
+#include <stdio.h>
 
 #ifndef INDEX_H
 #define INDEX_H
@@ -27,7 +28,7 @@
 #define NAME_SIZE	12	/* for size in index file */
 #define NAME_WIDTH	15	/* for on screen projection */
 #define AR_NAME_SIZE	64	/* for file names */
-#define AR_DIR		"/usr/src/man"
+#define AR_DIR		"/usr/man"
 #define AR_NAME		"/man"
 #define AR_INDEX	"/._man"
 
@@ -699,7 +700,7 @@ static void get_termcap()
 {				/* initialize all needed termcap entries,
 			 * assumes all entries are available. */
   static char entries[100];
-  char *term_buf[1024];
+  char term_buf[1024];
   char *loc = entries;
   static int init_done = 0;
 

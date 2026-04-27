@@ -1,11 +1,10 @@
 #include <lib.h>
-#include <limits.h>
-#include <sys/types.h>
+#include <string.h>
 #include <unistd.h>
 
 extern char **environ;		/* environment pointer */
 
-#define	PTRSIZE	sizeof(char *)
+#define	PTRSIZE	(sizeof(char *))
 
 PUBLIC int execl(name, arg0)
 char *name;
@@ -31,63 +30,102 @@ char *name, *argv[];
 }
 
 
-PUBLIC int execve(name, argv, envp)
-char *name;			/* pointer to name of file to be executed */
+PUBLIC int execve(path, argv, envp)
+char *path;			/* pointer to name of file to be executed */
 char *argv[];			/* pointer to argument array */
 char *envp[];			/* pointer to environment */
 {
-  char stack[ARG_MAX];
-  char **argorg, **envorg, *hp, **ap, *p;
-  int i, nargs, nenvps, stackbytes, offset;
+  register char **argtop;
+  register char **envtop;
 
   /* Count the argument pointers and environment pointers. */
-  nargs = 0;
-  nenvps = 0;
-  argorg = argv;
-  envorg = envp;
-  while (*argorg++ != NIL_PTR) nargs++;
-  while (*envorg++ != NIL_PTR) nenvps++;
+  for (argtop = argv; *argtop != (char *) NULL; ) argtop++;
+  for (envtop = envp; *envtop != (char *) NULL; ) envtop++;
+  return(__execve(path, argv, envp, argtop - argv, envtop - envp));
+}
 
-  /* Prepare to set up the initial stack. */
-  hp = &stack[(nargs + nenvps + 3) * PTRSIZE];
-  if (hp + nargs + nenvps >= &stack[ARG_MAX]) {
+
+PUBLIC int __execve(path, argv, envp, nargs, nenvps)
+char *path;			/* pointer to name of file to be executed */
+char *argv[];			/* pointer to argument array */
+char *envp[];			/* pointer to environment */
+int nargs;			/* number of args */
+int nenvps;			/* number of environment strings */
+{
+/* This is split off from execve to be called from execvp, so execvp does not
+ * have to allocate up to ARG_MAX bytes just to prepend "sh" to the arg array.
+ */
+
+  char *hp, **ap, *p;
+  int i, stackbytes, npointers, overflow, temp;
+  char *stack;
+
+  /* Decide how big a stack is needed. Be paranoid about overflow. */
+#if ARG_MAX > INT_MAX
+#error /* overflow checks and sbrk depend on sizes being ints */
+#endif
+  overflow = FALSE;
+  npointers = 1 + nargs + 1 + nenvps + 1;	/* 1's for argc and NULLs */
+  stackbytes = nargs + nenvps;		/* for nulls in strings */
+  if (nargs < 0 || nenvps < 0 || stackbytes < nargs || npointers < stackbytes)
+	overflow = TRUE;
+  for (i = PTRSIZE; i != 0; i--) {
+	temp = stackbytes + npointers;
+	if (temp < stackbytes) overflow = TRUE;
+	stackbytes = temp;
+  }
+  for (i = 0, ap = argv; i < nargs; i++) {
+	temp = stackbytes + strlen(*ap++);
+	if (temp < stackbytes) overflow = TRUE;
+	stackbytes = temp;
+  }
+  for (i = 0, ap = envp; i < nenvps; i++) {
+	temp = stackbytes + strlen(*ap++);
+	if (temp < stackbytes) overflow = TRUE;
+	stackbytes = temp;
+  }
+  temp = stackbytes + PTRSIZE - 1;
+  if (temp < stackbytes) overflow = TRUE;
+  stackbytes = (temp / PTRSIZE) * PTRSIZE;
+
+  /* Check for overflow before committing sbrk. */
+  if (overflow || stackbytes > ARG_MAX) {
 	errno = E2BIG;
 	return(-1);
   }
+
+  /* Allocate the stack. */
+  stack = sbrk(stackbytes);
+  if (stack == (char *) -1) {
+	errno = E2BIG;
+	return(-1);
+  }
+
+  /* Prepare the stack vector and argc. */
   ap = (char **) stack;
+  hp = &stack[npointers * PTRSIZE];
   *ap++ = (char *) nargs;
 
   /* Prepare the argument pointers and strings. */
   for (i = 0; i < nargs; i++) {
-	offset = hp - stack;
-	*ap++ = (char *) offset;
+	*ap++ = (char *) (hp - stack);
 	p = *argv++;
-	while (*p) {
-		*hp++ = *p++;
-		if (hp >= &stack[ARG_MAX]) {
-			errno = E2BIG;
-			return(-1);
-		}
-	}
-	*hp++ = (char) 0;
+	while ((*hp++ = *p++) != 0)
+		;
   }
-  *ap++ = NIL_PTR;
+  *ap++ = (char *) NULL;
 
   /* Prepare the environment pointers and strings. */
   for (i = 0; i < nenvps; i++) {
-	offset = hp - stack;
-	*ap++ = (char *) offset;
+	*ap++ = (char *) (hp - stack);
 	p = *envp++;
-	while (*p) {
-		*hp++ = *p++;
-		if (hp >= &stack[ARG_MAX]) {
-			errno = E2BIG;
-			return(-1);
-		}
-	}
-	*hp++ = (char) 0;
+	while ((*hp++ = *p++) != 0)
+		;
   }
-  *ap++ = NIL_PTR;
-  stackbytes = (((int) (hp - stack) + PTRSIZE - 1) / PTRSIZE) * PTRSIZE;
-  return(callm1(MM_PROC_NR, EXEC, len(name), stackbytes, 0, name, stack, NIL_PTR));
+  *ap++ = (char *) NULL;
+
+  /* Do the real work. */
+  temp = callm1(MM, EXEC, len(path), stackbytes, 0, path, stack, NIL_PTR);
+  sbrk(-stackbytes);
+  return(temp);
 }

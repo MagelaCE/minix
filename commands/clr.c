@@ -49,11 +49,12 @@ get_termcap()
   char *loc = termbuf;
   char entry[1024];
 
-  if (tgetent(entry, getenv("TERM")) <= 0) {
-	Error("Unknown terminal.");
-  }
+  
   if ((term = getenv("TERM")) == NULL) {
 	Error("$TERM not defined");
+  }
+  if (tgetent(entry, getenv("TERM")) <= 0) {
+        Error("Unknown terminal.");
   }
   if (tgetent(buffer, term) != 1) {
 	Error("No termcap definition for $TERM");

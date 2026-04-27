@@ -9,3 +9,6 @@ indent: ${OBJS}
 
 $(OBJS): globs.h codes.h
 
+
+clean:	
+	@rm -f *.bak *.s indent

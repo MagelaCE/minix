@@ -48,6 +48,7 @@ _PROTOTYPE( int isxdigit,(int  __c)  );	/* hex digit [0-9], [a-f], [A-F] */
 #define isspace(c)	((__ctype+1)[c]&_S)
 #define isupper(c)	((__ctype+1)[c]&_U)
 #define isxdigit(c)	((__ctype+1)[c]&(_N|_X))
+#define isascii(c)	((unsigned) ((c) + 1) < 129)
 
 /* The following two macros are weird to keep the Language Police at bay.
  * The macro 'tolower' only affects upper case letters, and 'toupper'

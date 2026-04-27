@@ -14,9 +14,8 @@
  */
 #include <lib.h>
 #include <unistd.h>
-#undef NULL			/* temporary HACK */
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 
 #ifndef P_tmpdir
 #define P_tmpdir	"/tmp"

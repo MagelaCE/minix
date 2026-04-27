@@ -41,6 +41,7 @@ EXTERN char *Fields[ MAXWORDS ];        /* pointers to the words in Linebuf */
 EXTERN int Fieldcount;                  /* and the # of words */
 EXTERN char Workbuf[ MAXWORKBUFLEN ];   /* work area for C action and */
                                         /* regular expression parsers */
+EXTERN char *Stringptr;                 /* pointer to command string */
 
 /**********************************************************
  * Regular Expression Parser variables                    *
@@ -170,8 +171,8 @@ EXTERN char Token;      /* current input token */
 EXTERN DATUM Value;     /* and its value */
 EXTERN char Saw_break;  /* set when break stmt seen */
 EXTERN char Where;      /* indicates whether C stmt is a PATTERN or ACTION */
-EXTERN char Fieldsep[3];        /* field seperator */
-EXTERN char Recordsep[3];       /* record seperator */
+EXTERN char Fieldsep[20];        /* field seperator */
+EXTERN char Recordsep[20];       /* record seperator */
 EXTERN char *Beginact;  /* BEGINning of input actions */
 EXTERN char *Endact;    /* END of input actions */
 

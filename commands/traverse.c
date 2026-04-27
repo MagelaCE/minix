@@ -1,8 +1,8 @@
 /* traverse - traverse a tree		Author:	Gary Perlman */
 
-#include <stdio.h>
 #include <sys/types.h>
 #include <sys/dir.h>
+#include <stdio.h>
 
 #define STANDALONE
 

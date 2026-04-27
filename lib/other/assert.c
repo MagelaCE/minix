@@ -1,8 +1,8 @@
-#include <lib.h>
 /* This is the routine called by <assert.h>. */
 
-#include <stdio.h>
+#include <lib.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 void __assert(file, line)
 char *file;

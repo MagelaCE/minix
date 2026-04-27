@@ -1,4 +1,3 @@
-#include <lib.h>
 /* getopt - get option letter from argv
  *
  *    Getopt(3) is used to ease the process of scanning the
@@ -69,8 +68,9 @@
  * added opterr & optopt     - Terrence W. Holm, Aug. 1988
  */
 
-#include <stdio.h>
+#include <lib.h>
 #include <string.h>
+#include <stdio.h>
 
 char *optarg;			/* Global argument pointer. */
 int optind = 0;			/* Global argv index. */

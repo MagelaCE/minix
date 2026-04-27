@@ -53,7 +53,6 @@ dev_t dev;			/* which device? */
   /* inodes 0 and 1, and zone 0 are never allocated.  Mark them as busy. */
   sp->s_imap[0]->b_int[0] |= 3;	/* inodes 0, 1 busy */
   sp->s_zmap[0]->b_int[0] |= 1;	/* zone 0 busy */
-  bufs_in_use += sp->s_imap_blocks + sp->s_zmap_blocks;
   return(OK);
 }
 
@@ -72,7 +71,6 @@ dev_t dev;			/* which device is being unmounted? */
   struct super_block *get_super();
 
   sp = get_super(dev);		/* get the superblock pointer */
-  bufs_in_use -= sp->s_imap_blocks + sp->s_zmap_blocks;
   for (i = 0; i < sp->s_imap_blocks; i++) put_block(sp->s_imap[i], I_MAP_BLOCK);
   for (i = 0; i < sp->s_zmap_blocks; i++) put_block(sp->s_zmap[i], ZMAP_BLOCK);
   return(OK);
@@ -156,8 +154,10 @@ bit_nr bit_returned;		/* number of bit to insert into the map */
   bit = r % INT_BITS;
   bp = map_ptr[b];
   if (bp == NIL_BUF) return;
-  if (((bp->b_int[w] >> bit)& 1)== 0)
-       panic("freeing unused block or inode--check file sys",(int)bit_returned);
+  if (((bp->b_int[w] >> bit)& 1)== 0) {
+printf("FS freeing unused block of inode.  bit = %d\n",bit_returned); /*DEBUG*/
+/*  panic("freeing unused block or inode--check file sys",(int)bit_returned);*/
+  }
   bp->b_int[w] &= ~(1 << bit);	/* turn the bit off */
   bp->b_dirt = DIRTY;
 }
@@ -231,12 +231,12 @@ int rw_flag;			 /* READING or WRITING */
   /* Check if this is a read or write, and do it. */
   if (rw_flag == READING) {
 	dev = sp->s_dev;	/* save device; it will be overwritten by copy*/
-	bp = get_block(sp->s_dev, (block_nr) SUPER_BLOCK, NORMAL);
+	bp = get_block(sp->s_dev, SUPER_BLOCK, NORMAL);
 	copy( (char *) sp, bp->b_data, SUPER_SIZE);
 	sp->s_dev = dev;	/* restore device number */
   } else {
 	/* On a write, it is not necessary to go read superblock from disk. */
-	bp = get_block(sp->s_dev, (block_nr) SUPER_BLOCK, NO_READ);
+	bp = get_block(sp->s_dev, SUPER_BLOCK, NO_READ);
 	copy(bp->b_data, (char *) sp, SUPER_SIZE);
 	bp->b_dirt = DIRTY;
   }

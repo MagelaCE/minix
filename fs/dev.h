@@ -2,7 +2,7 @@
  * the link between major device numbers and the routines that process them.
  */
 
-EXTERN struct dmap {
+extern struct dmap {
   void (*dmap_open)();
   void (*dmap_rw)();
   void (*dmap_close)();

@@ -1,8 +1,8 @@
 /* inodes - print inode characteristics		Author: Johan W. Stevenson */
 
-#include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdio.h>
 
 #define	NAMSIZ	256
 #define major(x) (x>>8) & 0377
@@ -57,10 +57,11 @@ dir()
   register struct stat *p = &statbuf;
 
   printf(
-         "d %04o %2d %2d     X      X %s\n",
+         "d m=%04o  uid=%2d  gid=%2d                   X  size=%8ld  %s\n",
          p->st_mode & 07777,
          p->st_uid,
          p->st_gid,
+	 p->st_size,
          line
 	);
 }
@@ -70,13 +71,14 @@ dev(c)
   register struct stat *p = &statbuf;
 
   printf(
-         "%c %04o %2d %2d %5d %6d %s\n",
+         "%c m=%04o  uid=%2d  gid=%2d   major,minor=%2d,%2d  size=%8ld  %s\n",
          c,
          p->st_mode & 07777,
          p->st_uid,
          p->st_gid,
          major(p->st_rdev),
          minor(p->st_rdev),
+	 p->st_size,
          line
 	);
 }
@@ -91,7 +93,7 @@ reg()
 	for (lp = lhead; lp != NULL; lp = lp->l_nxt)
 		if (lp->l_ino == p->st_ino && lp->l_dev == p->st_dev) {
 			printf(
-			     "i XXXX  X  X     X      X %s -> %s\n",
+			     "i m=XXXX  uid=X   gid=X     X      X      X %s -> %s\n",
 			       line,
 			       lp->l_nam
 				);
@@ -109,7 +111,7 @@ reg()
 	}
   }
   printf(
-         "f %04o %2d %2d %05u %6ld %s\n",
+         "f m=%04o  uid=%2d  gid=%2d           crc=%05u  size=%8ld  %s\n",
          p->st_mode & 07777,
          p->st_uid,
          p->st_gid,

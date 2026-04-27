@@ -35,6 +35,6 @@ _PROTOTYPE( int len, (const char *s)					);
 _PROTOTYPE( void panic, (const char *message, int errnum)		);
 _PROTOTYPE( int sendrec, (int src_dest, message *m_ptr)			);
 _PROTOTYPE( int syserr, (const char *name) /* used but not defined */	);
-extern _PROTOTYPE( void (*begsig), (int dummy)				);
+_PROTOTYPE( void begsig, (int dummy)					);
 
 #endif /* _LIB_H */
