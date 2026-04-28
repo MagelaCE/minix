@@ -86,19 +86,19 @@ int interrupt = FALSE;		/* If sigint or sigquit occurs */
 
 
 /* Sigint() and Sigquit() Flag occurrence of an interrupt. */
-Sigint(void)
+Sigint()
 {
   interrupt = SIGINT;
 }
 
 
-Sigquit(void)
+Sigquit()
 {
   interrupt = SIGQUIT;
 }
 
 
-void usage(void)
+void usage()
 {
   fprintf(stderr, "Usage: last [-r] [-count] [-f file] [name] [tty] ...\n");
   exit(-1);

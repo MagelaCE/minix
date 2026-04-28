@@ -59,7 +59,7 @@ typedef char *va_list;
 
 #ifdef _MINIX
 #include <limits.h>
-#endif _MINIX
+#endif /*  _MINIX */
 
 #define HELPFILE	"/usr/lib/more.help"
 #define VI		"/usr/ucb/vi"
@@ -228,7 +228,7 @@ char *argv[];
 	    signal(SIGTSTP, onsusp);
 	    catch_susp++;
 	}
-#endif SIGTSTP
+#endif /*  SIGTSTP */
 	stty (fileno(stderr), &otty);
     }
     if (no_intty) {
@@ -401,7 +401,7 @@ checkf (fs, clearfirst)
 #ifndef _MINIX
 	if (magic(f, fs))
 		return((FILE *)NULL);
-#endif !_MINIX
+#endif /*  !_MINIX */
 	c = Getc(f);
 	*clearfirst = c == '\f';
 	Ungetc (c, f);
@@ -438,7 +438,7 @@ magic(f, fs)
 	(void)fseek(f, 0L, L_SET);		/* rewind() not necessary */
 	return(0);
 }
-#endif !_MINIX
+#endif /* !_MINIX */
 
 /*
 ** A real function, for the tputs routine in termlib
@@ -577,7 +577,7 @@ chgwinsz()
     }
     (void) signal(SIGWINCH, chgwinsz);
 }
-#endif SIGWINCH
+#endif /*  SIGWINCH */
 
 /*
 ** Clean up terminal state and exit. Also come here if interrupt signal received
@@ -1438,14 +1438,14 @@ va_dcl
 #ifdef SIGTSTP
 	    if (catch_susp)
 		signal(SIGTSTP, SIG_DFL);
-#endif SIGTSTP
+#endif /* SIGTSTP */
 	    while (wait((int *)0) > 0);
 	    signal (SIGINT, end_it);
 	    signal (SIGQUIT, onquit);
 #ifdef SIGTSTP
 	    if (catch_susp)
 		signal(SIGTSTP, onsusp);
-#endif SIGTSTP
+#endif /* SIGTSTP */
 	} else
 	    write(2, "can't fork\n", 11);
 	set_tty ();
@@ -1538,7 +1538,7 @@ retry:
 
 	docrterase = ((lmode & LCRTERA) != 0);
 	docrtkill = ((lmode & LCRTKIL) != 0);
-#endif TIOCLGET
+#endif /* TIOCLGET */
 #ifdef TIOCGPGRP
 	/*
 	 * Wait until we're in the foreground before we save the
@@ -1552,7 +1552,7 @@ retry:
 	    kill(0, SIGTTOU);
 	    goto retry;
 	}
-#endif TIOCGPGRP
+#endif /* TIOCGPGRP */
 	if ((term = getenv("TERM")) == 0 || tgetent(buf, term) <= 0) {
 	    dumb++; ul_opt = 0;
 	}
@@ -1570,7 +1570,7 @@ retry:
 #else
 	    Lpp = tgetnum("li");
 	    Mcol = tgetnum("co");
-#endif TIOCGWINSZ
+#endif /* TIOCGWINSZ */
 	    if ((Lpp <= 0) || tgetflag("hc")) {
 		hard++;	/* Hard copy terminal */
 		Lpp = 24;
@@ -1887,7 +1887,7 @@ onsusp ()
     if (inwait)
 	    longjmp (restore);
 }
-#endif SIGTSTP
+#endif /* SIGTSTP */
 
 
 /* regcompat.c */
@@ -1896,9 +1896,9 @@ onsusp ()
 ** Compatibility routines for regular expressions. more.c uses the
 ** re_comp() and re_exec() routines, while Minix only has regcomp() and
 ** regexec() (from Henry Spencer's freely redistributable regexp package).
-** Note that the third argument to regexec() is a beginning-of-line flag
-** and was probably added by Andrew Tannenbaum. It will probably be ignored
-** if your copy of the regexp routines only expects two args.
+** Note that the third argument to regexec() is a beginning-of-line flag.
+** It will probably be ignored if your copy of the regexp routines only expects
+** two args.
 **/
 
 #include <regexp.h>

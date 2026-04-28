@@ -33,7 +33,12 @@
 #	define PS_50	0x04	/* code in second byte for PS/2 Model 50 */
 #	define PS_60	0x05	/* code in second byte for PS/2 Model 60 */
 
+PRIVATE char k_environ[128];	/* environment strings passed by loader */
+
 FORWARD void db_init();
+FORWARD int k_atoi();
+FORWARD char *k_getenv();
+FORWARD void rel_vec();
 
 /*==========================================================================*
  *				cstart					    *
@@ -51,6 +56,7 @@ u16_t ds;			/* real mode kernel data segment */
 /* Perform initializations which must be done in real mode. */
 
   register u16_t *bootp;
+  register char *envp;
   unsigned machine_magic;
   unsigned mach_submagic;
 
@@ -63,8 +69,28 @@ u16_t ds;			/* real mode kernel data segment */
 	/* New boot loader (ax == bx == scan code for old one). */
 	if (cx > sizeof boot_parameters) cx = sizeof boot_parameters;
 	cx /= 2;		/* word count */
-	for (bootp = (u16_t *) &boot_parameters; cx != 0; --cx, si += 2)
+	for (bootp = (u16_t *) &boot_parameters; cx != 0; cx--, si += 2)
 		*bootp++ = get_word(di, si);
+	bx = boot_parameters.bp_scancode;
+  }
+  else if (ax == 0x100) {
+	/* Newer boot loader passes environment string. */
+	if (cx > sizeof k_environ - 2) cx = sizeof k_environ - 2;
+	cx /= 2;		/* word count */
+	for (bootp = (u16_t *) &k_environ[0]; cx != 0; cx--, si += 2)
+		*bootp++ = get_word(di, si);
+
+	/* Just convert environment to boot parameters for now. */
+	envp = k_getenv("rootdev");
+	if (envp != NIL_PTR) boot_parameters.bp_rootdev = k_atoi(envp);
+	envp = k_getenv("ramimagedev");
+	if (envp != NIL_PTR) boot_parameters.bp_ramimagedev = k_atoi(envp);
+	envp = k_getenv("ramsize");
+	if (envp != NIL_PTR) boot_parameters.bp_ramsize = k_atoi(envp);
+	envp = k_getenv("scancode");
+	if (envp != NIL_PTR) bx = boot_parameters.bp_scancode = k_atoi(envp);
+	envp = k_getenv("processor");
+	if (envp != NIL_PTR) boot_parameters.bp_processor = k_atoi(envp);
   }
   scan_code = bx;
 
@@ -93,6 +119,12 @@ u16_t ds;			/* real mode kernel data segment */
 	protected_mode = TRUE;
   }
   boot_parameters.bp_processor = protected_mode;	/* FS needs to know */
+
+  /* Prepare for relocation of the vector table.  It may contain pointers into
+   * itself.  Fix up only the ones used.
+   */
+  rel_vec(WINI_0_PARM_VEC * 4, ds);
+  rel_vec(WINI_1_PARM_VEC * 4, ds);
 
   /* Initialize debugger (requires 'protected_mode' to be initialized). */
   db_init();
@@ -151,4 +183,80 @@ PRIVATE void db_init()
    * read-only registers.
    */
   put_word(BIOS_DSEG, BIOS_CURSOR, CURSOR_SHAPE);
+}
+
+
+/*==========================================================================*
+ *				k_atoi					    *
+ *==========================================================================*/
+PRIVATE int k_atoi(s)
+register char *s;
+{
+/* Convert string to integer - kernel version of atoi to make sure it is in
+ * 16-bit mode and to avoid bloat from isspace().
+ */
+
+  register int total = 0;
+  register unsigned digit;
+  register minus = 0;
+
+  while (*s == ' ' || *s == '\t') s++;
+  if (*s == '-') {
+	s++;
+	minus = 1;
+  }
+  while ((digit = *s++ - '0') < 10) {
+	total *= 10;
+	total += digit;
+  }
+  return(minus ? -total : total);
+}
+
+
+/*==========================================================================*
+ *				k_getenv				    *
+ *==========================================================================*/
+PRIVATE char *k_getenv(name)
+char *name;
+{
+/* Get environment value - kernel version of getenv to avoid setting up the
+ * usual environment array.
+ */
+
+  register char *namep;
+  register char *envp;
+
+  for (envp = k_environ; *envp != 0;) {
+	for (namep = name; *namep != 0 && *namep++ == *envp++;)
+		;
+	if (*namep == '\0' && *envp == '=') return(envp + 1);
+	while (*envp++ != 0)
+		;
+  }
+  return(NIL_PTR);
+}
+
+
+/*==========================================================================*
+ *				rel_vec					    *
+ *==========================================================================*/
+PRIVATE void rel_vec(vec4, ds)
+unsigned vec4;			/* vector to be relocated (times 4) */
+u16_t ds;			/* real mode kernel data segment */
+{
+/* If the vector 'vec4' points into the vector table, relocate it to the copy
+ * of the vector table.
+ */
+
+  phys_bytes address;
+  unsigned off;
+  unsigned seg;
+
+  off = get_word(VEC_TABLE_SEG, vec4);
+  seg = get_word(VEC_TABLE_SEG, vec4 + 2);
+  address = hclick_to_physb(seg) + off;
+  if (address != 0 && address < VECTOR_BYTES) {
+	put_word(VEC_TABLE_SEG, vec4, off + (unsigned) vec_table);
+	put_word(VEC_TABLE_SEG, vec4 + 2, seg + ds);
+  }
 }

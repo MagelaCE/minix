@@ -7,9 +7,12 @@
  * If the -b flag is given, the output is a shell script that can be run
  * to mark all the bad blocks.
  *
+ * If the -t flag is given, only the total numbers of blocks is reported.
+ *
  * Examples of usage:
  *	readall /dev/hd1		# read /dev/hd1
  *	readall -b /dev/hd2		# prepare bad block list on stdout
+ *	readall -t /dev/ram		# report size of ram disk
  */
 
 #include <sys/types.h>
@@ -26,6 +29,7 @@ int chunk = CHUNK;		/* current number of blocks being read */
 long goodies;			/* incremented on good reads */
 long errors;			/* number of errors so far */
 int normal = 1;			/* set unless -b flag is given */
+int total = 0;			/* unset unless -t flag is given */
 char *name;			/* name of special file being read */
 
 char a[CHUNK * BLOCK_SIZE];	/* read buffer */
@@ -40,7 +44,7 @@ char *argv[];
   char *p;
 
   if (argc != 2 && argc != 3) {
-	printf("Usage: readall [-b] file\n");
+	printf("Usage: readall [-b | -t] file\n");
 	exit(1);
   }
 
@@ -49,6 +53,12 @@ char *argv[];
   p = argv[1];
   if (*p == '-' && *(p+1) == 'b' && *(p+2) == '\0') {
 	normal = 0;
+	i++;
+	name = argv[i];
+  }
+  if (*p == '-' && *(p+1) == 't' && *(p+2) == '\0') {
+	normal = 0;
+	total = 1;
 	i++;
 	name = argv[i];
   }
@@ -88,9 +98,12 @@ char *argv[];
 	} else {
 		/* End of file. */
 		b += s/BLOCK_SIZE;
-		output(b);
-		if (normal) printf("\n");
-		if (errors == 0) exit(0);
+		if (normal) {
+			output(b);
+			printf("\n");
+		}
+		if (total) printf("%8ld\n", b);
+		if ((errors == 0) || total) exit(0);
 		if (normal) 
 			printf("Summary of bad blocks\n");
 		else

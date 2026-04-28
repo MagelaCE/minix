@@ -13,7 +13,7 @@ char **argv;
 	crc((char *) 0);
   else if (argc == 2 && strcmp(argv[1], "-") == 0)
 	while (fgets(line, sizeof line, stdin) != NULL) {
-		if (line[strlen(line) - 1] = '\n')
+		if (line[strlen(line) - 1] == '\n')
 			line[strlen(line) - 1] = '\0';
 		crc(line);
 	}

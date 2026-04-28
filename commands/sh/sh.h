@@ -21,7 +21,7 @@
 /*
  * library and system defintions
  */
-typedef int xint;	/* base type of jmp_buf, for broken compilers */
+typedef char * xint;	/* base type of jmp_buf, for broken compilers */
 
 /*
  * shell components

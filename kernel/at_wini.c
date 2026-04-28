@@ -36,6 +36,7 @@
 #define WIN_REG9       0x3f6
 
 /* Winchester disk controller command bytes. */
+#define WIN_FORMAT      0x50	/* command for the drive to format track */
 #define WIN_RECALIBRATE	0x10	/* command for the drive to recalibrate */
 #define WIN_READ        0x20	/* command for the drive to read */
 #define WIN_WRITE       0x30	/* command for the drive to write */
@@ -213,7 +214,7 @@ register struct wini *wn;	/* pointer to the drive struct */
   command[2] = BLOCK_SIZE/SECTOR_SIZE;
   command[3] = wn->wn_sector;
   command[4] = wn->wn_cylinder & 0xFF;
-  command[5] = ((wn->wn_cylinder & 0x0300) >> 8);
+  command[5] = (wn->wn_cylinder >> 8) & BYTE;
   command[6] = (wn->wn_drive << 4) | wn->wn_head | 0xA0;
   command[7] = (wn->wn_opcode == DISK_READ ? WIN_READ : WIN_WRITE);
 
@@ -228,7 +229,7 @@ register struct wini *wn;	/* pointer to the drive struct */
 			w_need_reset = TRUE;
 			return(ERR);
 		}
-		port_read(WIN_REG1, usr_buf, (phys_bytes) SECTOR_SIZE);
+		port_read(WIN_REG1, usr_buf, (unsigned) SECTOR_SIZE);
 		usr_buf += SECTOR_SIZE;
 	}
 	r = OK;
@@ -239,15 +240,25 @@ register struct wini *wn;	/* pointer to the drive struct */
 		w_need_reset = TRUE;
 		return(ERR);
 	}
-	for (i=0; i<BLOCK_SIZE/SECTOR_SIZE; i++) {
-		port_write(WIN_REG1, usr_buf, (phys_bytes) SECTOR_SIZE);
+
+	/* There will be an interrupt for each sector, except the format-track
+	 * command only interrupts once.  Formatting may be done just like
+	 * writing by setting command[7] = WIN_FORMAT.  There is no clean way
+	 * to do this yet.
+	 */
+	if (command[7] == WIN_FORMAT)
+		i = 1;
+	else
+		i = BLOCK_SIZE / SECTOR_SIZE;
+	do {
+		port_write(WIN_REG1, usr_buf, (unsigned) SECTOR_SIZE);
 		usr_buf += SECTOR_SIZE;
 		receive(HARDWARE, &w_mess);
 		if (win_results() != OK) {
 			w_need_reset = TRUE;
 			return(ERR);
 		}
-	}
+	} while (--i != 0);
 	r = OK;
   }
 
@@ -436,8 +447,8 @@ PRIVATE void init_params()
   phys_bytes address;
 
   /* Copy the parameter vector from the saved vector table */
-  offset = vec_table[2 * 0x41];
-  segment = vec_table[2 * 0x41 + 1];
+  offset = vec_table[2 * WINI_0_PARM_VEC];
+  segment = vec_table[2 * WINI_0_PARM_VEC + 1];
 
   /* Calculate the address off the parameters and copy them to buf */
   address = hclick_to_physb(segment) + offset;
@@ -447,8 +458,8 @@ PRIVATE void init_params()
   copy_params(buf, &wini[0]);
 
   /* Copy the parameter vector from the saved vector table */
-  offset = vec_table[2 * 0x46];
-  segment = vec_table[2 * 0x46 + 1];
+  offset = vec_table[2 * WINI_1_PARM_VEC];
+  segment = vec_table[2 * WINI_1_PARM_VEC + 1];
 
   /* Calculate the address off the parameters and copy them to buf */
   address = hclick_to_physb(segment) + offset;

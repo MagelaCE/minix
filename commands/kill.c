@@ -9,7 +9,6 @@ int argc;
 char **argv;
 {
   int proc, signal = SIGTERM;
-  extern char *itoa();
 
   if (argc < 2) usage();
   if (argc > 1 && *argv[1] == '-') {

@@ -1,5 +1,5 @@
 l=/usr/lib
-CFLAGS = -D_POSIX_SOURCE -D_MINIX
+CFLAGS = -F -D_POSIX_SOURCE -D_MINIX
 
 all:	init bootblok build menu
 

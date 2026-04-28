@@ -46,7 +46,7 @@ FORWARD int do_setup();
  *===========================================================================*/
 PUBLIC void mem_task()
 {
-/* Main program of the disk driver task. */
+/* Main program of the memory task. */
 
   int r, caller, proc_nr;
 
@@ -61,7 +61,11 @@ PUBLIC void mem_task()
 	ram_limit[MEM_DEV] = 0x1000000;	/* above 16M not mapped on 386 */
   ram_limit[PORT_DEV] = 0x10000;
 #else
+#if (CHIP == M68000)
+  ram_limit[MEM_DEV] = MEM_BYTES;
+#else
 #error /* memory limit not set up */
+#endif
 #endif
 
   /* Here is the main loop of the memory task.  It waits for a message, carries

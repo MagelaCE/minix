@@ -1084,6 +1084,6 @@ register char *s;
 	for (bp = builtin; bp->command != NULL; bp++)
 		if (strcmp(bp->command, s) == 0)
 			return(bp->fn);
-	return(NULL);
+	return((int(*)())NULL);
 }
 

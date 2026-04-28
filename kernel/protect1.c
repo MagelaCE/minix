@@ -8,15 +8,14 @@
  * code to initialize 32-bit mode.
  */
 
-#include "kernel.h"
-
-#ifdef BRUCE_GIZMO			/* local version for 32-bit kernel */
+#ifdef _SYSTEM			/* this is being included by protect.c */
 #define MAYBE_PUBLIC PRIVATE
 #define NEED_LDT_INIT 0
 #define init_codeseg linit_codeseg
 #define init_dataseg linit_dataseg
 #define sdesc lsdesc
-#else
+#else				/* native version */
+#include "kernel.h"
 #include "proc.h"
 #include "protect.h"
 #define MAYBE_PUBLIC PUBLIC

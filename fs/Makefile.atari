@@ -14,7 +14,7 @@ obj =	main.o open.o read.o write.o pipe.o device.o \
 	putc.o
 
 fs.mix:	Makefile $l/head.o $(obj) $l/libc.a $l/end.o
-	$(LD) -s -c -o fs.out $l/head.o $(obj) $l/libc.a $l/end.o
+	$(LD) -c -o fs.out $l/head.o $(obj) $l/libc.a $l/end.o
 	$(CV) fs.out $@
 	rm -f fs.out
 

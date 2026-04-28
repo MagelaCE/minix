@@ -1,0 +1,8 @@
+/bin/getlf "Please insert /usr diskette in drive 0.  Then hit ENTER."
+echo "/dev/hd1 is root device" >/etc/mtab
+#/etc/mount /dev/fd0 /usr
+/usr/bin/date `/usr/bin/readclock` </dev/tty
+#/usr/bin/stty 1200 </dev/tty1
+cat /etc/message
+/etc/cron
+/etc/update  &

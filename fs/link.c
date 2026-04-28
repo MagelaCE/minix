@@ -11,6 +11,7 @@
 
 #include "fs.h"
 #include <sys/stat.h>
+#include <string.h>
 #include <minix/callnr.h>
 #include "buf.h"
 #include "file.h"
@@ -19,6 +20,7 @@
 #include "param.h"
 
 #define SAME 1000
+PRIVATE char dot2[NAME_MAX] =  "..\0\0\0\0\0\0\0\0\0\0";
 
 /*===========================================================================*
  *				do_link					     *
@@ -105,7 +107,8 @@ PUBLIC int do_unlink()
   int r, r1;
   ino_t numb;
   mode_t old_mode;
-  char string[NAME_MAX], c1;
+  uid_t old_uid;
+  char string[NAME_MAX];
 
   /* Get the last directory in the path. */
   if (fetch_name(name, name_length, M3) != OK) return(err_code);
@@ -122,6 +125,7 @@ PUBLIC int do_unlink()
 	return(r);
   }
   old_mode = rip->i_mode;	/* save mode; it must be fudged for . and .. */
+  old_uid =  rip->i_uid;	/* save uid;  it must be fudged for . and .. */
 
   /* Now test if the call is allowed, separately for unlink() and rmdir(). */
   if (fs_call == UNLINK) {
@@ -155,9 +159,10 @@ PUBLIC int do_unlink()
 	/* If all the conditions have been met, remove . and .. from the dir.
 	 * If the directory is not searchable, it will not be possible to
  	 * unlink . and .. even though this is legal, so change the mode.
-	*/
+	 */
 	if (r == OK) {
 		rip->i_mode |= S_IRWXU;	/* turn on all the owner bits */
+		rip->i_uid = fp->fp_effuid;	/* may not fail due to uid */
 		if ( (r = search_dir(rip, ".",  (ino_t *) 0, DELETE)) == OK)
 			rip->i_nlinks --;	/* . pts to dir being removed*/
 		if ( (r1 = search_dir(rip, "..", (ino_t *) 0, DELETE)) == OK)
@@ -166,6 +171,7 @@ PUBLIC int do_unlink()
 		rldirp->i_dirt = DIRTY;
 		if (r1 != OK) r = r1;
 		rip->i_mode = old_mode;	/* restore the old mode */
+		rip->i_uid = old_uid;
 	}
   }
 
@@ -274,7 +280,7 @@ PUBLIC int do_rename()
 			old_dirp->i_dirt = DIRTY;
 			numb = new_dirp->i_num;
 			(void) search_dir(old_ip, "..", (ino_t *) 0, DELETE);
-			(void) search_dir(old_ip, "..", &numb ,ENTER);
+			(void) search_dir(old_ip, dot2, &numb ,ENTER);
 		}
 		(void) search_dir(old_dirp, old_string, (ino_t *)0, DELETE);
 

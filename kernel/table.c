@@ -1,4 +1,3 @@
-
 /* The object file of "table.c" contains all the data.  In the *.h files, 
  * declared variables appear with EXTERN in front of them, as in
  *
@@ -37,8 +36,13 @@
  */
 #define SMALL_STACK	(128 * sizeof (char *))
 
+#if (MACHINE == ATARI)
+#define	TTY_STACK	(2 * SMALL_STACK)
+#define IDLE_STACK	SMALL_STACK
+#else
 #define	TTY_STACK	SMALL_STACK
 #define	IDLE_STACK	(3 * 2 + 3 * 2 + 4 * 2)	/* 3 intr, 3 temps, 4 db */
+#endif
 #define	PRINTER_STACK	SMALL_STACK
 #define	WINCH_STACK	SMALL_STACK
 #define	FLOP_STACK	(3*SMALL_STACK/2)

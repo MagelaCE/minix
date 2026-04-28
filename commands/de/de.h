@@ -195,8 +195,16 @@ typedef  struct  de_state		/*  State of disk ed.	*/
 
   /*  Information from map blocks  */
 
-  int inode_map[ I_MAP_SLOTS * K/2 ];	/* need int so use K/2  */
+#if (CHIP == M68000)
+  /* the ordering of two char's in an int differs between INTEL and M68000 */
+  /* M68000 needs int here. Maybe this will work for the PC too ?          */
+  /* this also affects the module In_Use in de.c 			   */
+  int inode_map[ I_MAP_SLOTS * K/2 ];
   int zone_map[ ZMAP_SLOTS * K/2 ];
+#else
+  char inode_map[ I_MAP_SLOTS * K ];
+  char zone_map[ ZMAP_SLOTS * K ];
+#endif
 
   /*  Information for current block  */
 
@@ -322,4 +330,3 @@ off_t Recover_Blocks();
 
 #undef    printf			/*  Because fs/const.h	*/
 					/*  defines it.		*/
-

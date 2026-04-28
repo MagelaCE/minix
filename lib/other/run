@@ -1,8 +1,0 @@
-# ========== compile everything ===========
-for i in [a-z]*.c
-do
-	echo ------------------------------- $i ------------------------------
-	make f=`basename $i .c`
-done
-
-

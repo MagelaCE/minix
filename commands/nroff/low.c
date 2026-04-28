@@ -56,9 +56,15 @@ robrk ()
 
 	if (co.outp > 0)
 	{
+#ifdef GEMDOS
 		co.outbuf[co.outp]   = '\r';
 		co.outbuf[co.outp+1] = '\n';
 		co.outbuf[co.outp+2] = EOS;
+#else
+		co.outbuf[co.outp]   = '\n';
+		co.outbuf[co.outp+1] = EOS;
+		co.outbuf[co.outp+2] = EOS;
+#endif
 		put (co.outbuf);
 	}
 	co.outp   = 0;
@@ -88,12 +94,47 @@ register char  *p;
 	val = 0;
 	while (*p != EOS)
 	{
-		d = atod (*p++);
+		d = atod (*p);
+		p++;
 		if (d == -1)
 			return (val);
 		val = 10 * val + d;
 	}
 	return (val);
+}
+
+
+
+
+/*------------------------------*/
+/*	inptobu			*/
+/*------------------------------*/
+inptobu (ps)
+char   *ps;
+{
+
+/*
+ *	convert input units to b.u.
+ */
+
+	return;
+}
+
+
+
+
+/*------------------------------*/
+/*	butochar		*/
+/*------------------------------*/
+butochar (ps)
+char   *ps;
+{
+
+/*
+ *	convert b.u. to char spaces
+ */
+
+	return;
 }
 
 
@@ -112,7 +153,7 @@ register char  *p;
  *	also increments the arg ptr (side effect).
  */
 
-	while (*p == ' ' || *p == '\t')
+	while ((*p != EOS) && (*p == ' ' || *p == '\t'))
 		++p;
 	return (p);
 }
@@ -774,10 +815,6 @@ register int	v2;
 /*------------------------------*/
 /*	err_exit		*/
 /*------------------------------*/
-#ifdef ALCYON
-#include <osbind.h>
-#endif
-
 err_exit (code)
 {
 
@@ -787,21 +824,51 @@ err_exit (code)
  */
 
 	if (err_stream != stderr && err_stream != (FILE *) 0)
+	{
+		/*
+		 *   not going to stderr (-o file)
+		 */
+		fflush (err_stream);
 		fclose (err_stream);
-	if (dbg_stream != stderr && dbg_stream != (FILE *) 0)
+	}
+	if (debugging && dbg_stream != stderr && dbg_stream != (FILE *) 0)
+	{
+		fflush (dbg_stream);
 		fclose (dbg_stream);
+	}
+	if (out_stream != stdout && out_stream != (FILE *) 0)
+	{
+		/*
+		 *   not going to stdout (-l)
+		 */
+		fflush (out_stream);
+		fclose (out_stream);
+	}
 
-#ifdef ALCYON
 	if (hold_screen)
 	{
-		printf ("enter any key...");
-		Cconin ();
+		wait_for_char ();
 	}
-#endif
 
 	exit (code);
 }
 
+
+
+/*------------------------------*/
+/*	wait_for_char		*/
+/*------------------------------*/
+#ifdef GEMDOS
+#include <osbind.h>
+#endif
+
+wait_for_char ()
+{
+#ifdef GEMDOS
+		printf ("enter any key..."); fflush (stdout);
+		Cconin ();
+#endif
+}
 
 
 

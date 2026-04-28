@@ -22,7 +22,7 @@ char **argv;
   if (argc == 2) {
 	if (*argv[1] == '-' && (argv[1][1] | 0x60) == 'q') {
 		freopen("/dev/tty0", "r", stdin);
-		printf("\nPlease enter date: MMDDYYhhmmss. Then hit RETURN.\n");
+		printf("\nPlease enter date: MMDDYYhhmmss. Then hit the RETURN key.\n");
 		gets(time_buf);
 		set_time(time_buf);
 	} else

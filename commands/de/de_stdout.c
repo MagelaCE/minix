@@ -456,7 +456,7 @@ void Draw_Words( s )
 
     printf( "%5d  ", addr );
 
-    Print_Number( *( (unsigned *) &s->buffer[ addr ] ), s->output_base );
+    Print_Number( *( (unsigned short *) &s->buffer[ addr ] ), s->output_base );
     }
 
   Goto( BLOCK_COLUMN + 64, BLOCK_LINE + 6 );
@@ -1036,7 +1036,7 @@ void Print_Ascii( c )
 
 /****************************************************************/
 /*								*/
-/*	Warning( message, arg1, arg2 )				*/
+/*	Warning( text, arg1, arg2 )				*/
 /*								*/
 /*		Display a message for 2 seconds.		*/
 /*								*/

@@ -305,11 +305,13 @@ got_root_dev:
   m1.COUNT = count;
   if (sendrec(MEM, &m1) != OK) panic("Can't report size to MEM", NO_NUM);
 
+#if (CHIP == INTEL)
   /* Say if we are running in real mode or protected mode.
    * 'bp_processor' is re-used to mean 'protected_mode'.
    */
   printf("Executing in %s mode\n\n",
 	 boot_parameters.bp_processor ? "protected" : "real");
+#endif
 
   /* If the root device is not the RAM disk, it doesn't need loading. */
   if (ROOT_DEV != DEV_RAM) return;

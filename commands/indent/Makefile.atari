@@ -6,6 +6,7 @@ OBJS = indent.o io.o lexi.o parse.o comment.o args.o
 
 indent: ${OBJS}
 	$(CC) -o indent ${OBJS}
+	chmem =8192 indent
 
 $(OBJS): globs.h codes.h
 

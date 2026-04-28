@@ -6,6 +6,7 @@
 | It is about 5 times as efficient, by avoiding save/restart and slow function
 | calls for port i/o as well as the compiler!
 
+#include <minix/config.h>
 #include <minix/const.h>
 #include "const.h"
 #include "sconst.h"

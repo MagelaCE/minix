@@ -71,6 +71,7 @@
 .define	_secondary_int 	| interrupt routine for each rs232 interrupt on port 2
 #endif
 
+#include <minix/config.h>
 #include <minix/const.h>
 #include <minix/com.h>
 #include "const.h"
@@ -300,6 +301,7 @@ _int00:				| interrupt through vector 0
 
 _int01:				| interrupt through vector 1, etc
 	push	ds
+	seg	cs
 	mov	ds,kernel_ds
 	cmpb	_db_enabled,#0
 	pop	ds
@@ -319,6 +321,7 @@ _int02:
 
 _int03:
 	push	ds
+	seg	cs
 	mov	ds,kernel_ds
 	cmpb	_db_enabled,#0
 	pop	ds

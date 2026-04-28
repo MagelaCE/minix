@@ -32,7 +32,7 @@
 
 #define MASK    0777		/* selects lower nine bits */
 
-#define EOF     0		/* returned by read-call at eof */
+#define READ_EOF 0		/* returned by read-call at eof */
 
 #define OK      0
 #define FAIL   -1
@@ -260,7 +260,7 @@ test02()
 		try_close(n1, "recreated 'file02'");
 
 	}
-	remove(n, "file02");
+	Remove(n, "file02");
   }
 
   /* Give 'creat' wrong input: dir not searchable */
@@ -287,7 +287,7 @@ test02()
 		err(5, FSTAT, "'dir'");
 	else if (stbf1.st_mode != 0100777)
 		err(11, CREAT, "'creat' a new directory");
-	remove(n, "dir");
+	Remove(n, "dir");
   }
 
   /* We don't consider it to be a bug when creat * does not accept
@@ -338,7 +338,7 @@ test03()
   }
 
   /* Remove testfile */
-  remove(n, "file03");
+  Remove(n, "file03");
 
   /* Test write after a PIPE */
   if (pipe(fd) < 0)
@@ -443,7 +443,7 @@ test04()
   }
 
   /* Remove testfile */
-  remove(n, "file04");
+  Remove(n, "file04");
 
   /* Test read after pipe */
   if (pipe(fd) < 0)
@@ -483,7 +483,7 @@ char a[];
 	err(1, READ, "bad");
   else if (comp_array(a, b, ARSIZE) != OK)
 	err(7, "read/write", "values");
-  else if (read(filedes, b, ARSIZE) != EOF)	/* read een EOF */
+  else if (read(filedes, b, ARSIZE) != READ_EOF)
 	err(11, READ, "read beyond endoffile");
 
 
@@ -591,7 +591,7 @@ test05()
 		else
 			check(READ, EBADF);
 
-		if (read(n, b, ARSIZE) == FAIL)	/* should read an EOF */
+		if (read(n, b, ARSIZE) == FAIL)	/* should read an eof */
 			err(13, READ, "on fd '/drwx/rwx'");
 	}
 	try_close(n, "'drwx/rwx'");
@@ -605,7 +605,7 @@ test05()
 
 	/* Fd[1] really should be closed now; check */
 	clear_array(b);
-	if (read(fd[0], b, ARSIZE) != EOF)
+	if (read(fd[0], b, ARSIZE) != READ_EOF)
 		err(11, READ, "read on empty pipe (and fd[1] was closed)");
 	try_close(fd[0], "duplicated fd 'fd[0]'");
   }
@@ -703,7 +703,7 @@ test06()
 		/* Lseek to endoffile */
 		if (lseek(fd, 0L, SEEK_END) != 10)
 			err(5, LSEEK, "to end of file");
-		else if (read(fd, b, 1) != EOF)
+		else if (read(fd, b, 1) != READ_EOF)
 			err(7, LSEEK, "read at end of file");
 		/* Lseek beyond file */
 		if (lseek(fd, 10L, SEEK_CUR) != 20)
@@ -860,7 +860,7 @@ char *fname;
 
 
 /* Err, make_and_fill_dirs, init_array, clear_array, comp_array,
-   try_close, try_unlink, remove, get_mode, setid, check, open_alot,
+   try_close, try_unlink, Remove, get_mode, setid, check, open_alot,
    close_alot, clean_up_the_mess.
 */
 
@@ -1063,7 +1063,7 @@ int mode;
 *                                                                            *
 *                               MISCELLANEOUS                                *
 *                                                                            *
-*(all about arrays, 'try_close', 'try_unlink', 'remove', 'get_mode', 'setid')*
+*(all about arrays, 'try_close', 'try_unlink', 'Remove', 'get_mode', 'setid')*
 *                                                                            *
 *****************************************************************************/
 
@@ -1120,13 +1120,13 @@ char *fname;
 }				/* try_unlink */
 
 
-remove(fdes, fname)
+Remove(fdes, fname)
 int fdes;
 char *fname;
 {
   try_close(fdes, fname);
   try_unlink(fname);
-}				/* remove */
+}				/* Remove */
 
 
 int get_mode(name)

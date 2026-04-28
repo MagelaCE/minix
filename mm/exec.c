@@ -35,7 +35,7 @@ FORWARD int new_mem();
 FORWARD void patch_ptr();
 FORWARD int read_header();
 
-#if (MACHINE == ATARI)
+#if (CHIP == M68000)
 FORWARD int relocate();
 #endif
 
@@ -117,7 +117,7 @@ PUBLIC int do_exec()
   /* Read in text and data segments. */
   load_seg(fd, T, text_bytes);
   load_seg(fd, D, data_bytes);
-#if (MACHINE == ATARI)
+#if (CHIP == M68000)
   if (lseek(fd, sym_bytes, 1) < 0)
 	;	/* error */
   if (relocate(fd, mbuf) < 0)
@@ -197,7 +197,7 @@ vir_clicks sc;			/* stack size in clicks */
   if (*tot_bytes == 0) return(ENOEXEC);
 
   if (*ft != SEPARATE) {
-#if (MACHINE != ATARI)
+#if (CHIP != M68000)
 	/* If I & D space is not separated, it is all considered data. Text=0 */
 	*data_bytes += *text_bytes;
 	*text_bytes = 0;
@@ -253,7 +253,7 @@ int zs;				/* true size of 'bf' */
   register struct mproc *rmp;
   vir_clicks text_clicks, data_clicks, gap_clicks, stack_clicks, tot_clicks;
   phys_clicks new_base;
-#if (MACHINE == ATARI)
+#if (CHIP == M68000)
   phys_clicks base, size;
 #else
   char *rzp;
@@ -282,7 +282,7 @@ int zs;				/* true size of 'bf' */
 
   /* There is enough memory for the new core image.  Release the old one. */
   rmp = mp;
-#if (MACHINE != ATARI)
+#if (CHIP != M68000)
   old_clicks = (phys_clicks) rmp->mp_seg[S].mem_len;
   old_clicks += (rmp->mp_seg[S].mem_vir - rmp->mp_seg[D].mem_vir);
   if (rmp->mp_flags & SEPARATE) old_clicks += rmp->mp_seg[T].mem_len;
@@ -300,7 +300,7 @@ int zs;				/* true size of 'bf' */
   rmp->mp_seg[D].mem_phys = new_base + text_clicks;
   rmp->mp_seg[S].mem_len = stack_clicks;
   rmp->mp_seg[S].mem_phys = rmp->mp_seg[D].mem_phys + data_clicks + gap_clicks;
-#if (MACHINE == ATARI)
+#if (CHIP == M68000)
   rmp->mp_seg[T].mem_vir = rmp->mp_seg[T].mem_phys;
   rmp->mp_seg[D].mem_vir = rmp->mp_seg[D].mem_phys;
   rmp->mp_seg[S].mem_vir = rmp->mp_seg[S].mem_phys;
@@ -309,7 +309,7 @@ int zs;				/* true size of 'bf' */
   rmp->mp_seg[D].mem_vir = 0;
   rmp->mp_seg[S].mem_vir = rmp->mp_seg[D].mem_vir + data_clicks + gap_clicks;
 #endif
-#if (MACHINE == ATARI)
+#if (CHIP == M68000)
   sys_fresh(who, rmp->mp_seg, (phys_clicks)(data_bytes >> CLICK_SHIFT),
 			&base, &size);
   free_mem(base, size);
@@ -405,7 +405,7 @@ vir_bytes seg_bytes;		/* how big is the segment */
   }
 }
 
-#if (MACHINE == ATARI)
+#if (CHIP == M68000)
 /*===========================================================================*
  *				relocate				     *
  *===========================================================================*/

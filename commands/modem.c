@@ -127,7 +127,7 @@ char *tty;
 }
 
 
-void usage(void)
+void usage()
 {
    write(2, "Usage: modem [-d] [-g] <-i rings | -o> line\n", 44);
   exit(-1);

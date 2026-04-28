@@ -1,6 +1,9 @@
 /* tset - set the TERM variable		Author: Terrence Holm */
 
+#include <sys/types.h>
 #include <string.h>
+#include <termcap.h>
+#include <unistd.h>
 #include <stdio.h>
 
 #define  LINE_LENGTH  40	/* Max length in /etc/ttytype	 */

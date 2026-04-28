@@ -120,10 +120,8 @@ void Read_Super_Block( s )
   s->inodes = super->s_ninodes;
   s->zones  = super->s_nzones;
 
-  s->inode_maps   = (s->inodes + MAP_BITS_PER_BLOCK - 1) / MAP_BITS_PER_BLOCK;
-  s->zone_maps    = (s->zones + MAP_BITS_PER_BLOCK - 1) / MAP_BITS_PER_BLOCK;
-	/*  Note: zone_maps may be too large, but we must calculate  */
-	/*  it this way, because this is the way mkfs(1) does it.    */
+  s->inode_maps   = bitmapsize(1 + s->inodes);
+  s->zone_maps    = bitmapsize(s->zones);
 
   s->inode_blocks = (s->inodes + INODES_PER_BLOCK - 1) / INODES_PER_BLOCK;
   s->first_data   = 2 + s->inode_maps + s->zone_maps + s->inode_blocks;
@@ -291,3 +289,38 @@ void Write_Word( s, word )
   if ( write( s->device_d, &word, 2 ) != 2 )
     Error( "Error writing %s", s->device_name );
   }
+
+
+
+
+
+
+/* The next routine is copied from fsck.c and mkfs.c...  (Re)define some
+ * things for consistency.  This sharing should be done better in a library
+ * library routine.  In the library routine, the shifts should be replaced
+ * by multiplications and divisions by MAP_BITS_PER_BLOCK since log2 of
+ * this is too painful to get right.
+ */
+#define BITMAPSHIFT	 13	/* = log2(MAP_BITS_PER_BLOCK) */
+#define bit_nr unsigned
+
+/* Convert from bit count to a block count. The usual expression
+ *
+ *	(nr_bits + (1 << BITMAPSHIFT) - 1) >> BITMAPSHIFT
+ *
+ * doesn't work because of overflow.
+ *
+ * Other overflow bugs, such as the expression for N_ILIST overflowing when
+ * s_inodes is just over INODES_PER_BLOCK less than the maximum+1, are not
+ * fixed yet, because that number of inodes is silly.
+ */
+int bitmapsize(nr_bits)
+bit_nr nr_bits;
+{
+	int nr_blocks;
+
+	nr_blocks = nr_bits >> BITMAPSHIFT;
+	if ((nr_blocks << BITMAPSHIFT) < nr_bits)
+		++nr_blocks;
+	return(nr_blocks);
+}

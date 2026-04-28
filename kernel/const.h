@@ -1,5 +1,8 @@
 /* General constants used by the kernel. */
+
 #if (CHIP == INTEL)
+
+#define K_STACK_BYTES    512	/* how many bytes for the kernel stack */
 
 #define INIT_PSW      0x0200	/* initial psw */
 #define INIT_TASK_PSW 0x1200	/* initial psw for tasks (with IOPL 1) */
@@ -29,7 +32,7 @@
 #define physb_to_hclick(n) ((n) >> HCLICK_SHIFT)
 
 #define ALIGNMENT	   4	/* align large items to a multiple of this */
-#define VECTOR_BYTES     512	/* bytes of interrupt vectors to save */
+#define VECTOR_BYTES    1024	/* bytes of interrupt vectors to save (all) */
 #define VEC_TABLE_SEG      0	/* segment of vector table */
 
 /* Interrupt vectors defined/reserved by processor. */
@@ -77,6 +80,10 @@
 #define AT_WINI_VECTOR   ((AT_WINI_IRQ & 0x07) + IRQ8_VECTOR)
 #define PS_KEYB_VECTOR   ((PS_KEYB_IRQ & 0x07) + IRQ8_VECTOR)
 
+/* BIOS parameter vectors. */
+#define WINI_0_PARM_VEC 0x41
+#define WINI_1_PARM_VEC 0x46
+
 /* 8259A interrupt controller ports. */
 #define INT_CTL         0x20	/* I/O port for interrupt controller */
 #define INT_CTLMASK     0x21	/* setting bits in this port disables ints */
@@ -107,12 +114,37 @@
 
 #endif /* (CHIP == INTEL) */
 
-#define K_STACK_BYTES    512	/* how many bytes for the kernel stack */
+#if (CHIP == M68000)
 
-/* The following items pertain to the 3 scheduling queues. */
-#define NQ                 3	/* # of scheduling queues */
+#define K_STACK_BYTES   1024	/* how many bytes for the kernel stack */
+
+/* p_reg contains: d0-d7, a0-a6,   in that order. */
+#define NR_REGS           15	/* number of general regs in each proc slot */
+ 
+#define TRACEBIT      0x8000	/* or this with psw in proc[] for tracing */
+#define SETBITS(rp, new)	/* permits only certain bits to be set */ \
+	((rp)->p_reg.psw = (rp)->p_reg.psw & ~0xFF | (new) & 0xFF)
+ 
+#define MEM_BYTES  0x1000000	/* memory size for /dev/mem */
+#define ALIGNMENT	   4	/* align large items to a multiple of this */
+		/* 2 would do for an 68000, but 4 is nicer for 68020/68030 */
+ 
+#ifdef ACK
+#define FSTRUCOPY
+#endif
+
+#endif /* (CHIP == M68000) */
+
+/* The following items pertain to the scheduling queues. */
 #define TASK_Q             0	/* ready tasks are scheduled via queue 0 */
 #define SERVER_Q           1	/* ready servers are scheduled via queue 1 */
 #define USER_Q             2	/* ready users are scheduled via queue 2 */
+
+#if (MACHINE == ATARI)
+#define SHADOW_Q           3	/* runnable, but shadowed processes */
+#define NQ                 4	/* # of scheduling queues */
+#else
+#define NQ                 3	/* # of scheduling queues */
+#endif
 
 #define printf        printk	/* the kernel really uses printk, not printf */

@@ -28,7 +28,7 @@
 #include <minix/com.h>
 #include <minix/partition.h>
   
-#define MAX_DRIVES         1	/* only one supported (hd0 - hd4) */
+#define MAX_DRIVES         2	/* only one supported (hd0 - hd4) */
 
 /* I/O Ports used by winchester disk task. */
 #define WIN_DATA       0x320	/* winchester disk controller data register */
@@ -65,7 +65,14 @@
 
 /* Parameters for the disk drive. */
 #define SECTOR_SIZE	 512	/* physical sector size in bytes */
+#ifndef NR_SECTORS
+/* For RLL drives NR_SECTORS has to be defined in the makefile or in config.h.
+ * There is some hope of getting it from the parameter table for these drives,
+ * and then this driver should use wn_maxsec like at_wini.c.
+ * Unfortunately it is not standard in XT parameter tables.
+ */
 #define NR_SECTORS	0x11	/* number of sectors per track */
+#endif
 
 /* Error codes */
 #define ERR		  -1	/* general error */
@@ -76,7 +83,6 @@
 #define DEV_PER_DRIVE   (1 + NR_PARTITIONS)	/* whole drive & each partn */
 #define NR_DEVICES      (MAX_DRIVES * DEV_PER_DRIVE)
 #define MAX_WIN_RETRY  32000	/* max # times to try to output to WIN */
-#define DEV_PER_DRIVE	   5	/* hd0 + hd1 + hd2 + hd3 + hd4 = 5 */
 #if AUTO_BIOS
 #define AUTO_PARAM     0x1AD	/* drive parameter table starts here in sect 0	*/
 #define AUTO_ENABLE	0x10	/* auto bios enabled bit from status reg */
@@ -682,6 +688,7 @@ int mode;
 	wini[DEV_PER_DRIVE].wn_low = wini[0].wn_low = 0L;
 	wini[DEV_PER_DRIVE].wn_size = wini[0].wn_size
 		   = (long)AUTO_CYLS * (long)AUTO_HEADS * (long)NR_SECTORS;
+	wini[DEV_PER_DRIVE].wn_drive = 1 << 5; /* set drive number */
 	cim_xt_wini();		/* ready for XT wini interrupts */
 	if(w_reset() != OK)
 	  panic("cannot setup for reading winchester parameter tables",0);
@@ -728,8 +735,8 @@ int mode;
   type_1 = (i >> 2) & 3;
 
   /* Copy the parameter vector from the saved vector table */
-  offset = vec_table[2 * 0x41];
-  segment = vec_table[2 * 0x41 + 1];
+  offset = vec_table[2 * WINI_0_PARM_VEC];
+  segment = vec_table[2 * WINI_0_PARM_VEC + 1];
 
   /* Calculate the address off the parameters and copy them to buf */
   address = hclick_to_physb(segment) + offset;

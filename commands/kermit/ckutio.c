@@ -1165,7 +1165,7 @@ ttflui() {
     n = FREAD;				/* Specify read queue */
     if (ioctl(ttyfd,TIOCFLUSH,&n) < 0) perror("flush failed");
 #else
-    if (ioctl(ttyfd,TIOCFLUSH,0) < 0) perror("flush failed");
+    if (ioctl(ttyfd,TIOCFLUSH, (char *)NULL) < 0) perror("flush failed");
 #endif
 #endif
 #endif

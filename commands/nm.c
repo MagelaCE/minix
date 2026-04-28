@@ -14,6 +14,7 @@
 /* Nm [-gnopru] [file] ...
  *
  * flags:
+ *	-d	address in decimal
  *	-g	print only external symbols.
  *	-n	sort numerically rather than alphabetically.
  *	-o	prepend file name to each line rather than only once.
@@ -30,6 +31,7 @@
 
 #define A_OUT		"a.out"
 
+int d_flag;
 int g_flag;
 int n_flag;
 int o_flag;
@@ -50,6 +52,7 @@ char **argv;
 	*argv += 1;
 	while (**argv != '\0') {
 		switch (**argv) {
+		    case 'd':	d_flag = 1;	break;
 		    case 'g':	g_flag = 1;	break;
 		    case 'n':	n_flag = 1;	break;
 		    case 'o':	o_flag = 1;	break;
@@ -180,9 +183,18 @@ register struct nlist *stbl;
 		type = 'u';
 	if ((stbl->n_sclass & N_CLASS) == C_EXT) type += 'A' - 'a';
 	strncpy(name, stbl->n_name, 8);
-	if (o_flag) printf("%s:%08lX %c %s\n", file,
-		       stbl->n_value, type, name);
-	else
-		printf("%08lX %c %s\n", stbl->n_value, type, name);
+	if (d_flag) {
+		/* Offsets in decimal. */
+		if (o_flag) 
+		       printf("%s:%08ld %c %s\n",file,stbl->n_value,type,name);
+		else
+		       printf("%08ld %c %s\n", stbl->n_value, type, name);
+	} else {
+		/* Offsets in hex. */
+		if (o_flag) 
+		       printf("%s:%08lx %c %s\n",file,stbl->n_value,type,name);
+		else
+		       printf("%08lx %c %s\n", stbl->n_value, type, name);
+	}
   }
 }

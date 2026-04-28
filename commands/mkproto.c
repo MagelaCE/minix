@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <limits.h>
 #include <dirent.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 /* The default values for the prototype file */

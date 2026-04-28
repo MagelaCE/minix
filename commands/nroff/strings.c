@@ -128,7 +128,7 @@ register char  *p;
 /*------------------------------*/
 colstr (p, d)
 register char  *p;
-char		d[];
+char	       *d;
 {
 
 /*
@@ -263,7 +263,7 @@ register char  *name;
 	/*
 	 *   none found, return null
 	 */
-	return (NULL);
+	return (NULL_CPTR);
 }
 
 

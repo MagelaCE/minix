@@ -13,6 +13,6 @@ clean:
 
 $(CMD):	$(OBJ)
 	$(CC) -o $@ $(OBJ)
-	chmem =12000 $@
+	chmem =15000 $@
 
 $(OBJ):	sh.h

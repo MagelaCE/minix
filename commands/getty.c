@@ -11,7 +11,7 @@
  *
  * Usage:	getty [-c filename] [-h] [-k] [-t] line [speed]
  *
- * Version:	3.3	02/10/90
+ * Version:	3.4	02/17/90
  *
  * Author:	F. van Kempen, MicroWalt Corporation
  */
@@ -73,7 +73,7 @@ typedef struct {
 #define clr2 tty.sg_flags &= ~(EVENP | ODDP)
 
 
-static char *Version = "@(#) GETTY 3.3 (02/10/90)";
+static char *Version = "@(#) GETTY 3.4 (02/17/90)";
 
 
 char *tty_name;			/* what is our TTY? */
@@ -97,10 +97,10 @@ int sig;
 
   switch(sig) {
 	case SIGEMT:	/* SIGEMT means SUSPEND */
-		state = ST_SUSPEND;
+		if (state == ST_IDLE) state = ST_SUSPEND;
 		break;
 	case SIGIOT:	/* SIGIOT means RESTART */
-		state = ST_RUNNING;
+		if (state == ST_SUSPEND) state = ST_RUNNING;
 		break;
 	case SIGBUS:	/* SIGBUS means IGNORE ALL */
 		signal(SIGEMT, SIG_IGN);

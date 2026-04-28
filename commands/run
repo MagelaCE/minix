@@ -1,8 +1,0 @@
-: It is necessary to chmem many commands to some size other than the
-: default size.  See the tools/changemem shell script.
-
-mkdir bin 2>/dev/null
-for i in *.c
-do echo ------------------ $i ------------------------
-make f=`basename $i .c`
-done
