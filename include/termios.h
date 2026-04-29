@@ -1,4 +1,4 @@
-/* The <termios.h> header is used for controlling tty modes.  */
+/* The <termios.h> header is used for controlling tty modes. */
 
 #ifndef _TERMIOS_H
 #define _TERMIOS_H
@@ -7,9 +7,9 @@ typedef unsigned short tcflag_t;
 typedef unsigned char cc_t;
 typedef unsigned int speed_t;
 
-#define NCCS              11	/* size of cc_c array */
+#define NCCS		11	/* size of cc_c array */
 
-/* Primary terminal control structure.  POSIX Table 7-1. */
+/* Primary terminal control structure. POSIX Table 7-1. */
 struct termios {
   tcflag_t c_iflag;		/* input modes */
   tcflag_t c_oflag;		/* output modes */
@@ -114,18 +114,18 @@ struct termios {
 #include <ansi.h>
 #endif
 
-_PROTOTYPE( int tcsendbreak, (int __fildes, int __duration)		     );
-_PROTOTYPE( int tcdrain, (int __filedes)				     );
-_PROTOTYPE( int tcflush, (int __filedes, int __queue_selector)		     );
-_PROTOTYPE( int tcflow, (int __filedes, int __action)			     );
-_PROTOTYPE( speed_t cfgetospeed, (struct termios *__termios_p) 		     );
+_PROTOTYPE( int tcsendbreak, (int _fildes, int _duration)		     );
+_PROTOTYPE( int tcdrain, (int _filedes)				     );
+_PROTOTYPE( int tcflush, (int _filedes, int _queue_selector)		     );
+_PROTOTYPE( int tcflow, (int _filedes, int _action)			     );
+_PROTOTYPE( speed_t cfgetospeed, (struct termios *_termios_p) 		     );
 _PROTOTYPE( speed_t cfsetospeed, \
-		        (struct termios *__termios_p, speed_t __speed)       );
-_PROTOTYPE( speed_t cfgetispeed, (struct termios *__termios_p) 		     );
+		        (struct termios *_termios_p, speed_t _speed)       );
+_PROTOTYPE( speed_t cfgetispeed, (struct termios *_termios_p) 		     );
 _PROTOTYPE( speed_t cfsetispeed, \
-			(struct termios *__termios_p, speed_t __speed)       );
-_PROTOTYPE( int tcgetattr, (int __filedes, struct termios *__termios_p)      );
+			(struct termios *_termios_p, speed_t _speed)       );
+_PROTOTYPE( int tcgetattr, (int _filedes, struct termios *_termios_p)      );
 _PROTOTYPE( int tcsetattr, \
-	(int __filedes, int __opt_actions, struct termios *__termios_p)      );
+	(int _filedes, int _opt_actions, struct termios *_termios_p)      );
 
-#endif _TERMIOS_H
+#endif /* _TERMIOS_H */

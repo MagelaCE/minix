@@ -4,24 +4,28 @@
 #include <stdio.h>
 #include "bawk.h"
 
-dopattern( pat )
+INT dopattern( pat )
 char *pat;
 {
         Where = PATTERN;
-        Actptr = pat;
-        getoken();
-        expression();
-        return popint();
+        if ( (Actptr = pat) != (char *)NULL ) {
+	        getoken();
+        	expression();
+	        return popint();
+	} else
+		return 1;
 }
 
 doaction( act )
 char *act;
 {
         Where = ACTION;
-        Actptr = act;
-        getoken();
-        while ( Token!=T_EOF )
-                statement();
+        if ( (Actptr = act) != (char *)NULL ) {
+	        getoken();
+        	while ( Token!=T_EOF )
+                	statement();
+        } else
+        	printf( "%s\n", Linebuf );
 }
 
 expression()
@@ -37,7 +41,7 @@ expression()
 
 expr1()
 {
-        int ival;
+        INT ival;
 
         expr2();
         for ( ;; )
@@ -47,7 +51,7 @@ expr1()
                         getoken();
                         ival = popint();
                         expr2();
-                        pushint( popint() || ival );
+                        pushint( (INT)(popint() || ival) );
                 }
                 else
                         return;
@@ -56,7 +60,7 @@ expr1()
 
 expr2()
 {
-        int ival;
+        INT ival;
 
         expr3();
         for ( ;; )
@@ -66,7 +70,7 @@ expr2()
                         getoken();
                         ival = popint();
                         expr3();
-                        pushint( popint() && ival );
+                        pushint( (INT)(popint() && ival) );
                 }
                 else
                         return;
@@ -75,7 +79,7 @@ expr2()
 
 expr3()
 {
-        int ival;
+        INT ival;
 
         expr4();
         for ( ;; )
@@ -95,7 +99,7 @@ expr3()
 
 expr4()
 {
-        int ival;
+        INT ival;
 
         expr5();
         for ( ;; )
@@ -114,7 +118,7 @@ expr4()
 
 expr5()
 {
-        int ival;
+        INT ival;
 
         expr6();
         for ( ;; )
@@ -133,7 +137,7 @@ expr5()
 
 expr6()
 {
-        int ival;
+        INT ival;
 
         expr7();
         for ( ;; )
@@ -143,14 +147,14 @@ expr6()
                         getoken();
                         ival = popint();
                         expr7();
-                        pushint( ival == popint() );
+                        pushint( (INT)(ival == popint()) );
                 }
                 else if ( Token==T_NE )
                 {
                         getoken();
                         ival = popint();
                         expr7();
-                        pushint( ival != popint() );
+                        pushint( (INT)(ival != popint()) );
                 }
                 else
                         return;
@@ -159,7 +163,7 @@ expr6()
 
 expr7()
 {
-        int ival;
+        INT ival;
 
         expr8();
         for ( ;; )
@@ -169,28 +173,28 @@ expr7()
                         getoken();
                         ival = popint();
                         expr8();
-                        pushint( ival <= popint() );
+                        pushint( (INT)(ival <= popint()) );
                 }
                 else if ( Token==T_GE )
                 {
                         getoken();
                         ival = popint();
                         expr8();
-                        pushint( ival >= popint() );
+                        pushint( (INT)(ival >= popint()) );
                 }
                 else if ( Token==T_LT )
                 {
                         getoken();
                         ival = popint();
                         expr8();
-                        pushint( ival < popint() );
+                        pushint( (INT)(ival < popint()) );
                 }
                 else if ( Token==T_GT )
                 {
                         getoken();
                         ival = popint();
                         expr8();
-                        pushint( ival > popint() );
+                        pushint( (INT)(ival > popint()) );
                 }
                 else
                         return;
@@ -199,7 +203,7 @@ expr7()
 
 expr8()
 {
-        int ival;
+        INT ival;
 
         expr9();
         for ( ;; )
@@ -225,7 +229,7 @@ expr8()
 
 expr9()
 {
-        int ival;
+        INT ival;
 
         expr10();
         for ( ;; )
@@ -251,7 +255,7 @@ expr9()
 
 expr10()
 {
-        int ival;
+        INT ival;
 
         primary();
         for ( ;; )
@@ -284,7 +288,7 @@ expr10()
 
 primary()
 {
-        int index;
+        INT index;
         DATUM data;
         VARIABLE *pvar;
 
@@ -303,7 +307,7 @@ primary()
         case T_LNOT:
                 getoken();
                 primary();
-                pushint( ! popint() );
+                pushint( (INT)(! popint()) );
                 break;
         case T_NOT:
                 getoken();
@@ -358,18 +362,18 @@ primary()
                          * match of the regular expression agains input line.
                          */
                         unparse( Fields, Fieldcount, Linebuf, Fieldsep );
-                        pushint( match( Linebuf, Value.dptr ) );
+                        pushint( (INT)match( Linebuf, Value.dptr ) );
                 }
                 else
                         push( 1, ACTUAL, BYTE, &Value );
                 getoken();
                 break;
         case T_NF:
-                pushint( Fieldcount );
+                pushint( (INT)Fieldcount );
                 getoken();
                 break;
         case T_NR:
-                pushint( Recordcount );
+                pushint( (INT)Recordcount );
                 getoken();
                 break;
         case T_FS:                         /* multiple separators allowed */
@@ -426,7 +430,7 @@ primary()
                  */
                 index = Value.ival;
                 getoken();
-                function( index );
+                function( (int)index );
                 break;
         case T_VARIABLE:
                 pvar = (VARIABLE *)Value.dptr;

@@ -3,10 +3,10 @@
  * some file.  These calls are the only approved way to inspect i-nodes.
  */
 
-#ifndef _STAT_H
-#define _STAT_H
+#ifndef _SYS_STAT_H
+#define _SYS_STAT_H
 
-#ifndef _TYPES_H		/* not quite right */
+#ifndef _SYS_TYPES_H		/* not quite right */
 #include <sys/types.h>
 #endif
 
@@ -65,11 +65,11 @@ struct stat {
 #include <ansi.h>
 #endif
 
-_PROTOTYPE( int chmod, (const char *__path, int __mode)			);
-_PROTOTYPE( int fstat, (int __fildes, struct stat *__buf)		);
-_PROTOTYPE( int mkdir, (const char *__path, int __mode)			);
-_PROTOTYPE( int mkfifo, (const char *__path, int __mode)		);
-_PROTOTYPE( int stat , (const char *__path, struct stat *__buf)		);
-_PROTOTYPE( mode_t umask, (int __cmask)					);
+_PROTOTYPE( int chmod, (const char *_path, int _mode)			);
+_PROTOTYPE( int fstat, (int _fildes, struct stat *_buf)			);
+_PROTOTYPE( int mkdir, (const char *_path, int _mode)			);
+_PROTOTYPE( int mkfifo, (const char *_path, int _mode)			);
+_PROTOTYPE( int stat , (const char *_path, struct stat *_buf)		);
+_PROTOTYPE( mode_t umask, (int _cmask)					);
 
-#endif /* _STAT_H */
+#endif /* _SYS_STAT_H */

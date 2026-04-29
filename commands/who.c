@@ -30,7 +30,7 @@ static char *Version = "@(#) WHO 1.5 (01/09/90)";
 
 extern char *ttyname();
 
-void usage(void)
+void usage()
 {
   fprintf(stderr, "Usage: who [USER | DEVICE | am i]\n");
   exit(-1);

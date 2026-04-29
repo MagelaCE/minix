@@ -1,4 +1,5 @@
 #define Extern extern
+#include <sys/types.h>
 #include <signal.h>
 #include <errno.h>
 #include <setjmp.h>
@@ -833,7 +834,7 @@ unsigned nbytes;
 	}
 	i = nregio >= GROWBY ? nregio : GROWBY;
 	p = (struct region *)sbrk(i * REGSIZE);
-	if ((int)p == -1)
+	if (p == (struct region *)-1)
 		return((char *)NULL);
 	p--;
 	if (p != areatop)

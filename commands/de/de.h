@@ -63,7 +63,6 @@
 /****************************************************************/
 
 
-
 /*  General constants  */
 
 #define   MAX_STRING	60		/*  For all input lines	*/
@@ -79,12 +78,12 @@
 
 /*  a.out header constants  (see a.out.h, if you have it)  */
 
-#ifdef i8088
+#if (CHIP == INTEL)
 #define   A_OUT    0x0301
 #define   SPLIT    0x0420
 #endif
 
-#ifdef ATARI_ST
+#if (CHIP == M68000)
 #define   A_OUT    0x0301
 #define   SPLIT	   0x0B20
 #endif
@@ -133,14 +132,14 @@
 /*  Graphic box codes - only applicable for console display  */
 /*  in visual mode "map".				     */
 
-#ifdef i8088
+#if (CHIP == INTEL)
 #define   BOX_CLR	' '		/*  Empty box		*/
 #define   BOX_ALL	'\333'		/*  Filled box		*/
 #define   BOX_TOP	'\337'		/*  Filled upper half	*/
 #define   BOX_BOT	'\334'		/*  Filled lower half   */
 #endif
 
-#ifdef ATARI_ST
+#if (CHIP == M68000)
 /*  Please change these.  */
 #define   BOX_CLR	' '		/*  Empty box		*/
 #define   BOX_ALL	'='		/*  Filled box		*/
@@ -195,16 +194,8 @@ typedef  struct  de_state		/*  State of disk ed.	*/
 
   /*  Information from map blocks  */
 
-#if (CHIP == M68000)
-  /* the ordering of two char's in an int differs between INTEL and M68000 */
-  /* M68000 needs int here. Maybe this will work for the PC too ?          */
-  /* this also affects the module In_Use in de.c 			   */
-  int inode_map[ I_MAP_SLOTS * K/2 ];
-  int zone_map[ ZMAP_SLOTS * K/2 ];
-#else
   char inode_map[ I_MAP_SLOTS * K ];
   char zone_map[ ZMAP_SLOTS * K ];
-#endif
 
   /*  Information for current block  */
 

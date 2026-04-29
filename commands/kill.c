@@ -1,5 +1,6 @@
 /* kill - send a signal to a process	Author: Adri Koppes  */
 
+#include <sys/types.h>
 #include <signal.h>
 
 extern char *itoa();

@@ -87,7 +87,7 @@ typedef u32_t reg_t;		/* machine register */
 /* the name of the following struct and some of the fields are
    chosen for PC compatibility */
 struct stackframe_s {
-  reg_t retreg;	/* d0 */
+  reg_t retreg;			/* d0 */
   reg_t d1;
   reg_t d2;
   reg_t d3;
@@ -102,8 +102,9 @@ struct stackframe_s {
   reg_t a4;
   reg_t a5;
   reg_t a6;
-  reg_t sp;	/* aka a7 */
-  u16_t psw;
+  reg_t sp;			/* also known as a7 */
   reg_t pc;
+  u16_t psw;
+  u16_t dummy;			/* make size multiple of reg_t for system.c */
 };
 #endif /* (CHIP == M68000) */

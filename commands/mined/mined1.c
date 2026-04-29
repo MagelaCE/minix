@@ -405,6 +405,7 @@
  *  ========================================================================  */
 
 #include "mined.h"
+#include <sys/types.h>
 #include <signal.h>
 #include <sgtty.h>
 #include <errno.h>
@@ -1050,7 +1051,8 @@ int fd;
 /*
  * Catch the SIGQUIT signal (^\) send to mined. It turns on the quitflag.
  */
-catch()
+void catch(sig)
+int sig;
 {
 /* Reset the signal */
   signal(SIGQUIT, catch);
@@ -1102,7 +1104,7 @@ FLAG state;
 
   if (state == OFF) {
   	ioctl(input_fd, TIOCSETP, &old_tty);
-  	ioctl(input_fd, TIOCSETC, &old_tchars);
+  	ioctl(input_fd, TIOCSETC, (struct sgttyb *) &old_tchars);
 #ifdef NTTYDISC
   	ldisc = NTTYDISC;
   	ioctl(input_fd, TIOCSETD, &ldisc);
@@ -1111,7 +1113,7 @@ FLAG state;
   }
 
 /* Save old tty settings */
-  ioctl(input_fd, TIOCGETC, &old_tchars);
+  ioctl(input_fd, TIOCGETC, (struct sgttyb *) &old_tchars);
   ioctl(input_fd, TIOCGETP, &old_tty);
 
 #ifdef NTTYDISC
@@ -1125,8 +1127,8 @@ FLAG state;
   new_tty.sg_flags &= ~ECHO;
   ioctl(input_fd, TIOCSETP, &new_tty);
 
-/* Unset signal chars */
-  ioctl(input_fd, TIOCSETC, &new_tchars);	/* Only leaves you ^\ */
+/* Unset signal chars, leav only ^\ */
+  ioctl(input_fd, TIOCSETC, (struct sgttyb *) &new_tchars);
   signal(SIGQUIT, catch);		/* Which is caught */
 }
 
@@ -1554,7 +1556,7 @@ XT()
 
 (*escfunc(c))()
 {
-#ifdef ATARI_ST
+#if (CHIP == M68000)
 #ifndef COMPAT
   int ch;
 #endif
@@ -1562,7 +1564,7 @@ XT()
   if (c == '[') {
 	/* Start of ASCII escape sequence. */
 	c = getchar();
-#ifdef ATARI_ST
+#if (CHIP == M68000)
 #ifndef COMPAT
 	if ((c >= '0') && (c <= '9')) ch = getchar();
 	/* ch is either a tilde or a second digit */
@@ -1574,7 +1576,7 @@ XT()
 	case 'B': return(DN);
 	case 'C': return(RT);
 	case 'D': return(LF);
-#ifdef ATARI_ST
+#if (CHIP == M68000)
 #ifndef COMPAT
 	/* F1 = ESC [ 1 ~ */
 	/* F2 = ESC [ 2 ~ */
@@ -1597,7 +1599,7 @@ XT()
 	case '6': return(EF);
 #endif
 #endif
-#ifdef i8088
+#if (CHIP == INTEL)
 	case 'G': return(FS);
 	case 'S': return(SR);
 	case 'T': return(SF);
@@ -1608,7 +1610,7 @@ XT()
 	}
 	return(I);
   }
-#ifdef ATARI_ST
+#if (CHIP == M68000)
 #ifdef COMPAT
   if (c == 'O') {
 	/* Start of ASCII function key escape sequence. */

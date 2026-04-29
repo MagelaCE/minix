@@ -7,19 +7,21 @@
 #include <minix/com.h>
 #include "tty.h"
 
-/* Standard and AT keyboard. */
+/* Standard and AT keyboard.  (PS/2 MCA implies AT throughout.) */
 #define KEYBD		0x60	/* I/O port for keyboard data */
 
-/* AT keyboard. */
-#define KB_RESET	0x64	/* I/O port for resetting CPU on AT */
-#define KB_RESET_BIT	0x01	/* bit to clear to reset CPU */
+/* AT keyboard.  Most of these values are only used for rebooting. */
+#define KB_COMMAND	0x64	/* I/O port for commands on AT */
+#define KB_GATE_A20	0x02	/* bit in output port to enable A20 line */
+#define KB_PULSE_OUTPUT	0xF0	/* base for commands to pulse output port */
+#define KB_RESET	0x01	/* bit in output port to reset CPU */
 #define KB_STATUS	0x64	/* I/O port for status on AT */
 
-/* PS/2 keyboard. */
-#define PS_KB_STATUS	0x72	/* I/O port for status on ps/2 */
+/* PS/2 model 30 keyboard. */
+#define PS_KB_STATUS	0x72	/* I/O port for status on ps/2 (???) */
 #define PS_KEYBD	0x68	/* I/O port for data on ps/2 */
 
-/* AT and PS/2 keyboards. */
+/* AT and PS/2 model 30 keyboards. */
 #define KB_ACK		0xFA	/* keyboard ack response */
 #define KB_BUSY		0x02	/* status bit set when KEYBD port ready */
 #define LED_CODE	0xED	/* command to keyboard to set LEDs */
@@ -606,10 +608,31 @@ PUBLIC void reboot()
   /* Stop BIOS memory test. */
   phys_copy(numap(TTY, (vir_bytes) &magic, sizeof magic),
 	    (phys_bytes) MEMCHECK_ADR, (phys_bytes) sizeof magic);
+  if (protected_mode) {
+	/* Rebooting is nontrivial because the BIOS reboot code is in real
+	 * mode and there is no sane way to return to real mode on 286's.
+	 */
+	if (pc_at) {
+		/* Use the AT keyboard controller to reset the processor.
+		 * The A20 line is kept enabled in case this code is ever
+		 * run from extended memory, and because some machines
+		 * appear to drive the fake A20 high instead of low just
+		 * after reset, leading to an illegal opode trap.  This bug
+		 * is more of a problem if the fake A20 is in use, as it
+		 * would be if the keyboard reset were used for real mode.
+		 */
+		kb_wait();
+		out_byte(KB_COMMAND,
+			 KB_PULSE_OUTPUT | (0x0F & ~(KB_GATE_A20 | KB_RESET)));
+	} else {
+		printf("No way to reboot from protected mode on this machine ");
+	}
+	while (TRUE)
+		;		/* no way to recover if the above fails */
+  }
 
-  /* Use AT keyboard controller to perform reset if available. */
-  if (pc_at) out_byte(KB_RESET, ~KB_RESET_BIT);
-  reset();			/* last resort, only guaranteed in real mode */
+  /* In real mode, jumping to the reset address is good enough. */
+  reset();
 }
 
 

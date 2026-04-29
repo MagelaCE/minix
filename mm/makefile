@@ -6,11 +6,13 @@ a=mm.h $h/config.h $h/const.h $h/type.h $s/types.h $i/limits.h $i/errno.h \
   const.h type.h proto.h glo.h
 CFLAGS = -F
 
-obj =	main.s forkexit.s break.s exec.s signal.s getset.s \
-	alloc.s utility.s table.s putc.s trace.s
+obj =	main.s forkexit.s break.s exec.s signal.s  \
+	alloc.s utility.s table.s putc.s trace.s getset.s
 
 mm:	Makefile $l/head.s $(obj) $l/libc.a $l/end.s
-	asld -o mm $l/head.s $(obj) $l/libc.a $l/end.s
+	asld -i -s -o mm $l/head.s $(obj) $l/libc.a $l/end.s >symbol.out
+	ast -X mm
+	@rm symbol.out
 
 clean:
 	@rm -f $(obj) mm *.bak

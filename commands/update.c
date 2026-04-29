@@ -1,5 +1,6 @@
 /* update - do sync periodically		Author: Andy Tanenbaum */
 
+#include <sys/types.h>
 #include <signal.h>
 
 main()

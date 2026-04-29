@@ -45,7 +45,7 @@ extern char *mktemp();
 extern char *ctime();
 
 char *whoami();
-int onintr();
+void onintr();
 
 main(argc, argv)
 int argc;
@@ -307,7 +307,7 @@ int rev;
   return ret;
 }
 
-onintr()
+void onintr()
 {
   fprintf(stderr, "Interrupt - Aborting checkin, cleaning up\n");
   clean();

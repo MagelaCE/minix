@@ -435,8 +435,6 @@ int include_dirs;
   }
   ostringp = stringp;
 
-  sortfiles(baseindex, lastindex - baseindex); /* sort file names in arg, too*/
-
   for (i = baseindex; i < lastindex; ++i) {
 	if (!(flags_f && baseindex == 0) && (include_dirs
 	     || (sortindex[i]->f_stat.st_mode & S_IFMT) != S_IFDIR))

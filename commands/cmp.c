@@ -1,15 +1,24 @@
 /* cmp - compare two files	Authors: Paul Polderman & Michiel Huisjes */
 
+/* 90-04-10 Schlenker
+ *	Fixed incorrect handling of flags.
+ *	Reduced buffer size to accommodate 7K pipes (Minix restriction).
+ *	Better trapping of file reading errors.
+ *	Considerable speedup when using -s flag.
+ *	Buffering strategy remains seriously error prone; should be fixed.
+ */
+
 #include <sys/types.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
 
-#define BLOCK_SIZE 8192
-typedef unsigned short unshort;
-
+#define BLOCK_SIZE 6144
 
 char *file_1, *file_2;
-char buf[2][BLOCK_SIZE];
-unshort lflag, sflag;
+char buf1[BLOCK_SIZE];
+char buf2[BLOCK_SIZE];
+char lflag, sflag;
 
 main(argc, argv)
 int argc;
@@ -20,32 +29,32 @@ char *argv[];
   if (argc < 3 || argc > 4) usage();
   lflag = 0;
   sflag = 0;
-  fd1 = -1;
-  fd2 = -1;
-  for (i = 1; i < argc && argv[i][0] == '-'; i++) {
-	switch (argv[i][1]) {
-	    case 'l':	lflag++;	break;
-	    case 's':	sflag++;	break;
-	    case '\0':
-		fd1 = 0;	/* First file is stdin. */
-		break;
-	    default:	usage();
-	}
+
+  i = 1;
+  if (strcmp(argv[i], "-l") == 0) {
+	lflag++;
+	i++;
+  } else
+  if (strcmp(argv[i], "-s") == 0) {
+	sflag++;
+	i++;
   }
 
-  if (fd1 == -1) {		/* Open first file. */
-	if (i == argc || (fd1 = open(argv[i], O_RDONLY)) < 0)
+  if (strcmp(argv[i], "-") == 0) {
+	fd1 = 0;
+	file_1 = "<stdin>";
+  } else {
+	if ((fd1 = open(argv[i], O_RDONLY)) < 0)
 		cantopen(argv[i]);
-	else
-		file_1 = argv[i++];
-  } else
-	file_1 = "stdin";
+	file_1 = argv[i];
+  }
+  i++;
 
-  if (i == argc || (fd2 = open(argv[i], O_RDONLY)) < 0)	/* Open second file. */
+  if (i == argc || (fd2 = open(argv[i], O_RDONLY)) < 0)
 	cantopen(argv[i]);
   file_2 = argv[i];
 
-  exit_status = cmp(fd1, fd2);
+  exit_status = sflag ? fastcmp(fd1, fd2) : cmp(fd1, fd2);
 
   close(fd1);
   close(fd2);
@@ -53,73 +62,71 @@ char *argv[];
   exit(exit_status);
 }
 
-
-
-
-#define	ONE	0
-#define TWO	1
-
 cmp(fd1, fd2)
 int fd1, fd2;
 {
-  register long char_cnt, line_cnt;
-  register unshort i;
-  unshort n1, n2, exit_status;
-  int c1, c2;
+  register unsigned long char_cnt, line_cnt;
+  register int i;
+  int n1, n2, n, exit_status;
 
   char_cnt = 1L;
   line_cnt = 1L;
   exit_status = 0;
   do {
-	n1 = read(fd1, buf[ONE], BLOCK_SIZE);
-	n2 = read(fd2, buf[TWO], BLOCK_SIZE);
-	i = 0;
-	while (i < n1 && i < n2) {	/* Check buffers on equality */
-		if (buf[ONE][i] != buf[TWO][i]) {
-			if (sflag)	/* Exit silently */
-				return(1);
+	n1 = read(fd1, buf1, BLOCK_SIZE);
+	n2 = read(fd2, buf2, BLOCK_SIZE);
+	n = (n1 < n2) ? n1 : n2;
+	if (n < 0) {
+		printf("cmp: Error on %s\n", (n1 < 0) ? file_1 : file_2);
+		return(1);
+	}
+	for (i = 0; i < n; i++) {	/* Check buffers for equality */
+		if (buf1[i] != buf2[i]) {
 			if (!lflag) {
 				printf("%s %s differ: char %ld, line %ld\n",
 				file_1, file_2, char_cnt, line_cnt);
 				return(1);
 			}
-			c1 = buf[ONE][i];
-			c2 = buf[TWO][i];
-			printf("\t%ld %3o %3o\n",
-			       char_cnt, c1 & 0377, c2 & 0377);
+			printf("%10lu %03o %03o\n",
+			       char_cnt, buf1[i] & 0377, buf2[i] & 0377);
 			exit_status = 1;
 		}
-		if (buf[ONE][i] == '\n') line_cnt++;
-		i++;
+		if (buf1[i] == '\n') line_cnt++;
 		char_cnt++;
 	}
 	if (n1 != n2) {		/* EOF on one of the input files. */
-		if (sflag)	/* Exit silently */
-			return(1);
-		if (n1 < n2)
-			prints("cmp: EOF on %s\n", file_1);
-		else
-			prints("cmp: EOF on %s\n", file_2);
+		printf("cmp: EOF on %s\n", (n1 < n2) ? file_1 : file_2);
 		return(1);
 	}
-  } while (n1 > 0 && n2 > 0);	/* While not EOF on any file */
+  } while (n > 0);		/* While not EOF on any file */
   return(exit_status);
 }
 
+fastcmp(fd1, fd2)
+int fd1, fd2;
+{
+  int n1, n2;
 
+  while (1) {
+	n1 = read(fd1, buf1, BLOCK_SIZE);
+	n2 = read(fd2, buf2, BLOCK_SIZE);
+	if (n1 != n2) return(1);	/* Bug! - depends on buffering */
+	if (n1 == 0) return(0);
+	if (n1 < 0) return(1);
+	if (memcmp((void *) buf1, (void *) buf2, (size_t) n1) != 0)
+		return(1);
+  }
+}
 
 usage()
 {
-  std_err("Usage: cmp [-ls] file1 file2\n");
+  fprintf(stderr, "Usage: cmp [-l | -s] file1 file2\n");
   exit(2);
 }
-
 
 cantopen(s)
 char *s;
 {
-  std_err("cmp: cannot open ");
-  std_err(s);
-  std_err("\n");
+  fprintf(stderr, "cmp: cannot open %s\n", s);
   exit(1);
 }

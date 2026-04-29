@@ -36,7 +36,7 @@ char *argv[];
 {
   unsigned b;
   int i;
-  int catch();
+  void catch();
 
   signal(SIGINT, catch);
   signal(SIGQUIT, catch);
@@ -147,7 +147,8 @@ unsigned b;
 }
 
 
-catch()
+void catch(sig)
+int sig;			/* prototype says there has to be 1 arg */
 {
   signal(SIGINT, catch);
   signal(SIGQUIT, catch);

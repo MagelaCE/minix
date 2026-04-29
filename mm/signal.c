@@ -359,6 +359,8 @@ register struct mproc *rmp;	/* whose core is to be dumped */
   vir_bytes v_buf;
   long a, c, ct, dest;
   struct mproc *xmp;
+  long trace_data;
+  int trace_off;
 
   /* Change to working directory of dumpee. */
   slot = (int)(rmp - mproc);
@@ -389,6 +391,13 @@ register struct mproc *rmp;	/* whose core is to be dumped */
 	if (write(r, (char *) rmp->mp_seg, (int)sizeof(rmp->mp_seg)) < 0) {
 		close(r);
 		return;
+	}
+
+	/* Write out the whole kernel process table entry to get the regs. */
+	trace_off = 0;
+	while (sys_trace(3, slot, (long)trace_off, (long)&trace_data) == OK) { 
+		write(r, (char *) &trace_data, (unsigned) sizeof(long));
+ 		trace_off += sizeof(long);
 	}
 
 	/* Now loop through segments and write the segments themselves out. */

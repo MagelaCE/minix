@@ -10,6 +10,7 @@
 
 #include "fs.h"
 #include <string.h>
+#include <minix/callnr.h>
 #include "buf.h"
 #include "file.h"
 #include "fproc.h"
@@ -63,6 +64,7 @@ char string[NAME_MAX];		/* the final component is returned here */
   register struct inode *rip;
   register char *new_name;
   register struct inode *new_ip;
+  char *p;
 
   /* Is the path absolute or relative?  Initialize 'rip' accordingly. */
   rip = (*path == '/' ? fp->fp_rootdir : fp->fp_workdir);
@@ -74,6 +76,17 @@ char string[NAME_MAX];		/* the final component is returned here */
   }
 
   dup_inode(rip);		/* inode will be returned with put_inode */
+
+  /* Remove trailing "/." from paths (e.g., "/usr/ast/." becomes "/usr/ast") */
+  if (fs_call == UNLINK || fs_call == RMDIR) {
+	while (1) {
+		p = path + strlen(path) - 2;	/* pts to next-to-last char */
+		if (p > path && *p == '/' && *(p + 1) == '.') 
+			*p = '\0';
+		else
+			break;
+	}
+  }
 
   /* Scan the path component by component. */
   while (TRUE) {

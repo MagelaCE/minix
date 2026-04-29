@@ -6,6 +6,7 @@
  *-------------------------------------------------------------------------*/
 #include <sys/types.h>
 #include <sys/dir.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <time.h>
@@ -17,6 +18,7 @@ main()
   char realtime[15], procname[35], procpast[35];
   struct direct dirbuf;
   struct tm *p, *localtime();
+  struct stat sbuf;
   time_t clock;
 
 /*-------------------------------------------------------------------------*
@@ -32,7 +34,7 @@ main()
 		if (dirbuf.d_ino > 0 &&
 		    dirbuf.d_name[0] != '.' &&
 		    dirbuf.d_name[0] != 'p' &&
-		    strncmp(dirbuf.d_name, realtime, 11) < 0) {
+		    strncmp(dirbuf.d_name, realtime, 11) <= 0) {
 
 			sprintf(procname, "/usr/spool/at/%.14s", dirbuf.d_name);
 			sprintf(procpast, "/usr/spool/at/past/%.14s", dirbuf.d_name);
@@ -40,6 +42,9 @@ main()
 			if (fork() == 0)	/* code for child */
 				if (link(procname, procpast) == 0) {	/* link ok? */
 					unlink(procname);
+					stat(procpast, &sbuf);
+					setgid(sbuf.st_uid);
+					setuid(sbuf.st_gid);
 					execl("/bin/sh", "sh", procpast, (char *) 0);
 					fprintf(stderr, "proc %s can't start\n", procpast);
 					exit(1);

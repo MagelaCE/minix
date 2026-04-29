@@ -1,4 +1,4 @@
 #include <lib.h>
 
 /* Some compilers require an initializer to force storage allocation */
-message M = {0};
+message _M = {0};

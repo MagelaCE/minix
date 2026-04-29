@@ -29,8 +29,8 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <stdio.h>
-
 
 #ifndef DOS
 #ifndef UNIX
@@ -80,7 +80,8 @@ int argc;
 char *argv[];
 {
   int i, mode, usrid, grpid, badusage = 0;
-  unsigned blocks, zones, inodes;
+  unsigned zones, inodes;
+  unsigned long blocks;
   char *token[MAX_TOKENS], line[LINE_LEN];
   FILE *fopen();
   long time(), ls;
@@ -140,7 +141,7 @@ char *argv[];
 
 			/* Read the line with the block and inode counts. */
 			getline(line, token);
-			blocks = atoi(token[0]);
+			blocks = atol(token[0]);
 			if (blocks > N_BLOCKS)
 				pexit("Block count too large");
 			inodes = atoi(token[1]);
@@ -155,8 +156,10 @@ char *argv[];
 
 			/* Maybe the prototype file is just a size.
 			 * Check for that. */
-			blocks = atoi(argv[argc]);
+			blocks = atol(argv[argc]);
 			if (blocks < 4) pexit("Can't open prototype file");
+			if (blocks > N_BLOCKS)
+				pexit("Block count too large");
 
 			/* Ok, make simple file system of given size,
 			 * using defaults. */
@@ -229,7 +232,7 @@ char *argv[];
 #endif
 
   zone_shift = 0;		/* for future use */
-  zones = blocks >> zone_shift;
+  zones = nrblocks >> zone_shift;
 
   super(zones, inodes);
 

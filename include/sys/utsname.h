@@ -1,10 +1,10 @@
 /* The <sys/utsname.h> header gives the system name. */
 
-#ifndef _UTSNAME_H
-#define _UTSNAME_H
+#ifndef _SYS_UTSNAME_H
+#define _SYS_UTSNAME_H
 
-#define _UTSLEN  (8 + 1)
-#define _SNLEN  (14 + 1)
+#define _UTSLEN	(8 + 1)
+#define _SNLEN	(14 + 1)
 
 struct utsname {
   char sysname[_UTSLEN];
@@ -20,6 +20,6 @@ struct utsname {
 #include <ansi.h>
 #endif
 
-_PROTOTYPE( int uname, (struct utsname *__name)				);
+_PROTOTYPE( int uname, (struct utsname *_name)				);
 
-#endif /* _UTSNAME_H */
+#endif /* _SYS_UTSNAME_H */

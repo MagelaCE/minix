@@ -20,7 +20,7 @@
 #include "param.h"
 
 #define SAME 1000
-PRIVATE char dot2[NAME_MAX] =  "..\0\0\0\0\0\0\0\0\0\0";
+PRIVATE char dot2[NAME_MAX] =  "..\0\0\0\0\0\0\0\0\0\0\0";
 
 /*===========================================================================*
  *				do_link					     *
@@ -310,7 +310,7 @@ register struct inode *rip;	/* pointer to inode to be truncated */
   register zone_nr z, *iz;
   off_t position;
   zone_type zone_size;
-  int scale, file_type;
+  int scale, file_type, waspipe;
   struct buf *bp;
   dev_t dev;
 
@@ -319,7 +319,8 @@ register struct inode *rip;	/* pointer to inode to be truncated */
   dev = rip->i_dev;		/* device on which inode resides */
   scale = scale_factor(rip);
   zone_size = (zone_type) BLOCK_SIZE << scale;
-  if (rip->i_pipe == I_PIPE) rip->i_size = PIPE_SIZE;	/* pipes can shrink */
+  if (waspipe = (rip->i_pipe == I_PIPE))
+	rip->i_size = PIPE_SIZE;	/* pipes can shrink */
 
   /* Step through the file a zone at a time, finding and freeing the zones. */
   for (position = 0; position < rip->i_size; position += zone_size) {
@@ -344,5 +345,7 @@ register struct inode *rip;	/* pointer to inode to be truncated */
   }
 
   /* Leave zone numbers for de(1) to recover file after an unlink(2).  */
+  if (waspipe)
+	wipe_inode(rip);	/* clear out inode for pipes */
   rip->i_dirt = DIRTY;
 }

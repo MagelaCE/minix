@@ -62,15 +62,6 @@
 .define	_tty_int	| interrupt routine for each key depression and release
 .define	_wini_int	| winchester interrupt routine
 
-| and when using the more portable but slower C-code RS232 interrupt handlers:
-
-#if C_RS232_INT_HANDLERS
-.define	_prs232_int	| same as rs232_int, different label for prot mode
-.define	_psecondary_int	| same as secondary_int, different label for prot mode
-.define	_rs232_int 	| interrupt routine for each rs232 interrupt on port 1
-.define	_secondary_int 	| interrupt routine for each rs232 interrupt on port 2
-#endif
-
 #include <minix/config.h>
 #include <minix/const.h>
 #include <minix/com.h>
@@ -79,6 +70,16 @@
 
 #if INTEL_32BITS
 #error /* this is not the 32-bit version */
+#endif
+
+| When using the more portable but slower C-code RS232 interrupt handlers,
+| there are a few more entry points:
+
+#if C_RS232_INT_HANDLERS
+.define	_prs232_int	| same as rs232_int, different label for prot mode
+.define	_psecondary_int	| same as secondary_int, different label for prot mode
+.define	_rs232_int 	| interrupt routine for each rs232 interrupt on port 1
+.define	_secondary_int 	| interrupt routine for each rs232 interrupt on port 2
 #endif
 
 | imported functions
@@ -92,6 +93,13 @@
 .extern		_pr_char
 .extern		_sys_call
 .extern		_unhold
+
+#if C_RS232_INT_HANDLERS
+.extern		_rs232_1handler
+.extern		_rs232_2handler
+#endif
+
+| imported variables
 
 	.bss
 .extern		_break_vector
@@ -458,7 +466,6 @@ stack_switched:
 	mov	es,dx
 	movb	al,#ENABLE	| reenable int controller for everyone (early)
 	out	INT_CTL
-	seg	cs
 	jmp	(bx)
 
 push_current_stack:

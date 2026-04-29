@@ -46,12 +46,14 @@ char *argv[];
 
   sync();
   if (geteuid() == 0) {
-	printf("Test 20 must NOT be root; test aborted\n");
-	exit(1);
+	/* Must not run as root. */
+	setgid(2);
+	setuid(2);
   }
 
   if (argc == 2) m = atoi(argv[1]);
   printf("Test 20 ");
+  fflush(stdout);
 
   for (i = 0; i < ITERATIONS; i++) {
 	if (m & 00001) test20a();	/* test for correct operation */
@@ -243,7 +245,7 @@ test20d()
   subtest = 6;
 
   if (getcwd(base, BUF_SIZE) == (char *) NULL) 	e(1); /* get test dir's path */
-  if (system("rm -rf Dir") < 0) e(2);	/* remove residue of previous test */
+  if (system("rm -rf Dir") != 0) e(2);	/* remove residue of previous test */
   if (mkdir("Dir", 0777) < 0) e(3); 	/* create directory called "Dir" */
 
   /* Change to Dir and verify that it worked. */
@@ -295,7 +297,7 @@ test20d()
 
   /* Remove the directory. */
   if (unlink("Dir/x") != 0) e(32);
-  if (system("rmdir Dir") < 0) e(33);
+  if (system("rmdir Dir") != 0) e(33);
 }
 
 
@@ -360,7 +362,7 @@ test20f()
   subtest = 8;
 
   m1 = umask(~0777);
-  if (system("rm -rf foo xxx") < 0) e(1);
+  if (system("rm -rf foo xxx") != 0) e(1);
   if ((fd = creat("foo", 0777)) < 0) e(2);
   if (stat("foo", &stbuf1) < 0) e(3);
   if (fstat(fd, &stbuf2) < 0) e(4);
@@ -406,7 +408,7 @@ test20f()
   if (umask(m1) != 073) e(35);
 
   /* Test some errors. */
-  if (system("mkdir Dir; date >Dir/x; chmod 666 Dir") < 0) e(36);
+  if (system("mkdir Dir; date >Dir/x; chmod 666 Dir") != 0) e(36);
   if (stat("Dir/x", &stbuf1) >= 0) e(37);
   if (errno != EACCES) e(38);
   if (stat("......", &stbuf1) >= 0) e(39);
@@ -418,7 +420,7 @@ test20f()
   if (fstat(10000, &stbuf1) >= 0) e(45);
   if (errno != EBADF) e(46);
   if (chmod("Dir", 0777) != 0) e(47);
-  if (system("rm -rf foo Dir") < 0) e(48);
+  if (system("rm -rf foo Dir") != 0) e(48);
 }
 
 
@@ -678,6 +680,7 @@ int n;
   int err_num = errno;		/* save errno in case printf clobbers it */
 
   printf("Subtest %d,  error %d  errno=%d  ", subtest, n, errno);
+  fflush(stdout);		/* stdout and stderr are mixed horribly */
   errno = err_num;		/* restore errno, just in case */
   perror("");
   if (errct++ > MAX_ERROR) {

@@ -27,7 +27,7 @@ struct lconv {
   char n_sign_posn;		/* CHAR_MAX */
 };
 
-#define NULL	((void *) 0)
+#define NULL    ((void *)0)
 
 #define LC_ALL             1
 #define LC_COLLATE         2
@@ -41,7 +41,7 @@ struct lconv {
 #include <ansi.h>
 #endif
 
-_PROTOTYPE( char *setlocale, (int __category, const char *__locale)	);
+_PROTOTYPE( char *setlocale, (int _category, const char *_locale)	);
 _PROTOTYPE( struct lconv *localeconv, (void)				);
 
 #endif /* _LOCALE_H */

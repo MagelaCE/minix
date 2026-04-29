@@ -74,7 +74,8 @@ char *ofilename = NULL;
 
 int convflag = 0;
 int flag = 0;
-int cnull(), ibm(), null(), over();
+int cnull(), ibm(), null();
+void over();
 int ifd, ofd, ibc;
 char *ibuf, *obuf, *op;
 extern char *sbrk();
@@ -107,11 +108,6 @@ statistics()
 	fprintf(stderr, "%d truncated records\n", ntr);
 }
 
-over()
-{
-  statistics();
-  exit(0);
-}
 
 main(argc, argv)
 int argc;
@@ -341,4 +337,10 @@ extra()
 	cbc = 0;
 	ns = 0;
   }
+}
+
+void over()
+{
+  statistics();
+  exit(0);
 }

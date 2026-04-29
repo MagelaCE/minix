@@ -1,4 +1,5 @@
 #define Extern extern
+#include <sys/types.h>
 #include <signal.h>
 #include <errno.h>
 #include <setjmp.h>
@@ -156,9 +157,11 @@ int act;
 
 	case TIF:
 	case TELIF:
-		rv = !execute(t->left, pin, pout, 0)?
+	 	if (t->right != NULL) {
+		rv = !execute(t->left, pin, pout, 0) ?
 			execute(t->right->left, pin, pout, 0):
 			execute(t->right->right, pin, pout, 0);
+		}
 		break;
 
 	case TCASE:
@@ -776,15 +779,16 @@ struct op *t;
 {
 	register char *cp, **wp;
 	register nb;
+	register int  nl = 0;
 
 	if (t->words[1] == NULL) {
 		err("Usage: read name ...");
 		return(1);
 	}
 	for (wp = t->words+1; *wp; wp++) {
-		for (cp = e.linep; cp < elinep-1; cp++)
+		for (cp = e.linep; !nl && cp < elinep-1; cp++)
 			if ((nb = read(0, cp, sizeof(*cp))) != sizeof(*cp) ||
-			    *cp == '\n' ||
+			    (nl = (*cp == '\n')) ||
 			    wp[1] && any(*cp, ifs->value))
 				break;
 		*cp = 0;

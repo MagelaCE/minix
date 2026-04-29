@@ -38,7 +38,7 @@ all:
 	cc $(CFLAGS) -o t11b t11b.c
 	rm -f *.bak *.s
 	chmem =20000 test14
-	chmem =20000 test20
+	chmem =65000 test20
 	chown bin test*
 	chown root test11 test17 test18
 	chmod 4755 test11 test17 test18

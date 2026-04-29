@@ -132,7 +132,7 @@ extern void execute();		/* execute compiled command */
 
 /***** public stuff ******/
 
-#define MAXCMDS		200	/* maximum number of compiled commands */
+#define MAXCMDS		500	/* maximum number of compiled commands */
 #define MAXLINES	256	/* max # numeric addresses to compile */
 
 /* Main data areas */
@@ -148,7 +148,7 @@ char bits[] = {1, 2, 4, 8, 16, 32, 64, 128};
 
 /***** module common stuff *****/
 
-#define POOLSIZE	6000	/* size of string-pool space */
+#define POOLSIZE	20000	/* size of string-pool space */
 #define WFILES		10	/* max # w output files that can be compiled */
 #define RELIMIT		256	/* max chars in compiled RE */
 #define MAXDEPTH	20	/* maximum {}-nesting level */

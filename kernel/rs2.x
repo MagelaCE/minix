@@ -7,6 +7,9 @@
 | calls for port i/o as well as the compiler!
 
 #include <minix/config.h>
+
+#if !C_RS232_INT_HANDLERS /* otherwise, don't use anything in this file */
+
 #include <minix/const.h>
 #include "const.h"
 #include "sconst.h"
@@ -330,3 +333,5 @@ got_rs_mask:
 rs_mask:
 	.space	2
 	.space	2		| align
+
+#endif /* !C_RS232_INT_HANDLERS */

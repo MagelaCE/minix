@@ -951,7 +951,8 @@ blankpage()
 
 waitawhile()
 {
-  int nix(), oldflags;
+  int oldflags; 
+  void nix();
   if (isatty(0)) {
 	oldflags = tty.sg_flags;
 	tty.sg_flags &= ~ECHO;	/* DON'T ECHO THE RUBOUT */
@@ -965,7 +966,8 @@ waitawhile()
   }
 }
 
-nix()
+void nix(sig)
+int sig;
 {
 }
 

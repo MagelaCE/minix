@@ -90,7 +90,9 @@ register long t;
 	a[7] = '0';
   a[9] = hundredths / 10 + '0';
   a[10] = hundredths % 10 + '0';
-  a[10] = '\n'; a[11] = 0;	/* tenths is enough; remove this for 1/100 */
+#ifndef HUNDREDTHS		/* tenths used to be enough */
+  a[10] = '\n'; a[11] = 0;
+#endif
   std_err(a);
 }
 

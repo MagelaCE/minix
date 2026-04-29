@@ -8,7 +8,7 @@
 .\" lines. they will find their way into the text. use comments (.\") to
 .\" make space.
 .\" 
-.\" included here are: TH, SH, SS, IP, PP, LP, RS, RE, I, B
+.\" included here are: TH, SH, SS, IP, PP, LP, RS, RE, I, B, BI,
 .\" 
 .\" see end of this file for usage example
 .\"
@@ -21,6 +21,9 @@
 .\" the text
 .\"
 .ds DA "\n(hh:\n(mm:\n(ss \n(mo/\n(dy/\n(yr"
+.ds S s
+.ds ` "`"
+.ds ' "'"
 .\"
 .\" --------------------------------------------------------------------------
 .\" main page heading
@@ -111,28 +114,34 @@
 .br
 ..
 .\" --------------------------------------------------------------------------
-.\" italic text
+.\" Italic text
 .\"
 .de I
-\&\fB$1\fR
+\&\fI$1\fR
 ..
 .\" --------------------------------------------------------------------------
-.\" bold text
+.\" Bold text
 .\"
 .de B
 \&\fB$1\fR
 ..
 .\" --------------------------------------------------------------------------
-.\" italic Roman text
+.\" Italic Roman text
 .\"
 .de IR
-\&\fB$1\fR
+\&\fI$1\fR$2
 ..
 .\" --------------------------------------------------------------------------
-.\" bold Roman text
+.\" Bold Roman text
 .\"
 .de BR
-\&\fB$1\fR
+\&\fB$1\fR$2
+..
+.\" --------------------------------------------------------------------------
+.\" Bold Italic text
+.\"
+.de BI
+\&\fB$1\fI$2\fR
 ..
 .\" --------------------------------------------------------------------------
 .\" small text

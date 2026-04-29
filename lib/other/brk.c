@@ -7,7 +7,7 @@ PUBLIC char *brk(addr)
 char *addr;
 {
   if (callm1(MM, BRK, 0, 0, 0, addr, NIL_PTR, NIL_PTR) == 0) {
-	brksize = M.m2_p1;
+	brksize = _M.m2_p1;
 	return(NIL_PTR);
   } else {
 	return((char *) -1);

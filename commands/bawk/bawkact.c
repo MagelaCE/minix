@@ -158,7 +158,7 @@ dopattern:
                         else if ( i = isfunction( buf ) )
                         {
                                 *actptr++ = T_FUNCTION;
-                                *(int *)actptr = i;
+                                *(int *) ALIGN(actptr) = i;
                                 actptr += sizeof( int )/sizeof( char );
                         }
                         else
@@ -169,7 +169,7 @@ dopattern:
                                 *actptr++ = T_VARIABLE;
                                 if ( !(cp = (char *) findvar( buf )) )
                                         cp = (char *) addvar( buf );
-                                *(char **)actptr = cp;
+                                *(char **) ALIGN(actptr) = cp;
                                 actptr += sizeof( char * )/sizeof( char );
                         }
                 }
@@ -189,8 +189,8 @@ dopattern:
                          */
                         *actptr++ = T_CONSTANT;
                         str_compile( buf, '\'' );
-                        *(int *)actptr = *buf;
-                        actptr += sizeof( int )/sizeof( char );
+                        *(INT *) ALIGN(actptr) = *buf;
+                        actptr += sizeof( INT )/sizeof( char );
                 }
 
                 else if ( isdigit( c ) )
@@ -205,8 +205,8 @@ dopattern:
                         while ( (c=getcharacter()) != -1 && isdigit( c ) );
                         ungetcharacter( c );
                         *cp = 0;
-                        *(int *)actptr = atoi( buf );
-                        actptr += sizeof( i );
+                        *(INT *) ALIGN(actptr) = atoi( buf );
+                        actptr += sizeof( INT )/sizeof( char );
                 }
 
                 /*
@@ -403,13 +403,16 @@ getoken()
                 Actptr += strlen( Actptr ) + 1;
                 break;
         case T_VARIABLE:
-                Value.dptr = *(char **)Actptr;
+                Value.dptr = *(char **) ALIGN(Actptr);
                 Actptr += sizeof( char * )/sizeof( char );
                 break;
         case T_FUNCTION:
-        case T_CONSTANT:
-                Value.ival = *(int *)Actptr;
+                Value.ival = *(int *) ALIGN(Actptr);
                 Actptr += sizeof( int )/sizeof( char );
+                break;
+        case T_CONSTANT:
+                Value.ival = *(INT *) ALIGN(Actptr);
+                Actptr += sizeof( INT )/sizeof( char );
                 break;
         case T_EOF:
                 --Actptr;

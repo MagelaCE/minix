@@ -17,6 +17,8 @@
  *	- Originally written in BDS C;
  *	- Adapted for standard C by W. N. Paul
  *	- Heavily hacked up to conform to "real" nroff by Bill Rosenkranz
+ *	- Adapted to have it recognize also VT100 escape codes (e.g. ESC[7m)
+ *	  by Wim 'Blue Baron' van Dorst (wsincc@tuerc3.urc.tue.nl)
  */
 
 #undef NRO_MAIN					/* extern globals */
@@ -314,7 +316,7 @@ register char  *p;
 {
 
 /*
- *	count atari escape sequence characters in given null-terminated
+ *	count escape sequence characters in given null-terminated
  *	string
  */
 
@@ -329,8 +331,7 @@ register char  *p;
 		if (*pp == ESC)
 		{
 			/*
-			 *   count escape char (atari-specific, vt52)
-			 *   generally only p,q,b,and c will show up...
+			 *   count escape char (vt52 and vt100)
 			 */
 			switch (*(pp+1))
 			{
@@ -363,6 +364,7 @@ register char  *p;
 				num += 3;
 				break;
 			case 'Y':			/* ESC-a-b-c */
+			case '[':			/* Esc [ 7 m */
 				num += 4;
 				break;
 			default:

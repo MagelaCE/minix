@@ -1,4 +1,4 @@
-/* The <errno.h> header defines the numbers of the various errors that can 
+/* The <errno.h> header defines the numbers of the various errors that can
  * occur during program execution.  They are visible to user programs and 
  * should be small positive integers.  However, they are also used within 
  * MINIX, where they must be negative.  For example, the READ system call is 
@@ -17,8 +17,8 @@
  * file is included in an ordinary user program, EPERM has the value ( 1).
  */
 
-#ifndef _ERROR_H		/* check if <errno.h> is already included */
-#define _ERROR_H		/* it is not included; note that fact */
+#ifndef _ERRNO_H		/* check if <errno.h> is already included */
+#define _ERRNO_H		/* it is not included; note that fact */
 
 /* Now define _SIGN as "" or "-" depending on _SYSTEM. */
 #ifdef _SYSTEM
@@ -93,4 +93,4 @@ extern int errno;		  /* place where the error numbers go */
 #define E_BAD_PROC       -11	/* bad proc number given to utility */
 #endif /* _SYSTEM */
 
-#endif /* _ERROR_H */
+#endif /* _ERRNO_H */

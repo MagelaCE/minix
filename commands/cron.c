@@ -19,7 +19,7 @@
  *		the current time is executed.  The entry * matches anything.
  *
  * Example:
- *	*   min hr dat mo day   command
+ *	min hr dat mo day   command
  *	*   *   *  *   *    /usr/bin/date >/dev/tty0  #print date every minute
  *	0   *   *  *   *    /usr/bin/date >/dev/tty0  #print date on the hour
  *	30  4   *  *  1-5   /bin/backup /dev/fd1      #backup Mon-Fri at 0430
@@ -33,6 +33,9 @@
  * 		Tallahassee, FL 32306 | Tel: +1 904 644 1573
  *
  * History:
+ *		1.5d  Ralf Wenk last update:	Tue Apr  3 22:50:48 1990
+ *			fixed the stdin/out/err problem
+ *
  *		1.5c  Blayne Puklich (puklich@plains.nodak.edu)  89/12/07
  *			Changed so parent exits, like in 1.3 version.
  *
@@ -96,7 +99,7 @@ struct cron_entry {
 char crontab[CRONSIZE];
 FILE *cronlog;
 
-int wakeup(), nothing();
+void wakeup(), nothing();
 
 long previous_time = 0L;
 extern int errno;
@@ -118,24 +121,22 @@ main()
   signal(SIGHUP, SIG_IGN);
   signal(SIGQUIT, SIG_IGN);
 
-  /* Release some file descriptors.  Don't release stdout because there are
-   * printfs later.  However, these printfs are silly - who would read them?
-   * Also, this program has been bloated by using printf.  DEBUG.  FIXME.
+  /* Release stdin. Stdout and stderr are redirected to LOGFILE or NULLDEV.
+   * So the output of crontab commands could be found in LOGFILE if the file
+   * is accessible.
    */
   fclose(stdin);
-  fclose(stdout);
-  fclose(stderr);
 
   /* Release current directory to avoid locking current device. */
   chdir("/");
 
   open(NULLDEV, O_RDONLY);
-  if ((cronlog = fopen(LOGFILE, "a")) == (FILE *) NULL) {
-	open(NULLDEV, O_WRONLY);
-	open(NULLDEV, O_WRONLY);
+  if ((cronlog = freopen(LOGFILE,"a", stdout)) == (FILE *) NULL) {
+	cronlog = freopen(NULLDEV,"w", stdout);
+	freopen(NULLDEV,"w", stderr);
   } else {
+	freopen(LOGFILE,"a", stderr);
 	setbuf(cronlog, (char *) NULL);
-	dup(fileno(cronlog));
   }
 
   p = (CRONSTRUCT *) malloc(sizeof(CRONSTRUCT));
@@ -155,12 +156,12 @@ main()
 }
 
 
-nothing()
+void nothing()
 {
 }
 
 
-wakeup()
+void wakeup()
 {
   register struct tm *tm;
   time_t cur_time;
@@ -246,14 +247,14 @@ load_crontab()
   struct stat buf;
 
   if (stat(CRONTAB, &buf)) {
-	if (previous_time == 0L) printf("Can't stat crontab");
+	if (previous_time == 0L) fprintf(cronlog, "Can't stat crontab\n");
 	previous_time = 0L;
 	return;
   }
   if (buf.st_mtime <= previous_time) return;
 
   if ((cfp = fopen(CRONTAB, "r")) == (FILE *) NULL) {
-	if (previous_time == 0L) printf("Can't open crontab");
+	if (previous_time == 0L) fprintf(cronlog, "Can't open crontab\n");
 	previous_time = 0L;
 	return;
   }

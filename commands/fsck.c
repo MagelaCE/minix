@@ -1,17 +1,21 @@
 /* fsck - file system checker		Author: Robbert van Renesse */
 
 #include <sys/types.h>
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <minix/config.h>
 #include <minix/const.h>
-
 #include <minix/type.h>
 #include "../fs/const.h"
 #include "../fs/type.h"
 
-#include <stdio.h>
+#undef printf			/* defined as printk in "../fs/const.h" */
 
-#undef printf
+#include <stdio.h>
 
 #if INTEL_32BITS
 #define BITSHIFT	  5	/* = log2(#bits(int)) */
@@ -21,29 +25,16 @@
 
 #define BITMAPSHIFT	 13	/* = log2(#bits(block)); 13 means 1K blocks */
 #define MAXPRINT	  8	/* max. number of error lines in chkmap */
-#define MAXWIDTH	 32	/* max. width of an ``integer string'' */
 #define MAXDIRSIZE     5000	/* max. size of a reasonable directory */
 #define CINDIR		128	/* number of indirect zno's read at a time */
 #define CDIRECT		 16	/* number of dir entries read at a time */
-#define SECT_SHIFT        9	/* sectors are 512 bytes */
-#define SECTOR_SIZE (1<<SECT_SHIFT)	/* bytes in a sector */
 #define BITMASK		((1 << BITSHIFT) - 1)
-#define PARB 6
-#define between(c,l,u)	((unsigned short) ((c) - (l)) <= ((u) - (l)))
-#define isprint(c)	between(c, ' ', '~')
-#define isdigit(c)	between(c, '0', '9')
-#define islower(c)	between(c, 'a', 'z')
-#define isupper(c)	between(c, 'A', 'Z')
-#define toupper(c)	( (c) + 'A' - 'a' )
-#define nextarg(t)	(*argp.t++)
-#define prn(t,b,s)	{ printnum((long)nextarg(t),b,s,width,pad); width= 0; }
-#define prc(c)		{ width -= printchar(c, mode); }
 #define setbit(w, b)	(w[(b) >> BITSHIFT] |= 1 << ((b) & BITMASK))
 #define clrbit(w, b)	(w[(b) >> BITSHIFT] &= ~(1 << ((b) & BITMASK)))
 #define bitset(w, b)	(w[(b) >> BITSHIFT] & (1 << ((b) & BITMASK)))
 
-int zone_ct = 360;
-int inode_ct = 95;
+#define ZONE_CT 	360	/* default zones  (when making file system) */
+#define INODE_CT	 95	/* default inodes (when making file system) */
 
 /* DEBUG FIXME.  This and other things repeat stuff from fs, not necessarily
  * identically.  This is part of a structure in fs/super.h, and old versions
@@ -97,12 +88,10 @@ int firstcnterr;		/* is this the first inode ref cnt error? */
 unsigned *imap, *spec_imap;	/* inode bit maps */
 unsigned *zmap, *spec_zmap;	/* zone bit maps */
 unsigned *dirmap;		/* directory (inode) bit map */
-char *rwbuf;			/* one block buffer cache */
-char rwbuf1[BLOCK_SIZE];	/* buffer */
+char rwbuf[BLOCK_SIZE];		/* one block buffer cache */
+block_nr thisblk;		/* block in buffer cache */
 char nullbuf[BLOCK_SIZE];	/* null buffer */
 nlink_t *count;			/* inode count */
-dir_struct nulldir;		/* empty directory entry */
-block_nr thisblk;		/* block that is now in the buffer */
 int changed;			/* has the diskette been written to? */
 struct stack {
   dir_struct *st_dir;
@@ -110,9 +99,6 @@ struct stack {
   char st_presence;
 } *ftop;
 
-extern long lseek();
-
-long atol();
 int dev;			/* file descriptor of the device */
 
 #define DOT	1
@@ -127,14 +113,6 @@ int firstlist;			/* has the listing header been printed? */
 unsigned part_offset;		/* sector offset for this partition */
 char answer[] = {"Answer questions with y or n.  Then hit RETURN"};
 
-union types {
-  int *u_char;			/* %c */
-  int *u_int;			/* %d */
-  unsigned *u_unsigned;		/* %u */
-  long *u_long;			/* %ld */
-  char **u_charp;		/* %s */
-};
-
 /* Initialize the variables used by this program. */
 initvars()
 {
@@ -143,38 +121,27 @@ initvars()
   nregular = ndirectory = nblkspec = ncharspec = nbadinode = npipe = 0;
   for (level = 0; level < NLEVEL; level++) ztype[level] = 0;
   changed = 0;
+  thisblk = NO_BLOCK;
   firstlist = 1;
   firstcnterr = 1;
-  thisblk = NO_BLOCK;
-}
-
-/* Copy n bytes.  */
-copy(p, q, n)
-register char *p, *q;
-register int n;
-{
-  do
-	*q++ = *p++;
-  while (--n);
 }
 
 /* Print the string `s' and exit. */
-fatal(s)
+void fatal(s)
 char *s;
 {
-  printf("%s\n", s);
-  printf("fatal\n");
+  printf("%s\nfatal\n", s);
   exit(-1);
 }
 
 /* Test for end of line. */
 eoln(c)
 {
-  return(c < 0 || c == '\n' || c == '\r');
+  return(c == EOF || c == '\n' || c == '\r');
 }
 
 /* Ask a question and get the answer unless automatic is set. */
-yes(question)
+int yes(question)
 char *question;
 {
   register c, answer;
@@ -188,22 +155,23 @@ char *question;
 	printf("yes\n");
 	return(1);
   }
+  fflush(stdout);
   if ((c = answer = getchar()) == 'q' || c == 'Q') exit(1);
   while (!eoln(c)) c = getchar();
   return !(answer == 'n' || answer == 'N');
 }
 
 /* Convert string to integer.  Representation is octal. */
-atoo(s)
-char *s;
+int atoo(s)
+register char *s;
 {
-  register n = 0;
+  register int n = 0;
 
   while ('0' <= *s && *s < '8') {
-	n *= 8;
+	n <<= 3;
 	n += *s++ - '0';
   }
-  return(n);
+  return n;
 }
 
 /* If repairing the file system, print a prompt and get a string from user. */
@@ -215,6 +183,7 @@ char *buf;
   printf("\n");
   if (repair) {
 	printf("--> ");
+	fflush(stdout);
 	while (--size) {
 		*p = getchar();
 		if (eoln(*p)) {
@@ -236,43 +205,22 @@ unsigned nelem, elsize;
 {
   char *p;
 
-  extern char *Calloc();
-
-  if ((p = Calloc(nelem, elsize)) == 0) fatal("out of memory");
+  if ((p = (char *) malloc(nelem * elsize)) == 0) fatal("out of memory");
+  memset(p, 0, nelem * elsize);
   return(p);
-
 }
 
-/* Deallocate previously allocated memory. */
-dealloc(p)
-char *p;
-{
-  free(p);
-}
-
-/* Allocate and zero memory */
-char *Calloc(nelem, elsize)
-unsigned nelem, elsize;
-{
-  register int i;
-  register char *mem;
-  extern char *malloc();
-
-  if ((mem = malloc(nelem * elsize)) != NULL) {
-	for (i = 0; i < nelem * elsize; ++i) mem[i] = '\0';
-  }
-  return mem;
-}
-
-/* Print the name in a directory entry.  */
-printname(s)
+/* Print the name in a directory entry. */
+void printname(s)
 char *s;
 {
   register n = NAME_MAX;
+  int c;
 
   do {
-	if (*s == 0) break;
-	printf("%c", isprint(*s) ? *s : '?');
+	if ((c = *s) == 0) break;
+	if (!isprint(c)) c = '?';
+	putchar(c);
 	s++;
   } while (--n);
 }
@@ -285,7 +233,7 @@ struct stack *sp;
 {
   if (sp->st_next != 0) {
 	printrec(sp->st_next);
-	printf("/");
+	putchar('/');
 	printname(sp->st_dir->d_name);
   }
 }
@@ -294,7 +242,7 @@ struct stack *sp;
 printpath(mode, nlcr)
 {
   if (ftop->st_next == 0)
-	printf("/");
+	putchar('/');
   else
 	printrec(ftop);
   switch (mode) {
@@ -311,7 +259,7 @@ printpath(mode, nlcr)
 /* Open the device.  */
 devopen()
 {
-  if ((dev = open(device, repair ? 2 : 0)) < 0) {
+  if ((dev = open(device, repair ? O_RDWR : O_RDONLY)) < 0) {
 	perror(device);
 	fatal("");
   }
@@ -326,34 +274,26 @@ devclose()
   }
 }
 
-/* Read or write a block.  */
+/* Read or write a block. */
 devio(bno, dir)
 block_nr bno;
 {
-  long lastone;
-  long offset = btoa(bno);
-  register error;
+  off_t offset = btoa(bno);
 
   if (dir == READING && bno == thisblk) return;
   thisblk = bno;
 
-  {
-	extern read(), write(), errno;
-
-	lseek(dev, offset, 0);
-	if (dir == READING)
-		if (read(dev, rwbuf, BLOCK_SIZE) == BLOCK_SIZE)
-			return;
-		else
-			error = errno;
-	else if (write(dev, rwbuf, BLOCK_SIZE) == BLOCK_SIZE)
+  lseek(dev, offset, SEEK_SET);
+  if (dir == READING) {
+	if (read(dev, rwbuf, BLOCK_SIZE) == BLOCK_SIZE)
 		return;
-	else
-		error = errno;
+  } else {
+	if (write(dev, rwbuf, BLOCK_SIZE) == BLOCK_SIZE)
+		return;
   }
 
   printf("%s: can't %s block %ld (error = 0x%x)\n", prog,
-         dir == READING ? "read" : "write", (long) bno, error);
+         dir == READING ? "read" : "write", (long) bno, errno);
   fatal("");
 }
 
@@ -363,7 +303,7 @@ long offset;
 char *buf;
 {
   devio((block_nr) (offset / BLOCK_SIZE), READING);
-  copy(&rwbuf[(int) (offset % BLOCK_SIZE)], buf, size);
+  memmove(buf, &rwbuf[(int) (offset % BLOCK_SIZE)], size);
 }
 
 /* Write `size' bytes to the disk starting at byte `offset'. */
@@ -373,7 +313,7 @@ char *buf;
 {
   if (!repair) fatal("internal error (devwrite)");
   if (size != BLOCK_SIZE) devio((block_nr) (offset / BLOCK_SIZE), READING);
-  copy(buf, &rwbuf[(int) (offset % BLOCK_SIZE)], size);
+  memmove(&rwbuf[(int) (offset % BLOCK_SIZE)], buf, size);
   devio((block_nr) (offset / BLOCK_SIZE), WRITING);
   changed = 1;
 }
@@ -387,17 +327,15 @@ char *fmt, *s, *p;
 
 /* Convert string to number. */
 bit_nr getnumber(s)
-char *s;
+register char *s;
 {
   register bit_nr n = 0;
 
-  if (s == 0) return(NO_BIT);
-  while (*s != 0) {
-	if (!isdigit(*s)) return(NO_BIT);
-	n *= 10;
-	n += *s++ - '0';
-  }
-  return(n);
+  if (s == (char *) NULL)
+	return NO_BIT;
+  while (isdigit(*s))
+	n = (n << 1) + (n << 3) + *s++ - '0';
+  return (*s == '\0') ? n : NO_BIT;
 }
 
 /* See if the list pointed to by `argv' contains numbers. */
@@ -424,7 +362,6 @@ char ***argv, *type;
 lsuper()
 {
   char buf[80];
-  long atol();
 
   do {
 	printf("ninodes       = %u", sb.s_ninodes);
@@ -449,82 +386,13 @@ lsuper()
   if (repair) exit(0);
 }
 
-/* Add an empty root directory to the file system.  */
-makedev()
-{
-  register long position = BLK_IMAP * BLOCK_SIZE;
-  register int n = N_IMAP + N_ZMAP + N_ILIST;
-  static dir_struct rootdir[] = {
-			       {1, "."}, {1, ".."}
-  };
-  static d_inode inode = {
-		     I_DIRECTORY | 0755, 0, sizeof(rootdir), 0, 0, 2
-  };
-
-  devio((block_nr) sb.s_nzones - 1, WRITING);
-  nullbuf[0] = 1 << (ROOT_INODE - 1);	/* corrupt nullbuf */
-  do {
-	devwrite(position, nullbuf, BLOCK_SIZE);
-	nullbuf[0] = 0;		/* nullbuf restored */
-	position += BLOCK_SIZE;
-  } while (--n);
-
-  time(&inode.i_mtime);
-
-  inode.i_zone[0] = FIRST;
-  devwrite(inoaddr(ROOT_INODE), (char *) &inode, INODE_SIZE);
-  devwrite(zaddr(FIRST), nullbuf, BLOCK_SIZE);
-  devwrite(zaddr(FIRST), (char *) rootdir, sizeof(rootdir));
-}
-
-/* Get the contents for the super block from the user.  Make him some
- * suggestions.
- */
-mkfs()
-{
-  char buf[80];
-  long atol();
-
-  printf("Hit RETURN key to select default values\n\n");
-  sb.s_nzones = zone_ct;
-  printf("# zones (default: %d) ", zone_ct);
-  if (input(buf, 80)) sb.s_nzones = atol(buf);
-
-  sb.s_log_zone_size = 0;
-  printf("log zonesize (default: %d) ", sb.s_log_zone_size);
-  if (input(buf, 80)) sb.s_log_zone_size = atol(buf);
-
-  sb.s_ninodes = inode_ct;
-  printf("#inodes (default: %u) ", sb.s_ninodes);
-  if (input(buf, 80)) sb.s_ninodes = atol(buf);
-
-  sb.s_imap_blocks = bitmapsize(1 + sb.s_ninodes);
-  sb.s_zmap_blocks = bitmapsize(sb.s_nzones);
-  sb.s_firstdatazone = (BLK_ILIST + N_ILIST + SCALE - 1) >> sb.s_log_zone_size;
-  sb.s_maxsize = MAX_FILE_POS;
-  if (((sb.s_maxsize - 1) >> sb.s_log_zone_size) / BLOCK_SIZE >= MAX_ZONES)
-	sb.s_maxsize = ((long) MAX_ZONES * BLOCK_SIZE) << sb.s_log_zone_size;
-  sb.s_magic = SUPER_MAGIC;
-  printf("\n");
-  repair = 0;
-  lsuper();
-  repair = 1;
-  if (!yes("is this ok"))
-	lsuper();
-  else
-	devwrite(btoa(BLK_SUPER), (char *) &sb, sizeof(sb));
-  makedev();
-}
 
 /* Get the super block from either disk or user.  Do some initial checks. */
 getsuper()
 {
-  if (makefs)
-	mkfs();
-  else {
-	devread(btoa(BLK_SUPER), (char *) &sb, sizeof(sb));
-	if (listsuper) lsuper();
-  }
+  devread(btoa(BLK_SUPER), (char *) &sb, sizeof(sb));
+  if (listsuper) lsuper();
+
   if (sb.s_magic != SUPER_MAGIC) fatal("bad magic number in super block");
   if ((short) sb.s_ninodes <= 0) fatal("no inodes");
   if (sb.s_nzones <= 2) fatal("no zones");
@@ -605,7 +473,6 @@ char **clist;
   register ino_t ino;
   d_inode inode, *ip = &inode;
   char buf[80];
-  long atol();
 
   if (clist == 0) return;
   while ((bit = getnumber(*clist++)) != NO_BIT) {
@@ -704,7 +571,7 @@ char **list;
 freebitmap(p)
 unsigned *p;
 {
-  dealloc((char *) p);
+  free((char *) p);
 }
 
 /* Get all the bitmaps used by this program. */
@@ -848,19 +715,28 @@ chkcount()
 /* Deallocate the `count' array. */
 freecount()
 {
-  dealloc((char *) count);
+  free((char *) count);
 }
 
 /* Print the inode permission bits given by mode and shift. */
 printperm(mode, shift, special, overlay)
 mode_t mode;
 {
-  printf(mode >> shift & R_BIT ? "r" : "-");
-  printf(mode >> shift & W_BIT ? "w" : "-");
-  if (mode & special)
-	printf("%c", overlay);
+  if (mode >> shift & R_BIT)
+	putchar('r');
   else
-	printf(mode >> shift & X_BIT ? "x" : "-");
+	putchar('-');
+  if (mode >> shift & W_BIT)
+	putchar('w');
+  else
+	putchar('-');
+  if (mode & special)
+	putchar(overlay);
+  else
+	if (mode >> shift & X_BIT)
+		putchar('x');
+	else
+		putchar('-');
 }
 
 /* List the given inode. */
@@ -874,12 +750,12 @@ d_inode *ip;
   }
   printf("%6u ", ino);
   switch (ip->i_mode & I_TYPE) {
-      case I_REGULAR:	printf("-");	break;
-      case I_DIRECTORY:	printf("d");	break;
-      case I_CHAR_SPECIAL:	printf("c");	break;
-      case I_BLOCK_SPECIAL:	printf("b");	break;
-      case I_NAMED_PIPE:	printf("p");	break;
-      default:	printf("?");
+      case I_REGULAR:		putchar('-');	break;
+      case I_DIRECTORY:		putchar('d');	break;
+      case I_CHAR_SPECIAL:	putchar('c');	break;
+      case I_BLOCK_SPECIAL:	putchar('b');	break;
+      case I_NAMED_PIPE:	putchar('p');	break;
+      default:			putchar('?');
 }
   printperm(ip->i_mode, 6, I_SET_UID_BIT, 's');
   printperm(ip->i_mode, 3, I_SET_GID_BIT, 's');
@@ -903,19 +779,49 @@ d_inode *ip;
 Remove(dp)
 dir_struct *dp;
 {
-  int i;
-  char *cp1, *cp2;
-
   setbit(spec_imap, (bit_nr) dp->d_inum);
   if (yes(". remove entry")) {
 	count[dp->d_inum]--;
-	cp1 = (char *) &nulldir;
-	cp2 = (char *) dp;
-	i = sizeof(dir_struct);
-	while (i--) *cp2++ = *cp1++;
+	memset((void *) dp, 0, sizeof(dir_struct));
 	return(1);
   }
   return(0);
+}
+
+/* Convert string so that embedded control characters are printable. */
+void make_printable_name(dst, src, n)
+register char *dst;
+register char *src;
+register int n;
+{
+  register int c;
+
+  while (--n >= 0 && (c = *src++) != '\0') {
+	if (isprint(c) && c != '\\')
+		*dst++ = c;
+	else {
+		*dst++ = '\\';
+		switch (c) {
+		      case '\\':
+			*dst++ = '\\'; break;
+		      case '\b':
+			*dst++ = 'b'; break;
+		      case '\f':
+			*dst++ = 'f'; break;
+		      case '\n':
+			*dst++ = 'n'; break;
+		      case '\r':
+			*dst++ = 'r'; break;
+		      case '\t':
+			*dst++ = 't'; break;
+		      default:
+			*dst++ = '0' + ((c >> 6) & 03);
+			*dst++ = '0' + ((c >> 3) & 07);
+			*dst++ = '0' + (c & 07);
+		}
+	}
+  }
+  *dst = '\0';
 }
 
 /* See if the `.' or `..' entry is as expected. */
@@ -924,10 +830,13 @@ ino_t ino, exp;
 off_t pos;
 dir_struct *dp;
 {
+  char printable_name[4 * NAME_MAX + 1];
+
   if (dp->d_inum != exp) {
-	printf("bad %s in ", dp->d_name);
+	make_printable_name(printable_name, dp->d_name, sizeof(dp->d_name));
+	printf("bad %s in ", printable_name);
 	printpath(1, 0);
-	printf("%s is linked to %u ", dp->d_name, dp->d_inum);
+	printf("%s is linked to %u ", printable_name, dp->d_inum);
 	printf("instead of %u)", exp);
 	setbit(spec_imap, (bit_nr) ino);
 	setbit(spec_imap, (bit_nr) dp->d_inum);
@@ -939,9 +848,10 @@ dir_struct *dp;
 		return(0);
 	}
   } else if (pos != (dp->d_name[1] ? DIR_ENTRY_SIZE : 0)) {
-	printf("warning: %s has offset %ld in ", dp->d_name, pos);
+	make_printable_name(printable_name, dp->d_name, sizeof(dp->d_name));
+	printf("warning: %s has offset %ld in ", printable_name, pos);
 	printpath(1, 0);
-	printf("%s is linked to %u)\n", dp->d_name, dp->d_inum);
+	printf("%s is linked to %u)\n", printable_name, dp->d_inum);
 	setbit(spec_imap, (bit_nr) ino);
 	setbit(spec_imap, (bit_nr) dp->d_inum);
 	setbit(spec_imap, (bit_nr) exp);
@@ -957,13 +867,13 @@ dir_struct *dp;
   register n = NAME_MAX + 1;
   register char *p = dp->d_name;
 
-  if (*p == 0) {
+  if (*p == '\0') {
 	printf("null name found in ");
 	printpath(0, 0);
 	setbit(spec_imap, (bit_nr) ino);
 	if (Remove(dp)) return(0);
   }
-  while (--n != 0 && *p != 0)
+  while (*p != '\0' && --n != 0)
 	if (*p++ == '/') {
 		printf("found a '/' in entry of directory ");
 		printpath(1, 0);
@@ -985,8 +895,6 @@ ino_t ino;
 off_t pos;
 dir_struct *dp;
 {
-  char *cp1, *cp2;
-  int i;
   if (dp->d_inum < ROOT_INODE || dp->d_inum > sb.s_ninodes) {
 	printf("bad inode found in directory ");
 	printpath(1, 0);
@@ -995,10 +903,7 @@ dir_struct *dp;
 	printname(dp->d_name);
 	printf("')");
 	if (yes(". remove entry")) {
-		cp1 = (char *) &nulldir;
-		cp2 = (char *) dp;
-		i = sizeof(dir_struct);
-		while (i--) *cp2++ = *cp1++;
+		memset((void *) dp, 0, sizeof(dir_struct));
 		return(0);
 	}
 	return(1);
@@ -1198,7 +1103,7 @@ d_inode *ip;
 
   ok = chkzones(ino, ip, &pos, &ip->i_zone[0], NR_DZONE_NUM, 0);
   for (i = NR_DZONE_NUM, level = 1; i < NR_ZONE_NUMS; i++, level++)
-	if (!chkzones(ino, ip, &pos, &ip->i_zone[i], 1, level)) ok = 0;
+	ok &= chkzones(ino, ip, &pos, &ip->i_zone[i], 1, level);
   return(ok);
 }
 
@@ -1297,8 +1202,6 @@ dir_struct *dp;
   register ino_t ino = dp->d_inum;
   register visited;
   struct stack stk;
-  char *cp1, *cp2;
-  int i;
 
   stk.st_dir = dp;
   stk.st_next = ftop;
@@ -1317,10 +1220,7 @@ dir_struct *dp;
 			count[ino] += inode.i_nlinks - 1;
 			clrbit(imap, (bit_nr) ino);
 			devwrite(inoaddr(ino), nullbuf, INODE_SIZE);
-			cp1 = (char *) &nulldir;
-			cp2 = (char *) dp;
-			i = sizeof(dir_struct);
-			while (i--) *cp2++ = *cp1++;
+			memset((void *) dp, 0, sizeof(dir_struct));
 			ftop = ftop->st_next;
 			return(0);
 		}
@@ -1340,7 +1240,7 @@ chktree()
   dir.d_inum = ROOT_INODE;
   dir.d_name[0] = 0;
   if (!descendtree(&dir)) fatal("bad root inode");
-  printf("\n");
+  putchar('\n');
 }
 
 /* Print the totals of all the objects found. */
@@ -1369,6 +1269,7 @@ printtotal()
  * should be listed separately, and the inodes listed by `ilist' and the zones
  * listed by `zlist' should be watched for while checking the file system.
  */
+
 chkdev(f, clist, ilist, zlist)
 char *f, **clist, **ilist, **zlist;
 {
@@ -1419,7 +1320,6 @@ char **argv;
 	printf("Fsck was compiled with the wrong BITSHIFT!\n");
 	exit(1);
   }
-  rwbuf = rwbuf1;
 
   sync();
   prog = *argv++;
@@ -1438,7 +1338,6 @@ char **argv;
 		    case 'r':	repair ^= 1;	break;
 		    case 'l':	listing ^= 1;	break;
 		    case 's':	listsuper ^= 1;	break;
-		    case 'm':	makefs ^= 1;	break;
 		    default:
 			printf("%s: unknown flag '%s'\n", prog, arg);
 		}
@@ -1454,5 +1353,4 @@ char **argv;
 	exit(1);
   }
   return(0);
-
 }

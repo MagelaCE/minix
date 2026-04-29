@@ -1,26 +1,5 @@
 /* cc - call the C compiler		Author: Erik Baalbergen */
 
-#ifndef MEM640K
-#ifndef MEM512K
-#ifndef RAMDISK
-#error !!! AH HA!  I HAVE YOUR ATTENTION!
-/* This is not an error.  It is a dirty trick to force the user to read this
- * comment.  The program cc calls the various passes of the compiler.  To call
- * them, it must know where they are.  On the 640K PC MINIX, cpp and cem are
- * kept in /lib, on the root device.  Thus the symbol PP is defined as
- * /lib/cpp, etc.  On the 512K AT, there is no room on the root device, so cpp
- * and cem are kept in /usr/lib, which means that PP must be /usr/lib/cpp,
- * etc.  One of the following two definitions must be uncommented, to 
- * generate the right paths.  For 640K machines (PCs or ATs), MEM640K should
- * be defined.  For 512K machines, MEM512K should be defined.  On ATs with a
- * large RAM disk in extended memory, put the whole compiler on the RAM disk
- * and define RAMDISK.
- */
-#endif
-#endif
-#endif
-
-
 #include <errno.h>
 #include <signal.h>
 
@@ -37,20 +16,7 @@ struct arglist {
 };
 
 
-#ifdef MEM640K
-/* MINIX paths for 640K PC (not 512K AT) */
-char *PP     = "/lib/cpp";
-char *CEM    = "/lib/cem";
-char *OPT    = "/usr/lib/opt";
-char *CG     = "/usr/lib/cg";
-char *ASLD   = "/usr/bin/asld";
-char *AST    = "/usr/bin/ast";
-char *SHELL  = "/bin/sh";
-char *LIBDIR = "/usr/lib";
-#endif
-
-#ifdef MEM512K
-/* MINIX paths for 512K AT (not 640K PC) */
+/* MINIX paths */
 char *PP     = "/usr/lib/cpp";
 char *CEM    = "/usr/lib/cem";
 char *OPT    = "/usr/lib/opt";
@@ -59,31 +25,10 @@ char *ASLD   = "/usr/bin/asld";
 char *AST    = "/usr/bin/ast";
 char *SHELL  = "/bin/sh";
 char *LIBDIR = "/usr/lib";
-#endif
 
-#ifdef RAMDISK
-/* MINIX paths for RAM disk (mostly PC/ATs with large extended memory */
-char *PP     = "/lib/cpp";
-char *CEM    = "/lib/cem";
-char *OPT    = "/lib/opt";
-char *CG     = "/lib/cg";
-char *ASLD   = "/bin/asld";
-char *AST    = "/bin/ast";
-char *SHELL  = "/bin/sh";
-char *LIBDIR = "/lib";
-#endif
-
-#ifdef RAMDISK
-struct arglist LD_HEAD =    {1, { "/lib/crtso.s" } };
-struct arglist M_LD_HEAD =  {1, { "/lib/mrtso.s" } };
-struct arglist LD_TAIL =    {2, { "/lib/libc.a", "/lib/end.s" } };
-#else
 struct arglist LD_HEAD =    {1, { "/usr/lib/crtso.s" } };
 struct arglist M_LD_HEAD =  {1, { "/usr/lib/mrtso.s" } };
 struct arglist LD_TAIL =    {2, { "/usr/lib/libc.a", "/usr/lib/end.s" } };
-#endif
-
-
 
 char *o_FILE = "a.out"; /* default name for executable file */
 
@@ -131,10 +76,6 @@ USTRING BASE;
 char *tmpdir = "/tmp";
 char tmpname[15];
 
-#ifdef DEBUG
-int noexec = 0;
-#endif
-
 trapcc(sig)
 	int sig;
 {
@@ -148,7 +89,7 @@ trapcc(sig)
 }
 
 main(argc, argv)
-	char *argv[];
+char *argv[];
 {
 	register char *f;
 	char *str;
@@ -199,10 +140,6 @@ main(argc, argv)
 			break;
 		case 'v':
 			v_flag++;
-#ifdef DEBUG
-			if (str[2] == 'n')
-				noexec = 1;
-#endif DEBUG
 			break;
 		case 'T':
 			tmpdir = &str[2];
@@ -565,13 +502,10 @@ ex_vec(vec)
 	register struct arglist *vec;
 {
 	extern int errno;
+	static char *dum_env[1] = (char *) 0;
 
-#ifdef DEBUG
-	if (noexec)
-		exit(0);
-#endif
 	vec->al_argv[vec->al_argc] = 0;
-	execv(vec->al_argv[1], &(vec->al_argv[1]));
+	execve(vec->al_argv[1], &(vec->al_argv[1]), dum_env);
 	if (errno == ENOEXEC) { /* not an a.out, try it with the SHELL */
 		vec->al_argv[0] = SHELL;
 		execv(SHELL, &(vec->al_argv[0]));

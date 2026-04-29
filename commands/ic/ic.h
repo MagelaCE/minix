@@ -165,7 +165,7 @@ typedef  struct  ic_state		/*  State of int. calc.	*/
 
 
 
-int   Sigint();
+void  Sigint();
 int   Process();
 int   Enter_Numeric();
 int   Get_Char();

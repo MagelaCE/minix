@@ -18,8 +18,9 @@
 
 
 
-#include <stdio.h>
+#include <sys/types.h>
 #include <signal.h>
+#include <stdio.h>
 
 #include "ic.h"
 
@@ -27,7 +28,6 @@
 
 
 static char copyright[] = { "ic    (c) Terrence W. Holm 1988" };
-
 
 
 
@@ -59,7 +59,7 @@ main( argc, argv )
 
 
 
-  if ( Init_Termcap() == NULL )
+  if ( Init_Termcap() == 0 )
     {
     fprintf( stderr, "ic requires a termcap entry\n" );
     exit( 1 );
@@ -145,8 +145,8 @@ Init_State( s )
 /****************************************************************/
 
 
-Sigint()
-
+void Sigint(sig)
+int sig;
   {
   Reset_Term();		/*  Restore terminal characteristics	*/
 
@@ -406,7 +406,7 @@ int Process( s, c )
     case 'w' :  case ESC_PGUP :		/*  Write tos to a file	*/
 
 		{
-		if ( (int) s->scratch_pad == NULL )
+		if ( (int) s->scratch_pad == (int) NULL )
 		  {
 		  /*  Try to open a scratch pad file  */
 

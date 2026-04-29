@@ -1,4 +1,4 @@
-CFLAGS	= -Di8088  -F
+CFLAGS	= -F -D_MINIX -D_POSIX_SOURCE
 DEOBJ   = de.s de_stdin.s de_stdout.s de_diskio.s de_recover.s
 
 de:	$(DEOBJ)

@@ -1,10 +1,18 @@
 /* The <signal.h> header defines all the ANSI and POSIX signals.
- * MINIX supports all the signals required by POSIX.  They are defined below.
+ * MINIX supports all the signals required by POSIX. They are defined below.
  * Some additional signals are also supported.
  */
 
 #ifndef _SIGNAL_H
 #define _SIGNAL_H
+
+/* Here are types that are closely associated with signal handling. */
+typedef int sig_atomic_t;
+
+#ifdef	_POSIX_SOURCE
+typedef unsigned short sigset_t;
+#endif
+
 
 #define _NSIG             16	/* number of signals used */
 
@@ -42,10 +50,6 @@
 #ifdef _POSIX_SOURCE
 #define SA_NOCLDSTOP       1	/* signal parent if child stops */
 
-/* Here are types that are closely associated with signal handling. */
-typedef int		sig_atomic_t;
-typedef unsigned short	sigset_t;
-
 #endif /* _POSIX_SOURCE */
 
 /* POSIX requires these values for use on system calls involving signals. */
@@ -53,22 +57,27 @@ typedef unsigned short	sigset_t;
 #define SIG_UNBLOCK        1	/* for unblocking signals */
 #define SIG_SETMASK        2	/* for setting the signal mask */
 
+#ifndef _ANSI_H
+#include <ansi.h>
+#endif
+
 /* Macros used as function pointers and one awful prototype. */
 #if _ANSI
 #define SIG_DFL		((void (*)(int))0)	/* default signal handling */
 #define SIG_IGN		((void (*)(int))1)	/* ignore signal */
 #define SIG_ERR		((void (*)(int))-1)
 
-void (*signal(int sig, void (*func)(int)))(int);
+void (*signal(int _sig, void (*_func)(int)))(int);
 
-#ifdef _POSIX_SOURCE		/* otherwise sigset_t is not defined */
+#ifdef _POSIX_SOURCE
 struct sigaction {
   void (*sa_handler)(int);	/* SIG_DFL, SIG_IGN, or pointer to function */
   sigset_t sa_mask;		/* signals to be blocked during handler */
   int sa_flags;			/* special flags */
 };
 #endif
-#else
+
+#else	/* !_ANSI */
 #define SIG_DFL		((void (*)())0)		/* default signal handling */
 #define SIG_IGN		((void (*)())1)		/* ignore signal */
 #define SIG_ERR		((void (*)())-1)
@@ -82,27 +91,24 @@ struct sigaction {
   int sa_flags;			/* special flags */
 };
 #endif
-#endif
+
+#endif	/* _ANSI */
 
 /* Function Prototypes. */
-#ifndef _ANSI_H
-#include <ansi.h>
-#endif
-
-_PROTOTYPE( int raise, (int __sig)					     );
+_PROTOTYPE( int raise, (int _sig)					);
 
 #ifdef _POSIX_SOURCE
-_PROTOTYPE( int kill, (pid_t __pid, int __sig)				     );
-_PROTOTYPE( int sigaddset, (sigset_t *__set)				     );
-_PROTOTYPE( int sigdelset, (sigset_t *__set)				     );
-_PROTOTYPE( int sigemptyset, (sigset_t *__set)				     );
-_PROTOTYPE( int sigfillset, (sigset_t *__set)				     );
-_PROTOTYPE( int sigismember, (sigset_t *__set, int __signo)		     );
-_PROTOTYPE( int sigpending, (sigset_t *set)				     );
-_PROTOTYPE( int sigprocmask, (int __how, sigset_t *__set, sigset_t *__oset)  );
-_PROTOTYPE( int sigsuspend, (sigset_t *__sigmask)			     );
-_PROTOTYPE( int sigaction, \
-		(int __sig, struct sigaction *__a, struct sigaction *__oact) );
+_PROTOTYPE( int kill, (pid_t _pid, int _sig)				);
+_PROTOTYPE( int sigaddset, (sigset_t *_set)				);
+_PROTOTYPE( int sigdelset, (sigset_t *_set)				);
+_PROTOTYPE( int sigemptyset, (sigset_t *_set)				);
+_PROTOTYPE( int sigfillset, (sigset_t *_set)				);
+_PROTOTYPE( int sigismember, (sigset_t *_set, int _signo)		);
+_PROTOTYPE( int sigpending, (sigset_t *set)				);
+_PROTOTYPE( int sigprocmask, (int _how, sigset_t *_set, sigset_t *_oset));
+_PROTOTYPE( int sigsuspend, (sigset_t *_sigmask)			);
+_PROTOTYPE( int sigaction,
+	    (int _sig, struct sigaction *_a, struct sigaction *_oact)	);
 #endif
 
 #endif /* _SIGNAL_H */

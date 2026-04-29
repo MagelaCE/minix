@@ -21,12 +21,9 @@ h		=/usr/include/minix
 i		=/usr/include
 s		=/usr/include/sys
 
-# Delete next line when C_RS232_INT_HANDLERS is defined in config.h.
-RS2		=rs2.s
-
 KEROBJS		=cstart.s protect.s protect1.s klib.s mpx.s wini.s \
 	table.s main.s tty.s floppy.s system.s proc.s \
-	clock.s memory.s console.s rs232.s $(RS2) printer.s \
+	clock.s memory.s console.s rs232.s rs2.s printer.s \
 	dmp.s exception.s i8259.s misc.s keyboard.s
 SOBJS		=start.s klib.s mpx.s rs2.s
 
@@ -43,7 +40,7 @@ $(BIN)/kernel: $(START) $(KEROBJS) $(LIBS) $(END)
 	$(START) $(KEROBJS) \
 	$(LIBS) $(END) -s > kernel.sym
 	ast -X $(BIN)/kernel kernel.sym
-	rm kernel.sym
+	@rm kernel.sym
 
 clean:
 	@rm -f $(START) $(KEROBJS) $(SOBJS)

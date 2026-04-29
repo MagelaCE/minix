@@ -10,27 +10,27 @@
 #include <ansi.h>
 #endif
 	
-_PROTOTYPE( double acos,  (double __x)					);
-_PROTOTYPE( double asin,  (double __x)					);
-_PROTOTYPE( double atan,  (double __x)					);
-_PROTOTYPE( double atan2, (double __y, double __x)			);
-_PROTOTYPE( double ceil,  (double __x)					);
-_PROTOTYPE( double cos,   (double __x)					);
-_PROTOTYPE( double cosh,  (double __x)					);
-_PROTOTYPE( double exp,   (double __x)					);
-_PROTOTYPE( double fabs,  (double __x)					);
-_PROTOTYPE( double floor, (double __x)					);
-_PROTOTYPE( double fmod,  (double __x, double __y)			);
-_PROTOTYPE( double frexp, (double __x, int *__exp)			);
-_PROTOTYPE( double ldexp, (double __x, int __exp)			);
-_PROTOTYPE( double log,   (double __x)					);
-_PROTOTYPE( double log10, (double __x)					);
-_PROTOTYPE( double modf,  (double __x, double *__iptr)			);
-_PROTOTYPE( double pow,   (double __x, double __y)			);
-_PROTOTYPE( double sin,   (double __x)					);
-_PROTOTYPE( double sinh,  (double __x)					);
-_PROTOTYPE( double sqrt,  (double __x)					);
-_PROTOTYPE( double tan,   (double __x)					);
-_PROTOTYPE( double tanh,  (double __x)					);
+_PROTOTYPE( double acos,  (double _x)					);
+_PROTOTYPE( double asin,  (double _x)					);
+_PROTOTYPE( double atan,  (double _x)					);
+_PROTOTYPE( double atan2, (double _y, double _x)			);
+_PROTOTYPE( double ceil,  (double _x)					);
+_PROTOTYPE( double cos,   (double _x)					);
+_PROTOTYPE( double cosh,  (double _x)					);
+_PROTOTYPE( double exp,   (double _x)					);
+_PROTOTYPE( double fabs,  (double _x)					);
+_PROTOTYPE( double floor, (double _x)					);
+_PROTOTYPE( double fmod,  (double _x, double _y)			);
+_PROTOTYPE( double frexp, (double _x, int *_exp)			);
+_PROTOTYPE( double ldexp, (double _x, int _exp)				);
+_PROTOTYPE( double log,   (double _x)					);
+_PROTOTYPE( double log10, (double _x)					);
+_PROTOTYPE( double modf,  (double _x, double *_iptr)			);
+_PROTOTYPE( double pow,   (double _x, double _y)			);
+_PROTOTYPE( double sin,   (double _x)					);
+_PROTOTYPE( double sinh,  (double _x)					);
+_PROTOTYPE( double sqrt,  (double _x)					);
+_PROTOTYPE( double tan,   (double _x)					);
+_PROTOTYPE( double tanh,  (double _x)					);
 
 #endif /* _MATH_H */

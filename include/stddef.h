@@ -3,16 +3,12 @@
 #ifndef _STDDEF_H
 #define _STDDEF_H
 
-#define NULL	((void *) 0)
+#define NULL   ((void *)0)
 
-/* The final exam will not cover the material present on the next two lines. */
-#define offsetof(T,m)	((size_t) (((char *) &(((T *) 256)->m)) - \
-						       ((char *) ((T *) 256))))
+/* The following is not portable, but the compiler accepts it. */
+#define offsetof(type, ident)		((size_t) &(((type *)0)->ident))
 
-#ifndef _PTRDIFF_T
-#define _PTRDIFF_T
 typedef int ptrdiff_t;		/* result of subtracting two pointers */
-#endif
 
 #ifndef _SIZE_T
 #define _SIZE_T

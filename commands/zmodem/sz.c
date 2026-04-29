@@ -59,6 +59,8 @@
 
 char *substr(), *getenv();
 
+#include <sys/types.h>
+
 #ifdef vax11c
 #define BADSEEK
 #define TXBSIZE 32768		/* Must be power of two, < MAXINT */
@@ -80,6 +82,8 @@ extern int errno;
 
 
 #else	/* vax11c */
+
+void bibi();
 
 
 #define SS_NORMAL 0
@@ -221,7 +225,8 @@ jmp_buf tohere;		/* For the interrupt on RX timeout */
 jmp_buf intrjmp;	/* For the interrupt on RX CAN */
 
 /* called by signal interrupt or terminate to clean things up */
-bibi(n)
+void bibi(n)
+int n;
 {
 	canit(); fflush(stdout); mode(0);
 	fprintf(stderr, "sz: caught signal %d; exiting\n", n);
@@ -233,7 +238,8 @@ bibi(n)
 	exit(128+n);
 }
 /* Called when ZMODEM gets an interrupt (^X) */
-onintr()
+void onintr(sig)
+int sig;
 {
 	signal(SIGINT, SIG_IGN);
 	longjmp(intrjmp, -1);
@@ -923,7 +929,8 @@ register char *f;
 }
 
 
-alrm()
+void alrm(sig)
+int sig;
 {
 	longjmp(tohere, -1);
 }

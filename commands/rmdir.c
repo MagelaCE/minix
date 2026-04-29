@@ -40,6 +40,7 @@ char *dirname;
   struct stat s, cwd;		/* buffers for `stat' call */
   int fd = 0;
   int sl = 0;
+  int n;
   char dots[PATH_MAX];		/* scratch buffer for dirname */
   register char *p;
 
@@ -65,6 +66,15 @@ char *dirname;
 	return;
   }
 
+  /* If path ends in /., fix it (e.g., /usr/ast/. ==> /usr/ast). */
+  while (1) {
+	n = strlen(dirname);
+	if (n > 2 && dirname[n-2] == '/' && dirname[n-1] == '.') 
+		dirname[n-2] = 0;
+	else
+		break;
+  }
+  
   /* Are we trying to remove "." or ".." ? */
   if (p = strrchr(dirname, '/'))
 	p++;

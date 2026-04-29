@@ -1,13 +1,13 @@
 /* unshar - extract files from a shell archive	Author: Warren Toomey */
 
 
-/* Unshar - extract files from shell archive 
+/* Unshar - extract files from shell archive
  *
  * Written by Warren Toomey [wkt@csadfa.oz.au@munnari.oz@uunet.uu.net] You may
  * freely copy or give away this source as long as this notice remains
- * intact. 
+ * intact.
  *
- * Definitions used by unshar 
+ * Definitions used by unshar
  */
 
 
@@ -33,13 +33,11 @@
 #define GRES 	   2
 #define CAT	   3
 
-/* The list of emulation types. */
-static char *token[NUMTOKS]=
-{
-  "",
-  "sed",
-  "gres",
-  "cat"
+static char *token[NUMTOKS] =	/* The list of emulation types ! */
+{"",
+ "sed",
+ "gres",
+ "cat"
 };
 
 
@@ -87,8 +85,7 @@ char *buf;			/* how == NOWHITE */
 }
 
 
-
-char *getstring(buf)		/* Get the next string from the buffer */
+char * getstring(buf)		/* Get the next string from the buffer */
 char *buf;			/* ignoring any quotes */
 {
   char out[BUFSIZE];
@@ -100,6 +97,9 @@ char *buf;			/* ignoring any quotes */
   if (verbose) printf("In getstring...\n");
   *temp = 0;
   while (ok) {			/* Parse line */
+#ifdef DEBUG
+	if (verbose) printf("*%s*\n", out);
+#endif
 	switch (*buf) {
 	    case '\"':
 	    case '\'':
@@ -109,7 +109,7 @@ char *buf;			/* ignoring any quotes */
 	    case 0:
 	    case '\n':		/* Stop on <, >, NULL */
 	    case '>':		/* \n, and sometimes */
-	        case '<':	ok = 0;	break;	/* space & tab */
+	    case '<':	ok = 0;	break;	/* space & tab */
 	    case '\t':
 	    case ' ':
 		if (!inquotes) ok = 0;
@@ -128,7 +128,7 @@ char *buf;			/* ignoring any quotes */
 }
 
 
-int firstword(buf)			/* Return token value of first word */
+int firstword(buf)		/* Return token value of first word */
 char *buf;			/* in the buffer. Assume no leading */
 {				/* whitespace in the buffer */
   int i;
@@ -152,18 +152,24 @@ char *s1;			/* files to extract. Return 0 if not */
 }
 
 
-void extract(how, file, end, lead)	/* Extract file, up until end word */
+void extract(how, file, end, lead, append)
 int how;			/* If how==YESX, then ignore lead   */
 char *file;			/* character on every line */
-char *end;
+char *end;			/* Also append file if append==1 */
 int lead;
+char append;
 {
+/* Extract file, up until end of word */
+
   FILE *zout;
   char line[BUFSIZE];
   char *temp;
   int ch;
 
-  zout = fopen(file, "w");	/* Open output file */
+  if (append)
+	zout = fopen(file, "a");/* Append output file */
+  else
+	zout = fopen(file, "w");/* Open output file */
   if (zout == NULL) {
 	perror("unshar1");
 	return;
@@ -188,10 +194,11 @@ int lead;
 }
 
 
-void getnames(buf, file, word)	/* Get the file & end word */
+int getnames(buf, file, word)	/* Get the file & end word */
 char *buf, *file, *word;	/* from the buffer */
-{
+{				/* Return true if a >> */
   char *temp;
+  char append = 0;
 
   temp = buf;
   if (verbose) printf("Getnames: buf is %s\n", buf);
@@ -199,16 +206,20 @@ char *buf, *file, *word;	/* from the buffer */
   while (*temp != 0) {		/* Scan along buffer */
 	switch (*temp) {	/* Get file or end word */
 	    case '>':
+		if (*(++temp) == '>') {
+			++temp;	/* Skip 2nd > */
+			append = 1;
+		}
 		strcpy(file, getstring(++temp));	/* Get the file name */
 		break;
 	    case '<':
 		if (*(++temp) == '<') ++temp;	/* Skip 2nd < */
 		strcpy(word, getstring(temp));	/* Get next word */
 		break;
-	    default:
-		temp++;
+	    default:	temp++;
 	}
   }
+  return(append);
 }
 
 
@@ -218,7 +229,7 @@ void disembowel()
   char buf[BUFSIZE];		/* Line buffer */
   char file[BUFSIZE];		/* File name */
   char word[BUFSIZE];		/* Word buffer */
-  int ch, x;
+  int ch, x, app;
 
   if (verbose) printf("Entering disembowel\n");
   x = 'X';			/* Leading X character */
@@ -231,13 +242,13 @@ void disembowel()
 	switch (firstword(buf)) {	/* Extract, depending on first word */
 	    case CAT:
 		if (verbose) printf("About to do getnames\n");
-		getnames(buf, file, word);
+		app = getnames(buf, file, word);
 		if (table == 0) {
 			if ((numext == 0) || (mustget(file))) {
 				printf("unshar: Extracting  %s\n", file);
 				if (verbose)
 					printf("        stopping at %s\n", word);
-				extract(NOX, file, word, x);
+				extract(NOX, file, word, x, app);
 			}
 		} else
 			printf("  %s\n", file);
@@ -245,19 +256,18 @@ void disembowel()
 	    case GRES:
 	    case SED:
 		if (verbose) printf("About to do getnames\n");
-		getnames(buf, file, word);
+		app = getnames(buf, file, word);
 		if (table == 0) {
 			if ((numext == 0) || (mustget(file))) {
 				printf("unshar: Extracting  %s\n", file);
 				if (verbose)
 					printf("        stopping at %s\n", word);
-				extract(YESX, file, word, x);
+				extract(YESX, file, word, x, app);
 			}
 		} else
 			printf("  %s\n", file);
 		break;
-	    default:
-		break;
+	    default:	break;
 	}
   }
 }
@@ -292,13 +302,21 @@ char *argv[];
 	    case 't':
 		table = 1;	/* Get the various options */
 		break;
-	        case 'b':	method = BRUTAL;	break;
-	        case 'v':	verbose = 1;	break;
+
+	    case 'b':	
+		method = BRUTAL;	
+		break;
+
+	    case 'v':	
+		verbose = 1;	
+		break;
+
 	    case 'x':
 		exfile[numext] = (char *) malloc(strlen(optarg) + 1);
 		strcpy(exfile[numext++], optarg);
 		break;
-	    default:
+
+	    default:	
 		usage();
 	}
 

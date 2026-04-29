@@ -17,6 +17,8 @@
  *	- Originally written in BDS C;
  *	- Adapted for standard C by W. N. Paul
  *	- Heavily hacked up to conform to "real" nroff by Bill Rosenkranz
+ *	- Adapted the justification of lines with escape codes 
+ *	  by Wim 'Blue Baron' van Dorst (wsincc@tuerc3.urc.tue.nl)
  */
 
 #undef NRO_MAIN					/* extern globals */
@@ -124,11 +126,7 @@ register char  *p;
 	{
 		/*
 		 *   anything else...
-		 *
-		 *   init escape char counter for this line...
 		 */
-		co.outesc = 0;
-
 
 		/*
 		 *   get a word and put it out. increment ptr to the next
@@ -136,8 +134,6 @@ register char  *p;
 		 */
 		while ((i = getwrd (p, wrdbuf)) > 0)
 		{
-			co.outesc += countesc (wrdbuf);
-
 			putwrd (wrdbuf);
 			p += i;
 		}
@@ -517,7 +513,8 @@ register char  *wrdbuf;
 	w     = width (wrdbuf);
 	last  = strlen (wrdbuf) + co.outp;
 	llval = dc.rmval - dc.tival;
-	if (((co.outp > 0) && ((co.outw + w) > llval))
+	co.outesc += countesc (wrdbuf);
+	if (((co.outp > 0) && ((co.outw + w - co.outesc) > llval))
 	||   (last > MAXLINE))
 	{
 		/*
@@ -529,6 +526,12 @@ register char  *wrdbuf;
 		{
 			nextra = llval - co.outw + 1;
 
+			/*
+			 *	Do not take in the escape char of the
+			 * 	word that didn't fit on this line anymore
+			 */
+			 co.outesc -= countesc (wrdbuf);
+			
 			/* 
 			 *	Check whether last word was end of
 			 *	sentence and modify counts so that
@@ -539,16 +542,12 @@ register char  *wrdbuf;
 				--co.outp;
 				++nextra;
 			}
-			spread (co.outbuf, co.outp - 1, nextra, co.outwds, co.outesc);
-			if ((nextra > 0) && (co.outwds > 1))
+			spread (co.outbuf, co.outp - 1, nextra, 
+							co.outwds, co.outesc);
+			if ((nextra + co.outesc > 0) && (co.outwds > 1))
 			{
-				co.outp += (nextra - 1);
+				co.outp += (nextra + co.outesc - 1);
 			}
-/*			if (co.outesc > 0)
-			{
-				co.outp += co.outesc;
-			}
-*/
 		}
 
 		/*
@@ -634,27 +633,18 @@ int		escapes;
 	/*
 	 *   quick sanity check...
 	 */
-	if ((nextra <= 0) || (outwds <= 1))
+	if ((nextra + escapes < 1) || (outwds < 2))
 		return;
-
-
-/*fflush (out_stream); fprintf (err_stream, "in spread: escapes = %d\n", escapes); fflush (err_stream);*/
-
 
 	/*
 	 *   set up for the spread and do it...
 	 */
 	dc.sprdir = ~dc.sprdir;
-	ne        = nextra;
+	ne        = nextra + escapes;
 	nholes    = outwds - 1;			/* holes between words */
 	i         = outp - 1;			/* last non-blank character */
 	j         = min (MAXLINE - 3, i + ne);	/* leave room for CR,LF,EOS */
-/*
-	j        += escapes;
-	if (p[i-1] == 27)
-		j += 2;
-	j = min (j, MAXLINE - 3);
-*/
+
 	while (i < j)
 	{
 		p[j] = p[i];

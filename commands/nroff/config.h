@@ -1,14 +1,18 @@
+/* nroff/config.h
+ * Adapted for compatibility with Minix 1.5.5 nroff/Makefile
+ * by Wim 'Blue Baron' van Dorst (wsincc@tuerc3.urc.tue.nl)
+ */
 #ifndef CONFIG_H
 #define CONFIG_H
 
 /*
- *	for diffent os, define tos, unix, or minix. for gemdos, pick
+ *	for different os, define tos, unix, or _MINIX. for gemdos, pick
  *	a compiler (alcyon, mwc, etc). see makefile for VERSFLAGS.
  *
  *	for atari TOS, do:	cc -Dtos -Dalcyon ...
  *
- *	for minix, do:		cc -Dminix -DatariST ...	(ST minix)
- *				cc -Dminix ...			(PC minix)
+ *	for Minix, do:		cc -D_MINIX -DatariST ...	(ST minix)
+ *				cc -D_MINIX ...			(PC minix)
  *
  *	for unix, do:		cc -Dunix ...			(generic)
  *				cc -Dunix -DBSD...		(BSD)
@@ -46,20 +50,13 @@
 # endif
 #endif
 
-#ifdef minix
-# define register
-# define _MINIX
-# undef tos
-# undef unix
-# undef GEMDOS
-# undef MINIX_ST
-# undef MINIX_PC
-# undef UNIX
-# ifdef atariST
-#  define MINIX_ST
-# else
-#  define MINIX_PC
-# endif
+#ifdef _MINIX
+#   define register
+#   ifdef atariST
+#      define MINIX_ST
+#   else
+#      define MINIX_PC
+#   endif
 #endif
 
 #ifdef unix

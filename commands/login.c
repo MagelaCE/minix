@@ -72,13 +72,7 @@ extern char *crypt();
 extern struct passwd *getpwnam();
 extern long time();
 extern long lseek();
-
-
-void Time_out()
-{
-   time_out = 1;
-}
-
+void Time_out();
 
 void wtmp(line, user)
 char *line;			/* tty device name */
@@ -171,7 +165,7 @@ char *tty;			/* name of terminal line */
   }
   close(fd);
 }
-#endif BADLOG
+#endif /* BADLOG */
 
 
 void show_file(nam)
@@ -213,7 +207,7 @@ char *argv[];
   args.sg_erase = '\b';
   args.sg_flags |= (XTABS | CRMOD | ECHO);
   ioctl(0, TIOCSETP, &args);
-#endif NOGETTY
+#endif /* NOGETTY */
 
   /* Look up /dev/tty number. */
   fstat(0, &statbuf);
@@ -269,7 +263,7 @@ char *argv[];
 		    strcmp(pwd->pw_passwd, crypt(password, pwd->pw_passwd))) {
 #ifdef BADLOG
 			addlog(name, password, ttyname);
-#endif BADLOG
+#endif /* BADLOG */
 			write(1, "Login incorrect\n", 16);
 			continue;
 		}
@@ -329,3 +323,11 @@ char *argv[];
 	exit(1);
   }
 }
+
+
+void Time_out()
+{
+   time_out = 1;
+}
+
+

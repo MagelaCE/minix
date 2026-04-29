@@ -115,7 +115,7 @@ FILE *fopen_read(BYTE *), *fopen_write(BYTE *);
 
 #if USE_MACROS
 void calcchecksum(int);
-#endif USE_MACROS
+#endif /* USE_MACROS */
 
 #else /* !LATTICE */	/* For compilers which don't know about prototypes. */
 

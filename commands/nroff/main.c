@@ -22,6 +22,12 @@
  *	- Originally written in BDS C;
  *	- Adapted for standard C by W. N. Paul
  *	- Heavily hacked up to conform to "real" nroff by Bill Rosenkranz
+ *	- Changed array index i from type long to type int (32000 is the
+ *	  largest value anyhow) to prevent compiler warnings
+ *	  by Wim 'Blue Baron' van Dorst (wsincc@tuerc3.urc.tue.nl)
+ *	- Changed termcap capabilities md/me, changed handling and
+ * 	  removed the unused standout references
+ *	  by Wim 'Blue Baron' van Dorst (wsincc@tuerc3.urc.tue.nl)
  */
 
 #define NRO_MAIN			/* to define globals in nro.h */
@@ -84,13 +90,11 @@ char   *argv[];
 	/*
 	 *   atari/TOS is easy...
 	 */
-	strcpy (s_standout, "\33p");
-	strcpy (e_standout, "\33q");
+	strcpy (s_bold, "\33p");
+	strcpy (e_bold, "\33q");
 	strcpy (s_italic, "\33p");
 	strcpy (e_italic, "\33q");
 #else
-	s_standout[0] = '\0';
-	e_standout[0] = '\0';
 	s_italic[0]   = '\0';
 	e_italic[0]   = '\0';
 	s_bold[0]     = '\0';
@@ -99,8 +103,8 @@ char   *argv[];
 	&& (tgetent (termcap, pterm) == 1))
 	{
 		/*
-		 *   we currently use standout mode for all weirdness
-		 *   lile BOLD, italic, etc.
+		 *  termcap capabilities md/me for bold, us/ue for italic,
+		 *  so/se if all else fails
 		 */
 		pcap = capability;
 		if (ps = tgetstr ("so", &pcap))
@@ -113,36 +117,45 @@ char   *argv[];
    would be to use tputs() to remove the padding and write a new string
    but i am lazy... */
 			while (*ps && *ps != 0x1B)	ps++;
-			strcpy (s_standout, ps);
 			strcpy (s_italic, ps);
 			strcpy (s_bold, ps);
 		}
 		if (ps = tgetstr ("se", &pcap))
 		{
 			while (*ps && *ps != 0x1B)	ps++;
-			strcpy (e_standout, ps);
 			strcpy (e_italic, ps);
 			strcpy (e_bold, ps);
 		}
-		if (ps = tgetstr ("us", &pcap))
-		{
-			while (*ps && *ps != 0x1B)	ps++;
-			strcpy (s_italic, ps);
-		}
+		/*
+		 * Because the type faces are actually exclusive and
+		 * the terminal capabilities are not the one has turn
+		 * the other off before starting itself
+		 */
+		/* End Italic */
 		if (ps = tgetstr ("ue", &pcap))
 		{
 			while (*ps && *ps != 0x1B)	ps++;
 			strcpy (e_italic, ps);
 		}
-		if (ps = tgetstr ("ms", &pcap))
-		{
-			while (*ps && *ps != 0x1B)	ps++;
-			strcpy (s_bold, ps);
-		}
+		/* End Bold */
 		if (ps = tgetstr ("me", &pcap))
 		{
 			while (*ps && *ps != 0x1B)	ps++;
 			strcpy (e_bold, ps);
+		}
+		/* Start Italic */
+		if (ps = tgetstr ("us", &pcap))
+		{
+			while (*ps && *ps != 0x1B)	ps++;
+			strcpy (s_italic, e_bold);
+			strcat (s_italic, ps);
+		}
+		/* Start Bold */
+		if (ps = tgetstr ("md", &pcap))
+		{
+			while (*ps && *ps != 0x1B)	ps++;
+			strcpy (s_bold, e_italic);
+			strcat (s_bold, ps);
 		}
 	}
 #endif
@@ -271,7 +284,7 @@ init ()
 
 	extern long	time ();
 
-	register long	i;
+	register int	i;
 	time_t		tval;
 	char	       *ctim;
 

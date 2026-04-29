@@ -27,7 +27,7 @@
 #include <minix/callnr.h>
 #include <minix/com.h>
 #include <minix/partition.h>
-  
+
 #define MAX_DRIVES         2	/* only one supported (hd0 - hd4) */
 
 /* I/O Ports used by winchester disk task. */
@@ -652,7 +652,7 @@ int mode;
  *				init_params				      *
  *===========================================================================*/
 
- PRIVATE void init_params()
+PRIVATE void init_params()
 {
 /* This routine is called at startup to initialize the partition table,
  * the number of drives and the controller

@@ -8,7 +8,7 @@
 
 size_t strxfrm(s1, s2, n)
 char *s1;
-char *s2;
+_CONST char *s2;
 size_t n;
 {
   strncpy(s1, s2, n);

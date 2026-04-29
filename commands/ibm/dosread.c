@@ -404,7 +404,7 @@ register char *pathname;
 					bcopy(dir_ptr, &save_entry, DIR_SIZE);
 					dir_ptr = &save_entry;
 				}
-				(void) brk(mem);
+				(void) brk( (char *) mem);
 			}
 			return dir_ptr;
 		} else {
@@ -418,7 +418,7 @@ register char *pathname;
 			}
 		}
 	}
-	if (mem) (void) brk(mem);
+	if (mem) (void) brk( (char *) mem);
   } while (cl_no != LAST_CLUSTER && mem);
 
   switch (function) {
