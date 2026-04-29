@@ -22,15 +22,15 @@ char **argv;
         /*
          * Initialize global variables:
          */
-        Beginact =
-        Endact =
-        Rules =
-        Rulep =
+        Beginact = (char *) 0;
+        Endact = (char *) 0;
+        Rules = (struct rule *) 0;
+        Rulep = (struct rule *) 0;
 #ifdef DEBUG
-        Debug =
+        Debug = 0;
 #endif
-        Filename =
-        Linecount =
+        Filename = (char *) 0;
+        Linecount = 0;
         Saw_break = 0;
         Stackptr = Stackbtm - 1;
         Stacktop = Stackbtm + MAXSTACKSZ;
@@ -42,12 +42,16 @@ char **argv;
         /*
          * Parse command line
          */
-        while ( --argc > 0 && **(++argv) == '-')
+
+	argv ++ ;
+	argc -- ;
+	
+        while ( argc > 0 && *argv[0] == '-')
         {
                 /*
                  * Process dash options.
                  */
-                switch ( *(++(*argv)) )
+                switch ( *(argv[0] + 1) )
                 {
 #ifdef DEBUG
                 case 'd':
@@ -55,14 +59,14 @@ char **argv;
                         break;
 #endif
 		case 'F':
-			Fieldsep[0] = *(*argv+1);
+			Fieldsep[0] = *(argv[0] + 1);
 			Fieldsep[1] = '\0';
 			break;
 
 		case 'f':
-			++argv; --argc;
+			argv++ ; argc-- ;
 			if ( gotrules || argc <= 0 ) usage();
-                        if ( !strcmp( *argv, '-' ) )
+                        if ( !strcmp( *argv, "-" ) )
                                 newfile( (char *)NULL );
                         else
 				newfile( *argv );
@@ -74,6 +78,8 @@ char **argv;
 			goto dosomething;
                 default: usage();
                 }
+
+		argv++ ; argc -- ;
         }
 
     dosomething:
@@ -88,7 +94,7 @@ char **argv;
                          */
                         if ( ++didfile == 1 && Beginact )
                                 doaction( Beginact );
-                        if ( !strcmp( *argv, '-' ) )
+                        if ( !strcmp( *argv, "-" ) )
                                 newfile( (char *)NULL );
                         else
                                 newfile( *argv );
@@ -121,6 +127,8 @@ char **argv;
         }
         if ( Endact )
                 doaction( Endact );
+
+	exit(0) ;
 }
 
 /*
@@ -168,9 +176,9 @@ compile()
 
                         if ( Rulep && Rulep->action )
                         {
-                                Rulep->nextrule = getmem( sizeof( *Rulep ) );
+                                Rulep->nextrule = (struct rule *)getmem((unsigned int) sizeof( *Rulep ) );
                                 Rulep = Rulep->nextrule;
-                                fillmem( Rulep, sizeof( *Rulep ), 0 );
+                                fillmem((char *) Rulep, sizeof( *Rulep ), 0 );
                         }
                         if ( !Rulep )
                         {
@@ -179,10 +187,10 @@ compile()
                                  * Allocate the first Rules structure and
                                  * initialize it
                                  */
-                                Rules = Rulep = getmem( sizeof( *Rulep ) );
-                                fillmem( Rulep, sizeof( *Rulep ), 0 );
+                                Rules = Rulep = (struct rule *) getmem( (unsigned int) sizeof( *Rulep ) );
+                                fillmem((char *) Rulep, sizeof( *Rulep ), 0 );
                         }
-                        Rulep->action = getmem( len );
+                        Rulep->action = getmem((unsigned int) len );
                         movemem( Workbuf, Rulep->action, len );
                 }
                 else if ( c==',' )
@@ -203,7 +211,7 @@ compile()
                                 error( "already have a stop pattern",
                                         RE_ERROR );
                         len = pat_compile( Workbuf );
-                        Rulep->pattern.stop = getmem( len );
+                        Rulep->pattern.stop = getmem((unsigned int) len );
                         movemem( Workbuf, Rulep->pattern.stop, len );
                 }
                 else
@@ -226,7 +234,7 @@ compile()
                                  * action into special "Beginact" buffer.
                                  */
                                 len = act_compile( Workbuf );
-                                Beginact = getmem( len );
+                                Beginact = getmem((unsigned int) len );
                                 movemem( Workbuf, Beginact, len );
                                 continue;
                         }
@@ -237,7 +245,7 @@ compile()
                                  * action into special "Endact" buffer.
                                  */
                                 len = act_compile( Workbuf );
-                                Endact = getmem( len );
+                                Endact = getmem((unsigned int) len );
                                 movemem( Workbuf, Endact, len );
                                 continue;
                         }
@@ -247,9 +255,9 @@ compile()
                                  * Already saw a pattern/action - link in
                                  * another Rules structure.
                                  */
-                                Rulep->nextrule = getmem( sizeof( *Rulep ) );
+                                Rulep->nextrule = (struct rule *) getmem((unsigned int) sizeof( *Rulep ) );
                                 Rulep = Rulep->nextrule;
-                                fillmem( Rulep, sizeof( *Rulep ), 0 );
+                                fillmem((char *) Rulep, sizeof( *Rulep ), 0 );
                         }
                         if ( !Rulep )
                         {
@@ -258,14 +266,14 @@ compile()
                                  * Allocate the first Rules structure and
                                  * initialize it
                                  */
-                                Rules = Rulep = getmem( sizeof( *Rulep ) );
-                                fillmem( Rulep, sizeof( *Rulep ), 0 );
+                                Rules = Rulep = (struct rule *) getmem((unsigned int) sizeof( *Rulep ) );
+                                fillmem((char *) Rulep, sizeof( *Rulep ), 0 );
                         }
                         if ( Rulep->pattern.start )
                                 error( "already have a start pattern",
                                         RE_ERROR );
 
-                        Rulep->pattern.start = getmem( len );
+                        Rulep->pattern.start = getmem((unsigned int) len );
                         movemem( Workbuf, Rulep->pattern.start, len );
                 }
         }
@@ -380,7 +388,7 @@ char *delim;
                  * word, just in case user wants to copy a larger string
                  * into a field.
                  */
-                wrdlst[ wrdcnt ] = getmem( MAXLINELEN );
+                wrdlst[ wrdcnt ] = getmem((unsigned int) MAXLINELEN );
                 strcpy( wrdlst[ wrdcnt++ ], wrdbuf );
         }
 
@@ -485,6 +493,8 @@ char *s;
                 Fileptr = stdin;
                 Filename = "standard input";
         }
+
+	return s ;
 }
 
 strfile( s )
@@ -585,7 +595,7 @@ endfile()
 {
 	if ( Fileptr != (FILE *)NULL && Fileptr != stdin )
 	        fclose( Fileptr );
-        Filename = Linecount = 0;
+        Filename = (char *) 0 ; Linecount = 0;
 }
 
 error( s, severe )

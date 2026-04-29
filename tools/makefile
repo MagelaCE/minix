@@ -46,15 +46,16 @@ menu.s: menu.c
 # 'make net' does the same thing, only with the networking code from the
 # 'amoeba directory included
 #
-image:	build bootblok 
+image:	build bootblok init menu ../kernel/kernel ../mm/mm ../fs/fs
 	@getlf "Insert blank diskette in drive 0 and hit return"
 	@build bootblok ../kernel/kernel ../mm/mm ../fs/fs init menu image
 	@cp image /dev/fd0
 
-net:	build bootblok 
+net:	build bootblok init menu
 	@getlf "Insert blank diskette in drive 0 and hit return"
 	@build bootblok ../amoeba/kernel/kernel ../amoeba/mm/mm \
-		../amoeba/fs/fs init menu /dev/fd0
+		../amoeba/fs/fs init menu net_image
+	@cp net_image /dev/fd0
 
 clean:	
 	@rm -f *.bak

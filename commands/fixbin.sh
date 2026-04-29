@@ -44,28 +44,18 @@ chown bin *
 
 #The following files are setuid root
 chown root $dst/at
-chown root $dst/badblocks
-chown root $dst/chgrp
-chown root $dst/de
 chown root $dst/df
-chown root $dst/fsck
 chown root $dst/login
 chown root $dst/mv
 chown root $dst/passwd
-chown root $dst/readall
 chown root $dst/recover
 chown root $dst/su
 
 chmod 4755 $dst/at
-chmod 4755 $dst/badblocks
-chmod 4755 $dst/chgrp
-chmod 4755 $dst/de
 chmod 4755 $dst/df
-chmod 4755 $dst/fsck
 chmod 4755 $dst/login
 chmod 4755 $dst/mv
 chmod 4755 $dst/passwd
-chmod 4755 $dst/readall
 chmod 4755 $dst/recover
 chmod 4755 $dst/su
 
@@ -86,6 +76,7 @@ chmem =50000 $dst/file
 chmem =50000 $dst/find
 chmem =60000 $dst/fix
 chmem =60000 $dst/fsck
+chmem =60000 $dst/indent
 chmem =10000 $dst/last
 chmem =20000 $dst/make
 chmem =10000 $dst/man
@@ -109,7 +100,7 @@ chmem =60000 $dst/tar
 chmem =60000 $dst/treecmp
 
 # remove old linked files and make new ones
-rm -rf chip uncompress zcat
+rm -rf chip uncompress zcat ex vi
 ln machine chip
 ln compress uncompress
 ln compress zcat

@@ -39,6 +39,7 @@
 #define F2		  60
 #define F3		  61
 #define F4		  62
+#define F5		  63
 #define F8		  66
 #define F9		  67
 #define F10		  68
@@ -367,14 +368,30 @@ char ch;			/* scan code of key just struck or released */
   switch(code - 0200) {
     case 0:	shift1 = make;		break;	/* shift key on left */
     case 1:	shift2 = make;		break;	/* shift key on right */
-    case 2:	control = make;		break;	/* control */
-    case 3:	alt = make;		break;	/* alt key */
-    case 4:	if (make && caps_off) {
+    case 2:
+#if KEYBOARD_84
+/* Until IBM invented the 101-key keyboard, the CTRL key was always to the
+ * left of the 'A'.  This fix puts it back there on the 101-key keyboard.
+ */
+		if (make && caps_off) {
 			capslock = 1 - capslock;
 			set_leds();
 		}
-		caps_off = 1 - make;
-		break;	/* caps lock */
+		caps_off = 1 - make;    break;	/* caps lock */
+#else
+		control = make;		break;	/* control */
+#endif
+    case 3:	alt = make;		break;	/* alt key */
+    case 4:	
+#if KEYBOARD_84
+		control = make;		break;	/* control */
+#else
+		if (make && caps_off) {
+			capslock = 1 - capslock;
+			set_leds();
+		}
+		caps_off = 1 - make;    break;	/* caps lock */
+#endif
     case 5:	if (make && num_off) {
 			numlock  = 1 - numlock;
 			set_leds();
@@ -553,11 +570,14 @@ char ch;			/* scan code for a function key */
   if (ch == F1) p_dmp();	/* print process table */
   if (ch == F2) map_dmp();	/* print memory map */
   if (ch == F3) toggle_scroll();	/* hardware vs. software scrolling */
+
 #if AM_KERNEL
 #if !NONET
-  if (ch == F4) net_init();	/* re-initialise the ethernet card */
-#endif /* !NONET */
+  if (ch == F4) net_init();	/* Re-initialise the ethernet card */
+#endif
+  if (ch == F5) amdump();	/* Dump Amoeba statistics. */
 #endif /* AM_KERNEL */
+
   if (ch == F8 && control) sigchar(&tty_struct[CONSOLE], SIGINT);
   if (ch == F9 && control) sigchar(&tty_struct[CONSOLE], SIGKILL);
   return(TRUE);

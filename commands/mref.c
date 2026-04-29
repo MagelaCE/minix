@@ -186,12 +186,15 @@ char *argv[];
   /* Read all the files. Make the listing and extract the symbols. */
   for (j = i; j < argc; j++) process(argv[j]);
 
-  /* Read all the files again and generate the cross refererence data. */
-  cur_line = 0;
-  for (j = i; j < argc; j++) gen_xref(argv[j]);
+  if (xref) {
+	/* Read all the files again and generate the cross
+	 * refererence data. */
+	cur_line = 0;
+	for (j = i; j < argc; j++) gen_xref(argv[j]);
 
-  /* Go get the cross reference data and print it. */
-  collect_xref();
+	/* Go get the cross reference data and print it. */
+	collect_xref();
+  }
 
   /* Print the symbol table. */
   if (definitions) print_sym();

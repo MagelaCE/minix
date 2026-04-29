@@ -18,12 +18,12 @@
 /* Definitions about shorts (16 bits in MINIX). */
 #define SHRT_MIN  (-32767-1)	/* minimum value of a short */
 #define SHRT_MAX       32767	/* maximum value of a short */
-#define USHRT_MAX      65535	/* maximum value of unsigned short */
+#define USHRT_MAX     0xFFFF	/* maximum value of unsigned short */
 
 /* Definitions about ints (16 bits in MINIX for 8088, 80286, Atari etc) */
 #define INT_MIN   (-32767-1)	/* minimum value of an int */
 #define INT_MAX        32767	/* maximum value of an int */
-#define UINT_MAX       65535	/* maximum value of an unsigned int */
+#define UINT_MAX      0xFFFF	/* maximum value of an unsigned int */
 
 /*Definitions about longs (32 bits in MINIX). */
 #define LONG_MIN (-2147483647-1)/* minimum value of a long */
@@ -41,7 +41,7 @@
 #define _POSIX_NGROUPS_MAX 0	/* supplementary group IDs are optional */
 #define _POSIX_OPEN_MAX   16	/* a process may have 16 files open */
 #define _POSIX_PATH_MAX  255	/* a pathname may contain 255 chars */
-#define _POSIX_PIPE_BUF  512	/* pipes writes of 512 bytes are atomic */
+#define _POSIX_PIPE_BUF  512	/* pipes writes of 512 bytes must be atomic */
 
 /* Values actually implemented by MINIX (Tables 2-3, 2-4, and 2-5). */
 /* Some of these old names had better be defined when not POSIX. */
@@ -56,7 +56,7 @@
 #define MAX_INPUT        255	/* size of the type-ahead buffer */
 #define NAME_MAX          14	/* # chars in a file name */
 #define PATH_MAX         255	/* # chars in a path name */
-#define PIPE_BUF         512	/* # bytes in atomic write to a pipe */
+#define PIPE_BUF        7168	/* # bytes in atomic write to a pipe */
 
 #endif /* _POSIX_SOURCE */
 

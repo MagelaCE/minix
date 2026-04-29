@@ -17,6 +17,7 @@ cuserid.s
 dup.s
 execlp.s
 access.s
+fcntl.s
 ffs.s
 nlist.s
 fread.s

@@ -11,6 +11,7 @@
 .define	_cp_mess	| copies messages from source to destination
 .define	_exit		| dummy for library routines
 .define	.fat		| dummy for library routines
+.define _get_byte	| read a byte from anywhere and return it
 .define	_in_byte	| read a byte from a port and return it
 .define	_klib_1hook	| init from real mode for real or protected mode
 .define	_klib_2hook	| init from protected mode for real or protected mode
@@ -332,6 +333,23 @@ _exit:
 .trp:
 	sti
 	j _exit
+
+|*===========================================================================*
+|*				get_byte				     *
+|*===========================================================================*
+| PUBLIC u16_t get_byte(u16_t segment, 16_t *offset);
+| Load and return the byte at the far pointer  segment:offset.
+
+_get_byte:
+	mov	cx,ds		| save ds
+	pop	dx		| return adr
+	pop	ds		| segment
+	pop	bx		| offset
+	sub	sp,#2+2		| adjust for parameters popped
+	movb	al,(bx)		| load the byte to return
+	xorb	ah,ah		| 
+	mov	ds,cx		| restore ds
+	jmp	(dx)		| return
 
 
 |*===========================================================================*

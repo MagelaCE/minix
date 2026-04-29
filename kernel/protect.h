@@ -24,6 +24,13 @@
 #define DB_DS_INDEX     16	/* debugger DS */
 #define GDT_INDEX       17	/* GDT DS for debugger */
 #define FIRST_LDT_INDEX 18	/* rest of descriptors are LDT's */
+#if AM_KERNEL
+#if !NONET
+#undef FIRST_LDT_INDEX
+#define EPLUS_INDEX	18	/* Western Digital Etherplus buffer */
+#define FIRST_LDT_INDEX 19	/* rest of descriptors are LDT's */
+#endif /* NONET */
+#endif /* AM_KERNEL */
 
 #define BIOS_GDT_SELECTOR 0x08	/* (BIOS_GDT_INDEX * DESC_SIZE) bad for asld */
 #define BIOS_IDT_SELECTOR 0x10	/* (BIOS_IDT_INDEX * DESC_SIZE) */
@@ -40,6 +47,11 @@
 #define DB_CS16_SELECTOR  0x78	/* (DB_CS16_INDEX * DESC_SIZE) */
 #define DB_DS_SELECTOR    0x80	/* (DB_DS_INDEX * DESC_SIZE) */
 #define GDT_SELECTOR      0x88	/* (GDT_INDEX * DESC_SIZE) */
+#if AM_KERNEL
+#if !NONET
+#define EPLUS_SELECTOR	  0x91	/* (EPLUS_INDEX * DESC_SIZE) */
+#endif /* AM_KERNEL */
+#endif /* NONET */
 
 /* Fixed local descriptors. */
 #define CS_LDT_INDEX     0	/* process CS */

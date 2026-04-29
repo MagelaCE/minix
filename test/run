@@ -22,7 +22,5 @@ test19
 test20
 test21
 echo All system call tests completed.
+echo Try running sh1 and sh2.
 
-echo " "
-sh1
-sh2

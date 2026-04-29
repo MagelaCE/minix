@@ -11,6 +11,7 @@ char *argv[];
   register char *name;
   char *crypt();
   char *shell = "/bin/sh";
+  char *shell2 = "/usr/bin/sh";
   int nr;
   char password[14];
   struct sgttyb args;
@@ -47,6 +48,7 @@ char *argv[];
   setuid(pwd->pw_uid);
   if (pwd->pw_shell[0]) shell = pwd->pw_shell;
   execl(shell, shell, "-i", (char *) 0);
+  execl(shell2, shell2, "-i", (char *) 0);
   std_err("No shell\n");
   exit(3);
 }

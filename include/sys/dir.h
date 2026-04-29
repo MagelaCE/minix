@@ -1,9 +1,9 @@
 /* The <dir.h> header gives the layout of a directory. */
 
-#ifndef _SYS_DIR_H
-#define _SYS_DIR_H
+#ifndef _DIR_H
+#define _DIR_H
 
-#ifndef _SYS_TYPES_H		/* not quite right */
+#ifndef _TYPES_H		/* not quite right */
 #include <sys/types.h>
 #endif
 
@@ -18,4 +18,4 @@ struct direct {
   char d_name[DIRSIZ];
 };
 
-#endif /* _SYS_DIR_H */
+#endif /* _DIR_H */

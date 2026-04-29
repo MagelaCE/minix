@@ -62,7 +62,7 @@ typedef char *va_list;
 #endif /*  _MINIX */
 
 #define HELPFILE	"/usr/lib/more.help"
-#define VI		"/usr/ucb/elvis"
+#define VI		"/usr/bin/vi"
 
 #define Fopen(s,m)	(Currline = 0,file_pos=0,fopen(s,m))
 #define Ftell(f)	file_pos

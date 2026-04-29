@@ -102,6 +102,11 @@
 #define MONO_BASE    0xB0000L	/* base of mono video memory */
 #define MONO_SIZE     0x8000L	/* maximum usable mono video memory */
 
+/* What memory address the Etherplus card will use as the starting
+   address of its 8K buffer. If conflicts arise, change EPLUS_BASE. */
+#define EPLUS_BASE   0xC8000L
+#define EPLUS_SIZE    0x2000L
+
 /* Cursor shape is needed by debugger as well as console driver. */
 #define CURSOR_SHAPE      15	/* block cursor for MDA/HGC/CGA/EGA/VGA... */
 

@@ -4,8 +4,8 @@
  * with _t.
  */
 
-#ifndef _SYS_TYPES_H
-#define _SYS_TYPES_H
+#ifndef _TYPES_H
+#define _TYPES_H
 
 /* The type size_t holds the result of the size_of operator.  At first glance,
  * it seems obvious that it should be an unsigned int, but this is not always 
@@ -32,4 +32,4 @@ typedef long		off_t;	  /* offsets within a file */
 typedef int		pid_t;	  /* type for pids (must be signed) */
 typedef unsigned short	uid_t;	  /* user id */
 
-#endif /* _SYS_TYPES_H */
+#endif /* _TYPES_H */

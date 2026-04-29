@@ -2112,6 +2112,7 @@ int gflg, pflag;
 
 /*	system.c	*/
 #define SHELL	"/bin/sh"
+#define SHELL2	"/usr/bin/sh"
 
 system(c)
 char *c;
@@ -2123,6 +2124,7 @@ char *c;
 	return -1;
       case 0:
 	execl(SHELL, "sh", "-c", c, (char *) 0);
+	execl(SHELL2, "sh", "-c", c, (char *) 0);
 	exit(-1);
       default:	while (wait(&status) != pid);
 }

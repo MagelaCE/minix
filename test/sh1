@@ -1,4 +1,4 @@
-# Shell script used to test MINIX.
+# Shell script used to test MINIX.[T
 
 echo -n "Shell test  1 "
 rm -rf testdir
@@ -41,7 +41,9 @@ if cmp -s p q; then : ; else echo Error on ar test 1; fi
 date >r
 ar r x.a p q r 2>/dev/null
 ar r x.a /bin/cp
-ar rb p x.a /bin/cat
+# ar syntax is different for IBM and 68000
+if chip INTEL;  then ar rb p x.a /bin/cat; fi
+if chip M68000; then ar r x.a /bin/cat; fi
 rm p q
 mv r R
 ar x x.a

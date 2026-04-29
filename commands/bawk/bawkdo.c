@@ -35,7 +35,8 @@ expression()
         if ( Token==T_ASSIGN )
         {
                 getoken();
-                assignment( expression() );
+		expression();
+                assignment();
         }
 }
 

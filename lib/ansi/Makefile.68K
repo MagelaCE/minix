@@ -1,0 +1,13 @@
+CFLAGS= -c -O -D_MINIX -D_POSIX_SOURCE
+
+$f.o:	$f.c
+	@echo ------------------------------ $f ------------------------------
+	@cc $(CFLAGS) $f.c
+
+
+clean:	
+	@rm -rf *.o *.bak
+
+
+all:	
+	@cc $(CFLAGS) *.c

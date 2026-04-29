@@ -8,6 +8,6 @@ make :	$(OBJS)
 	$(CC) -i -o make $(OBJS)
  
 clean:	
-	rm -f *.s *.bak make core
+	@rm -f *.s *.bak make core
 
 $(OBJS): h.h

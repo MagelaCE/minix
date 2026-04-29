@@ -639,7 +639,7 @@ int area;
 	register struct here *h, *hl;
 
 	hl = NULL;
-	for (h = acthere; h != NULL; hl = h, h = h->h_next)
+	for (h = acthere; h != NULL; h = h->h_next)
 		if (getarea(h) >= area) {
 			if (h->h_iop->io_name != NULL)
 				unlink(h->h_iop->io_name);
@@ -647,7 +647,8 @@ int area;
 				acthere = h->h_next;
 			else
 				hl->h_next = h->h_next;
-		}
+		} else
+			hl = h;
 }
 
 tempname(tname)

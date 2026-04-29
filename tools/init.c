@@ -51,7 +51,7 @@
 #define LOGIN2		"/usr/bin/login"
 #define GETTY		"/etc/getty"	/* GETTY for dial IN/OUT */
 
-#define PIDSLOTS	4		/* maximum number of ttys entries */
+#define PIDSLOTS	8		/* maximum number of ttys entries */
 #define TTYSBUF		(8 * PIDSLOTS)	/* buffer for reading /etc/ttys */
 #define STACKSIZE	(192 * sizeof(char *))	/* init's stack */
 

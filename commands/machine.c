@@ -80,66 +80,6 @@ char **argv;
     else exit(1);
 #endif
 
-#if (MACHINE == IBM_386)
-    if (argc == 1) {
-      printf("IBM_386\n");
-      exit(0);
-    }
-    else
-    if (strcmp(argv[1], "IBM_386") == 0) exit(0);
-    else exit(1);
-#endif
-
-#if (MACHINE == IBM_486)
-    if (argc == 1) {
-      printf("IBM_486\n");
-      exit(0);
-    }
-    else
-    if (strcmp(argv[1], "IBM_486") == 0) exit(0);
-    else exit(1);
-#endif
-
-#if (MACHINE == IBM_586)
-    if (argc == 1) {
-      printf("IBM_586\n");
-      exit(0);
-    }
-    else
-    if (strcmp(argv[1], "IBM_586") == 0) exit(0);
-    else exit(1);
-#endif
-
-#if (MACHINE == PS2_30)
-    if (argc == 1) {
-      printf("PS2_30\n");
-      exit(0);
-    }
-    else
-    if (strcmp(argv[1], "PS2_30") == 0) exit(0);
-    else exit(1);
-#endif
-
-#if (MACHINE == PS2_50)
-    if (argc == 1) {
-      printf("PS2_50\n");
-      exit(0);
-    }
-    else
-    if (strcmp(argv[1], "PS2_50") == 0) exit(0);
-    else exit(1);
-#endif
-
-#if (MACHINE == PS2_70)
-    if (argc == 1) {
-      printf("PS2_70\n");
-      exit(0);
-    }
-    else
-    if (strcmp(argv[1], "PS2_70") == 0) exit(0);
-    else exit(1);
-#endif
-
 #if (MACHINE == SUN_4)
     if (argc == 1) {
       printf("SUN_4\n");
@@ -181,8 +121,6 @@ char **argv;
 #endif
 
 #if (MACHINE != IBM_PC) & \
-    (MACHINE != IBM_386) & (MACHINE != IBM_486) & (MACHINE != IBM_586) & \
-    (MACHINE != PS2_30) & (MACHINE != PS2_50) & (MACHINE != PS2_70) & \
     (MACHINE != SUN_4) & \
     (MACHINE != ATARI) & (MACHINE != AMIGA) & (MACHINE != MACINTOSH)
     if (argc == 1) printf("unknown\n");
