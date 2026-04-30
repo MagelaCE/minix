@@ -24,12 +24,12 @@ typedef unsigned int size_t;
 
 #ifndef _TIME_T
 #define _TIME_T
-typedef unsigned long time_t;	/* time in sec since 1 Jan 1970 0000 GMT */
+typedef long time_t;		/* time in sec since 1 Jan 1970 0000 GMT */
 #endif
 
 #ifndef _CLOCK_T
 #define _CLOCK_T
-typedef unsigned long clock_t;	/* time in ticks since process started */
+typedef long clock_t;		/* time in ticks since process started */
 #endif
 
 struct tm {

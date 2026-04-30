@@ -91,11 +91,6 @@ main()
 {
   int n;
 
-  if (geteuid() != 0) {
-	printf("Test 18 must be setuid root; test aborted\n");
-	exit(1);
-  }
-
   if (fork()) {
 	printf("Test 18 ");
 	fflush(stdout);		/* have to flush for child's benefit */
@@ -1002,7 +997,7 @@ make_and_fill_dirs()
 {
   int mode, i;
 
-  for (i = 0; i < 8; i++) makedir(dir[i], 040700, 0);
+  for (i = 0; i < 8; i++) mkdir(dir[i], 0700);
   setuid(USER_ID);
   setgid(GROUP_ID);
 
@@ -1293,15 +1288,7 @@ clean_up_the_mess()
 	strcpy(dirname, "d");
 	strcat(dirname, fnames[i]);
 	/* 'dirname' contains the directoryname */
-
-	strcpy(filename, dirname);
-
-	strcpy(dotdot, filename);
-	strcat(dotdot, "/.");
-	unlink(dotdot);
-	strcat(dotdot, ".");
-	unlink(dotdot);
-	unlink(filename);
+	rmdir(dirname);
   }
 
   /* FINISH */
@@ -1326,24 +1313,6 @@ int sw;				/* if switch == 8, give all different
   }
 }
 
-
-
-
-
-makedir(name, mode, val)
-char *name;
-int mode, val;
-{
-  char dotdot[80];
-
-  if (mknod(name, mode, val, 0) != 0)
-	printf("mknod(%s,%o,%o) failed\n", name, mode, val);
-  chown(name, USER_ID, GROUP_ID);
-  strappend(dotdot, name, "/.");
-  if (link(name, dotdot) != OK) printf("can't link . to %s\n", name);
-  strappend(dotdot, name, "/..");
-  if (link(".", dotdot) != OK) printf("can't link .. in %s\n", name);
-}
 
 strappend(d, s1, s2)
 char *d, *s1, *s2;

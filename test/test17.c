@@ -85,15 +85,13 @@ char *file[20] = {"f0", "f1", "f2", "f3", "f4", "f5", "f6",
 /*****************************************************************************
  *                              TEST                                         *
  ****************************************************************************/
-main()
+main(argc, argv)
+int argc;
+char *argv[];
 {
-  int n;
+  int n, mask;
 
-  if (geteuid() != 0) {
-	printf("Test 17 must be setuid root; test aborted\n");
-	exit(1);
-  }
-
+  mask = (argc == 2 ? atoi(argv[1]) : 0xFFFF);
 
   if (fork()) {
 	printf("Test 17 ");
@@ -106,28 +104,29 @@ main()
 		printf("%d errors\n", errct);
 	exit(0);
   } else {
-	test();
+	test(mask);
 	exit(0);
   }
 }
 
 
 
-test()
+test(mask)
+int mask;
 {
   int n;
   umask(0);			/* not honest, but i always forget */
 
-  test01();
-  make_and_fill_dirs();
-  test02();
-  test08();
-  test09();
-  test10();
-  test11();
-  test12();
-  test13();
-  test14();
+  if (mask & 00001) test01();
+  if (mask & 00002) make_and_fill_dirs();
+  if (mask & 00004) test02();
+  if (mask & 00010) test08();
+  if (mask & 00020) test09();
+  if (mask & 00040) test10();
+  if (mask & 00100) test11();
+  if (mask & 00200) test12();
+  if (mask & 00400) test13();
+  if (mask & 01000) test14();
   umask(022);
 }				/* test */
 
@@ -1207,7 +1206,7 @@ make_and_fill_dirs()
 {
   int mode, i;
 
-  for (i = 0; i < 8; i++) makedir(dir[i], 040700, 0);
+  for (i = 0; i < 8; i++) mkdir(dir[i], 0700);
   setuid(USER_ID);
   setgid(GROUP_ID);
 
@@ -1496,16 +1495,9 @@ clean_up_the_mess()
   for (i = 0; i < 8; i++) {
 	strcpy(dirname, "d");
 	strcat(dirname, fnames[i]);
+
 	/* 'dirname' contains the directoryname */
-
-	strcpy(filename, dirname);
-
-	strcpy(dotdot, filename);
-	strcat(dotdot, "/.");
-	unlink(dotdot);
-	strcat(dotdot, ".");
-	unlink(dotdot);
-	unlink(filename);
+	rmdir(dirname);
   }
 
   /* FINISH */
@@ -1530,24 +1522,6 @@ int sw;				/* if switch == 8, give all different
   }
 }
 
-
-
-
-
-makedir(name, mode, val)
-char *name;
-int mode, val;
-{
-  char dotdot[80];
-
-  if (mknod(name, mode, val, 0) != 0)
-	printf("mknod(%s,%o,%o) failed\n", name, mode, val);
-  chown(name, USER_ID, GROUP_ID);
-  strappend(dotdot, name, "/.");
-  if (link(name, dotdot) != OK) printf("can't link . to %s\n", name);
-  strappend(dotdot, name, "/..");
-  if (link(".", dotdot) != OK) printf("can't link .. in %s\n", name);
-}
 
 strappend(d, s1, s2)
 char *d, *s1, *s2;
